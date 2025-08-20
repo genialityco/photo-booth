@@ -11,9 +11,10 @@ const FRAME_BOX: FrameBox = { xPct: 12.5, yPct: 24.5, wPct: 75, hPct: 62 };
 
 export default function CameraPage() {
     const videoRef = useRef<HTMLVideoElement | null>(null);
-    const [rawPhoto, setRawPhoto] = useState<string | null>(null);
-    const [framedPhoto, setFramedPhoto] = useState<string | null>(null);
-    const [photo, setPhoto] = useState<string | null>(null);
+    const [rawPhoto, setRawPhoto] = useState<string | null>(null);       // hueco crudo (input IA)
+    const [framedPhoto, setFramedPhoto] = useState<string | null>(null); // ORIGINAL + marco
+    const [aiPhoto, setAiPhoto] = useState<string | null>(null);         // salida IA (sin marco)
+    const [photo, setPhoto] = useState<string | null>(null);             // para preview (mostramos el con marco)
     const [step, setStep] = useState<"camera" | "preview" | "loading" | "result">("camera");
 
     // Enciende cámara cuando estamos en la vista de cámara
@@ -79,7 +80,7 @@ export default function CameraPage() {
         const sx = Math.round((vw - sw) / 2);
         const sy = Math.round((vh - sh) / 2);
 
-        // 4) RAW (solo hueco)
+        // 4) RAW (solo hueco) — input de IA
         const cRaw = document.createElement("canvas");
         cRaw.width = w;
         cRaw.height = h;
@@ -87,7 +88,7 @@ export default function CameraPage() {
         ctxR.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
         const raw = cRaw.toDataURL("image/png");
 
-        // 5) FRAMED (video en hueco + marco encima)
+        // 5) FRAMED (video en hueco + marco encima) — ORIGINAL + marco
         const cFr = document.createElement("canvas");
         cFr.width = W;
         cFr.height = H;
@@ -98,12 +99,14 @@ export default function CameraPage() {
 
         setRawPhoto(raw);
         setFramedPhoto(framed);
-        setPhoto(framed);
+        setAiPhoto(null); // limpiar IA previa
+        setPhoto(framed); // en preview mostramos el con marco
         setStep("preview");
     };
 
     const processPhoto = async () => {
-        if (!photo) return;
+        // Usamos la captura cruda del hueco como input para la IA
+        if (!rawPhoto) return;
 
         // Apagar cámara
         const stream = (videoRef.current?.srcObject as MediaStream) || null;
@@ -112,14 +115,32 @@ export default function CameraPage() {
 
         setStep("loading");
 
-        setTimeout(async () => {
-            try {
-                setPhoto(photo);
-                setStep("result");
-            } catch (err) {
-                console.error("Error procesando la imagen:", err);
+        try {
+            // Llamada al backend que genera la imagen (usa tu /api/generate)
+            const res = await fetch("/api/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ photo: rawPhoto }), // dataURL base64 del hueco
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data?.url) {
+                console.error("Error de IA:", data?.error || "Respuesta inválida");
+                alert("No se pudo generar la imagen. Intenta de nuevo.");
+                setStep("camera");
+                return;
             }
-        }, 2000);
+
+            // Guardamos la IA sin tocar la foto con marco
+            setAiPhoto(data.url);
+            setPhoto(data.url); // opcional
+
+            setStep("result");
+        } catch (err) {
+            console.error("Error procesando la imagen:", err);
+            alert("Ocurrió un error procesando la imagen.");
+            setStep("camera");
+        }
     };
 
     const download = (dataUrl: string, filename: string) => {
@@ -128,6 +149,7 @@ export default function CameraPage() {
         a.download = filename;
         a.click();
     };
+    
 
     return (
         <div className="min-h-[100svh] w-full grid place-items-center p-4">
@@ -137,7 +159,7 @@ export default function CameraPage() {
                     frameSrc="/images/marco.png"
                     frameBox={FRAME_BOX}
                     onCapture={takePhoto}
-                    />
+                />
             )}
 
             {step === "preview" && photo && (
@@ -153,15 +175,17 @@ export default function CameraPage() {
 
             {step === "loading" && <LoadingView />}
 
-            {step === "result" && rawPhoto && framedPhoto && (
+            {step === "result" && (aiPhoto || rawPhoto) && framedPhoto && (
                 <ResultView
-                    rawPhoto={rawPhoto}
-                    framedPhoto={framedPhoto}
-                    onDownloadRaw={() => download(rawPhoto, "foto_sin_marco.png")}
+                    rawPhoto={aiPhoto || rawPhoto} // ← IA en “Sin marco”
+                    framedPhoto={framedPhoto}      // ← ORIGINAL con marco
+                    onDownloadRaw={() => download((aiPhoto || rawPhoto)!, "foto_sin_marco.png")}
                     onDownloadFramed={() => download(framedPhoto, "foto_con_marco.png")}
                     onRestart={() => {
                         setRawPhoto(null);
                         setFramedPhoto(null);
+                        setAiPhoto(null);
+                        setPhoto(null);
                         setStep("camera");
                     }}
                 />

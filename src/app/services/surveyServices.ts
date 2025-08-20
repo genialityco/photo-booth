@@ -3,7 +3,6 @@
 
 import {
     db,
-    ensureAnonAuth,
     uploadDataUrlAndGetURL,
 } from "../../../firebaseConfig"; // ⬅️ ajusta si usas otra ruta
 import {
@@ -77,26 +76,22 @@ function makeFileId() {
     );
 }
 
-/* =========================
-   1) Crear registro
-   - Sube foto (dataURL) a Storage
-   - Guarda doc en Firestore con todos los campos
-========================= */
+
+
+
 export async function createSurveyRecord(input: {
     qrId: string;                     // viene de /survey?qrId=...
     kind?: "raw" | "framed" | null;   // opcional
     photoDataUrl: string;             // "data:image/png;base64,...."
 } & SurveyForm): Promise<string> {
-    // Asegura sesión anónima en cliente
-    await ensureAnonAuth();
 
     // 1) Subir foto a Storage y obtener URL
     const fileId = makeFileId();
     const photoPath = `survey-submissions/${fileId}.png`;
     const photoUrl = await uploadDataUrlAndGetURL(photoPath, input.photoDataUrl);
-
+    
     // 2) Guardar en Firestore
-    const docRef = await addDoc(collection(db, "surveys"), {
+    const docRef = await addDoc(collection(db, "ImageGenerateIA"), {
         nombre: input.nombre,
         telefono: input.telefono,
         correo: input.correo,
@@ -108,6 +103,8 @@ export async function createSurveyRecord(input: {
         photoPath,
         photoUrl,
     });
+    
+    
 
     return docRef.id;
 }
@@ -116,7 +113,6 @@ export async function createSurveyRecord(input: {
    2) Obtener un registro por ID
 ========================= */
 export async function getSurveyRecord(id: string): Promise<SurveyRecord | null> {
-    await ensureAnonAuth();
     const snap = await getDoc(doc(db, "surveys", id));
     if (!snap.exists()) return null;
     return mapDocToRecord(snap);
@@ -132,7 +128,6 @@ export async function listSurveyRecords(opts?: {
     items: SurveyRecord[];
     nextCursorId: string | null;
 }> {
-    await ensureAnonAuth();
 
     const size = Math.max(1, Math.min(opts?.pageSize ?? 25, 100));
     const baseQ = query(collection(db, "surveys"), orderBy("createdAt", "desc"));
