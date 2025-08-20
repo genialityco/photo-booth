@@ -1,8 +1,37 @@
-// app/components/ResultView.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { QRCodeCanvas } from "qrcode.react";
+import ButtonPrimary from "../items/ButtonPrimary";
+
+function ThanksOverlay({
+    src,
+    onClose,
+}: {
+    src: string;
+    onClose: () => void;
+}) {
+    if (typeof document === "undefined") return null;
+
+    return createPortal(
+        <div
+            className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm grid place-items-center p-2"
+            onClick={onClose} // cerrar al hacer clic fuera
+        >
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
+                <img
+                    src={src}
+                    alt="¡Gracias por haber hecho parte de esta Photo Oportunidad!"
+                    className="block rounded-xl shadow-2xl max-w-[92vw] max-h-[88vh] w-auto h-auto object-contain"
+                />
+
+            </div>
+        </div>,
+        document.body
+    );
+}
 
 interface ResultViewProps {
     rawPhoto: string;
@@ -12,6 +41,8 @@ interface ResultViewProps {
     onRestart: () => void;
     qrRawValue?: string;
     qrFramedValue?: string;
+    thanksImageSrc?: string;
+    actuallyCallPrint?: boolean;
 }
 
 export default function ResultView({
@@ -20,123 +51,116 @@ export default function ResultView({
     onDownloadRaw,
     onDownloadFramed,
     onRestart,
-    qrRawValue = "QR - Foto sin marco",
-    qrFramedValue = "QR - Foto con marco",
+    qrRawValue = "QR - Opción 2 (IA / sin marco)",
+    qrFramedValue = "QR - Opción 1 (Tradicional / con marco)",
+    thanksImageSrc = "/images/Despedida.jpg",
+    actuallyCallPrint = false,
 }: ResultViewProps) {
-    const [thanksRaw, setThanksRaw] = useState(false);
-    const [thanksFramed, setThanksFramed] = useState(false);
+    const router = useRouter();
+    const [showThanks, setShowThanks] = useState(false);
 
-    const handlePrint = (kind: "raw" | "framed") => {
-        // Si quieres abrir la impresión real: window.print();
-        if (kind === "raw") {
-            setThanksRaw(true);
-            setTimeout(() => setThanksRaw(false), 2500);
-        } else {
-            setThanksFramed(true);
-            setTimeout(() => setThanksFramed(false), 2500);
-        }
+    const goHome = () => {
+        setShowThanks(false);
+        router.replace("/camera");
     };
 
+    const handlePrint = (kind: "framed" | "raw") => {
+        if (kind === "framed") onDownloadFramed?.();
+        else onDownloadRaw?.();
+
+        setShowThanks(true);
+        setTimeout(goHome, 10000); // redirige al terminar
+
+        if (actuallyCallPrint) setTimeout(() => window.print(), 150);
+    };
+
+    // cerrar overlay con ESC y redirigir
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && showThanks) goHome();
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [showThanks]);
+
     return (
-        <div className="flex flex-col items-center w-full gap-6">
-            <div className="w-full max-w-6xl space-y-8">
-                {/* ====== Contenedor 1: SIN MARCO ====== */}
-                <div className="bg-white/5 p-4 rounded-2xl border border-white/10 shadow">
-                    <h3 className="font-semibold mb-4">Sin marco</h3>
+        <div className="w-full flex flex-col items-center gap-6 px-4">
+            {/* Título */}
+            <h1 className="text-center font-azo text-3xl md:text-5xl font-extrabold tracking-wide text-[#f3d7b2] drop-shadow">
+                Elige tu photo oportunidad
+            </h1>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Columna grande: imagen */}
-                        <div className="md:col-span-2">
-                            <img
-                                src={rawPhoto}
-                                alt="Foto sin marco"
-                                className="rounded-lg shadow-lg max-h-[70vh] w-full object-contain bg-black/20"
-                            />
+            <div className="w-full max-w-6xl flex flex-col gap-8">
+                {/* ========== OPCIÓN 1: IMAGEN TRADICIONAL (con marco) ========== */}
+                <section className="w-full">
+                    <p className="text-center text-xs md:text-sm font-bold tracking-widest text-[#f3d7b2] mb-3">
+                        OPCIÓN 1. IMAGEN TRADICIONAL
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        {/* Imagen grande */}
+                        <div className="md:col-span-9">
+                            <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden flex items-center justify-center h-[42vh] md:h-[50vh]">
+                                <img
+                                    src={framedPhoto}
+                                    alt="Imagen tradicional (con marco)"
+                                    className="w-full h-full object-contain"
+                                />
+                            </div>
                         </div>
 
-                        {/* Columna lateral: QR + botones */}
-                        <div className="md:col-span-1 flex flex-col items-center gap-4 bg-white/5 p-6 rounded-xl border border-white/10">
-                            <h4 className="font-medium">Código QR</h4>
-                            <div className="bg-white rounded-xl p-4">
-                                <QRCodeCanvas value={qrRawValue} size={180} />
-                            </div>
+                        {/* Panel lateral: QR + Imprimir */}
+                        <aside className="md:col-span-3 flex md:block items-center justify-center">
+                            <div className="flex flex-col items-center gap-3 md:gap-4">
+                                <div className="bg-white rounded-2xl p-3 shadow-xl">
+                                    <QRCodeCanvas value={qrFramedValue} size={128} />
+                                </div>
 
-                            <div className="flex flex-col sm:flex-row gap-3 w-full">
-                                <button
-                                    onClick={onDownloadRaw}
-                                    className="flex-1 px-4 py-3 text-white bg-emerald-600 rounded-xl hover:bg-emerald-700"
-                                >
-                                    Descargar
-                                </button>
-                                <button
-                                    onClick={() => handlePrint("raw")}
-                                    className="flex-1 px-4 py-3 text-white bg-amber-600 rounded-xl hover:bg-amber-700"
-                                >
-                                    Imprimir
-                                </button>
+                                <ButtonPrimary onClick={() => handlePrint("framed")} label="IMPRIMIR" />
                             </div>
-
-                            {thanksRaw && (
-                                <p className="text-emerald-400 font-medium animate-pulse">
-                                    ¡Gracias! Tu impresión está en proceso.
-                                </p>
-                            )}
-                        </div>
+                        </aside>
                     </div>
-                </div>
+                </section>
 
-                {/* ====== Contenedor 2: CON MARCO ====== */}
-                <div className="bg-white/5 p-4 rounded-2xl border border-white/10 shadow">
-                    <h3 className="font-semibold mb-4">Con marco</h3>
+                {/* ========== OPCIÓN 2: IMAGEN IA (por ahora sin marco) ========== */}
+                <section className="w-full">
+                    <p className="text-center text-xs md:text-sm font-bold tracking-widest text-[#f3d7b2] mb-3">
+                        OPCIÓN 2. IMAGEN IA
+                    </p>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Columna grande: imagen */}
-                        <div className="md:col-span-2">
-                            <img
-                                src={framedPhoto}
-                                alt="Foto con marco"
-                                className="rounded-lg shadow-lg max-h-[70vh] w-full object-contain bg-black/20"
-                            />
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        {/* Imagen grande (usa rawPhoto) */}
+                        <div className="md:col-span-9">
+                            <div className="rounded-2xl border border-white/10 bg-black/20 overflow-hidden flex items-center justify-center h-[42vh] md:h-[50vh]">
+                                <img
+                                    src={rawPhoto}
+                                    alt="Imagen IA (sin marco por ahora)"
+                                    className="w-full h-full object-contain"
+                                />
+                            </div>
                         </div>
 
-                        {/* Columna lateral: QR + botones */}
-                        <div className="md:col-span-1 flex flex-col items-center gap-4 bg-white/5 p-6 rounded-xl border border-white/10">
-                            <h4 className="font-medium">Código QR</h4>
-                            <div className="bg-white rounded-xl p-4">
-                                <QRCodeCanvas value={qrFramedValue} size={180} />
-                            </div>
+                        {/* Panel lateral: QR + Imprimir */}
+                        <aside className="md:col-span-3 flex md:block items-center justify-center">
+                            <div className="flex flex-col items-center gap-3 md:gap-4">
+                                <div className="bg-white rounded-2xl p-3 shadow-xl">
+                                    <QRCodeCanvas value={qrRawValue} size={128} />
+                                </div>
 
-                            <div className="flex flex-col sm:flex-row gap-3 w-full">
-                                <button
-                                    onClick={onDownloadFramed}
-                                    className="flex-1 px-4 py-3 text-white bg-emerald-600 rounded-xl hover:bg-emerald-700"
-                                >
-                                    Descargar
-                                </button>
-                                <button
-                                    onClick={() => handlePrint("framed")}
-                                    className="flex-1 px-4 py-3 text-white bg-amber-600 rounded-xl hover:bg-amber-700"
-                                >
-                                    Imprimir
-                                </button>
+                                <ButtonPrimary onClick={() => handlePrint("raw")} label="IMPRIMIR" />
                             </div>
-
-                            {thanksFramed && (
-                                <p className="text-emerald-400 font-medium animate-pulse">
-                                    ¡Gracias! Tu impresión está en proceso.
-                                </p>
-                            )}
-                        </div>
+                        </aside>
                     </div>
-                </div>
+                </section>
             </div>
 
-            <button
-                onClick={onRestart}
-                className="px-6 py-3 text-white bg-neutral-700 rounded-xl hover:bg-neutral-800"
-            >
-                Volver a tomar
-            </button>
+            {/* Botón inferior opcional */}
+
+
+            {/* Overlay “Gracias” adaptativo + redirección */}
+            {showThanks && (
+                <ThanksOverlay src={thanksImageSrc} onClose={goHome} />
+            )}
         </div>
     );
 }
