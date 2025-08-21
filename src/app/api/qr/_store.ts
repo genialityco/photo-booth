@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 type QREntry = { dataUrl: string; kind: "raw" | "framed"; expiresAt: number };
 
 export function getQRStore() {

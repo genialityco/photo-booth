@@ -1,11 +1,12 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import CameraPage from "./camera/page";
 
 export default function Home() {
-  const router = useRouter();
+  // const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
