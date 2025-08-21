@@ -3,13 +3,13 @@
 
 import { useEffect, useState } from "react";
 import {
-  listPrintTaskFolders,
-  type TaskFolder,
-  type TaskFile,
+  listPrintJobsWithFiles,
+  type PrintJob,
+  type PrintJobFile,
 } from "../services/printJobsService";
 
 export default function PrintJobsPage() {
-  const [tasks, setTasks] = useState<TaskFolder[]>([]);
+  const [jobs, setJobs] = useState<(PrintJob & { files?: PrintJobFile[] }) []>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -36,14 +36,14 @@ export default function PrintJobsPage() {
   const fetchPage = async (cursor: string | null = null) => {
     setLoading(true);
     try {
-      const { items, nextCursor: nc } = await listPrintTaskFolders({
+      const { items, nextCursorId } = await listPrintJobsWithFiles({
         pageSize: 6,
-        cursor,
+        cursorId: cursor,
         includeFiles: true,     // 👈 trae archivos de cada carpeta
-        maxFilesPerTask: 100,
+        maxFilesPerJob: 100,
       });
-      setTasks((prev) => (cursor ? [...prev, ...items] : items));
-      setNextCursor(nc);
+      setJobs((prev) => (cursor ? [...prev, ...items] : items));
+      setNextCursor(nextCursorId);
     } finally {
       setLoading(false);
     }
@@ -55,19 +55,19 @@ export default function PrintJobsPage() {
 
   return (
     <div className="px-4 py-6 max-w-7xl mx-auto">
-      {tasks.length === 0 && !loading && (
-        <p className="text-sm text-neutral-500">No hay tasks en prints/.</p>
+      {jobs.length === 0 && !loading && (
+        <p className="text-sm text-neutral-500">No hay print jobs disponibles.</p>
       )}
 
       {/* === GRID DE CARDS, UNA POR CARPETA (taskId) === */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {tasks.map((task) => {
-          const cover = task.coverUrl ?? task.files?.[0]?.photoUrl ?? null;
-          const coverName = task.files?.[0]?.name ?? `${task.taskId}.png`;
+        {jobs.map((job) => {
+          const cover = job.url ?? job.files?.[0]?.url ?? null;
+          const coverName = job.files?.[0]?.name ?? `${job.id}.png`;
 
           return (
             <section
-              key={task.taskId}
+              key={job.id}
               className="border border-white/10 rounded-2xl overflow-hidden bg-black/20 flex flex-col"
             >
               {/* Portada */}
@@ -90,24 +90,24 @@ export default function PrintJobsPage() {
 
               {/* Texto + thumbnails */}
               <div className="p-4 flex flex-col gap-2">
-                <h2 className="text-base font-semibold">Task {task.taskId}</h2>
-                {!!task.updatedAt && (
+                <h2 className="text-base font-semibold">Job {job.id}</h2>
+                {!!job.createdAt && (
                   <p className="text-[11px] text-neutral-400">
-                    Actualizado: {new Date(task.updatedAt).toLocaleString()}
+                    Creado: {new Date(job.createdAt).toLocaleString()}
                   </p>
                 )}
 
-                {task.files?.length ? (
+                {job.files?.length ? (
                   <div className="mt-2 grid grid-cols-3 gap-2">
-                    {task.files.map((f: TaskFile) => (
+                    {job.files.map((f: PrintJobFile) => (
                       <div
                         key={f.path}
                         className="group rounded-md overflow-hidden border border-white/10 bg-white/5"
                         title={f.name}
                       >
-                        <a href={f.photoUrl} target="_blank" rel="noreferrer" className="block">
+                        <a href={f.url} target="_blank" rel="noreferrer" className="block">
                           <img
-                            src={f.photoUrl}
+                            src={f.url}
                             alt={f.name}
                             className="w-full h-24 object-cover group-hover:opacity-90"
                             loading="lazy"
@@ -115,7 +115,7 @@ export default function PrintJobsPage() {
                         </a>
                         <button
                           type="button"
-                          onClick={() => downloadFile(f.photoUrl, f.name)}
+                          onClick={() => downloadFile(f.url, f.name)}
                           className="w-full text-[11px] px-2 py-1 bg-neutral-900/70 hover:bg-neutral-800"
                           aria-label={`Descargar ${f.name}`}
                         >
@@ -143,7 +143,7 @@ export default function PrintJobsPage() {
             {loading ? "Cargando..." : "Cargar más"}
           </button>
         )}
-        {!nextCursor && tasks.length > 0 && (
+        {!nextCursor && jobs.length > 0 && (
           <span className="text-xs text-neutral-500">No hay más resultados.</span>
         )}
       </div>
