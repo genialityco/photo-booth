@@ -18,7 +18,7 @@ export default function PreviewView({
             <img src={photo} alt="Preview" className="rounded-lg shadow-lg max-h-[70vh]" />
             <div className="flex space-x-4">
                 <ButtonDanger onClick={onDiscard} label="Volver a tomar foto" />
-                <ButtonPrimary onClick={onProcess} label="Crear mi foto" />
+                <ButtonPrimary onClick={onProcess} label="Entrar al laboratorio" />
             </div>
         </div>
     );

@@ -12,21 +12,27 @@ import {
 
 export type PrintJob = {
     id: string;
-    name?: string;
-    description?: string;
-    photoUrl?: string | null;
+    cargo?: string;
+    correo?: string;
     createdAt: Date | null;
+    empresa?: string;
+    kind?: string;
+    nombre?: string;
+    photoPath?: string;
+    url?: string | null;
+    qrId?: string;
+    telefono?: string;
 };
 
 export type PrintJobFile = {
     name: string;
     path: string;
-    photoUrl: string;
+    url: string;
     contentType?: string;
     size?: number;
 };
 
-const PRINT_JOBS_COLLECTION = "employes";
+const PRINT_JOBS_COLLECTION = "imageTasks";
 
 function tsToDate(ts: any): Date | null {
     if (!ts) return null;
@@ -40,10 +46,16 @@ function mapDocToJob(d: any): PrintJob {
     const data = d.data() as any;
     return {
         id: d.id,
-        name: data.name ?? data.titulo ?? "",
-        description: data.description ?? data.desc ?? "",
-        photoUrl: data.photoUrl ?? null,
+        cargo: data.cargo ?? "",
+        correo: data.correo ?? "",
         createdAt: tsToDate(data.createdAt),
+        empresa: data.empresa ?? "",
+        kind: data.kind ?? "",
+        nombre: data.nombre ?? data.name ?? data.titulo ?? "",
+        photoPath: data.photoPath ?? "",
+        url: data.url ?? null,
+        qrId: data.qrId ?? "",
+        telefono: data.telefono ?? "",
     };
 }
 
@@ -62,7 +74,7 @@ async function listFilesFromFolderPath(folderPath: string, max = 100): Promise<P
     try {
         const storage = await getStorageOrThrow();                // 👈 pedir Storage aquí
         console.log("storage", storage);
-        
+
         const baseRef = storageRef(storage, folderPath);
         const listing = await listAll(baseRef);
 
@@ -76,7 +88,7 @@ async function listFilesFromFolderPath(folderPath: string, max = 100): Promise<P
                 return {
                     name: itemRef.name,
                     path: itemRef.fullPath,
-                    photoUrl: url,
+                    url: url,
                     contentType: meta?.contentType,
                     size: meta ? Number(meta.size) : undefined,
                 } as PrintJobFile;
@@ -102,10 +114,10 @@ export async function listPrintJobsWithFiles(opts?: {
     const includeFiles = !!opts?.includeFiles;
     const maxFiles = Math.max(1, Math.min(opts?.maxFilesPerJob ?? 50, 500));
 
-    const baseQ = query(collection(db, "employes"), orderBy("createdAt", "desc"));
+    const baseQ = query(collection(db, "imageTasks"), orderBy("createdAt", "desc"));
 
     let q = baseQ;
-    
+
     if (opts?.cursorId) {
         const cursorSnap = await getDoc(doc(db, PRINT_JOBS_COLLECTION, opts.cursorId));
         q = cursorSnap.exists()
@@ -117,22 +129,21 @@ export async function listPrintJobsWithFiles(opts?: {
 
     const snap = await getDocs(q);
     const jobs = snap.docs.map(mapDocToJob);
-        console.log("snap doc", jobs);
     if (includeFiles) {
         await Promise.all(
             jobs.map(async (job, i) => {
-                    // Si el campo es una URL, extrae la carpeta; si es una ruta, úsala directamente
-                    let path: string | null = null;
-                    if (job.photoUrl) {
-                        if (job.photoUrl.startsWith("gs://") || job.photoUrl.startsWith("printJobs/")) {
-                            path = job.photoUrl;
-                        } else {
-                            path = pathFromStorageUrl(job.photoUrl);
-                        }
+                // Si el campo es una URL, extrae la carpeta; si es una ruta, úsala directamente
+                let path: string | null = null;
+                if (job.url) {
+                    if (job.url.startsWith("gs://") || job.url.startsWith("printJobs/")) {
+                        path = job.url;
+                    } else {
+                        path = pathFromStorageUrl(job.url);
                     }
-                    if (!path) return;
-                    const files = await listFilesFromFolderPath(path, maxFiles);
-                    (jobs[i] as PrintJob & { files?: PrintJobFile[] }).files = files;
+                }
+                if (!path) return;
+                const files = await listFilesFromFolderPath(path, maxFiles);
+                (jobs[i] as PrintJob & { files?: PrintJobFile[] }).files = files;
             })
         );
     }
