@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     const body = new FormData();
     body.set("model", MODEL);
     body.set("prompt", PROMPT);
-    body.set("size", "1024x1024");       // 1024x1024 | 1536x1024 | 1024x1536 (según soporte)
+    body.set("size", "512x512");       // 1024x1024 | 1536x1024 | 1024x1536 (según soporte)
     body.set("quality", "high");         // low | medium | high | auto
     body.set("input_fidelity", "high");  // mejor preservación de rostro
     body.set("output_format", "png");    // png | jpeg | webp
