@@ -329,16 +329,16 @@ export default function ResultView({
                   <ButtonPrimary
                     onClick={() => {
                       if (!hostedFramedUrl) return alert("Aún subiendo…");
-                      handlePrintWithLayout(hostedFramedUrl, {
-                        pageWidthMm: 100,
-                        pageHeightMm: 150,
-                        marginMm: 0,
-                        anchor: "top-left",
-                        offsetXmm: 0,
-                        offsetYmm: 0,
-                        imgWidthMm: 220, // 220mm de ancho
-                        imgHeightMm: 220,
-                      });
+                        handlePrintWithLayout(hostedFramedUrl, {
+                          pageWidthMm: 100,
+                          pageHeightMm: 150,
+                          marginMm: 0,
+                          anchor: "top-left",
+                          offsetXmm: 0,
+                          offsetYmm: 0,
+                          imgWidthMm: 100, // igual al ancho de la página
+                          imgHeightMm: 150, // igual al alto de la página
+                        });
                     }}
                     label="IMPRIMIR"
                   />
@@ -382,16 +382,16 @@ export default function ResultView({
                   <ButtonPrimary
                     onClick={() => {
                       if (!hostedRawUrl) return alert("Aún subiendo…");
-                      handlePrintWithLayout(hostedRawUrl, {
-                        pageWidthMm: 100,
-                        pageHeightMm: 150,
-                        marginMm: 0,
-                        anchor: "bottom-right",
-                        offsetXmm: 5,
-                        offsetYmm: 5,
-                        imgWidthMm: 220, // 220mm de ancho
-                        imgHeightMm: 220,
-                      });
+                        handlePrintWithLayout(hostedRawUrl, {
+                          pageWidthMm: 100,
+                          pageHeightMm: 150,
+                          marginMm: 0,
+                          anchor: "bottom-right",
+                          offsetXmm: 5,
+                          offsetYmm: 5,
+                          imgWidthMm: 100, // igual al ancho de la página
+                          imgHeightMm: 150, // igual al alto de la página
+                        });
                     }}
                     label="IMPRIMIR"
                   />

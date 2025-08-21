@@ -1,21 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/services/surveyService.ts
 "use client";
 
 import { db, uploadDataUrlAndGetURL } from "../../firebaseConfig";
 import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
-  startAfter,
-  limit as fqLimit,
-  Timestamp,
   addDoc,
   collection,
   doc,
@@ -34,11 +22,6 @@ import {
 ========================= */
 
 export type SurveyForm = {
-  nombre: string;
-  telefono: string;
-  correo: string;
-  cargo: string;
-  empresa: string;
   nombre: string;
   telefono: string;
   correo: string;
@@ -71,28 +54,9 @@ function tsToDate(ts: any): Date | null {
   if (ts?.toDate) return ts.toDate();
   if (ts instanceof Timestamp) return ts.toDate();
   return null;
-  if (!ts) return null;
-  if (ts instanceof Date) return ts;
-  if (ts?.toDate) return ts.toDate();
-  if (ts instanceof Timestamp) return ts.toDate();
-  return null;
 }
 
 function mapDocToRecord(d: any): SurveyRecord {
-  const data = d.data() as any;
-  return {
-    id: d.id,
-    nombre: data.nombre ?? "",
-    telefono: data.telefono ?? "",
-    correo: data.correo ?? "",
-    cargo: data.cargo ?? "",
-    empresa: data.empresa ?? "",
-    createdAt: tsToDate(data.createdAt),
-    qrId: data.qrId ?? "",
-    kind: (data.kind as "raw" | "framed" | null) ?? null,
-    photoPath: data.photoPath ?? null,
-    photoUrl: data.photoUrl ?? "",
-  };
   const data = d.data() as any;
   return {
     id: d.id,
@@ -113,13 +77,12 @@ function makeFileId() {
   try {
     // @ts-ignore
     if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID() as string;
-  } catch {}
-  // ✅ corregido: backticks
+  } catch { }
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 /* =========================
-   0) Nuevo: subir imagen vía API (evita CORS)
+   0) Subir imagen vía API (evita CORS)
    POST /api/storage/upload  -> { url, path }
 ========================= */
 async function uploadImageViaAPI(params: {
@@ -136,13 +99,11 @@ async function uploadImageViaAPI(params: {
     const text = await res.text().catch(() => "");
     throw new Error(`Fallo subiendo imagen: ${res.status} ${text}`);
   }
-
   return res.json();
 }
 
 /* =========================
-   1) Crear (cuando tienes dataURL) SUBIENDO DESDE CLIENTE CON SDK
-   - Sube con uploadDataUrlAndGetURL y guarda photoUrl/photoPath
+   1) Crear (dataURL) usando SDK del cliente
 ========================= */
 export async function createSurveyRecord(
   input: {
@@ -152,7 +113,6 @@ export async function createSurveyRecord(
   } & SurveyForm
 ): Promise<string> {
   const fileId = makeFileId();
-  // ✅ corregido: backticks
   const photoPath = `survey-submissions/${fileId}.png`;
   const photoUrl = await uploadDataUrlAndGetURL(photoPath, input.photoDataUrl);
 
@@ -173,8 +133,7 @@ export async function createSurveyRecord(
 }
 
 /* =========================
-   1.1) Crear usando FETCH a tu API (recomendado si hay CORS)
-   - El server guarda en Storage y devuelve url/path
+   1.1) Crear usando tu API (recomendado si hay CORS)
 ========================= */
 export async function createSurveyRecordViaFetch(
   input: {
@@ -209,8 +168,7 @@ export async function createSurveyRecordViaFetch(
 }
 
 /* =========================
-   1.2) (Opcional) Crear dos registros a la vez (raw + framed)
-   - Sube ambas imágenes por fetch en paralelo
+   1.2) Crear dos registros (raw + framed) vía API
 ========================= */
 export async function createPairRecordsViaFetch(
   input: {
@@ -257,7 +215,7 @@ export async function createPairRecordsViaFetch(
 }
 
 /* =========================
-   1.3) Crear (rápido) cuando ya tienes URL http/https
+   1.3) Crear cuando ya tienes una URL http/https (o data:)
 ========================= */
 export async function createSurveyRecordQuick(
   input: {
@@ -278,8 +236,6 @@ export async function createSurveyRecordQuick(
     photoPath: null,
     photoUrl: input.photoUrl,
   });
-
-  return docRef.id;
   return docRef.id;
 }
 
@@ -287,9 +243,6 @@ export async function createSurveyRecordQuick(
    2) Obtener un registro por ID
 ========================= */
 export async function getSurveyRecord(id: string): Promise<SurveyRecord | null> {
-  const snap = await getDoc(doc(db, COLLECTION, id));
-  if (!snap.exists()) return null;
-  return mapDocToRecord(snap);
   const snap = await getDoc(doc(db, COLLECTION, id));
   if (!snap.exists()) return null;
   return mapDocToRecord(snap);
@@ -304,23 +257,10 @@ export async function listSurveyRecords(opts?: {
 }): Promise<{
   items: SurveyRecord[];
   nextCursorId: string | null;
-  items: SurveyRecord[];
-  nextCursorId: string | null;
 }> {
   const size = Math.max(1, Math.min(opts?.pageSize ?? 25, 100));
   const baseQ = query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
-  const size = Math.max(1, Math.min(opts?.pageSize ?? 25, 100));
-  const baseQ = query(collection(db, COLLECTION), orderBy("createdAt", "desc"));
 
-  let q = baseQ;
-  if (opts?.cursorId) {
-    const cursorSnap = await getDoc(doc(db, COLLECTION, opts.cursorId));
-    q = cursorSnap.exists()
-      ? query(baseQ, startAfter(cursorSnap), fqLimit(size))
-      : query(baseQ, fqLimit(size));
-  } else {
-    q = query(baseQ, fqLimit(size));
-  }
   let q = baseQ;
   if (opts?.cursorId) {
     const cursorSnap = await getDoc(doc(db, COLLECTION, opts.cursorId));
@@ -334,20 +274,13 @@ export async function listSurveyRecords(opts?: {
   const snap = await getDocs(q);
   const items = snap.docs.map(mapDocToRecord);
   const nextCursorId = snap.docs.length === size ? snap.docs[snap.docs.length - 1].id : null;
-  const snap = await getDocs(q);
-  const items = snap.docs.map(mapDocToRecord);
-  const nextCursorId = snap.docs.length === size ? snap.docs[snap.docs.length - 1].id : null;
 
-  return { items, nextCursorId };
   return { items, nextCursorId };
 }
 
 /* =========================
    4) Helper para extraer la URL
-   4) Helper para extraer la URL
 ========================= */
-export function getPhotoUrlFromRecord(rec: { photoUrl?: string } | null): string | null {
-  return rec?.photoUrl ?? null;
 export function getPhotoUrlFromRecord(rec: { photoUrl?: string } | null): string | null {
   return rec?.photoUrl ?? null;
 }

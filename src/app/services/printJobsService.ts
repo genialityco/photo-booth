@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { db, getStorageOrThrow } from "../../../firebaseConfig"; // 👈 aquí
+import { db, getStorageOrThrow } from "../../firebaseConfig"; // 👈 aquí
 import {
     collection, doc, getDoc, getDocs,
     orderBy, query, startAfter, limit as fqLimit, Timestamp,
