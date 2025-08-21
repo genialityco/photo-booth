@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
@@ -114,67 +114,73 @@ export default function CameraPage() {
     setStep("preview");
   };
 
-const processPhoto = async () => {
-  if (!rawPhoto) return;
+  const processPhoto = async (): Promise<void> => {
+    if (!rawPhoto) return;
 
-  // Apagar cámara
-  const stream = (videoRef.current?.srcObject as MediaStream) || null;
-  stream?.getTracks().forEach((t) => t.stop());
-  if (videoRef.current) videoRef.current.srcObject = null;
+    // 1) Apagar cámara
+    const stream = (videoRef.current?.srcObject as MediaStream | null) || null;
+    stream?.getTracks().forEach((t) => t.stop());
+    if (videoRef.current) videoRef.current.srcObject = null;
 
-  setStep("loading");
+    setStep("loading");
 
-  try {
-    // ⬇️ Enviar como multipart/form-data (no JSON)
-    const fd = new FormData();
-    // Opción 1A (simple, sin convertir a Blob): manda el dataURL como texto
-    fd.append("photoDataUrl", rawPhoto);
-
-    // // Opción 1B (alternativa): si prefieres mandar Blob/archivo
-    // const resBin = await fetch(rawPhoto);
-    // const blob = await resBin.blob();
-    // fd.append("photo", blob, "input.png");
-
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      body: fd, // 👈 sin Content-Type manual
-    });
-
-    // más robusto: lee texto y luego intenta parsear
-    const text = await res.text();
-    if (!res.ok) {
-      console.error("Error de IA:", text);
-      alert("No se pudo generar la imagen. Intenta de nuevo.");
-      setStep("camera");
-      return;
-    }
-    let data: any = {};
     try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      console.error("Respuesta no JSON:", text);
-      alert("Respuesta inválida del generador.");
+      // 2) dataURL -> Blob (mejor que mandar texto)
+      const resBin = await fetch(rawPhoto);
+      const blob = await resBin.blob();
+
+      // 3) Construir multipart/form-data (sin fijar Content-Type manualmente)
+      const fd = new FormData();
+      fd.append("photo", blob, "input.png");
+
+      // // Alternativa (si quieres mandar dataURL como texto):
+      // const fd = new FormData();
+      // fd.append("photoDataUrl", rawPhoto);
+
+      // 4) Llamar a tu API
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        body: fd,
+      });
+
+      // 5) Leer texto siempre (para logs útiles en caso de error)
+      const text = await res.text();
+
+      if (!res.ok) {
+        console.error("Error de IA:", text || `(status ${res.status})`);
+        alert("No se pudo generar la imagen. Intenta de nuevo.");
+        setStep("camera");
+        return;
+      }
+
+      // 6) Parsear JSON
+      let data: { url?: string; error?: string } = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        console.error("Respuesta no JSON:", text);
+        alert("Respuesta inválida del generador.");
+        setStep("camera");
+        return;
+      }
+
+      if (!data?.url) {
+        console.error("Respuesta sin url:", data);
+        alert("No se pudo generar la imagen. Intenta de nuevo.");
+        setStep("camera");
+        return;
+      }
+
+      // 7) Actualizar estado y mostrar resultado
+      setAiPhoto(data.url);
+      setPhoto(data.url);
+      setStep("result");
+    } catch (err) {
+      console.error("Error procesando la imagen:", err);
+      alert("Ocurrió un error procesando la imagen.");
       setStep("camera");
-      return;
     }
-
-    if (!data?.url) {
-      console.error("Respuesta sin url:", data);
-      alert("No se pudo generar la imagen. Intenta de nuevo.");
-      setStep("camera");
-      return;
-    }
-
-    setAiPhoto(data.url);
-    setPhoto(data.url);
-    setStep("result");
-  } catch (err) {
-    console.error("Error procesando la imagen:", err);
-    alert("Ocurrió un error procesando la imagen.");
-    setStep("camera");
-  }
-};
-
+  };
 
   const download = (dataUrl: string, filename: string) => {
     const a = document.createElement("a");
