@@ -42,7 +42,7 @@ export type SurveyRecord = SurveyForm & {
    Config
 ========================= */
 
-const COLLECTION = "employes";
+const COLLECTION = "imageTasks";
 
 /* =========================
    Helpers internos

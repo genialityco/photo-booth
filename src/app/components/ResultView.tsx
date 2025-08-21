@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import ButtonPrimary from "../items/ButtonPrimary";
+import ButtonDanger from "../items/ButtonDanger";
 
 import { getStorageOrThrow } from "../../firebaseConfig";
 
@@ -403,12 +404,10 @@ export default function ResultView({
       </div>
 
       <div className="flex gap-3">
-        <button
+        <ButtonDanger
           onClick={onRestart}
-          className="px-5 py-2 rounded-xl text-white bg-neutral-700 hover:bg-neutral-800"
-        >
-          Volver a tomar
-        </button>
+          label="Volver a tomar"
+        />
       </div>
     </div>
   );

@@ -38,7 +38,28 @@ export default function CameraView({
     return () => img.removeEventListener("load", onLoad);
   }, [frameSrc]);
 
+
   const aspect = frameAR ?? 1;
+
+  // Estado para el contador
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  // Manejar el conteo regresivo
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown === 0) {
+      setCountdown(null);
+      onCapture();
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((c) => (c !== null ? c - 1 : null)), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown, onCapture]);
+
+  // Al presionar el botón, iniciar el conteo
+  const handleCaptureClick = () => {
+    if (countdown === null) setCountdown(3);
+  };
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -87,9 +108,18 @@ export default function CameraView({
           </div>
         )}
 
+        {/* Contador flotante */}
+        {countdown !== null && (
+          <div className="absolute inset-0 grid place-items-center pointer-events-none z-20">
+            <span className="text-white text-7xl font-bold drop-shadow-lg select-none">
+              {countdown}
+            </span>
+          </div>
+        )}
+
         {/* Botones flotantes */}
         <div className="absolute inset-x-0 bottom-[-90px] flex justify-center gap-3">
-          <ButtonPrimary onClick={onCapture} label="TOMAR FOTO" />
+          <ButtonPrimary onClick={handleCaptureClick} label="TOMAR FOTO" disabled={countdown !== null} />
         </div>
       </div>
     </div>
