@@ -202,18 +202,21 @@ function AdminItemCard({ it }: { it: TaskItem }) {
   );
 }
 
+
 export default function AdminList() {
   const [items, setItems] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [qId, setQId] = useState("");
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 5;
   const unsubRef = useRef<undefined | (() => void)>(undefined);
 
   const baseCol = useMemo(() => collection(db, "imageTasks"), []);
 
-  // carga inicial: últimas 50 (más recientes primero)
+  // Cargar todos los datos (sin límite)
   useEffect(() => {
     setLoading(true);
-    const q = query(baseCol, orderBy("createdAt", "desc"), limit(50));
+    const q = query(baseCol, orderBy("createdAt", "desc"));
     const unsub = onSnapshot(
       q,
       (snap) => {
@@ -231,94 +234,51 @@ export default function AdminList() {
     };
   }, [baseCol]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!qId.trim()) return;
+  // Filtrar solo los que están "done"
+  const filtered = items.filter((it) => it.status === "done");
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const paginated = filtered.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
-    // corta suscripción actual de “últimas 50”
-    if (unsubRef.current) {
-      unsubRef.current();
-      unsubRef.current = undefined;
-    }
-
-    setLoading(true);
-    try {
-      const q = query(baseCol, where("__name__", "==", qId.trim()));
-      const s = await getDocs(q);
-      const arr: TaskItem[] = [];
-      s.forEach((d) => arr.push({ id: d.id, ...(d.data() as any) }));
-      setItems(arr);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReset = () => {
-    // re-suscribir a últimas 50
-    setQId("");
-    if (unsubRef.current) {
-      unsubRef.current();
-      unsubRef.current = undefined;
-    }
-    setLoading(true);
-    const q = query(baseCol, orderBy("createdAt", "desc"), limit(50));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const arr: TaskItem[] = [];
-        snap.forEach((d) => arr.push({ id: d.id, ...(d.data() as any) }));
-        setItems(arr);
-        setLoading(false);
-      },
-      () => setLoading(false)
-    );
-    unsubRef.current = unsub;
-  };
+  const handlePrev = () => setPage((p) => Math.max(1, p - 1));
+  const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));
 
   return (
     <section className="w-full">
-      {/* Buscador por taskId */}
-      <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-2">
-        <div className="flex flex-col">
-          <label className="text-xs font-semibold text-neutral-600">Buscar por taskId</label>
-          <input
-            value={qId}
-            onChange={(e) => setQId(e.target.value)}
-            placeholder="t_abcd1234_xxxx"
-            className="mt-1 px-3 py-2 rounded-lg border border-neutral-300 w-[min(80vw,28rem)]"
-          />
-        </div>
-        <button
-          type="submit"
-          className="px-4 py-2 rounded-lg bg-neutral-900 text-white font-semibold disabled:opacity-60"
-          disabled={!qId.trim()}
-        >
-          Buscar
-        </button>
-        <button
-          type="button"
-          onClick={handleReset}
-          className="px-4 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold"
-        >
-          Últimas 50
-        </button>
-      </form>
-
       {/* Cards */}
       <div className="mt-5 grid grid-cols-1 gap-4">
         {loading && (
           <div className="rounded-xl border border-neutral-200 p-4">Cargando…</div>
         )}
 
-        {!loading && items.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div className="rounded-xl border border-neutral-200 p-4">Sin resultados.</div>
         )}
 
-        {items
-          .filter((it) => it.status === "done")
-          .map((it) => <AdminItemCard key={it.id} it={it} />)
-        }
+        {paginated.map((it) => (
+          <AdminItemCard key={it.id} it={it} />
+        ))}
       </div>
+
+      {/* Paginador */}
+      {!loading && totalPages > 1 && (
+        <div className="flex justify-center items-center gap-4 mt-6">
+          <button
+            onClick={handlePrev}
+            disabled={page === 1}
+            className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold disabled:opacity-50"
+          >
+            Anterior
+          </button>
+          <span className="font-bold">Página {page} de {totalPages}</span>
+          <button
+            onClick={handleNext}
+            disabled={page === totalPages}
+            className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold disabled:opacity-50"
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
     </section>
   );
 }
