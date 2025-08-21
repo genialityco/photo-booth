@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     body.set("prompt", PROMPT);
     body.set("size", "auto");       // 1024x1024 | 1536x1024 | 1024x1536 (según soporte)
     body.set("quality", "low");         // low | medium | high | auto
-    body.set("input_fidelity", "medium");  // mejor preservación de rostro
+    body.set("input_fidelity", "high");  // mejor preservación de rostro
     body.set("output_format", "png");    // png | jpeg | webp
     body.append("image", inputBlob, "photo.png");
 
