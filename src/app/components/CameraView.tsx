@@ -69,6 +69,7 @@ export default function CameraView({
             playsInline
             muted
             className="w-full h-full object-cover"
+            style={{ transform:"scaleX(-1)"}}
           />
         </div>
 
