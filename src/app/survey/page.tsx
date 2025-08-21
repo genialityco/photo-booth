@@ -1,230 +1,311 @@
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/survey/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { createSurveyRecord } from "../services/surveyServices";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+// ⬇️ Usa la ruta que YA tienes (plural), con ambos helpers:
+import { createSurveyRecord, createSurveyRecordQuick } from "../services/surveyServices";
 
 type QRResponse =
-    | { ok: true; dataUrl: string; kind: "raw" | "framed" }
-    | { error: string };
-
-async function httpUrlToDataUrl(url: string): Promise<string> {
-    const res = await fetch(url, { cache: "no-store" });
-    const blob = await res.blob();
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = reject;
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(blob);
-    });
-}
+  | { ok: true; dataUrl: string; kind: "raw" | "framed" }
+  | { error: string };
 
 export default function SurveyPage() {
-    const sp = useSearchParams();
-    const router = useRouter();
+  const sp = useSearchParams();
 
-    const src = sp.get("src");                 // URL http(s) directa de la imagen (opcional)
-    const qrId = sp.get("qrId");               // id efímero (si usas /api/qr) (opcional)
-    const kind = (sp.get("kind") as "raw" | "framed") || undefined;
-    const filenameFromQS = sp.get("filename") || undefined;
+  const src = sp.get("src");
+  const qrId = sp.get("qrId");
+  const kind = (sp.get("kind") as "raw" | "framed") || undefined;
+  const filenameFromQS = sp.get("filename") || undefined;
 
-    const [photo, setPhoto] = useState<string>("");   // imagen mostrada (http o dataURL)
-    const [loadingPhoto, setLoadingPhoto] = useState(true);
-    const [err, setErr] = useState<string>("");
+  // Imagen resuelta (http/relativa o data:)
+  const [photo, setPhoto] = useState<string>("");
+  const [loadingPhoto, setLoadingPhoto] = useState(true);
+  const [err, setErr] = useState<string>("");
 
-    const [form, setForm] = useState({
-        nombre: "",
-        telefono: "",
-        correo: "",
-        cargo: "",
-        empresa: "",
-    });
+  // Formulario
+  const [form, setForm] = useState({
+    nombre: "",
+    telefono: "",
+    correo: "",
+    cargo: "",
+    empresa: "",
+  });
 
-    const [sending, setSending] = useState(false);
-    const [ok, setOk] = useState(false);
+  // Flujo de envío/resultado
+  const [sending, setSending] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-    const suggestedName = useMemo(() => {
-        if (filenameFromQS) return filenameFromQS;
-        const base = kind === "framed" ? "foto-con-marco" : "foto-sin-marco";
-        const t = new Date().toISOString().replace(/[:.]/g, "-");
-        return `${base}-${t}.png`;
-    }, [filenameFromQS, kind]);
+  // Descarga (solo después de guardar)
+  const [downloadHref, setDownloadHref] = useState<string>("");
+  const [downloadName, setDownloadName] = useState<string>("");
+  const revokeRef = useRef<null | (() => void)>(null); // por si luego vuelves a usar blob:
 
-    // 1) Cargar imagen real: preferimos ?src=...; si no, usamos ?qrId=...
-    useEffect(() => {
-        let abort = false;
-        (async () => {
-            try {
-                if (src) {
-                    // src debe ser http(s) o /ruta — no cargamos dataURL largo por QR
-                    const absolute =
-                        src.startsWith("/") && typeof window !== "undefined"
-                            ? `${window.location.origin}${src}`
-                            : src;
-                    if (!abort) setPhoto(absolute);
-                    return;
-                }
-                if (qrId) {
-                    console.log("qr id", qrId);
-                    
-                    const res = await fetch(`/api/qr/${qrId}`, { cache: "no-store" });
-                    console.log("res qr", res);
-                    
-                    if (!res.ok) throw new Error("QR inválido o expirado.");
-                    const data = (await res.json()) as QRResponse;
-                    if ("error" in data) throw new Error(data.error);
-                    if (!abort) setPhoto(data.dataUrl); // dataURL desde el store efímero
-                    return;
-                }
-                throw new Error("No se encontró 'src' ni 'qrId' en la URL.");
-            } catch (e: any) {
-                if (!abort) setErr(e.message || "No se pudo cargar la imagen.");
-            } finally {
-                if (!abort) setLoadingPhoto(false);
-            }
-        })();
-        return () => {
-            abort = true;
-        };
-    }, [src, qrId]);
+  const suggestedName = useMemo(() => {
+    if (filenameFromQS) return filenameFromQS;
+    const base = kind === "framed" ? "foto-con-marco" : "foto-sin-marco";
+    const t = new Date().toISOString().replace(/[:.]/g, "-");
+    return `${base}-${t}.png`;
+  }, [filenameFromQS, kind]);
 
-    const handleChange =
-        (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-            setForm((f) => ({ ...f, [key]: e.target.value }));
-
-    // 2) Guardar en Firestore/Storage: si photo es http → convertir a dataURL; si ya es dataURL → directo
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!photo) {
-            setErr("No hay imagen para guardar.");
-            return;
+  // Resolver la imagen sin hacer fetch cross-origin (evita CORS)
+  useEffect(() => {
+    let abort = false;
+    (async () => {
+      try {
+        if (src) {
+          const absolute =
+            src.startsWith("/") && typeof window !== "undefined"
+              ? `${window.location.origin}${src}`
+              : src;
+          if (!abort) setPhoto(absolute);
+          return;
         }
-        setSending(true);
-        setErr("");
-        try {
-            const isHttp = photo.startsWith("http://") || photo.startsWith("https://");
-            const dataUrl = isHttp ? await httpUrlToDataUrl(photo) : photo;
-
-            await createSurveyRecord({
-                qrId: qrId ?? (src ? "from-src" : "unknown"),
-                kind,
-                photoDataUrl: dataUrl, // guardamos EXACTAMENTE lo que se muestra
-                nombre: form.nombre.trim(),
-                telefono: form.telefono.trim(),
-                correo: form.correo.trim(),
-                cargo: form.cargo.trim(),
-                empresa: form.empresa.trim(),
-            });
-
-            setOk(true);
-            setTimeout(() => router.replace("/camera"), 1800);
-        } catch (e: any) {
-            setErr(e.message || "No se pudo guardar la encuesta.");
-        } finally {
-            setSending(false);
+        if (qrId) {
+          const res = await fetch(`/api/qr/${qrId}`, { cache: "no-store" });
+          if (!res.ok) throw new Error("QR inválido o expirado.");
+          const data = (await res.json()) as QRResponse;
+          if ("error" in data) throw new Error(data.error);
+          if (!abort) setPhoto(data.dataUrl); // data: (no requiere CORS)
+          return;
         }
+        throw new Error("No se encontró 'src' ni 'qrId' en la URL.");
+      } catch (e: any) {
+        if (!abort) setErr(e.message || "No se pudo cargar la imagen.");
+      } finally {
+        if (!abort) setLoadingPhoto(false);
+      }
+    })();
+    return () => {
+      abort = true;
     };
+  }, [src, qrId]);
 
-    return (
-        <div className="min-h-screen w-full flex flex-col items-center gap-6 p-4">
-            <h1 className="text-2xl md:text-3xl font-bold">Encuesta</h1>
+  const handleChange =
+    (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
 
-            {loadingPhoto && <p className="text-sm text-white/80">Cargando imagen…</p>}
-            {err && (
-                <div className="max-w-xl w-full p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300">
-                    {err}
-                    <div className="mt-2">
-                        <button
-                            className="px-3 py-1 rounded bg-white/10 hover:bg-white/20"
-                            onClick={() => router.replace("/")}
-                        >
-                            Volver al inicio
-                        </button>
-                    </div>
-                </div>
-            )}
+  // Enviar: si photo es data: subimos; si es http/https guardamos URL tal cual (sin fetch)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!photo) {
+      setErr("La imagen aún no está disponible. Intenta de nuevo en unos segundos.");
+      return;
+    }
+    setSending(true);
+    setErr("");
+    setSaved(false);
 
-            {photo && (
-                <div className="w-full max-w-xl bg-white/5 rounded-xl p-3 border border-white/10">
-                    <img
-                        src={photo}
-                        alt="Imagen a guardar/descargar"
-                        className="w-full h-auto object-contain rounded-lg"
-                    />
-                    <div className="flex justify-end mt-2">
-                        <a
-                            href={photo}
-                            download={suggestedName}
-                            className="px-3 py-1 rounded-lg text-sm bg-white/90 text-black hover:bg-white"
-                        >
-                            Descargar esta imagen
-                        </a>
-                    </div>
-                </div>
-            )}
+    if (revokeRef.current) {
+      revokeRef.current();
+      revokeRef.current = null;
+    }
 
-            {/* Formulario */}
-            <form onSubmit={handleSubmit} className="w-full max-w-xl grid grid-cols-1 gap-3">
-                <label className="text-sm">Nombre</label>
-                <input
+    try {
+      const isDataUrl = photo.startsWith("data:");
+
+      if (isDataUrl) {
+        await createSurveyRecord({
+          qrId: qrId ?? (src ? "from-src" : "unknown"),
+          kind,
+          photoDataUrl: photo,
+          nombre: form.nombre.trim(),
+          telefono: form.telefono.trim(),
+          correo: form.correo.trim(),
+          cargo: form.cargo.trim(),
+          empresa: form.empresa.trim(),
+        });
+      } else {
+        await createSurveyRecordQuick({
+          qrId: qrId ?? (src ? "from-src" : "unknown"),
+          kind,
+          photoUrl: photo,
+          nombre: form.nombre.trim(),
+          telefono: form.telefono.trim(),
+          correo: form.correo.trim(),
+          cargo: form.cargo.trim(),
+          empresa: form.empresa.trim(),
+        });
+      }
+
+      // Habilitar descarga y mostrar solo la sección final
+      setDownloadHref(photo);
+      setDownloadName(filenameFromQS || suggestedName);
+      setSaved(true);
+    } catch (e: any) {
+      setErr(e.message || "No se pudo guardar la encuesta.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const canSubmit = !sending && !!photo && !loadingPhoto;
+
+  return (
+    <div className="min-h-screen w-full flex flex-col items-center py-8 px-4">
+      <div className="w-full max-w-3xl">
+        {/* Cabecera */}
+        <header className="text-center mb-6">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
+            ¡Tu foto está casi lista! 📸
+          </h1>
+          <p className="text-white/80 mt-2 max-w-2xl mx-auto">
+            Déjanos tus datos para habilitar la <strong>descarga de tu imagen</strong>.
+          </p>
+        </header>
+
+        {/* Mensajes de estado */}
+        {!saved && loadingPhoto && (
+          <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-white/80">
+            Preparando tu imagen…
+          </div>
+        )}
+        {!saved && err && (
+          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-red-300">
+            {err}
+          </div>
+        )}
+
+        {/* FORMULARIO — se oculta cuando saved=true */}
+        {!saved && (
+          <div className="rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6">
+            <h2 className="text-xl font-bold text-white mb-1">Completa el formulario</h2>
+            <p className="text-sm text-white/70 mb-4">
+              Al enviar, te mostraremos tu foto y podrás descargarla.
+            </p>
+
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm text-white/80">Nombre</label>
+                  <input
                     required
-                    className="px-3 py-2 rounded-lg bg-white/90 text-black"
+                    className="mt-1 w-full px-3 py-2 rounded-lg bg-white/90 text-black placeholder-black/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     value={form.nombre}
                     onChange={handleChange("nombre")}
                     placeholder="Tu nombre"
-                />
-
-                <label className="text-sm">Teléfono</label>
-                <input
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-white/80">Teléfono</label>
+                  <input
                     required
-                    className="px-3 py-2 rounded-lg bg-white/90 text-black"
+                    className="mt-1 w-full px-3 py-2 rounded-lg bg-white/90 text-black placeholder-black/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     value={form.telefono}
                     onChange={handleChange("telefono")}
                     type="tel"
                     inputMode="tel"
                     placeholder="Ej. 3001234567"
-                />
+                  />
+                </div>
+              </div>
 
-                <label className="text-sm">Correo</label>
+              <div>
+                <label className="text-sm text-white/80">Correo</label>
                 <input
-                    required
-                    className="px-3 py-2 rounded-lg bg-white/90 text-black"
-                    value={form.correo}
-                    onChange={handleChange("correo")}
-                    type="email"
-                    inputMode="email"
-                    placeholder="tucorreo@ejemplo.com"
+                  required
+                  className="mt-1 w-full px-3 py-2 rounded-lg bg-white/90 text-black placeholder-black/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  value={form.correo}
+                  onChange={handleChange("correo")}
+                  type="email"
+                  inputMode="email"
+                  placeholder="tucorreo@ejemplo.com"
                 />
+              </div>
 
-                <label className="text-sm">Cargo</label>
-                <input
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm text-white/80">Cargo</label>
+                  <input
                     required
-                    className="px-3 py-2 rounded-lg bg-white/90 text-black"
+                    className="mt-1 w-full px-3 py-2 rounded-lg bg-white/90 text-black placeholder-black/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     value={form.cargo}
                     onChange={handleChange("cargo")}
                     placeholder="Tu cargo"
-                />
-
-                <label className="text-sm">Empresa</label>
-                <input
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-white/80">Empresa</label>
+                  <input
                     required
-                    className="px-3 py-2 rounded-lg bg-white/90 text-black"
+                    className="mt-1 w-full px-3 py-2 rounded-lg bg-white/90 text-black placeholder-black/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     value={form.empresa}
                     onChange={handleChange("empresa")}
                     placeholder="Nombre de la empresa"
-                />
+                  />
+                </div>
+              </div>
 
-                <button
-                    type="submit"
-                    disabled={sending || !photo}
-                    className="mt-2 px-4 py-2 rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60"
-                >
-                    {sending ? "Guardando..." : "Enviar respuesta"}
-                </button>
+              <button
+                type="submit"
+                disabled={!canSubmit}
+                className={`mt-2 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-white transition
+                  ${canSubmit ? "bg-emerald-600 hover:bg-emerald-700" : "bg-emerald-600/50 cursor-not-allowed"}
+                `}
+                title={!photo ? "Estamos preparando tu imagen…" : undefined}
+              >
+                {sending ? (
+                  <>
+                    <span className="inline-block animate-spin rounded-full border-2 border-white/40 border-t-white w-4 h-4" />
+                    Guardando…
+                  </>
+                ) : (
+                  "Enviar y habilitar descarga"
+                )}
+              </button>
 
-                {ok && <p className="text-emerald-400">¡Gracias! Registro guardado.</p>}
+              <p className="text-xs text-white/50 mt-1">
+                Al enviar aceptas que usemos tus datos para contacto relacionado con esta actividad.
+              </p>
             </form>
-        </div>
-    );
+          </div>
+        )}
+
+        {/* RESULTADO — se muestra solo cuando saved=true */}
+        {saved && photo && (
+          <div className="rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6">
+            <h3 className="text-lg md:text-xl font-bold text-white">¡Gracias! 🎉</h3>
+            <p className="text-sm text-white/70 mt-1">
+              Hemos registrado tu respuesta. Aquí tienes tu imagen:
+            </p>
+
+            <div className="mt-4 grid grid-cols-1 gap-4">
+              <div className="w-full bg-white/5 rounded-xl p-3 border border-white/10">
+                <img
+                  src={photo}
+                  alt="Tu imagen"
+                  className="w-full h-auto object-contain rounded-lg"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href={downloadHref}
+                  download={downloadName || suggestedName}
+                  className="px-4 py-2 rounded-xl bg-white text-black font-semibold hover:bg-white/90 shadow"
+                >
+                  Descargar imagen
+                </a>
+                <span className="text-xs text-white/50">
+                  Nombre sugerido:{" "}
+                  <code className="text-white/80">{downloadName || suggestedName}</code>
+                </span>
+              </div>
+
+              <div className="pt-2">
+                <a
+                  href="/camera"
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl font-semibold bg-neutral-700 hover:bg-neutral-800 text-white"
+                >
+                  Tomar otra foto
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

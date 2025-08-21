@@ -1,3 +1,5 @@
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { useEffect, useState } from "react";
 import ButtonPrimary from "../items/ButtonPrimary";
@@ -76,8 +78,8 @@ export default function CameraView({ videoRef, frameSrc, frameBox, onCapture, }:
                 )}
 
                 {/* Botones flotantes */}
-                <div className="absolute inset-x-0 bottom-[-5px] flex justify-center gap-3">
-                    <ButtonPrimary onClick={onCapture} label="EMPEZAR" />
+                <div className="absolute inset-x-0 bottom-[-90px] flex justify-center gap-3">
+                    <ButtonPrimary onClick={onCapture} label="TOMAR FOTO" />
                 </div>
             </div>
         </div>
