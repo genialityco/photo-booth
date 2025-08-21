@@ -2,16 +2,12 @@
 import { NextResponse } from "next/server";
 import { getQRStore } from "../_store";
 
-export const dynamic = "force-dynamic"; // evita cache
+export const dynamic = "force-dynamic"; // evita cacheos
 
-type RouteContext = {
-  params: Record<string, string | string[]>;
-};
-
-export async function GET(_req: Request, context: RouteContext) {
-  // Asegurar string (por si el runtime entrega string[])
-  const idParam = context.params["id"];
-  const id = Array.isArray(idParam) ? idParam[0] : idParam;
+export async function GET(req: Request) {
+  // Obtener el id del pathname: /api/qr/<id>
+  const { pathname } = new URL(req.url);
+  const id = pathname.split("/").pop(); // último segmento
 
   if (!id) {
     return NextResponse.json({ error: "Falta id" }, { status: 400 });
@@ -21,8 +17,15 @@ export async function GET(_req: Request, context: RouteContext) {
   const item = store.get(id);
 
   if (!item || item.expiresAt < Date.now()) {
-    return NextResponse.json({ error: "No encontrado o expirado" }, { status: 404 });
+    return NextResponse.json(
+      { error: "No encontrado o expirado" },
+      { status: 404 }
+    );
   }
 
-  return NextResponse.json({ ok: true, dataUrl: item.dataUrl, kind: item.kind });
+  return NextResponse.json({
+    ok: true,
+    dataUrl: item.dataUrl,
+    kind: item.kind,
+  });
 }
