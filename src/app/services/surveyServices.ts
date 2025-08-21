@@ -42,7 +42,7 @@ export type SurveyRecord = SurveyForm & {
    Config
 ========================= */
 
-const COLLECTION = "ImageGenerateIA";
+const COLLECTION = "employes";
 
 /* =========================
    Helpers internos

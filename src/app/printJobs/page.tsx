@@ -56,8 +56,7 @@ export default function PrintJobsPage() {
 
     return (
         <div className="px-4 py-6 max-w-7xl mx-auto">
-            <h1 className="text-2xl md:text-3xl font-bold mb-6">Print Jobs</h1>
-
+            
             {jobs.length === 0 && !loading && (
                 <p className="text-sm text-neutral-500">No hay print jobs disponibles.</p>
             )}
@@ -65,10 +64,11 @@ export default function PrintJobsPage() {
             {/* === GRID EN COLUMNAS DE CARDS === */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {jobs.map((job) => {
-                    const primaryImageUrl = job.files?.[0]?.url ?? null;
-                    const primaryName =
-                        job.files?.[0]?.name || (job.name ? `${job.name}.png` : `${job.id}.png`);
-
+                    // Usar la imagen principal desde los archivos, o desde url si no hay archivos
+                    const primaryImageUrl = job.files?.[0]?.photoUrl ?? job.photoUrl ?? null;
+                    const primaryName = job.files?.[0]?.name || job.name || `${job.id}.png`;
+                    console.log("primary", jobs);
+                    
                     return (
                         <section
                             key={job.id}
@@ -125,9 +125,9 @@ export default function PrintJobsPage() {
                                                 className="group rounded-md overflow-hidden border border-white/10 bg-white/5"
                                                 title={f.name}
                                             >
-                                                <a href={f.url} target="_blank" rel="noreferrer" className="block">
+                                                <a href={f.photoUrl} target="_blank" rel="noreferrer" className="block">
                                                     <img
-                                                        src={f.url}
+                                                        src={f.photoUrl}
                                                         alt={f.name}
                                                         className="w-full h-24 object-cover group-hover:opacity-90"
                                                         loading="lazy"
@@ -135,7 +135,7 @@ export default function PrintJobsPage() {
                                                 </a>
                                                 <button
                                                     type="button"
-                                                    onClick={() => downloadFile(f.url, f.name)}
+                                                    onClick={() => downloadFile(f.photoUrl, f.name)}
                                                     className="w-full text-[11px] px-2 py-1 bg-neutral-900/70 hover:bg-neutral-800"
                                                     aria-label={`Descargar ${f.name}`}
                                                 >

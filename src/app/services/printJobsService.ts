@@ -14,19 +14,19 @@ export type PrintJob = {
     id: string;
     name?: string;
     description?: string;
-    url?: string | null;
+    photoUrl?: string | null;
     createdAt: Date | null;
 };
 
 export type PrintJobFile = {
     name: string;
     path: string;
-    url: string;
+    photoUrl: string;
     contentType?: string;
     size?: number;
 };
 
-const PRINT_JOBS_COLLECTION = "printJobs";
+const PRINT_JOBS_COLLECTION = "employes";
 
 function tsToDate(ts: any): Date | null {
     if (!ts) return null;
@@ -42,7 +42,7 @@ function mapDocToJob(d: any): PrintJob {
         id: d.id,
         name: data.name ?? data.titulo ?? "",
         description: data.description ?? data.desc ?? "",
-        url: data.url ?? data.url ?? null,
+        photoUrl: data.photoUrl ?? null,
         createdAt: tsToDate(data.createdAt),
     };
 }
@@ -76,7 +76,7 @@ async function listFilesFromFolderPath(folderPath: string, max = 100): Promise<P
                 return {
                     name: itemRef.name,
                     path: itemRef.fullPath,
-                    url,
+                    photoUrl: url,
                     contentType: meta?.contentType,
                     size: meta ? Number(meta.size) : undefined,
                 } as PrintJobFile;
@@ -102,7 +102,7 @@ export async function listPrintJobsWithFiles(opts?: {
     const includeFiles = !!opts?.includeFiles;
     const maxFiles = Math.max(1, Math.min(opts?.maxFilesPerJob ?? 50, 500));
 
-    const baseQ = query(collection(db, PRINT_JOBS_COLLECTION), orderBy("createdAt", "desc"));
+    const baseQ = query(collection(db, "employes"), orderBy("createdAt", "desc"));
 
     let q = baseQ;
     
@@ -121,10 +121,18 @@ export async function listPrintJobsWithFiles(opts?: {
     if (includeFiles) {
         await Promise.all(
             jobs.map(async (job, i) => {
-                const path = job.url ?? pathFromStorageUrl(job.url ?? "") ?? null;
-                if (!path) return;
-                const files = await listFilesFromFolderPath(path, maxFiles);
-                (jobs[i] as PrintJob & { files?: PrintJobFile[] }).files = files;
+                    // Si el campo es una URL, extrae la carpeta; si es una ruta, úsala directamente
+                    let path: string | null = null;
+                    if (job.photoUrl) {
+                        if (job.photoUrl.startsWith("gs://") || job.photoUrl.startsWith("printJobs/")) {
+                            path = job.photoUrl;
+                        } else {
+                            path = pathFromStorageUrl(job.photoUrl);
+                        }
+                    }
+                    if (!path) return;
+                    const files = await listFilesFromFolderPath(path, maxFiles);
+                    (jobs[i] as PrintJob & { files?: PrintJobFile[] }).files = files;
             })
         );
     }
