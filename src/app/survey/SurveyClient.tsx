@@ -281,15 +281,6 @@ export default function SurveyClient() {
                   <code className="text-white/80">{downloadName || suggestedName}</code>
                 </span>
               </div>
-
-              <div className="pt-2">
-                <a
-                  href="/camera"
-                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl font-semibold bg-neutral-700 hover:bg-neutral-800 text-white"
-                >
-                  Tomar otra foto
-                </a>
-              </div>
             </div>
           </div>
         )}

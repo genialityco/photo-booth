@@ -5,13 +5,21 @@ import { getFirestore } from "firebase-admin/firestore";
 import { defineSecret } from "firebase-functions/params";
 import { randomUUID } from "crypto";
 
+// 👇 NUEVO
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import sharp from "sharp"; // si TS se queja, activa "esModuleInterop": true en tsconfig
+
 // Inicializa Admin SDK (Functions v2, Node 18/22)
 initializeApp();
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
 const MODEL = "gpt-image-1";
-const PROMPT = `Transform the uploaded photo of a person into a hyper-realistic, artistic portrait inspired by the history of pharmacy and chemistry. Keep the person’s face, expression, and natural features unchanged and realistic, but apply a subtle, natural retouch (balanced lighting, gentle skin smoothing, refined details) so the portrait looks polished and elegant without altering identity.
+const PROMPT = `Transform the uploaded photo of a person into a hyper-realistic, artistic portrait inspired by the history of pharmacy and chemistry. 
+
+Keep the person’s face, expression, and natural features unchanged and realistic, but apply a soft and flattering enhancement: smooth out strong facial lines, reduce signs of tiredness, brighten the eyes, and balance the skin tone for a fresh, youthful, and elegant look. The result should look natural, beautiful, and polished without altering identity
+
 The person should be centered at an apothecary desk surrounded by laboratory objects.
 Outfit: an elegant, ceremonial scientific coat filled with colorful molecular structures, chemical bonds, and glowing molecules integrated into the fabric, as if science is woven into the clothing.
 Background: seamless blend of science history and modern chemistry — shelves with old apothecary bottles, parchment, books, and scrolls at the bottom; modern lab equipment like microscopes and pipettes on the sides; and glowing futuristic holograms of DNA strands, molecular diagrams, and chemical formulas floating above.
@@ -88,9 +96,9 @@ export const processImageTask = onDocumentCreated(
         form.set("prompt", PROMPT);
         // tamaños válidos: 1024x1024, 1024x1536, 1536x1024, auto
         form.set("size", "1024x1024");
-        // form.set("quality", "high"); // low | medium | high | auto
-        // form.set("input_fidelity", "high"); // mejor preservación de rostro
-        // form.set("output_format", "png"); // png | jpeg | webp
+        // form.set("quality", "high");
+        form.set("input_fidelity", "high"); // mejor preservación de rostro
+        // form.set("output_format", "png");
 
         const blob = new Blob([bytes], { type: mime || "image/png" });
         form.append(fieldName, blob, "input.png");
@@ -158,9 +166,54 @@ export const processImageTask = onDocumentCreated(
         return;
       }
 
+      // ======= 🔽 NUEVO: sobreponer PNG centrado en la parte inferior 🔽
+      const baseBuf = Buffer.from(b64, "base64");
+
+      // Intentar leer el watermark desde el filesystem del bundle compilado (lib/assets/watermark.png)
+      const watermarkFsPath = path.resolve(__dirname, "assets", "watermark.png");
+
+      let outBuf: Buffer;
+
+      try {
+        const overlayBuf = await readFile(watermarkFsPath); // puede lanzar si no existe
+
+        // Asegura PNG y lee dimensiones base
+        const baseImg = sharp(baseBuf).png();
+        const meta = await baseImg.metadata();
+        const baseW = meta.width ?? 1024;
+        const baseH = meta.height ?? 1024;
+
+        // Redimensiona el overlay a ~55% del ancho (ajusta a gusto o hazlo configurable)
+        const targetOverlayW = Math.round(baseW * 0.65);
+        const overlayResized = await sharp(overlayBuf)
+          .png()
+          .resize({ width: targetOverlayW })
+          .toBuffer();
+
+        const oMeta = await sharp(overlayResized).metadata();
+        const ow = oMeta.width ?? targetOverlayW;
+        const oh = oMeta.height ?? Math.round(targetOverlayW / 3);
+
+        // Padding inferior (3% de alto, mínimo 10px)
+        const padding = Math.max(10, Math.round(baseH * 0.02));
+
+        // Posición: centrado abajo
+        const left = Math.max(0, Math.round((baseW - ow) / 2));
+        const top = Math.max(0, baseH - oh - padding);
+
+        outBuf = await baseImg
+          .composite([{ input: overlayResized, left, top }])
+          .png()
+          .toBuffer();
+      } catch (e) {
+        // Si falta el overlay o hay error, usamos la imagen base
+        console.warn("Overlay no aplicado:", (e as any)?.message || e);
+        outBuf = baseBuf;
+      }
+      // ======= 🔼 NUEVO 🔼
+
       // 3) Guardar salida y generar URL con token (SIN getSignedUrl)
       const outPath = `tasks/${taskId}/output.png`;
-      const outBuf = Buffer.from(b64, "base64");
 
       const token = randomUUID();
       await bucket.file(outPath).save(outBuf, {
@@ -175,9 +228,9 @@ export const processImageTask = onDocumentCreated(
       });
 
       // URL pública con token (no requiere roles extra ni signBlob)
-      const url = `https://firebasestorage.googleapis.com/v0/b/${
-        bucket.name
-      }/o/${encodeURIComponent(outPath)}?alt=media&token=${token}`;
+      const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(
+        outPath
+      )}?alt=media&token=${token}`;
 
       // 4) Done
       await docRef.update({
