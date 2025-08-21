@@ -1,23 +1,40 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 
-/**
- * Util: convierte dataURL/base64 -> Uint8Array
- */
+export const runtime = "nodejs"; // 👈 fuerza Node en Netlify (más límite de body)
+
 function dataUrlToUint8Array(dataUrl: string) {
-  const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
-  const binary = atob(base64);
-  const len = binary.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
+  const comma = dataUrl.indexOf(",");
+  const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+  const binary = Buffer.from(base64, "base64"); // en Node tenemos Buffer
+  return new Uint8Array(binary);
 }
 
 export async function POST(req: Request) {
   try {
-    const { photo } = await req.json(); // dataURL (ej: "data:image/png;base64,....")
-    if (!photo || typeof photo !== "string") {
-      return NextResponse.json({ error: "Foto inválida" }, { status: 400 });
+    // ✅ leer como form-data (no JSON)
+    const form = await req.formData();
+
+    // Opción A: te mandan un archivo binario (mejor)
+    const file = form.get("photo") as File | null;
+
+    // Opción B: te mandan un dataURL en un campo de texto (aceptable si no pasa límites)
+    const dataUrl = form.get("photoDataUrl") as string | null;
+
+    if (!file && !dataUrl) {
+      return NextResponse.json(
+        { error: "Falta 'photo' o 'photoDataUrl'" },
+        { status: 400 }
+      );
+    }
+
+    let inputBlob: Blob;
+    if (file) {
+      inputBlob = file; // viene con type y size correctos
+    } else {
+      // dataURL -> Blob
+      const bytes = dataUrlToUint8Array(dataUrl!);
+      inputBlob = new Blob([bytes], { type: "image/png" });
     }
 
     const prompt = `Transform the uploaded photo of a person into a hyper-realistic, artistic portrait inspired by the history of pharmacy and chemistry. Keep the person’s face, expression, and natural features unchanged and realistic, but apply a subtle beauty enhancement (smooth skin, balanced lighting on the face, refined details) so the portrait looks polished and elegant without altering identity.
@@ -28,40 +45,44 @@ Lighting: warm golden tones mixed with neon accents (blue, orange, cyan), creati
 Style: hyper-detailed, cinematic, elegant, and inspiring.
 Overall look: the person appears as a mystic, sophisticated apothecary-scientist, with the portrait telling the story of science evolving across time.`;
 
-    // --- Construimos multipart/form-data para /v1/images/edits ---
     const body = new FormData();
     body.set("model", "gpt-image-1");
     body.set("prompt", prompt);
-    body.set("size", "1024x1024");      // válidos: 1024x1024, 1536x1024, 1024x1536
-    body.set("quality", "high");        // gpt-image-1: low | medium | high | auto
-    body.set("input_fidelity", "high"); // mantiene mejor el rostro
-    body.set("output_format", "png");   // png | jpeg | webp
-
-    // Adjuntamos la imagen de entrada como archivo
-    const bytes = dataUrlToUint8Array(photo);
-    const blob = new Blob([bytes], { type: "image/png" });
-    body.append("image", blob, "photo.png");
+    body.set("size", "1024x1024");
+    body.set("quality", "high");
+    body.set("input_fidelity", "high");
+    body.set("output_format", "png");
+    body.append("image", inputBlob, "photo.png");
 
     const resp = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY!}`,
-        // ¡NO pongas Content-Type manualmente! fetch lo fija con el boundary del FormData
       },
       body,
     });
 
+    // si la API no responde JSON, resp.json() fallaría, por eso leemos texto y luego intentamos parsear
+    const raw = await resp.text();
     if (!resp.ok) {
-      const errText = await resp.text().catch(() => "");
-      console.error("OpenAI error:", resp.status, errText);
+      console.error("OpenAI error:", resp.status, raw);
       return NextResponse.json(
-        { error: `OpenAI: ${resp.status} ${errText}` },
+        { error: `OpenAI ${resp.status}: ${raw}` },
         { status: 502 }
       );
     }
 
-    const json: any = await resp.json();
-    // gpt-image-1 retorna base64 en data[].b64_json
+    let json: any;
+    try {
+      json = raw ? JSON.parse(raw) : null;
+    } catch {
+      console.error("OpenAI no devolvió JSON:", raw.slice(0, 200));
+      return NextResponse.json(
+        { error: "Respuesta de OpenAI no-JSON" },
+        { status: 502 }
+      );
+    }
+
     const b64 = json?.data?.[0]?.b64_json as string | undefined;
     if (!b64) {
       return NextResponse.json(
@@ -70,10 +91,12 @@ Overall look: the person appears as a mystic, sophisticated apothecary-scientist
       );
     }
 
-    const url = `data:image/png;base64,${b64}`;
-    return NextResponse.json({ url });
+    return NextResponse.json({ url: `data:image/png;base64,${b64}` });
   } catch (err: any) {
     console.error("Error generando imagen:", err);
-    return NextResponse.json({ error: err.message ?? "Error interno" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message ?? "Error interno" },
+      { status: 500 }
+    );
   }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
@@ -113,44 +114,67 @@ export default function CameraPage() {
     setStep("preview");
   };
 
-  const processPhoto = async () => {
-    // Usamos la captura cruda del hueco como input para la IA
-    if (!rawPhoto) return;
+const processPhoto = async () => {
+  if (!rawPhoto) return;
 
-    // Apagar cámara
-    const stream = (videoRef.current?.srcObject as MediaStream) || null;
-    stream?.getTracks().forEach((t) => t.stop());
-    if (videoRef.current) videoRef.current.srcObject = null;
+  // Apagar cámara
+  const stream = (videoRef.current?.srcObject as MediaStream) || null;
+  stream?.getTracks().forEach((t) => t.stop());
+  if (videoRef.current) videoRef.current.srcObject = null;
 
-    setStep("loading");
+  setStep("loading");
 
-    try {
-      // Llamada al backend que genera la imagen (usa tu /api/generate)
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photo: rawPhoto }), // dataURL base64 del hueco
-      });
+  try {
+    // ⬇️ Enviar como multipart/form-data (no JSON)
+    const fd = new FormData();
+    // Opción 1A (simple, sin convertir a Blob): manda el dataURL como texto
+    fd.append("photoDataUrl", rawPhoto);
 
-      const data = await res.json();
-      if (!res.ok || !data?.url) {
-        console.error("Error de IA:", data?.error || "Respuesta inválida");
-        alert("No se pudo generar la imagen. Intenta de nuevo.");
-        setStep("camera");
-        return;
-      }
+    // // Opción 1B (alternativa): si prefieres mandar Blob/archivo
+    // const resBin = await fetch(rawPhoto);
+    // const blob = await resBin.blob();
+    // fd.append("photo", blob, "input.png");
 
-      // Guardamos la IA sin tocar la foto con marco
-      setAiPhoto(data.url);
-      setPhoto(data.url); // opcional
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      body: fd, // 👈 sin Content-Type manual
+    });
 
-      setStep("result");
-    } catch (err) {
-      console.error("Error procesando la imagen:", err);
-      alert("Ocurrió un error procesando la imagen.");
+    // más robusto: lee texto y luego intenta parsear
+    const text = await res.text();
+    if (!res.ok) {
+      console.error("Error de IA:", text);
+      alert("No se pudo generar la imagen. Intenta de nuevo.");
       setStep("camera");
+      return;
     }
-  };
+    let data: any = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      console.error("Respuesta no JSON:", text);
+      alert("Respuesta inválida del generador.");
+      setStep("camera");
+      return;
+    }
+
+    if (!data?.url) {
+      console.error("Respuesta sin url:", data);
+      alert("No se pudo generar la imagen. Intenta de nuevo.");
+      setStep("camera");
+      return;
+    }
+
+    setAiPhoto(data.url);
+    setPhoto(data.url);
+    setStep("result");
+  } catch (err) {
+    console.error("Error procesando la imagen:", err);
+    alert("Ocurrió un error procesando la imagen.");
+    setStep("camera");
+  }
+};
+
 
   const download = (dataUrl: string, filename: string) => {
     const a = document.createElement("a");
