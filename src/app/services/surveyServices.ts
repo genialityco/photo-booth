@@ -42,61 +42,82 @@ export type SurveyRecord = SurveyForm & {
    Config
 ========================= */
 
-const COLLECTION = "ImageGenerateIA";
+const COLLECTION = "employes";
 
 /* =========================
    Helpers internos
 ========================= */
 
-function tsToDate(ts: any): Date | null {
+function tsToDate(ts: unknown): Date | null {
   if (!ts) return null;
   if (ts instanceof Date) return ts;
-  if (ts?.toDate) return ts.toDate();
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as any).toDate === "function") {
+    return (ts as { toDate: () => Date }).toDate();
+  }
   if (ts instanceof Timestamp) return ts.toDate();
   return null;
 }
 
-function mapDocToRecord(d: any): SurveyRecord {
-  const data = d.data() as any;
+import type { DocumentSnapshot } from "firebase/firestore";
+function mapDocToRecord(d: DocumentSnapshot): SurveyRecord {
+  const data = d.data() as Record<string, unknown>;
   return {
     id: d.id,
-    nombre: data.nombre ?? "",
-    telefono: data.telefono ?? "",
-    correo: data.correo ?? "",
-    cargo: data.cargo ?? "",
-    empresa: data.empresa ?? "",
+    nombre: typeof data.nombre === "string" ? data.nombre : "",
+    telefono: typeof data.telefono === "string" ? data.telefono : "",
+    correo: typeof data.correo === "string" ? data.correo : "",
+    cargo: typeof data.cargo === "string" ? data.cargo : "",
+    empresa: typeof data.empresa === "string" ? data.empresa : "",
     createdAt: tsToDate(data.createdAt),
-    qrId: data.qrId ?? "",
-    kind: (data.kind as "raw" | "framed" | null) ?? null,
-    photoPath: data.photoPath ?? null,
-    photoUrl: data.photoUrl ?? "",
+    qrId: typeof data.qrId === "string" ? data.qrId : "",
+    kind: (data.kind === "raw" || data.kind === "framed") ? data.kind : null,
+    photoPath: typeof data.photoPath === "string" ? data.photoPath : null,
+    photoUrl: typeof data.photoUrl === "string" ? data.photoUrl : "",
   };
 }
 
 function makeFileId() {
   try {
     if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID() as string;
-  } catch {}
+  } catch { }
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 /* =========================
-   1) Crear (cuando tienes dataURL)
-   - Sube a Storage y guarda photoUrl/photoPath
+   0) Subir imagen vía API (evita CORS)
+   POST /api/storage/upload  -> { url, path }
+========================= */
+async function uploadImageViaAPI(params: {
+  dataUrl: string;       // "data:image/png;base64,..."
+  desiredPath?: string;  // ruta en Storage (opcional)
+}): Promise<{ url: string; path: string }> {
+  const res = await fetch("/api/storage/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Fallo subiendo imagen: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+/* =========================
+   1) Crear (dataURL) usando SDK del cliente
 ========================= */
 export async function createSurveyRecord(
   input: {
-    qrId: string;                    // viene de /survey?qrId=...
-    kind?: "raw" | "framed" | null;  // opcional
-    photoDataUrl: string;            // "data:image/png;base64,...."
+    qrId: string;
+    kind?: "raw" | "framed" | null;
+    photoDataUrl: string;
   } & SurveyForm
 ): Promise<string> {
-  // 1) Subir foto a Storage y obtener URL
   const fileId = makeFileId();
   const photoPath = `survey-submissions/${fileId}.png`;
   const photoUrl = await uploadDataUrlAndGetURL(photoPath, input.photoDataUrl);
 
-  // 2) Guardar en Firestore
   const docRef = await addDoc(collection(db, COLLECTION), {
     nombre: input.nombre,
     telefono: input.telefono,
@@ -114,14 +135,95 @@ export async function createSurveyRecord(
 }
 
 /* =========================
-   1.1) Crear (rápido) cuando ya tienes URL http/https
-   - NO sube nada; guarda la URL tal cual para evitar CORS
+   1.1) Crear usando tu API (recomendado si hay CORS)
+========================= */
+export async function createSurveyRecordViaFetch(
+  input: {
+    qrId: string;
+    kind?: "raw" | "framed" | null;
+    photoDataUrl: string; // "data:image/png;base64,..."
+    pathHint?: string;    // opcional: prefijo/carpeta
+  } & SurveyForm
+): Promise<string> {
+  const fileId = makeFileId();
+  const desiredPath = `${input.pathHint ?? "survey-submissions"}/${fileId}.png`;
+
+  const { url: photoUrl, path: photoPath } = await uploadImageViaAPI({
+    dataUrl: input.photoDataUrl,
+    desiredPath,
+  });
+
+  const docRef = await addDoc(collection(db, COLLECTION), {
+    nombre: input.nombre,
+    telefono: input.telefono,
+    correo: input.correo,
+    cargo: input.cargo,
+    empresa: input.empresa,
+    createdAt: serverTimestamp(),
+    qrId: input.qrId,
+    kind: input.kind ?? null,
+    photoPath,
+    photoUrl,
+  });
+
+  return docRef.id;
+}
+
+/* =========================
+   1.2) Crear dos registros (raw + framed) vía API
+========================= */
+export async function createPairRecordsViaFetch(
+  input: {
+    qrId: string;
+    rawDataUrl: string;
+    framedDataUrl: string;
+  } & SurveyForm
+): Promise<{ rawId: string; framedId: string }> {
+  const [rawUpload, framedUpload] = await Promise.all([
+    uploadImageViaAPI({ dataUrl: input.rawDataUrl, desiredPath: `survey-submissions/${makeFileId()}-raw.png` }),
+    uploadImageViaAPI({ dataUrl: input.framedDataUrl, desiredPath: `survey-submissions/${makeFileId()}-framed.png` }),
+  ]);
+
+  const coll = collection(db, COLLECTION);
+
+  const [rawRef, framedRef] = await Promise.all([
+    addDoc(coll, {
+      nombre: input.nombre,
+      telefono: input.telefono,
+      correo: input.correo,
+      cargo: input.cargo,
+      empresa: input.empresa,
+      createdAt: serverTimestamp(),
+      qrId: input.qrId,
+      kind: "raw",
+      photoPath: rawUpload.path,
+      photoUrl: rawUpload.url,
+    }),
+    addDoc(coll, {
+      nombre: input.nombre,
+      telefono: input.telefono,
+      correo: input.correo,
+      cargo: input.cargo,
+      empresa: input.empresa,
+      createdAt: serverTimestamp(),
+      qrId: input.qrId,
+      kind: "framed",
+      photoPath: framedUpload.path,
+      photoUrl: framedUpload.url,
+    }),
+  ]);
+
+  return { rawId: rawRef.id, framedId: framedRef.id };
+}
+
+/* =========================
+   1.3) Crear cuando ya tienes una URL http/https (o data:)
 ========================= */
 export async function createSurveyRecordQuick(
   input: {
     qrId: string;
     kind?: "raw" | "framed" | null;
-    photoUrl: string;              // http/https o incluso data:
+    photoUrl: string; // http/https o data:
   } & SurveyForm
 ): Promise<string> {
   const docRef = await addDoc(collection(db, COLLECTION), {
@@ -133,10 +235,9 @@ export async function createSurveyRecordQuick(
     createdAt: serverTimestamp(),
     qrId: input.qrId,
     kind: input.kind ?? null,
-    photoPath: null,               // no generamos path aquí
-    photoUrl: input.photoUrl,      // usamos la URL tal cual
+    photoPath: null,
+    photoUrl: input.photoUrl,
   });
-
   return docRef.id;
 }
 
@@ -150,11 +251,11 @@ export async function getSurveyRecord(id: string): Promise<SurveyRecord | null> 
 }
 
 /* =========================
-   3) Listar (ordenados por fecha desc) con paginación
+   3) Listar (fecha desc) con paginación
 ========================= */
 export async function listSurveyRecords(opts?: {
-  pageSize?: number;          // por defecto 25
-  cursorId?: string | null;   // id del último doc de la página anterior
+  pageSize?: number;
+  cursorId?: string | null;
 }): Promise<{
   items: SurveyRecord[];
   nextCursorId: string | null;
