@@ -72,8 +72,7 @@ function pathFromStorageUrl(url: string | null | undefined): string | null {
 
 async function listFilesFromFolderPath(folderPath: string, max = 100): Promise<PrintJobFile[]> {
     try {
-        const storage = await getStorageOrThrow();                // 👈 pedir Storage aquí
-        console.log("storage", storage);
+        const storage = await getStorageOrThrow();
 
         const baseRef = storageRef(storage, folderPath);
         const listing = await listAll(baseRef);

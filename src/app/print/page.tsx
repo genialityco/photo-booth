@@ -90,8 +90,7 @@ export default function PrintJobsPage() {
                     // Usar la imagen principal desde los archivos, o desde url si no hay archivos
                     const primaryImageUrl = job.files?.[0]?.url ?? job.url ?? null;
                     const primaryName = job.files?.[0]?.name || job.nombre || `${job.id}.png`;
-                    console.log("primary", jobs);
-
+                   
                     return (
                         <section
                             key={job.id}

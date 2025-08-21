@@ -48,7 +48,7 @@ export default function CameraPage() {
         v.srcObject = stream;
         v.muted = true;
         v.setAttribute("playsinline", "");
-        try { await v.play(); } catch {}
+        try { await v.play(); } catch { }
       } catch (e) {
         console.error("No se pudo abrir la cámara", e);
         alert("No se pudo abrir la cámara. Revisa permisos.");
@@ -100,22 +100,22 @@ export default function CameraPage() {
     cRaw.width = w;
     cRaw.height = h;
     const ctxR = cRaw.getContext("2d")!;
-  // Captura la imagen tal como se ve en pantalla (espejada)
-  ctxR.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
+    // Captura la imagen tal como se ve en pantalla (espejada)
+    ctxR.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
     const raw = cRaw.toDataURL("image/png");
 
-  // 5) FRAMED (video en hueco + marco encima) — ORIGINAL + marco
-  const cFr = document.createElement("canvas");
-  cFr.width = W;
-  cFr.height = H;
-  const ctxF = cFr.getContext("2d")!;
-  // Invertir horizontalmente la imagen antes de aplicar el marco
-  ctxF.save();
-  ctxF.scale(-1, 1);
-  ctxF.drawImage(video, sx, sy, sw, sh, -x - w, y, w, h);
-  ctxF.restore();
-  ctxF.drawImage(frame, 0, 0, W, H);
-  const framed = cFr.toDataURL("image/png");
+    // 5) FRAMED (video en hueco + marco encima) — ORIGINAL + marco
+    const cFr = document.createElement("canvas");
+    cFr.width = W;
+    cFr.height = H;
+    const ctxF = cFr.getContext("2d")!;
+    // Invertir horizontalmente la imagen antes de aplicar el marco
+    ctxF.save();
+    ctxF.scale(-1, 1);
+    ctxF.drawImage(video, sx, sy, sw, sh, -x - w, y, w, h);
+    ctxF.restore();
+    ctxF.drawImage(frame, 0, 0, W, H);
+    const framed = cFr.toDataURL("image/png");
 
     setRawPhoto(raw);
     setFramedPhoto(framed);
@@ -125,7 +125,7 @@ export default function CameraPage() {
   };
 
   function makeTaskId() {
-    return `t_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
+    return `t_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
   const processPhoto = async (): Promise<void> => {
@@ -192,6 +192,10 @@ export default function CameraPage() {
 
   return (
     <div className="min-h-[100svh] w-full grid place-items-center p-4">
+
+      {step === "loading" && <LoadingView />}
+      {step === "loading" && <LoadingView />}
+
       {step === "camera" && (
         <CameraView
           videoRef={videoRef}
