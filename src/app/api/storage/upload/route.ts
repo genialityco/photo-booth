@@ -1,6 +1,6 @@
+import { getApps, initializeApp, applicationDefault } from "firebase-admin/app";
 // app/api/storage/upload/route.ts
 import { NextRequest } from "next/server";
-import { getApps, initializeApp, applicationDefault, cert } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
 import { v4 as uuidv4 } from "uuid";
 
@@ -54,8 +54,9 @@ export async function POST(req: NextRequest) {
     )}?alt=media&token=${token}`;
 
     return Response.json({ url, path });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Upload error:", err);
-    return new Response(`Error: ${err?.message || "upload failed"}`, { status: 500 });
+    const errorMsg = err instanceof Error ? err.message : "upload failed";
+    return new Response(`Error: ${errorMsg}`, { status: 500 });
   }
 }
