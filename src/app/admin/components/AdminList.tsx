@@ -19,6 +19,7 @@ import { getStorage, ref, getDownloadURL } from "firebase/storage";
 type TaskItem = {
   id: string;
   status?: "queued" | "processing" | "done" | "error";
+  nombre: string;
   inputPath?: string;   // ahora apunta a la foto con marco (input.png)
   framedPath?: string;  // igual a inputPath
   framedUrl?: string;   // URL pública de la foto con marco
@@ -101,7 +102,7 @@ function AdminItemCard({ it }: { it: TaskItem }) {
     <article className="rounded-xl border border-neutral-200 p-4 flex flex-col gap-3">
       <header className="flex flex-wrap items-center gap-2 justify-between">
         <div className="font-bold text-lg">
-          taskId: <code className="font-mono">{it.id}</code>
+          <code className="font-mono">{it.id}</code>
         </div>
         <div className="text-sm">
           <span
@@ -313,9 +314,10 @@ export default function AdminList() {
           <div className="rounded-xl border border-neutral-200 p-4">Sin resultados.</div>
         )}
 
-        {items.map((it) => (
-          <AdminItemCard key={it.id} it={it} />
-        ))}
+        {items
+          .filter((it) => it.status === "done")
+          .map((it) => <AdminItemCard key={it.id} it={it} />)
+        }
       </div>
     </section>
   );

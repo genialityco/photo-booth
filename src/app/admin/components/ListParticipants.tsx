@@ -1,0 +1,182 @@
+/* eslint-disable @next/next/no-img-element */
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { listPrintJobsWithFiles, type PrintJob } from "../../services/printJobsService";
+
+const PAGE_SIZE = 5;
+
+// Helpers
+const nonEmpty = (v: unknown) => typeof v === "string" && v.trim() !== "";
+const hasRequired = (job: any) => {
+    const phone = job?.celular ?? job?.telefono;
+    return nonEmpty(job?.nombre) && nonEmpty(job?.cargo) && nonEmpty(job?.empresa) && nonEmpty(phone);
+};
+const toDateSafe = (value: any): Date | null => {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === "number") return new Date(value);
+    if (typeof value === "string") {
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    if (typeof value?.toDate === "function") return value.toDate(); // Firestore Timestamp
+    return null;
+};
+
+export default function PrintJobsPage() {
+    const [jobs, setJobs] = useState<PrintJob[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    // Obtener solo los print jobs (sin archivos ni fotos)
+    const fetchJobs = async () => {
+        setLoading(true);
+        try {
+            const { items } = await listPrintJobsWithFiles({
+                pageSize: 100,
+                includeFiles: false,
+            });
+            setJobs(items ?? []);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchJobs();
+    }, []);
+
+    // ---- Filtro y paginación ----
+    const filteredJobs = useMemo(() => (Array.isArray(jobs) ? jobs.filter(hasRequired) : []), [jobs]);
+
+    const [page, setPage] = useState(1);
+    const totalPages = Math.max(1, Math.ceil(filteredJobs.length / PAGE_SIZE));
+
+    // Si cambia el total, corrige página actual
+    useEffect(() => {
+        if (page > totalPages) setPage(totalPages);
+    }, [totalPages, page]);
+
+    const start = (page - 1) * PAGE_SIZE;
+    const pageJobs = filteredJobs.slice(start, start + PAGE_SIZE);
+
+    // Descargar la tabla como CSV (solo visibles tras filtro)
+    const downloadCSV = () => {
+        if (!filteredJobs.length) return;
+
+        const headers = ["ID", "Creado", "Nombre", "Telefono/Celular", "Empresa", "Correo", "Cargo"];
+        const rows = filteredJobs.map((job: any) => {
+            const created = toDateSafe(job.createdAt);
+            const phone = job.celular ?? job.telefono ?? "";
+            return [
+                job.id ?? "",
+                created ? created.toLocaleString() : "",
+                job.nombre ?? "",
+                phone,
+                job.empresa ?? "",
+                job.correo ?? "",
+                job.cargo ?? "",
+            ];
+        });
+
+        const csvContent = [headers, ...rows]
+            .map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(","))
+            .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "participantes.csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    };
+
+    return (
+        <div className="px-4 py-6 max-w-4xl mx-auto text-white">
+            <h1 className="text-2xl font-bold mb-4">Participantes</h1>
+
+            <button
+                onClick={downloadCSV}
+                className="mb-4 px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-500 active:bg-amber-700 shadow-lg shadow-amber-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || filteredJobs.length === 0}
+            >
+                Descargar tabla CSV
+            </button>
+
+            {/* Tabla con estilo oscuro/semitransparente, agrandada */}
+            <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm shadow-xl shadow-black/30">
+                <table className="min-w-[700px] divide-y divide-white/10">
+                    <thead className="bg-white/5">
+                        <tr>
+                            <th className="px-5 py-3 text-left text-base font-semibold tracking-wide text-white/90 uppercase">Nombre</th>
+                            <th className="px-5 py-3 text-left text-base font-semibold tracking-wide text-white/90 uppercase">Teléfono</th>
+                            <th className="px-5 py-3 text-left text-base font-semibold tracking-wide text-white/90 uppercase">Empresa</th>
+                            <th className="px-5 py-3 text-left text-base font-semibold tracking-wide text-white/90 uppercase">Correo</th>
+                            <th className="px-5 py-3 text-left text-base font-semibold tracking-wide text-white/90 uppercase">Cargo</th>
+                        </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-white/10">
+                        {pageJobs.map((job: any, idx: number) => {
+                            const created = toDateSafe(job.createdAt);
+                            const phone = job.celular ?? job.telefono ?? "";
+                            return (
+                                <tr
+                                    key={job.id ?? `${start + idx}`}
+                                    className="odd:bg-white/0 even:bg-white/5 hover:bg-white/10 transition-colors"
+                                >
+                                    <td className="px-5 py-3 text-base text-white">{job.nombre ?? ""}</td>
+                                    <td className="px-5 py-3 text-base text-white/90">{phone}</td>
+                                    <td className="px-5 py-3 text-base text-white/90">{job.empresa ?? ""}</td>
+                                    <td className="px-5 py-3 text-base text-white/90">{job.correo ?? ""}</td>
+                                    <td className="px-5 py-3 text-base text-white/90">{job.cargo ?? ""}</td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Paginación */}
+            {filteredJobs.length > 0 && (
+                <div className="mt-4 flex items-center justify-between gap-3">
+                    <p className="text-sm text-white/70">
+                        Mostrando{" "}
+                        <span className="font-semibold text-white">
+                            {start + 1}–{Math.min(start + PAGE_SIZE, filteredJobs.length)}
+                        </span>{" "}
+                        de <span className="font-semibold text-white">{filteredJobs.length}</span>
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                            className="px-3 py-1.5 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50"
+                        >
+                            Anterior
+                        </button>
+                        <span className="text-sm text-white/80">
+                            Página <span className="font-semibold text-white">{page}</span> / {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={page === totalPages}
+                            className="px-3 py-1.5 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50"
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {loading && <p className="mt-4 text-sm text-white/70">Cargando...</p>}
+            {!loading && filteredJobs.length === 0 && (
+                <p className="mt-4 text-sm text-white/70">No hay participantes disponibles.</p>
+            )}
+        </div>
+    );
+}
