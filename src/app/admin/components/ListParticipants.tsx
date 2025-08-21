@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -6,26 +5,58 @@ import { listPrintJobsWithFiles, type PrintJob } from "../../services/printJobsS
 
 const PAGE_SIZE = 5;
 
-// Helpers
-const nonEmpty = (v: unknown) => typeof v === "string" && v.trim() !== "";
-const hasRequired = (job: any) => {
-    const phone = job?.celular ?? job?.telefono;
-    return nonEmpty(job?.nombre) && nonEmpty(job?.cargo) && nonEmpty(job?.empresa) && nonEmpty(phone);
+/* =========================
+   Tipos auxiliares
+========================= */
+type TimestampLike = {
+    toDate?: () => Date;
+    seconds?: number;
+    nanoseconds?: number;
 };
-const toDateSafe = (value: any): Date | null => {
+
+type Participant = Partial<PrintJob> & {
+    celular?: string | null;
+    createdAt?: Date | number | string | TimestampLike | null;
+};
+
+/* =========================
+   Helpers
+========================= */
+const nonEmpty = (v: unknown): v is string =>
+    typeof v === "string" && v.trim() !== "";
+
+const hasRequired = (job: Participant): boolean => {
+    const phone = job.celular ?? job.telefono;
+    return nonEmpty(job.nombre) && nonEmpty(job.cargo) && nonEmpty(job.empresa) && nonEmpty(phone);
+};
+
+const toDateSafe = (value: Participant["createdAt"]): Date | null => {
     if (!value) return null;
     if (value instanceof Date) return value;
+
     if (typeof value === "number") return new Date(value);
+
     if (typeof value === "string") {
         const d = new Date(value);
         return isNaN(d.getTime()) ? null : d;
     }
-    if (typeof value?.toDate === "function") return value.toDate(); // Firestore Timestamp
+
+    if (typeof (value as TimestampLike)?.toDate === "function") {
+        return (value as TimestampLike).toDate!();
+    }
+
+    if (typeof (value as TimestampLike)?.seconds === "number") {
+        return new Date(((value as TimestampLike).seconds as number) * 1000);
+    }
+
     return null;
 };
 
+/* =========================
+   Componente
+========================= */
 export default function PrintJobsPage() {
-    const [jobs, setJobs] = useState<PrintJob[]>([]);
+    const [jobs, setJobs] = useState<Participant[]>([]);
     const [loading, setLoading] = useState(false);
 
     // Obtener solo los print jobs (sin archivos ni fotos)
@@ -36,7 +67,8 @@ export default function PrintJobsPage() {
                 pageSize: 100,
                 includeFiles: false,
             });
-            setJobs(items ?? []);
+            // Tipamos como Participant porque agregamos campos opcionales (celular/createdAt flexibles)
+            setJobs((items ?? []) as Participant[]);
         } finally {
             setLoading(false);
         }
@@ -44,10 +76,14 @@ export default function PrintJobsPage() {
 
     useEffect(() => {
         fetchJobs();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ---- Filtro y paginación ----
-    const filteredJobs = useMemo(() => (Array.isArray(jobs) ? jobs.filter(hasRequired) : []), [jobs]);
+    const filteredJobs = useMemo<Participant[]>(
+        () => (Array.isArray(jobs) ? jobs.filter(hasRequired) : []),
+        [jobs]
+    );
 
     const [page, setPage] = useState(1);
     const totalPages = Math.max(1, Math.ceil(filteredJobs.length / PAGE_SIZE));
@@ -65,7 +101,7 @@ export default function PrintJobsPage() {
         if (!filteredJobs.length) return;
 
         const headers = ["ID", "Creado", "Nombre", "Telefono/Celular", "Empresa", "Correo", "Cargo"];
-        const rows = filteredJobs.map((job: any) => {
+        const rows = filteredJobs.map((job) => {
             const created = toDateSafe(job.createdAt);
             const phone = job.celular ?? job.telefono ?? "";
             return [
@@ -120,8 +156,7 @@ export default function PrintJobsPage() {
                     </thead>
 
                     <tbody className="divide-y divide-white/10">
-                        {pageJobs.map((job: any, idx: number) => {
-                            const created = toDateSafe(job.createdAt);
+                        {pageJobs.map((job, idx) => {
                             const phone = job.celular ?? job.telefono ?? "";
                             return (
                                 <tr
