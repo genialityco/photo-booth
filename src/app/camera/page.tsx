@@ -100,17 +100,22 @@ export default function CameraPage() {
     cRaw.width = w;
     cRaw.height = h;
     const ctxR = cRaw.getContext("2d")!;
-    ctxR.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
+  // Captura la imagen tal como se ve en pantalla (espejada)
+  ctxR.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
     const raw = cRaw.toDataURL("image/png");
 
-    // 5) FRAMED (video en hueco + marco encima) — ORIGINAL + marco
-    const cFr = document.createElement("canvas");
-    cFr.width = W;
-    cFr.height = H;
-    const ctxF = cFr.getContext("2d")!;
-    ctxF.drawImage(video, sx, sy, sw, sh, x, y, w, h);
-    ctxF.drawImage(frame, 0, 0, W, H);
-    const framed = cFr.toDataURL("image/png");
+  // 5) FRAMED (video en hueco + marco encima) — ORIGINAL + marco
+  const cFr = document.createElement("canvas");
+  cFr.width = W;
+  cFr.height = H;
+  const ctxF = cFr.getContext("2d")!;
+  // Invertir horizontalmente la imagen antes de aplicar el marco
+  ctxF.save();
+  ctxF.scale(-1, 1);
+  ctxF.drawImage(video, sx, sy, sw, sh, -x - w, y, w, h);
+  ctxF.restore();
+  ctxF.drawImage(frame, 0, 0, W, H);
+  const framed = cFr.toDataURL("image/png");
 
     setRawPhoto(raw);
     setFramedPhoto(framed);
