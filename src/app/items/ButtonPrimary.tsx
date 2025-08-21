@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 // app/components/ButtonPrimary.tsx
 "use client";
 

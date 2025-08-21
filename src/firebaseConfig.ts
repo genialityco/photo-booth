@@ -3,14 +3,15 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB0iYSMU7tuWyMw-q5h4VKSgCq5LTZJoM4",
-  authDomain: "lenovo-experiences.firebaseapp.com",
-  projectId: "lenovo-experiences",
-  storageBucket: "lenovo-experiences.firebasestorage.app",
-  messagingSenderId: "472633703949",
-  appId: "1:472633703949:web:c424fcf34b2f983c779f44",
-  measurementId: "G-HTNB9NGC2R"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID!,
 };
+
 
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
