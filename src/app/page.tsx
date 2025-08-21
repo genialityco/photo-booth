@@ -5,7 +5,6 @@
 import { useEffect, useRef } from "react";
 import Page from "./home/page";
 export default function Home() {
-  // const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
