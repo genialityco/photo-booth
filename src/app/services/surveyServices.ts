@@ -48,34 +48,36 @@ const COLLECTION = "ImageGenerateIA";
    Helpers internos
 ========================= */
 
-function tsToDate(ts: any): Date | null {
+function tsToDate(ts: unknown): Date | null {
   if (!ts) return null;
   if (ts instanceof Date) return ts;
-  if (ts?.toDate) return ts.toDate();
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as any).toDate === "function") {
+    return (ts as { toDate: () => Date }).toDate();
+  }
   if (ts instanceof Timestamp) return ts.toDate();
   return null;
 }
 
-function mapDocToRecord(d: any): SurveyRecord {
-  const data = d.data() as any;
+import type { DocumentSnapshot } from "firebase/firestore";
+function mapDocToRecord(d: DocumentSnapshot): SurveyRecord {
+  const data = d.data() as Record<string, unknown>;
   return {
     id: d.id,
-    nombre: data.nombre ?? "",
-    telefono: data.telefono ?? "",
-    correo: data.correo ?? "",
-    cargo: data.cargo ?? "",
-    empresa: data.empresa ?? "",
+    nombre: typeof data.nombre === "string" ? data.nombre : "",
+    telefono: typeof data.telefono === "string" ? data.telefono : "",
+    correo: typeof data.correo === "string" ? data.correo : "",
+    cargo: typeof data.cargo === "string" ? data.cargo : "",
+    empresa: typeof data.empresa === "string" ? data.empresa : "",
     createdAt: tsToDate(data.createdAt),
-    qrId: data.qrId ?? "",
-    kind: (data.kind as "raw" | "framed" | null) ?? null,
-    photoPath: data.photoPath ?? null,
-    photoUrl: data.photoUrl ?? "",
+    qrId: typeof data.qrId === "string" ? data.qrId : "",
+    kind: (data.kind === "raw" || data.kind === "framed") ? data.kind : null,
+    photoPath: typeof data.photoPath === "string" ? data.photoPath : null,
+    photoUrl: typeof data.photoUrl === "string" ? data.photoUrl : "",
   };
 }
 
 function makeFileId() {
   try {
-    // @ts-ignore
     if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID() as string;
   } catch { }
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;

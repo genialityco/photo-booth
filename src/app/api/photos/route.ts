@@ -75,8 +75,9 @@ export async function POST(req: NextRequest) {
             rawUrl: urls.raw || null,
             framedUrl: urls.framed || null,
         });
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error(e);
-        return NextResponse.json({ error: e?.message || "Upload failed" }, { status: 500 });
+        const errorMsg = e instanceof Error ? e.message : "Upload failed";
+        return NextResponse.json({ error: errorMsg }, { status: 500 });
     }
 }
