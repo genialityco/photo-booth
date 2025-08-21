@@ -3,9 +3,7 @@
 
 // import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
-import CameraPage from "./camera/page";
 import Page from "./home/page";
-
 export default function Home() {
   // const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
