@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
@@ -8,18 +8,25 @@ import ResultView from "@/app/components/ResultView";
 import PreviewView from "@/app/components/PreviewView";
 import LoadingView from "@/app/components/LoadingView";
 
+// ⬇️ IMPORTA tus helpers de Firebase (ajusta la ruta si es necesario)
+import { db, uploadDataUrlAndGetURL } from "@/firebaseConfig";
+import { doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
+
 /** Rectángulo del HUECO del PNG, en % (ajústalo a tu marco) */
 const FRAME_BOX: FrameBox = { xPct: 12.5, yPct: 20, wPct: 75, hPct: 62 };
 
 export default function CameraPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [rawPhoto, setRawPhoto] = useState<string | null>(null); // hueco crudo (input IA)
+  const unsubRef = useRef<null | (() => void)>(null);
+
+  const [rawPhoto, setRawPhoto] = useState<string | null>(null);   // hueco crudo (input IA)
   const [framedPhoto, setFramedPhoto] = useState<string | null>(null); // ORIGINAL + marco
-  const [aiPhoto, setAiPhoto] = useState<string | null>(null); // salida IA (sin marco)
-  const [photo, setPhoto] = useState<string | null>(null); // para preview (mostramos el con marco)
-  const [step, setStep] = useState<"camera" | "preview" | "loading" | "result">(
-    "camera"
-  );
+  const [aiPhoto, setAiPhoto] = useState<string | null>(null);     // salida IA (sin marco)
+  const [photo, setPhoto] = useState<string | null>(null);         // para preview (mostramos el con marco)
+  const [step, setStep] = useState<"camera" | "preview" | "loading" | "result">("camera");
+
+  // Limpia cualquier suscripción al desmontar la página
+  useEffect(() => () => { unsubRef.current?.(); unsubRef.current = null; }, []);
 
   // Enciende cámara cuando estamos en la vista de cámara
   useEffect(() => {
@@ -41,9 +48,7 @@ export default function CameraPage() {
         v.srcObject = stream;
         v.muted = true;
         v.setAttribute("playsinline", "");
-        try {
-          await v.play();
-        } catch {}
+        try { await v.play(); } catch {}
       } catch (e) {
         console.error("No se pudo abrir la cámara", e);
         alert("No se pudo abrir la cámara. Revisa permisos.");
@@ -109,10 +114,14 @@ export default function CameraPage() {
 
     setRawPhoto(raw);
     setFramedPhoto(framed);
-    setAiPhoto(null); // limpiar IA previa
-    setPhoto(framed); // en preview mostramos el con marco
+    setAiPhoto(null);      // limpiar IA previa
+    setPhoto(framed);      // en preview mostramos el con marco
     setStep("preview");
   };
+
+  function makeTaskId() {
+    return `t_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
+  }
 
   const processPhoto = async (): Promise<void> => {
     if (!rawPhoto) return;
@@ -125,59 +134,46 @@ export default function CameraPage() {
     setStep("loading");
 
     try {
-      // 2) dataURL -> Blob (mejor que mandar texto)
-      const resBin = await fetch(rawPhoto);
-      const blob = await resBin.blob();
+      // 2) Generar id y path en Storage
+      const taskId = makeTaskId();
+      const inputPath = `tasks/${taskId}/input.png`;
 
-      // 3) Construir multipart/form-data (sin fijar Content-Type manualmente)
-      const fd = new FormData();
-      fd.append("photo", blob, "input.png");
+      // 3) Sube el dataURL a Storage (helper tuyo)
+      await uploadDataUrlAndGetURL(inputPath, rawPhoto);
 
-      // // Alternativa (si quieres mandar dataURL como texto):
-      // const fd = new FormData();
-      // fd.append("photoDataUrl", rawPhoto);
-
-      // 4) Llamar a tu API
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        body: fd,
+      // 4) Crear el doc en Firestore → dispara la Cloud Function
+      const taskRef = doc(db, "imageTasks", taskId);
+      await setDoc(taskRef, {
+        status: "queued",
+        inputPath,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
-      // 5) Leer texto siempre (para logs útiles en caso de error)
-      const text = await res.text();
+      // 5) Suscribirse a cambios (tiempo real, sin polling)
+      if (unsubRef.current) unsubRef.current();
+      unsubRef.current = onSnapshot(taskRef, (snap) => {
+        const d = snap.data() as any;
+        if (!d) return;
 
-      if (!res.ok) {
-        console.error("Error de IA:", text || `(status ${res.status})`);
-        alert("No se pudo generar la imagen. Intenta de nuevo.");
-        setStep("camera");
-        return;
-      }
-
-      // 6) Parsear JSON
-      let data: { url?: string; error?: string } = {};
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch (e) {
-        console.error("Respuesta no JSON:", text);
-        alert("Respuesta inválida del generador.");
-        setStep("camera");
-        return;
-      }
-
-      if (!data?.url) {
-        console.error("Respuesta sin url:", data);
-        alert("No se pudo generar la imagen. Intenta de nuevo.");
-        setStep("camera");
-        return;
-      }
-
-      // 7) Actualizar estado y mostrar resultado
-      setAiPhoto(data.url);
-      setPhoto(data.url);
-      setStep("result");
+        if (d.status === "done" && d.url) {
+          unsubRef.current?.();
+          unsubRef.current = null;
+          setAiPhoto(d.url);
+          setPhoto(d.url);
+          setStep("result");
+        } else if (d.status === "error") {
+          unsubRef.current?.();
+          unsubRef.current = null;
+          console.error("Tarea falló:", d.error || d.details);
+          alert("Falló la generación. Intenta de nuevo.");
+          setStep("camera");
+        }
+        // queued/processing → seguimos mostrando LoadingView
+      });
     } catch (err) {
-      console.error("Error procesando la imagen:", err);
-      alert("Ocurrió un error procesando la imagen.");
+      console.error("Error iniciando la tarea:", err);
+      alert("Ocurrió un error iniciando la generación.");
       setStep("camera");
     }
   };
@@ -216,12 +212,14 @@ export default function CameraPage() {
       {step === "result" && (aiPhoto || rawPhoto) && framedPhoto && (
         <ResultView
           rawPhoto={aiPhoto || rawPhoto} // ← IA en “Sin marco”
-          framedPhoto={framedPhoto} // ← ORIGINAL con marco
+          framedPhoto={framedPhoto}      // ← ORIGINAL con marco
           onDownloadRaw={() =>
             download((aiPhoto || rawPhoto)!, "foto_sin_marco.png")
           }
           onDownloadFramed={() => download(framedPhoto, "foto_con_marco.png")}
           onRestart={() => {
+            unsubRef.current?.();
+            unsubRef.current = null;
             setRawPhoto(null);
             setFramedPhoto(null);
             setAiPhoto(null);
