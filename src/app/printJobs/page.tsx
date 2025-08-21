@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 // app/print-jobs/page.tsx
 "use client";
 
@@ -51,7 +52,6 @@ export default function PrintJobsPage() {
 
     useEffect(() => {
         fetchPage(null);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
