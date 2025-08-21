@@ -147,6 +147,7 @@ export default function PrintJobsPage() {
                 <table className="min-w-[700px] divide-y divide-white/10">
                     <thead className="bg-white/5">
                         <tr>
+                            <th className="px-5 py-3 text-left text-base font-semibold tracking-wide text-white/90 uppercase">Creado</th>
                             <th className="px-5 py-3 text-left text-base font-semibold tracking-wide text-white/90 uppercase">Nombre</th>
                             <th className="px-5 py-3 text-left text-base font-semibold tracking-wide text-white/90 uppercase">Teléfono</th>
                             <th className="px-5 py-3 text-left text-base font-semibold tracking-wide text-white/90 uppercase">Empresa</th>
@@ -163,6 +164,12 @@ export default function PrintJobsPage() {
                                     key={job.id ?? `${start + idx}`}
                                     className="odd:bg-white/0 even:bg-white/5 hover:bg-white/10 transition-colors"
                                 >
+                                    <td className="px-5 py-3 text-base text-white">
+                                        {(() => {
+                                            const d = toDateSafe(job.createdAt);
+                                            return d ? d.toLocaleString() : "";
+                                        })()}
+                                    </td>
                                     <td className="px-5 py-3 text-base text-white">{job.nombre ?? ""}</td>
                                     <td className="px-5 py-3 text-base text-white/90">{phone}</td>
                                     <td className="px-5 py-3 text-base text-white/90">{job.empresa ?? ""}</td>
