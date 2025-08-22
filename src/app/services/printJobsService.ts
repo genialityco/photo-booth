@@ -99,7 +99,6 @@ async function listFilesFromFolderPath(folderPath: string, max = 100): Promise<P
         return [];
     }
 }
-
 export async function listPrintJobsWithFiles(opts?: {
     pageSize?: number;
     cursorId?: string | null;
@@ -111,7 +110,7 @@ export async function listPrintJobsWithFiles(opts?: {
 }> {
     const size = Math.max(1, Math.min(opts?.pageSize ?? 10, 100));
     const includeFiles = !!opts?.includeFiles;
-    const maxFiles = Math.max(1, Math.min(opts?.maxFilesPerJob ?? 50, 500));
+    //const maxFiles = Math.max(1, Math.min(opts?.maxFilesPerJob ?? 50, 500));
 
     const baseQ = query(collection(db, "imageTasks"), orderBy("createdAt", "desc"));
 
@@ -141,7 +140,7 @@ export async function listPrintJobsWithFiles(opts?: {
                     }
                 }
                 if (!path) return;
-                const files = await listFilesFromFolderPath(path, maxFiles);
+                const files = await listFilesFromFolderPath(path);
                 (jobs[i] as PrintJob & { files?: PrintJobFile[] }).files = files;
             })
         );

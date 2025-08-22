@@ -5,9 +5,6 @@ import { listPrintJobsWithFiles, type PrintJob } from "../../services/printJobsS
 
 const PAGE_SIZE = 5;
 
-/* =========================
-   Tipos auxiliares
-========================= */
 type TimestampLike = {
     toDate?: () => Date;
     seconds?: number;
@@ -19,9 +16,6 @@ type Participant = Partial<PrintJob> & {
     createdAt?: Date | number | string | TimestampLike | null;
 };
 
-/* =========================
-   Helpers
-========================= */
 const nonEmpty = (v: unknown): v is string =>
     typeof v === "string" && v.trim() !== "";
 
@@ -52,23 +46,43 @@ const toDateSafe = (value: Participant["createdAt"]): Date | null => {
     return null;
 };
 
-/* =========================
-   Componente
-========================= */
 export default function PrintJobsPage() {
     const [jobs, setJobs] = useState<Participant[]>([]);
     const [loading, setLoading] = useState(false);
+    const [page, setPage] = useState(1);
 
-    // Obtener solo los print jobs (sin archivos ni fotos)
+    // 👉 Traer TODOS los registros iterando por páginas del servicio
     const fetchJobs = async () => {
         setLoading(true);
         try {
-            const { items } = await listPrintJobsWithFiles({
-                pageSize: 100,
-                includeFiles: false,
+            const pageSize = 100; // máximo recomendado por query
+            let cursorId: string | null = null;
+            const all: Participant[] = [];
+
+            while (true) {
+                const { items, nextCursorId } = await listPrintJobsWithFiles({
+                    pageSize,
+                    includeFiles: false,
+                    cursorId,
+                });
+
+                if (items?.length) {
+                    all.push(...(items as Participant[]));
+                }
+
+                if (!nextCursorId) break;
+                cursorId = nextCursorId;
+            }
+
+            // Orden estable por createdAt DESC (por si alguna página llegó desordenada)
+            all.sort((a, b) => {
+                const da = toDateSafe(a.createdAt)?.getTime() ?? 0;
+                const db = toDateSafe(b.createdAt)?.getTime() ?? 0;
+                return db - da; // desc
             });
-            // Tipamos como Participant porque agregamos campos opcionales (celular/createdAt flexibles)
-            setJobs((items ?? []) as Participant[]);
+
+            setJobs(all);
+            setPage(1); // reinicia a página 1 al recargar
         } finally {
             setLoading(false);
         }
@@ -85,7 +99,6 @@ export default function PrintJobsPage() {
         [jobs]
     );
 
-    const [page, setPage] = useState(1);
     const totalPages = Math.max(1, Math.ceil(filteredJobs.length / PAGE_SIZE));
 
     // Si cambia el total, corrige página actual
@@ -132,17 +145,20 @@ export default function PrintJobsPage() {
 
     return (
         <div className="px-4 py-6 max-w-4xl mx-auto text-white">
-            <h1 className="text-2xl font-bold mb-4">Participantes</h1>
+            <div className="mb-4 flex items-center justify-between gap-3">
+                <h1 className="text-2xl font-bold">Participantes</h1>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={downloadCSV}
+                        className="px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-500 active:bg-amber-700 shadow-lg shadow-amber-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={loading || filteredJobs.length === 0}
+                    >
+                        Descargar tabla CSV
+                    </button>
+                </div>
+            </div>
 
-            <button
-                onClick={downloadCSV}
-                className="mb-4 px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-500 active:bg-amber-700 shadow-lg shadow-amber-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={loading || filteredJobs.length === 0}
-            >
-                Descargar tabla CSV
-            </button>
-
-            {/* Tabla con estilo oscuro/semitransparente, agrandada */}
+            {/* Tabla con estilo oscuro/semitransparente */}
             <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm shadow-xl shadow-black/30">
                 <table className="min-w-[700px] divide-y divide-white/10">
                     <thead className="bg-white/5">
@@ -215,7 +231,7 @@ export default function PrintJobsPage() {
                 </div>
             )}
 
-            {loading && <p className="mt-4 text-sm text-white/70">Cargando...</p>}
+            {loading && <p className="mt-4 text-sm text-white/70">Cargando todos los registros…</p>}
             {!loading && filteredJobs.length === 0 && (
                 <p className="mt-4 text-sm text-white/70">No hay participantes disponibles.</p>
             )}
