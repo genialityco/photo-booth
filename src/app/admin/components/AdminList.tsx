@@ -377,14 +377,14 @@ export default function AdminList() {
           disabled={downloadingAll || loading || filtered.length === 0}
           className="px-3 py-2 rounded-lg bg-neutral-900 text-white font-semibold disabled:opacity-50"
         >
-          {downloadingAll ? "Empaquetando…" : "Descargar TODO (ZIP único)"}
+          {downloadingAll ? "Empaquetando…" : "Descargar TODAS LAS FOTOS"}
         </button>
         <button
           onClick={() => handleDownloadAllAsOneZip(false)}
           disabled={downloadingAll || loading || paginated.length === 0}
           className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold disabled:opacity-50"
         >
-          {downloadingAll ? "Empaquetando…" : "Descargar esta página (ZIP único)"}
+          {downloadingAll ? "Empaquetando…" : "Descargar esta página "}
         </button>
       </div>
 
