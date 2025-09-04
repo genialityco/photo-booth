@@ -14,11 +14,13 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/firebaseConfig";
-import { getStorage, ref, getDownloadURL } from "firebase/storage";
+import { getStorage, ref as storageRef, listAll, getDownloadURL } from "firebase/storage";
 
+/* ================== Tipos ================== */
 type TaskItem = {
   id: string;
   status?: "queued" | "processing" | "done" | "error";
+  nombre: string;
   inputPath?: string;   // ahora apunta a la foto con marco (input.png)
   framedPath?: string;  // igual a inputPath
   framedUrl?: string;   // URL pública de la foto con marco
@@ -29,10 +31,10 @@ type TaskItem = {
   finishedAt?: Timestamp | { seconds: number; nanoseconds: number } | null;
 };
 
+/* ================== Helpers de fecha/descarga ================== */
 function toDate(v: TaskItem["createdAt"]) {
   if (!v) return null;
   try {
-    // Firestore Timestamp o POJO similar
     return "toDate" in v ? v.toDate() : new Date((v.seconds || 0) * 1000);
   } catch {
     return null;
@@ -53,7 +55,44 @@ async function downloadAs(filename: string, url: string) {
   URL.revokeObjectURL(blobUrl);
 }
 
-/** Hook: resuelve URL de foto con marco usando framedUrl o (fallback) framedPath/inputPath */
+/* ================== Helpers de paths ================== */
+// Extrae "path" de una URL https de Firebase Storage
+function pathFromStorageUrl(url?: string | null) {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    const m = u.pathname.match(/\/o\/([^?]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+// De "tasks/abc/input.png" -> "tasks/abc"
+function getFolderFromPath(p?: string | null) {
+  if (!p) return null;
+  const m = p.match(/^(.*)\/[^/]+$/);
+  return m ? m[1] : null;
+}
+
+// Resuelve la carpeta raíz de una tarea desde sus campos
+function resolveFolderFromTask(it: TaskItem): string | null {
+  const fromPath =
+    getFolderFromPath(it.framedPath) ??
+    getFolderFromPath(it.inputPath) ??
+    getFolderFromPath(it.outputPath);
+  if (fromPath) return fromPath;
+
+  const fromHttps = pathFromStorageUrl(it.url);
+  if (fromHttps) return getFolderFromPath(fromHttps);
+
+  const fromFramedHttps = pathFromStorageUrl(it.framedUrl);
+  if (fromFramedHttps) return getFolderFromPath(fromFramedHttps);
+
+  return null;
+}
+
+/* ================== Hook: resolver URL de foto con marco ================== */
 function useFramedURL(it: { framedUrl?: string; framedPath?: string; inputPath?: string }) {
   const [url, setUrl] = useState<string | null>(it.framedUrl || null);
 
@@ -68,7 +107,7 @@ function useFramedURL(it: { framedUrl?: string; framedPath?: string; inputPath?:
       if (!path) return;
       try {
         const storage = getStorage();
-        const u = await getDownloadURL(ref(storage, path));
+        const u = await getDownloadURL(storageRef(storage, path));
         if (!cancel) setUrl(u);
       } catch {
         /* noop */
@@ -82,7 +121,7 @@ function useFramedURL(it: { framedUrl?: string; framedPath?: string; inputPath?:
   return url;
 }
 
-/** Componente hijo por ítem: aquí SÍ podemos usar hooks sin error */
+/* ================== Card por ítem ================== */
 function AdminItemCard({ it }: { it: TaskItem }) {
   const framedResolvedUrl = useFramedURL({
     framedUrl: it.framedUrl,
@@ -101,7 +140,7 @@ function AdminItemCard({ it }: { it: TaskItem }) {
     <article className="rounded-xl border border-neutral-200 p-4 flex flex-col gap-3">
       <header className="flex flex-wrap items-center gap-2 justify-between">
         <div className="font-bold text-lg">
-          taskId: <code className="font-mono">{it.id}</code>
+          <code className="font-mono">{it.id}</code>
         </div>
         <div className="text-sm">
           <span
@@ -201,18 +240,20 @@ function AdminItemCard({ it }: { it: TaskItem }) {
   );
 }
 
+/* ================== Componente principal ================== */
 export default function AdminList() {
   const [items, setItems] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [qId, setQId] = useState("");
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 5;
   const unsubRef = useRef<undefined | (() => void)>(undefined);
 
   const baseCol = useMemo(() => collection(db, "imageTasks"), []);
 
-  // carga inicial: últimas 50 (más recientes primero)
+  // Cargar todos los datos (sin límite) en tiempo real
   useEffect(() => {
     setLoading(true);
-    const q = query(baseCol, orderBy("createdAt", "desc"), limit(50));
+    const q = query(baseCol, orderBy("createdAt", "desc"));
     const unsub = onSnapshot(
       q,
       (snap) => {
@@ -230,78 +271,122 @@ export default function AdminList() {
     };
   }, [baseCol]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!qId.trim()) return;
+  // Filtrar solo los que están "done"
+  const filtered = items.filter((it) => it.status === "done");
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const paginated = filtered.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
-    // corta suscripción actual de “últimas 50”
-    if (unsubRef.current) {
-      unsubRef.current();
-      unsubRef.current = undefined;
-    }
+  const handlePrev = () => setPage((p) => Math.max(1, p - 1));
+  const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));
 
-    setLoading(true);
+  /* ============ Descargar TODO en un solo ZIP (todas o solo página) ============ */
+  const [downloadingAll, setDownloadingAll] = useState(false);
+
+  async function handleDownloadAllAsOneZip(allPages = true) {
     try {
-      const q = query(baseCol, where("__name__", "==", qId.trim()));
-      const s = await getDocs(q);
-      const arr: TaskItem[] = [];
-      s.forEach((d) => arr.push({ id: d.id, ...(d.data() as any) }));
-      setItems(arr);
-    } finally {
-      setLoading(false);
-    }
-  };
+      setDownloadingAll(true);
 
-  const handleReset = () => {
-    // re-suscribir a últimas 50
-    setQId("");
-    if (unsubRef.current) {
-      unsubRef.current();
-      unsubRef.current = undefined;
+      const source = allPages ? filtered : paginated;
+      if (!source.length) return;
+
+      // Carga dinámica de JSZip
+      const JSZipMod = await import("jszip");
+      const JSZip = JSZipMod.default ?? (JSZipMod as any);
+      const zip = new JSZip();
+
+      const storage = getStorage();
+
+      // Recorre recursivamente una carpeta
+      async function collectFilesRecursively(folderPath: string) {
+        const baseRef = storageRef(storage, folderPath);
+
+        async function walk(dirRef: any): Promise<any[]> {
+          const out: any[] = [];
+          const res = await listAll(dirRef);
+          out.push(...res.items); // archivos en este nivel
+          for (const p of res.prefixes) {
+            const kids = await walk(p); // subcarpetas
+            out.push(...kids);
+          }
+          return out;
+        }
+
+        return walk(baseRef);
+      }
+
+      // Normaliza "gs://bucket/..." a ruta relativa y quita leading slash
+      const normalizeBase = (folder: string) =>
+        folder.replace(/^gs:\/\/[^/]+\/?/, "").replace(/^\/+/, "");
+
+      // Por cada tarea -> agrega sus archivos como subcarpeta <taskId>/...
+      for (const it of source) {
+        const folder = resolveFolderFromTask(it);
+        if (!folder) continue;
+
+        const files = await collectFilesRecursively(folder);
+        if (!files.length) continue;
+
+        const basePrefix = normalizeBase(folder);
+        const taskRoot = zip.folder(it.id)!;
+
+        // Descarga concurrente moderada
+        const CONCURRENCY = 4;
+        let idx = 0;
+
+        async function worker() {
+          while (idx < files.length) {
+            const k = idx++;
+            const fileRef = files[k];
+            const url = await getDownloadURL(fileRef);
+            const resp = await fetch(url, { cache: "no-store" });
+            if (!resp.ok) throw new Error(`Error al descargar ${fileRef.fullPath}`);
+            const blob = await resp.blob();
+
+            const fullPath = fileRef.fullPath;
+            const relative = fullPath.startsWith(basePrefix)
+              ? fullPath.slice(basePrefix.length).replace(/^\/+/, "")
+              : fileRef.name;
+
+            taskRoot.file(relative, blob); // Guarda dentro de /<taskId>/
+          }
+        }
+
+        await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+      }
+
+      // Generar y descargar ZIP único
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(zipBlob);
+      a.download = allPages ? "AllPhotos.zip" : `Photos-${page}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    } finally {
+      setDownloadingAll(false);
     }
-    setLoading(true);
-    const q = query(baseCol, orderBy("createdAt", "desc"), limit(50));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const arr: TaskItem[] = [];
-        snap.forEach((d) => arr.push({ id: d.id, ...(d.data() as any) }));
-        setItems(arr);
-        setLoading(false);
-      },
-      () => setLoading(false)
-    );
-    unsubRef.current = unsub;
-  };
+  }
 
   return (
     <section className="w-full">
-      {/* Buscador por taskId */}
-      <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-2">
-        <div className="flex flex-col">
-          <label className="text-xs font-semibold text-neutral-600">Buscar por taskId</label>
-          <input
-            value={qId}
-            onChange={(e) => setQId(e.target.value)}
-            placeholder="t_abcd1234_xxxx"
-            className="mt-1 px-3 py-2 rounded-lg border border-neutral-300 w-[min(80vw,28rem)]"
-          />
-        </div>
+      {/* Barra de acciones */}
+      <div className="flex flex-wrap gap-2 items-center justify-end">
         <button
-          type="submit"
-          className="px-4 py-2 rounded-lg bg-neutral-900 text-white font-semibold disabled:opacity-60"
-          disabled={!qId.trim()}
+          onClick={() => handleDownloadAllAsOneZip(true)}
+          disabled={downloadingAll || loading || filtered.length === 0}
+          className="px-3 py-2 rounded-lg bg-neutral-900 text-white font-semibold disabled:opacity-50"
         >
-          Buscar
+          {downloadingAll ? "Empaquetando…" : "Descargar TODAS LAS FOTOS"}
         </button>
         <button
-          type="button"
-          onClick={handleReset}
-          className="px-4 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold"
+          onClick={() => handleDownloadAllAsOneZip(false)}
+          disabled={downloadingAll || loading || paginated.length === 0}
+          className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold disabled:opacity-50"
         >
-          Últimas 50
+          {downloadingAll ? "Empaquetando…" : "Descargar esta página "}
         </button>
-      </form>
+      </div>
 
       {/* Cards */}
       <div className="mt-5 grid grid-cols-1 gap-4">
@@ -309,14 +394,35 @@ export default function AdminList() {
           <div className="rounded-xl border border-neutral-200 p-4">Cargando…</div>
         )}
 
-        {!loading && items.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div className="rounded-xl border border-neutral-200 p-4">Sin resultados.</div>
         )}
 
-        {items.map((it) => (
+        {paginated.map((it) => (
           <AdminItemCard key={it.id} it={it} />
         ))}
       </div>
+
+      {/* Paginador */}
+      {!loading && totalPages > 1 && (
+        <div className="flex justify-center items-center gap-4 mt-6">
+          <button
+            onClick={handlePrev}
+            disabled={page === 1}
+            className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold disabled:opacity-50"
+          >
+            Anterior
+          </button>
+          <span className="font-bold">Página {page} de {totalPages}</span>
+          <button
+            onClick={handleNext}
+            disabled={page === totalPages}
+            className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold disabled:opacity-50"
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
     </section>
   );
 }
