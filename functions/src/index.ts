@@ -1,22 +1,21 @@
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+// functions/src/index.ts
+import { onRequest } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
-import { getFirestore } from "firebase-admin/firestore";
-import { defineSecret } from "firebase-functions/params";
 import { randomUUID } from "crypto";
 
-// 👇 NUEVO
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import sharp from "sharp"; // si TS se queja, activa "esModuleInterop": true en tsconfig
-
-// Inicializa Admin SDK (Functions v2, Node 18/22)
+// Inicializa Admin SDK
 initializeApp();
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
+// === Goat Shot: paths ===
+const OUTPUT_PREFIX = "goat-shot/outputs";
+
+// Modelo base y prompt
 const MODEL = "gpt-image-1";
-const PROMPT = `Transform the uploaded photo of a person into a hyper-realistic, artistic portrait inspired by the history of pharmacy and chemistry. 
+const BASE_PROMPT = `Transform the uploaded photo of a person into a hyper-realistic, artistic portrait inspired by the history of pharmacy and chemistry.
 
 Keep the person’s face, expression, and natural features unchanged and realistic, but apply a soft and flattering enhancement: smooth out strong facial lines, reduce signs of tiredness, brighten the eyes, and balance the skin tone for a fresh, youthful, and elegant look. The result should look natural, beautiful, and polished without altering identity
 
@@ -27,80 +26,120 @@ Lighting: warm golden tones mixed with neon accents (blue, orange, cyan), creati
 Style: hyper-detailed, cinematic, elegant, and inspiring.
 Overall look: the person appears as a mystic, sophisticated apothecary-scientist, with the portrait telling the story of science evolving across time.`;
 
-// Trigger: cuando se crea un doc en imageTasks/{taskId}
-export const processImageTask = onDocumentCreated(
+// Util: dataURL/base64 → Uint8Array
+function decodeBase64(inputB64: string): Uint8Array {
+  const commaIdx = inputB64.indexOf(",");
+  const pure = commaIdx >= 0 ? inputB64.slice(commaIdx + 1) : inputB64;
+  const buf = Buffer.from(pure, "base64");
+  return new Uint8Array(buf);
+}
+
+// Sanitiza color (evita inyectar cosas raras en el prompt)
+function sanitizeColor(color?: string): string | null {
+  if (!color) return null;
+  const trimmed = color.trim().slice(0, 60);
+  // Acepta palabras, números, #hex, comas/espacios (para "teal orange", "rgb(…)")
+  if (!/^[#a-z0-9 ,.-]{1,60}$/i.test(trimmed)) return null;
+  return trimmed;
+}
+
+// Construye el prompt dinámico con color opcional
+function buildPrompt(color?: string) {
+  const c = sanitizeColor(color);
+  if (!c) return BASE_PROMPT;
+  return (
+    BASE_PROMPT +
+    `
+
+Color direction: emphasize an overall color theme of "${c}" in fabrics, holograms and lighting accents while keeping skin tones natural.`
+  );
+}
+
+export const processGoatShotHttp = onRequest(
   {
-    document: "imageTasks/{taskId}",
     region: "us-central1",
-    timeoutSeconds: 540, // hasta 9 min
+    timeoutSeconds: 540, // ~9 minutos
     memory: "1GiB",
     secrets: [OPENAI_API_KEY],
   },
-  async (event) => {
-    const snap = event.data;
-    if (!snap) return;
-
-    const taskId = event.params.taskId as string;
-    const db = getFirestore();
-    const bucket = getStorage().bucket();
-    const docRef = db.collection("imageTasks").doc(taskId);
-    const data = snap.data() as { inputPath?: string } | undefined;
-
-    if (!data?.inputPath) {
-      await docRef.update({
-        status: "error",
-        error: "Falta inputPath",
-        updatedAt: Date.now(),
-      });
-      return;
-    }
-
+  async (req, res) => {
     try {
-      await docRef.update({ status: "processing", updatedAt: Date.now() });
+      // CORS sencillo (opcional)
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      if (req.method === "OPTIONS") {
+        res.status(204).end();
+        return;
+      }
+      if (req.method !== "POST") {
+        res.status(405).json({ error: "Use POST" });
+        return;
+      }
 
-      // 1) Descargar input desde Storage
-      const file = bucket.file(data.inputPath);
-      const [meta] = await file
-        .getMetadata()
-        .catch(() => [{ contentType: "application/octet-stream" } as any]);
-      const [fileBuf] = await file.download(); // Buffer
+      const { inputUrl, inputPath, inputB64, mime, color } = req.body || {};
 
-      const bytes = new Uint8Array(fileBuf); // normaliza a BufferSource
-      const byteLen = bytes.byteLength;
-      const mime = (meta?.contentType || "image/png").startsWith("image/")
-        ? meta.contentType
-        : "image/png";
+      if (!inputUrl && !inputPath && !inputB64) {
+        res
+          .status(400)
+          .json({ error: "Falta inputUrl o inputPath o inputB64" });
+        return;
+      }
 
-      // Guarda diagnóstico mínimo en el doc (útil si se corta el log)
-      await docRef.update({
-        debug: {
-          inputPath: data.inputPath,
-          mime,
-          byteLen,
-        },
-      });
+      // 1) Obtener bytes y mime de la imagen de entrada
+      let bytes: Uint8Array;
+      let inMime = "image/png";
 
-      // Helper: intenta parsear JSON de respuesta; si no, devuelve raw truncado
-      const parseMaybeJson = (raw: string) => {
-        try {
-          return { json: JSON.parse(raw), raw: null };
-        } catch {
-          return { json: null, raw: raw.slice(0, 1200) };
+      if (inputB64) {
+        bytes = decodeBase64(inputB64);
+        if (typeof inputB64 === "string" && inputB64.startsWith("data:")) {
+          const m = /^data:([^;]+);base64,/i.exec(inputB64);
+          if (m?.[1]) inMime = m[1];
+        } else if (mime?.startsWith?.("image/")) {
+          inMime = mime;
         }
-      };
+      } else if (inputUrl) {
+        // Descargar desde la URL pública de Firebase Storage (con token)
+        const resp = await fetch(inputUrl);
+        if (!resp.ok) {
+          res
+            .status(400)
+            .json({ error: `No se pudo descargar inputUrl (${resp.status})` });
+          return;
+        }
+        const arrBuf = await resp.arrayBuffer();
+        bytes = new Uint8Array(arrBuf);
+        const ct = resp.headers.get("content-type") || "";
+        inMime = ct.startsWith("image/")
+          ? ct
+          : mime?.startsWith?.("image/")
+          ? mime
+          : "image/png";
+      } else {
+        // inputPath (ruta en tu bucket)
+        const bucket = getStorage().bucket();
+        const file = bucket.file(String(inputPath));
+        const [meta] = await file
+          .getMetadata()
+          .catch(() => [{ contentType: "application/octet-stream" } as any]);
+        const [fileBuf] = await file.download();
+        bytes = new Uint8Array(fileBuf);
+        inMime = (meta?.contentType || "image/png").startsWith("image/")
+          ? meta.contentType
+          : "image/png";
+      }
 
-      // Helper: llamada a OpenAI con una clave de campo concreta
+      // 2) Llamar a OpenAI Images/edits (puede tardar varios minutos)
       async function callOpenAI(fieldName: "image" | "image[]") {
         const form = new FormData();
         form.set("model", MODEL);
-        form.set("prompt", PROMPT);
-        // tamaños válidos: 1024x1024, 1024x1536, 1536x1024, auto
+        form.set("prompt", buildPrompt(color));
         form.set("size", "1024x1024");
-        // form.set("quality", "high");
-        form.set("input_fidelity", "high"); // mejor preservación de rostro
-        // form.set("output_format", "png");
+        form.set("input_fidelity", "high");
+        form.set("output_format", "png");
 
-        const blob = new Blob([bytes], { type: mime || "image/png" });
+        const blob = new Blob([Buffer.from(bytes)], {
+          type: inMime || "image/png",
+        });
         form.append(fieldName, blob, "input.png");
 
         const resp = await fetch("https://api.openai.com/v1/images/edits", {
@@ -109,143 +148,63 @@ export const processImageTask = onDocumentCreated(
           body: form as any,
         });
 
-        const requestId = resp.headers.get("x-request-id") || null;
-        const respType = resp.headers.get("content-type") || "";
         const raw = await resp.text();
-        const { json, raw: rawSnippet } = parseMaybeJson(raw);
-        return {
-          ok: resp.ok,
-          status: resp.status,
-          json,
-          rawSnippet,
-          respType,
-          requestId,
-        };
+        let json: any = null;
+        try {
+          json = JSON.parse(raw);
+        } catch {
+          // raw se guarda para diagnóstico
+        }
+        return { ok: resp.ok, status: resp.status, json, raw };
       }
 
-      // 2) INTENTO 1: usar "image"
       let r = await callOpenAI("image");
-
-      // Si 400, INTENTO 2: usar "image[]"
       if (!r.ok && r.status === 400) {
-        await docRef.update({
-          debug: {
-            ...((await docRef.get()).data() as any)?.debug,
-            firstAttempt: {
-              status: r.status,
-              respType: r.respType,
-              requestId: r.requestId,
-              details: r.json || r.rawSnippet,
-            },
-          },
-        });
+        // Fallback de compatibilidad
         r = await callOpenAI("image[]");
       }
 
       if (!r.ok) {
-        console.error("OpenAI error:", r.status, r.json || r.rawSnippet);
-        await docRef.update({
-          status: "error",
-          error: `OpenAI ${r.status}`,
-          updatedAt: Date.now(),
-          details: r.json || r.rawSnippet || null,
-          requestId: r.requestId || null,
-          respType: r.respType || null,
-        });
+        res
+          .status(502)
+          .json({ error: `OpenAI ${r.status}`, details: r.json || r.raw });
         return;
       }
 
       const b64 = r.json?.data?.[0]?.b64_json as string | undefined;
       if (!b64) {
-        await docRef.update({
-          status: "error",
-          error: "Respuesta sin imagen",
-          updatedAt: Date.now(),
-          details: r.json || r.rawSnippet || null,
-        });
+        res.status(502).json({ error: "Respuesta sin imagen" });
         return;
       }
 
-      // ======= 🔽 NUEVO: sobreponer PNG centrado en la parte inferior 🔽
-      const baseBuf = Buffer.from(b64, "base64");
-
-      // Intentar leer el watermark desde el filesystem del bundle compilado (lib/assets/watermark.png)
-      const watermarkFsPath = path.resolve(__dirname, "assets", "watermark.png");
-
-      let outBuf: Buffer;
-
-      try {
-        const overlayBuf = await readFile(watermarkFsPath); // puede lanzar si no existe
-
-        // Asegura PNG y lee dimensiones base
-        const baseImg = sharp(baseBuf).png();
-        const meta = await baseImg.metadata();
-        const baseW = meta.width ?? 1024;
-        const baseH = meta.height ?? 1024;
-
-        // Redimensiona el overlay a ~55% del ancho (ajusta a gusto o hazlo configurable)
-        const targetOverlayW = Math.round(baseW * 0.65);
-        const overlayResized = await sharp(overlayBuf)
-          .png()
-          .resize({ width: targetOverlayW })
-          .toBuffer();
-
-        const oMeta = await sharp(overlayResized).metadata();
-        const ow = oMeta.width ?? targetOverlayW;
-        const oh = oMeta.height ?? Math.round(targetOverlayW / 3);
-
-        // Padding inferior (3% de alto, mínimo 10px)
-        const padding = Math.max(10, Math.round(baseH * 0.02));
-
-        // Posición: centrado abajo
-        const left = Math.max(0, Math.round((baseW - ow) / 2));
-        const top = Math.max(0, baseH - oh - padding);
-
-        outBuf = await baseImg
-          .composite([{ input: overlayResized, left, top }])
-          .png()
-          .toBuffer();
-      } catch (e) {
-        // Si falta el overlay o hay error, usamos la imagen base
-        console.warn("Overlay no aplicado:", (e as any)?.message || e);
-        outBuf = baseBuf;
-      }
-      // ======= 🔼 NUEVO 🔼
-
-      // 3) Guardar salida y generar URL con token (SIN getSignedUrl)
-      const outPath = `tasks/${taskId}/output.png`;
+      // 3) Guardar PNG de salida en Storage y devolver URL con token
+      const bucket = getStorage().bucket();
+      const taskId = randomUUID();
+      const outPath = `${OUTPUT_PREFIX}/${taskId}/output.png`;
+      const outBuf = Buffer.from(b64, "base64");
 
       const token = randomUUID();
       await bucket.file(outPath).save(outBuf, {
         contentType: "image/png",
         resumable: false,
-        metadata: {
-          metadata: {
-            // 👇 token de descarga estilo Firebase
-            firebaseStorageDownloadTokens: token,
-          },
-        },
+        metadata: { metadata: { firebaseStorageDownloadTokens: token } },
       });
 
-      // URL pública con token (no requiere roles extra ni signBlob)
-      const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(
-        outPath
-      )}?alt=media&token=${token}`;
+      const url = `https://firebasestorage.googleapis.com/v0/b/${
+        bucket.name
+      }/o/${encodeURIComponent(outPath)}?alt=media&token=${token}`;
 
-      // 4) Done
-      await docRef.update({
+      // 4) Respuesta HTTP (ideal para tu QR)
+      res.json({
         status: "done",
+        taskId,
         url,
         outputPath: outPath,
-        updatedAt: Date.now(),
+        // (Opcional) por si quieres mostrar qué prompt se usó finalmente
+        promptUsed: buildPrompt(color),
       });
     } catch (e: any) {
-      console.error("processImageTask error:", e);
-      await docRef.update({
-        status: "error",
-        error: e?.message ?? "Error",
-        updatedAt: Date.now(),
-      });
+      res.status(500).json({ error: e?.message || "Error" });
     }
   }
 );
