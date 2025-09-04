@@ -15,7 +15,7 @@ const OUTPUT_PREFIX = "goat-shot/outputs";
 
 // Modelo base y prompt
 const MODEL = "gpt-image-1";
-const BASE_PROMPT = `Transform the uploaded photo of a person into a hyper-realistic, artistic portrait inspired by the history of pharmacy and chemistry.
+const BASE_PROMPT_quimicos = `Transform the uploaded photo of a person into a hyper-realistic, artistic portrait inspired by the history of pharmacy and chemistry.
 
 Keep the person’s face, expression, and natural features unchanged and realistic, but apply a soft and flattering enhancement: smooth out strong facial lines, reduce signs of tiredness, brighten the eyes, and balance the skin tone for a fresh, youthful, and elegant look. The result should look natural, beautiful, and polished without altering identity
 
@@ -25,6 +25,15 @@ Background: seamless blend of science history and modern chemistry — shelves w
 Lighting: warm golden tones mixed with neon accents (blue, orange, cyan), creating a cinematic and luminous atmosphere.
 Style: hyper-detailed, cinematic, elegant, and inspiring.
 Overall look: the person appears as a mystic, sophisticated apothecary-scientist, with the portrait telling the story of science evolving across time.`;
+
+const BASE_PROMPT = `Transform the uploaded photo of a person into a photorealistic, cinematic portrait of a soccer player. 
+The person’s face should remain faithful to their real identity, with flattering detail: smooth natural skin, clear eyes, and a healthy glow, avoiding any distortion or harsh aging. They are centered on a stadium pitch, styled as a champion.
+Outfit: light gray Colombia 2026 World Cup jersey with Lenovo-inspired futuristic accents — glowing red and silver lines, holographic seams, and digital energy circuits woven into the fabric.
+Atmosphere & Aura: a radiant tech-inspired aura surrounds them, with glowing data streams and holographic Lenovo geometry.
+Lighting: golden stadium glow mixed with neon Lenovo colors (red, white, cyan), highlighting the player’s strength and confidence.
+Style: cinematic, elegant, inspiring — a timeless soccer icon merging passion with Lenovo innovation`;
+
+
 
 // Util: dataURL/base64 → Uint8Array
 function decodeBase64(inputB64: string): Uint8Array {
