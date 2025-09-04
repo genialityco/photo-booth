@@ -15,6 +15,7 @@ const OUTPUT_PREFIX = "goat-shot/outputs";
 
 // Modelo base y prompt
 const MODEL = "gpt-image-1";
+/*
 const BASE_PROMPT_quimicos = `Transform the uploaded photo of a person into a hyper-realistic, artistic portrait inspired by the history of pharmacy and chemistry.
 
 Keep the person’s face, expression, and natural features unchanged and realistic, but apply a soft and flattering enhancement: smooth out strong facial lines, reduce signs of tiredness, brighten the eyes, and balance the skin tone for a fresh, youthful, and elegant look. The result should look natural, beautiful, and polished without altering identity
@@ -25,13 +26,13 @@ Background: seamless blend of science history and modern chemistry — shelves w
 Lighting: warm golden tones mixed with neon accents (blue, orange, cyan), creating a cinematic and luminous atmosphere.
 Style: hyper-detailed, cinematic, elegant, and inspiring.
 Overall look: the person appears as a mystic, sophisticated apothecary-scientist, with the portrait telling the story of science evolving across time.`;
-
-const BASE_PROMPT = `Transform the uploaded photo of a person into a photorealistic, cinematic portrait of a soccer player. 
-The person’s face should remain faithful to their real identity, with flattering detail: smooth natural skin, clear eyes, and a healthy glow, avoiding any distortion or harsh aging. They are centered on a stadium pitch, styled as a champion.
-Outfit: light gray Colombia 2026 World Cup jersey with Lenovo-inspired futuristic accents — glowing red and silver lines, holographic seams, and digital energy circuits woven into the fabric.
-Atmosphere & Aura: a radiant tech-inspired aura surrounds them, with glowing data streams and holographic Lenovo geometry.
-Lighting: golden stadium glow mixed with neon Lenovo colors (red, white, cyan), highlighting the player’s strength and confidence.
-Style: cinematic, elegant, inspiring — a timeless soccer icon merging passion with Lenovo innovation`;
+*/
+const BASE_PROMPT = `Transform the uploaded photo of a person into a photorealistic, cinematic portrait of a soccer player. The person’s facial identity must be preserved faithfully, while appearing attractive, youthful, and flattering. Emphasize smooth natural skin, wrinkle-free complexion, clear bright eyes, natural symmetry, healthy glow, and subtle photogenic enhancements. Hair color and hairstyle must remain exactly as in the uploaded photo, with no changes.
+Outfit: a light gray Colombia 2026 World Cup jersey, sleek and modern, enhanced with Lenovo-inspired futuristic accents: glowing red and silver lines, holographic seams, and digital energy circuits woven into the fabric.
+Atmosphere & Aura: a radiant, electrifying aura surrounds the player, infused with glowing data streams and Lenovo-inspired holographic geometry. Subtle sparks, light trails, and digital arcs orbit around, symbolizing performance and innovation.
+Background: a futuristic 2026 stadium with cheering fans under dramatic lights. Floating holograms display glowing play diagrams and tactical visuals, merging sport and technology.
+Lighting: cinematic golden stadium glow fused with Lenovo neon accents (red, white, cyan), highlighting the player’s confident expression and athletic energy.
+Style: hyper-detailed, cinematic, elegant, and inspiring — portraying a timeless soccer icon who embodies Colombia’s World Cup passion and Lenovo’s vision of innovation.`;
 
 
 
