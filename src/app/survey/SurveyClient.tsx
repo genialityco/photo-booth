@@ -5,7 +5,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { createSurveyRecord, createSurveyRecordQuick } from "../services/surveyServices";
+// ⬇️ Ya no guardamos en base, así que puedes comentar/retirar estos imports si no se usan
+// import { createSurveyRecord, createSurveyRecordQuick } from "../services/surveyServices";
 
 type QRResponse =
   | { ok: true; dataUrl: string; kind: "raw" | "framed" }
@@ -23,6 +24,7 @@ export default function SurveyClient() {
   const [loadingPhoto, setLoadingPhoto] = useState(true);
   const [err, setErr] = useState<string>("");
 
+  // ⬇️ Estado del formulario preservado por si luego lo reactivas (no se usa ahora)
   const [form, setForm] = useState({
     nombre: "",
     telefono: "",
@@ -31,7 +33,7 @@ export default function SurveyClient() {
     empresa: "",
   });
 
-  const [sending, setSending] = useState(false);
+  const [sending] = useState(false); // ya no enviamos nada
   const [saved, setSaved] = useState(false);
 
   const [downloadHref, setDownloadHref] = useState<string>("");
@@ -45,6 +47,7 @@ export default function SurveyClient() {
     return `${base}-${t}.png`;
   }, [filenameFromQS, kind]);
 
+  // Carga de la imagen (igual que antes)
   useEffect(() => {
     let abort = false;
     (async () => {
@@ -77,87 +80,59 @@ export default function SurveyClient() {
     };
   }, [src, qrId]);
 
+  // ⬇️ NUEVO: cuando la imagen esté lista, “simulamos” el estado posterior al envío
+  // y preparamos el enlace de descarga.
+  useEffect(() => {
+    if (!loadingPhoto && photo) {
+      // Limpieza de blobs previos si la tuvieses
+      if (revokeRef.current) {
+        revokeRef.current();
+        revokeRef.current = null;
+      }
+      setDownloadHref(photo);
+      setDownloadName(filenameFromQS || suggestedName);
+      setSaved(true);
+    }
+  }, [loadingPhoto, photo, filenameFromQS, suggestedName]);
+
+  const canDownload = !!photo && !loadingPhoto && saved;
+
+  // ⬇️ Manejadores del formulario (comentados para uso futuro)
+  /*
   const handleChange =
     (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!photo) {
-      setErr("La imagen aún no está disponible. Intenta de nuevo en unos segundos.");
-      return;
-    }
-    setSending(true);
-    setErr("");
-    setSaved(false);
-
-    if (revokeRef.current) {
-      revokeRef.current();
-      revokeRef.current = null;
-    }
-
-    try {
-      const isDataUrl = photo.startsWith("data:");
-
-      if (isDataUrl) {
-        await createSurveyRecord({
-          qrId: qrId ?? (src ? "from-src" : "unknown"),
-          kind,
-          photoDataUrl: photo,
-          nombre: form.nombre.trim(),
-          telefono: form.telefono.trim(),
-          correo: form.correo.trim(),
-          cargo: form.cargo.trim(),
-          empresa: form.empresa.trim(),
-        });
-      } else {
-        await createSurveyRecordQuick({
-          qrId: qrId ?? (src ? "from-src" : "unknown"),
-          kind,
-          photoUrl: photo,
-          nombre: form.nombre.trim(),
-          telefono: form.telefono.trim(),
-          correo: form.correo.trim(),
-          cargo: form.cargo.trim(),
-          empresa: form.empresa.trim(),
-        });
-      }
-
-      setDownloadHref(photo);
-      setDownloadName(filenameFromQS || suggestedName);
-      setSaved(true);
-    } catch (e: any) {
-      setErr(e.message || "No se pudo guardar la encuesta.");
-    } finally {
-      setSending(false);
-    }
+    // Lógica original de guardado con createSurveyRecord / createSurveyRecordQuick...
   };
-
-  const canSubmit = !sending && !!photo && !loadingPhoto;
+  */
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center py-8 px-4">
       <div className="w-full max-w-3xl">
         <header className="text-center mb-6">
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
-            ¡Tu foto está casi lista! 📸
+            Descarga tu imagen 📸
           </h1>
           <p className="text-white/80 mt-2 max-w-2xl mx-auto">
-            Déjanos tus datos para habilitar la <strong>descarga de tu imagen</strong>.
+            Tu imagen se preparará automáticamente si proporcionaste un <code>src</code> o <code>qrId</code>.
           </p>
         </header>
 
-        {!saved && loadingPhoto && (
+        {loadingPhoto && (
           <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-white/80">
             Preparando tu imagen…
           </div>
         )}
-        {!saved && err && (
+        {err && (
           <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-red-300">
             {err}
           </div>
         )}
 
+        {/* ⬇️ FORMULARIO ORIGINAL (COMENTADO)
         {!saved && (
           <div className="rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6">
             <h2 className="text-xl font-bold text-white mb-1">Completa el formulario</h2>
@@ -229,61 +204,50 @@ export default function SurveyClient() {
 
               <button
                 type="submit"
-                disabled={!canSubmit}
-                className={`mt-2 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-white transition
-                  ${canSubmit ? "bg-emerald-600 hover:bg-emerald-700" : "bg-emerald-600/50 cursor-not-allowed"}
-                `}
-                title={!photo ? "Estamos preparando tu imagen…" : undefined}
+                className="mt-2 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition"
               >
-                {sending ? (
-                  <>
-                    <span className="inline-block animate-spin rounded-full border-2 border-white/40 border-t-white w-4 h-4" />
-                    Guardando…
-                  </>
-                ) : (
-                  "Enviar y habilitar descarga"
-                )}
+                Enviar y habilitar descarga
               </button>
-
-              <p className="text-xs text-white/50 mt-1">
-                Al enviar aceptas que usemos tus datos para contacto relacionado con esta actividad.
-              </p>
             </form>
           </div>
         )}
+        */}
 
-        {saved && photo && (
-          <div className="rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6">
-            <h3 className="text-lg md:text-xl font-bold text-white">¡Gracias! 🎉</h3>
-            <p className="text-sm text-white/70 mt-1">
-              Hemos registrado tu respuesta. Aquí tienes tu imagen:
-            </p>
-
-            <div className="mt-4 grid grid-cols-1 gap-4">
-              <div className="w-full bg-white/5 rounded-xl p-3 border border-white/10">
-                <img
-                  src={photo}
-                  alt="Tu imagen"
-                  className="w-full h-auto object-contain rounded-lg"
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <a
-                  href={downloadHref}
-                  download={downloadName || suggestedName}
-                  className="px-4 py-2 rounded-xl bg-white text-black font-semibold hover:bg-white/90 shadow"
-                >
-                  Descargar imagen
-                </a>
-                <span className="text-xs text-white/50">
-                  Nombre sugerido:{" "}
-                  <code className="text-white/80">{downloadName || suggestedName}</code>
-                </span>
-              </div>
-            </div>
+        {/* ⬇️ SOLO DESCARGA */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <a
+              href={canDownload ? downloadHref : undefined}
+              download={downloadName || suggestedName}
+              className={`px-4 py-2 rounded-xl font-semibold shadow transition
+                ${canDownload ? "bg-white text-black hover:bg-white/90" : "bg-white/40 text-black/60 cursor-not-allowed"}
+              `}
+              aria-disabled={!canDownload}
+              title={!canDownload ? "Esperando a que la imagen esté lista…" : "Descargar imagen"}
+            >
+              Descargar imagen
+            </a>
+            {canDownload && (
+              <span className="text-xs text-white/60">
+                Nombre sugerido:{" "}
+                <code className="text-white/80">{downloadName || suggestedName}</code>
+              </span>
+            )}
           </div>
-        )}
+
+          {/* Vista previa opcional (déjala comentada si quieres SOLO el botón) */}
+          {/*
+          {canDownload && (
+            <div className="mt-4 w-full bg-white/5 rounded-xl p-3 border border-white/10">
+              <img
+                src={photo}
+                alt="Tu imagen"
+                className="w-full h-auto object-contain rounded-lg"
+              />
+            </div>
+          )}
+          */}
+        </div>
       </div>
     </div>
   );
