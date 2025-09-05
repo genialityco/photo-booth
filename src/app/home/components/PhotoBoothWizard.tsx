@@ -25,11 +25,11 @@ import {
 // import { json } from "stream/consumers";
 
 export default function PhotoBoothWizard({
-  frameSrc = "/images/marco.png",
+  frameSrc = null,
   mirror = true,
   boxSize = "min(88vw, 60svh)",
 }: {
-  frameSrc?: string;
+  frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
 }) {
@@ -141,7 +141,7 @@ export default function PhotoBoothWizard({
     >
       {step === "capture" && (
         <CaptureStep
-          frameSrc={frameSrc}
+          //frameSrc={frameSrc}
           mirror={mirror}
           boxSize={boxSize}
           onCaptured={handleCaptured}

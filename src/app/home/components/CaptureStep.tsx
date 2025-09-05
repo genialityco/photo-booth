@@ -7,12 +7,13 @@ import captureRawSquare from "./captureRawSquare";
 import ButtonPrimary from "@/app/items/ButtonPrimary";
 
 export default function CaptureStep({
-  frameSrc = "/images/marco.png",
+  // 👇 sin marco por defecto
+  frameSrc = null,
   mirror = true,
   boxSize = "min(88vw, 60svh)",
   onCaptured,
 }: {
-  frameSrc?: string;
+  frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
   onCaptured: (payload: { framed: string; raw: string }) => void;
@@ -22,16 +23,14 @@ export default function CaptureStep({
 
   const videoElRef = useRef<HTMLVideoElement | null>(null);
 
-  // 👉 ahora usamos una imagen precargada con decode()
-  const frameImgRef = useRef<HTMLImageElement | null>(null);
-  const [frameSize, setFrameSize] = useState<{ w: number; h: number } | null>(
-    null
-  );
+  // --- Solo se usan si activas marco ---
+  // const frameImgRef = useRef<HTMLImageElement | null>(null);
+  // const [frameSize, setFrameSize] = useState<{ w: number; h: number } | null>(null);
+  // const [frameReady, setFrameReady] = useState(false);
 
   const [videoReady, setVideoReady] = useState(false);
-  const [frameReady, setFrameReady] = useState(false);
 
-  // Recibe el <video> desde FrameCamera y marca ready cuando tenga metadata
+  // Recibe el <video> desde FrameCamera
   const onReady = ({
     getVideoEl,
   }: {
@@ -46,40 +45,34 @@ export default function CaptureStep({
     }
   };
 
-  // 🔒 Precarga y decodifica el PNG del marco de forma robusta
+  // --- Precarga de marco (descomentar si se usa frameSrc) ---
+  /*
   useEffect(() => {
     let cancelled = false;
+
+    if (!frameSrc) {
+      setFrameReady(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     (async () => {
       try {
         const img = new Image();
-        // Por si en prod sirves el PNG desde CDN distinto dominio:
         img.crossOrigin = "anonymous";
         img.decoding = "async";
         img.src = frameSrc;
 
-        // Espera a que esté en memoria listo para dibujar
         await img.decode();
-
         if (cancelled) return;
-        frameImgRef.current = img;
 
+        frameImgRef.current = img;
         const w = img.naturalWidth || img.width;
         const h = img.naturalHeight || img.height;
-        if (w && h) {
-          setFrameSize({ w, h });
-          setFrameReady(true);
-        } else {
-          // fallback si decode no da dimensiones (raro pero posible)
-          img.onload = () => {
-            if (cancelled) return;
-            const ww = img.naturalWidth || img.width;
-            const hh = img.naturalHeight || img.height;
-            setFrameSize({ w: ww, h: hh });
-            setFrameReady(true);
-          };
-        }
+        setFrameSize({ w, h });
+        setFrameReady(true);
       } catch {
-        // si falla decode, intenta onload
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.src = frameSrc;
@@ -93,12 +86,16 @@ export default function CaptureStep({
         };
       }
     })();
+
     return () => {
       cancelled = true;
     };
   }, [frameSrc]);
+  */
 
-  const canShoot = videoReady && frameReady && !!frameSize;
+  // 👇 Sin marco: basta con videoReady
+  // 👇 Con marco: sería videoReady && frameReady && !!frameSize
+  const canShoot = videoReady;
 
   const startCapture = () => {
     if (!canShoot) return;
@@ -119,10 +116,26 @@ export default function CaptureStep({
   };
 
   const doCapture = async () => {
-    const { w, h } = frameSize!;
-    const video = videoElRef.current!;
-    const frameImg = frameImgRef.current; // ✅ imagen decodificada
+    const video = videoElRef.current;
+    if (!video) return;
 
+    // --- Sin marco ---
+    const square = Math.min(video.videoWidth || 1080, video.videoHeight || 1080);
+    const targetW = square;
+    const targetH = square;
+
+    const framed = captureWithFrame({
+      video,
+      frame: null, // 👈 aquí no se dibuja ningún marco
+      targetW,
+      targetH,
+      mirror,
+    });
+
+    // --- Con marco (ejemplo) ---
+    /*
+    const { w, h } = frameSize!;
+    const frameImg = frameImgRef.current;
     const framed = captureWithFrame({
       video,
       frame: frameImg ?? null,
@@ -130,17 +143,9 @@ export default function CaptureStep({
       targetH: h,
       mirror,
     });
+    */
 
-    const raw = captureRawSquare({ video, targetW: w, targetH: h, mirror });
-
-    // dentro de doCapture() tras obtener framed y raw:
-    const framedLen = framed.length;
-    const rawLen = raw.length;
-    console.log("[CaptureStep] sizes base64:", {
-      framedLen,
-      rawLen,
-      same: framed === raw,
-    });
+    const raw = captureRawSquare({ video, targetW, targetH, mirror });
 
     setFlash(true);
     setTimeout(() => setFlash(false), 120);
@@ -151,7 +156,7 @@ export default function CaptureStep({
   return (
     <div className="h-[100svh] w-[100vw] flex flex-col items-center justify-center gap-6">
       <FrameCamera
-        frameSrc={frameSrc}
+        frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
         mirror={mirror}
         boxSize={boxSize}
         onReady={onReady}
@@ -178,3 +183,6 @@ export default function CaptureStep({
     </div>
   );
 }
+
+
+

@@ -24,11 +24,11 @@ export default function LoaderStep() {
 
       {/* Logo arriba */}
       <div className="absolute top-6 inset-x-0 flex justify-center z-20">
-        <img
+        {/* <img
           src="/images/LOGOS.png"
           alt="Casa Científica"
           className="w-[280px] md:w-[360px] animate-fadeIn"
-        />
+        /> */}
       </div>
 
       {/* Texto centro */}
