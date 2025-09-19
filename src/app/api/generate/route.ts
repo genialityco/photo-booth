@@ -13,10 +13,10 @@ Style: hyper-detailed, cinematic, elegant, and inspiring.
 Overall look: the person appears as a mystic, sophisticated apothecary-scientist, with the portrait telling the story of science evolving across time.`;
 */
 const PROMPT = `Transform the uploaded photo of a person into a photorealistic, cinematic portrait of a soccer player. The person’s face should remain faithful to their real identity, with flattering detail: smooth natural skin, clear eyes, and a healthy glow, avoiding any distortion or harsh aging. They are centered on a stadium pitch, styled as a champion.
-Outfit: light gray Colombia 2026 World Cup jersey with Lenovo-inspired futuristic accents — glowing red and silver lines, holographic seams, and digital energy circuits woven into the fabric.
-Atmosphere & Aura: a radiant tech-inspired aura surrounds them, with glowing data streams and holographic Lenovo geometry.
-Lighting: golden stadium glow mixed with neon Lenovo colors (red, white, cyan), highlighting the player’s strength and confidence.
-Style: cinematic, elegant, inspiring — a timeless soccer icon merging passion with Lenovo innovation`;
+Outfit: light gray Colombia 2026 World Cup jersey with NOVAMED-inspired futuristic accents — glowing red and silver lines, holographic seams, and digital energy circuits woven into the fabric.
+Atmosphere & Aura: a radiant tech-inspired aura surrounds them, with glowing data streams and holographic NOVAMED geometry.
+Lighting: golden stadium glow mixed with neon NOVAMED colors (red, white, cyan), highlighting the player’s strength and confidence.
+Style: cinematic, elegant, inspiring — a timeless soccer icon merging passion with NOVAMED innovation`;
 
 
 /** Convierte dataURL/base64 -> Uint8Array (para construir un Blob) */
