@@ -1,7 +1,8 @@
 "use client";
 
+import { listPrintJobsWithFiles, PrintJob } from "@/app/services/printJobsService";
 import { useEffect, useMemo, useState } from "react";
-import { listPrintJobsWithFiles, type PrintJob } from "../../services/printJobsService";
+
 
 const PAGE_SIZE = 5;
 

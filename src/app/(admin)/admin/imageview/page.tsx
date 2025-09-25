@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import AdminList from "./components/AdminList";
-import ListParticipants from "./components/ListParticipants";
+
+
+import AdminList from "@/app/home/components/admin/AdminList";
+import ListParticipants from "@/app/home/components/admin/ListParticipants";
 
 export default function AdminPage() {
   const [view, setView] = useState<"tasks" | "participants">("tasks");

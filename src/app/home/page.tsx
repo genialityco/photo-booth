@@ -1,4 +1,4 @@
-import PhotoBoothWizard from "./components/PhotoBoothWizard";
+import PhotoBoothWizard from "./components/public/PhotoBoothWizard";
 
 export default function Page() {
   return (

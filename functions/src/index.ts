@@ -3,18 +3,21 @@ import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
+import { getFirestore } from "firebase-admin/firestore";
 import { randomUUID } from "crypto";
 
 // Inicializa Admin SDK
 initializeApp();
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
+const db = getFirestore();
 
 // === Goat Shot: paths ===
 const OUTPUT_PREFIX = "goat-shot/outputs";
 
-// Modelo base y prompt
+// Modelo base
 const MODEL = "gpt-image-1";
+
 /*
 const BASE_PROMPT_quimicos = `Transform the uploaded photo of a person into a hyper-realistic, artistic portrait inspired by the history of pharmacy and chemistry.
 
@@ -27,14 +30,88 @@ Lighting: warm golden tones mixed with neon accents (blue, orange, cyan), creati
 Style: hyper-detailed, cinematic, elegant, and inspiring.
 Overall look: the person appears as a mystic, sophisticated apothecary-scientist, with the portrait telling the story of science evolving across time.`;
 */
-const BASE_PROMPT = `Transform the uploaded photo of a person into a photorealistic, cinematic portrait of a soccer player. The person’s facial identity must be preserved faithfully, while appearing attractive, youthful, and flattering. Emphasize smooth natural skin, wrinkle-free complexion, clear bright eyes, natural symmetry, healthy glow, and subtle photogenic enhancements. Hair color and hairstyle must remain exactly as in the uploaded photo, with no changes.
+// Prompt por defecto (fallback)
+const DEFAULT_PROMPT = `Transform the uploaded photo of a person into a photorealistic, cinematic portrait of a soccer player. The person's facial identity must be preserved faithfully, while appearing attractive, youthful, and flattering. Emphasize smooth natural skin, wrinkle-free complexion, clear bright eyes, natural symmetry, healthy glow, and subtle photogenic enhancements. Hair color and hairstyle must remain exactly as in the uploaded photo, with no changes.
 Outfit: a light gray Colombia 2026 World Cup jersey, sleek and modern, enhanced with Lenovo-inspired futuristic accents: glowing red and silver lines, holographic seams, and digital energy circuits woven into the fabric.
 Atmosphere & Aura: a radiant, electrifying aura surrounds the player, infused with glowing data streams and Lenovo-inspired holographic geometry. Subtle sparks, light trails, and digital arcs orbit around, symbolizing performance and innovation.
 Background: a futuristic 2026 stadium with cheering fans under dramatic lights. Floating holograms display glowing play diagrams and tactical visuals, merging sport and technology.
-Lighting: cinematic golden stadium glow fused with Lenovo neon accents (red, white, cyan), highlighting the player’s confident expression and athletic energy.
-Style: hyper-detailed, cinematic, elegant, and inspiring — portraying a timeless soccer icon who embodies Colombia’s World Cup passion and Lenovo’s vision of innovation.`;
+Lighting: cinematic golden stadium glow fused with Lenovo neon accents (red, white, cyan), highlighting the player's confident expression and athletic energy.
+Style: hyper-detailed, cinematic, elegant, and inspiring — portraying a timeless soccer icon who embodies Colombia's World Cup passion and Lenovo's vision of innovation.`;
 
 
+// === SISTEMA DE CACHE PARA PROMPTS ===
+interface CachedPrompt {
+  content: string;
+  timestamp: number;
+  expiresAt: number;
+}
+
+interface PromptDoc {
+  basePrompt?: string;
+  colorDirectiveTemplate?: string;
+  active?: boolean;
+}
+
+const CACHE_DURATION_MS = 60 * 1000; // 60 segundos
+const promptCache = new Map<string, CachedPrompt>();
+const brandedPromptCache = new Map<string, { value: { basePrompt: string; colorDirectiveTemplate?: string; color?: string }; expiresAt: number }>();
+
+// Función para limpiar cache expirado
+function cleanExpiredCache() {
+  const now = Date.now();
+  for (const [key, cached] of promptCache.entries()) {
+    if (now > cached.expiresAt) {
+      promptCache.delete(key);
+    }
+  }
+}
+
+// === Branded prompt loader with cache (60s) ===
+async function getBrandedPromptCached(
+  brand?: string
+): Promise<{ basePrompt: string; colorDirectiveTemplate?: string; color?: string }> {
+  const key = `brand:${brand || "default"}`;
+  const now = Date.now();
+  const cached = brandedPromptCache.get(key);
+  if (cached && cached.expiresAt > now) return cached.value;
+
+  try {
+    const col = db.collection("photo_booth_prompts");
+    const tryBrands = [brand, "default"].filter(Boolean) as string[];
+
+    for (const b of tryBrands) {
+      const snap = await col.where("brand", "==", b).limit(1).get();
+
+      if (!snap.empty) {
+        const doc = snap.docs[0];
+        const data = doc.data() as PromptDoc | undefined;
+
+        if (data?.active && data.basePrompt?.trim()) {
+          const value = {
+            basePrompt: data.basePrompt,
+            colorDirectiveTemplate: data.colorDirectiveTemplate,
+            color: (data as any).color as string | undefined,
+          };
+          brandedPromptCache.set(key, {
+            value,
+            expiresAt: now + CACHE_DURATION_MS,
+          });
+          return value;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("getBrandedPromptCached error:", e);
+  }
+
+  // fallback si no encuentra nada
+  const fallback = {
+    basePrompt: DEFAULT_PROMPT,
+  } as { basePrompt: string; colorDirectiveTemplate?: string; color?: string };
+
+  brandedPromptCache.set(key, { value: fallback, expiresAt: now + CACHE_DURATION_MS });
+  return fallback;
+}
 
 // Util: dataURL/base64 → Uint8Array
 function decodeBase64(inputB64: string): Uint8Array {
@@ -53,16 +130,20 @@ function sanitizeColor(color?: string): string | null {
   return trimmed;
 }
 
-// Construye el prompt dinámico con color opcional
-function buildPrompt(color?: string) {
+// Construye el prompt dinámico usando basePrompt + colorDirectiveTemplate (si existe)
+async function buildPromptWithBrand(opts: { brand?: string; color?: string }): Promise<string> {
+  const { brand, color } = opts || {};
+  const branded = await getBrandedPromptCached(brand);
+  const basePrompt = branded.basePrompt || DEFAULT_PROMPT;
+  const t = branded.colorDirectiveTemplate;
   const c = sanitizeColor(color);
-  if (!c) return BASE_PROMPT;
-  return (
-    BASE_PROMPT +
-    `
-
-Color direction: emphasize an overall color theme of "${c}" in fabrics, holograms and lighting accents while keeping skin tones natural.`
-  );
+  if (typeof t === "string" && t.trim() && c) {
+    const applied = c
+      ? t.replace(/\${?color}?/gi, c).replace(/\{color\}/gi, c)
+      : t;
+    return basePrompt + "\n\n" + applied;
+  }
+  return basePrompt;
 }
 
 export const processGoatShotHttp = onRequest(
@@ -86,8 +167,10 @@ export const processGoatShotHttp = onRequest(
         return;
       }
 
-      const { inputUrl, inputPath, inputB64, mime, color } = req.body || {};
+      const { inputUrl, inputPath, inputB64, mime, color, brand } = req.body || {};
+      const finalPrompt = await buildPromptWithBrand({ brand, color });
 
+      console.log("finalPrompt", finalPrompt);
       if (!inputUrl && !inputPath && !inputB64) {
         res
           .status(400)
@@ -122,27 +205,27 @@ export const processGoatShotHttp = onRequest(
         inMime = ct.startsWith("image/")
           ? ct
           : mime?.startsWith?.("image/")
-          ? mime
-          : "image/png";
+            ? mime
+            : "image/png";
       } else {
         // inputPath (ruta en tu bucket)
         const bucket = getStorage().bucket();
         const file = bucket.file(String(inputPath));
         const [meta] = await file
           .getMetadata()
-          .catch(() => [{ contentType: "application/octet-stream" } as any]);
+          .catch(() => [{ contentType: "application/octet-stream" } as { contentType: string }]);
         const [fileBuf] = await file.download();
         bytes = new Uint8Array(fileBuf);
-        inMime = (meta?.contentType || "image/png").startsWith("image/")
-          ? meta.contentType
-          : "image/png";
+        const metaCt = typeof meta?.contentType === 'string' ? meta.contentType : undefined;
+        inMime = metaCt && metaCt.startsWith("image/") ? metaCt : "image/png";
       }
+      // 3) Llamar a OpenAI Images/edits (puede tardar varios minutos)
+      type OpenAIImagesResponse = { data?: Array<{ b64_json?: string }> };
 
-      // 2) Llamar a OpenAI Images/edits (puede tardar varios minutos)
       async function callOpenAI(fieldName: "image" | "image[]") {
         const form = new FormData();
         form.set("model", MODEL);
-        form.set("prompt", buildPrompt(color));
+        form.set("prompt", finalPrompt);
         form.set("size", "1024x1024");
         form.set("input_fidelity", "high");
         form.set("output_format", "png");
@@ -155,13 +238,13 @@ export const processGoatShotHttp = onRequest(
         const resp = await fetch("https://api.openai.com/v1/images/edits", {
           method: "POST",
           headers: { Authorization: `Bearer ${OPENAI_API_KEY.value()}` },
-          body: form as any,
+          body: form,
         });
 
         const raw = await resp.text();
-        let json: any = null;
+        let json: OpenAIImagesResponse | null = null;
         try {
-          json = JSON.parse(raw);
+          json = JSON.parse(raw) as OpenAIImagesResponse;
         } catch {
           // raw se guarda para diagnóstico
         }
@@ -187,7 +270,7 @@ export const processGoatShotHttp = onRequest(
         return;
       }
 
-      // 3) Guardar PNG de salida en Storage y devolver URL con token
+      // 4) Guardar PNG de salida en Storage y devolver URL con token
       const bucket = getStorage().bucket();
       const taskId = randomUUID();
       const outPath = `${OUTPUT_PREFIX}/${taskId}/output.png`;
@@ -200,21 +283,50 @@ export const processGoatShotHttp = onRequest(
         metadata: { metadata: { firebaseStorageDownloadTokens: token } },
       });
 
-      const url = `https://firebasestorage.googleapis.com/v0/b/${
-        bucket.name
-      }/o/${encodeURIComponent(outPath)}?alt=media&token=${token}`;
+      const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name
+        }/o/${encodeURIComponent(outPath)}?alt=media&token=${token}`;
 
-      // 4) Respuesta HTTP (ideal para tu QR)
+      // 5) Respuesta HTTP (ideal para tu QR)
       res.json({
         status: "done",
         taskId,
         url,
         outputPath: outPath,
-        // (Opcional) por si quieres mostrar qué prompt se usó finalmente
-        promptUsed: buildPrompt(color),
+        // Info adicional sobre el cache
+        promptUsed: finalPrompt,
+        promptSource: brand ? 'firestore' : 'default',
+        cacheInfo: {
+          totalCachedPrompts: promptCache.size,
+          usedCachedPrompt: Boolean(brand)
+        }
       });
-    } catch (e: any) {
-      res.status(500).json({ error: e?.message || "Error" });
+    } catch (e: unknown) {
+      console.error('Error en processGoatShotHttp:', e);
+      const message = e instanceof Error ? e.message : String(e);
+      res.status(500).json({ error: message || "Error interno del servidor" });
     }
+  }
+);
+
+// Función adicional para obtener estadísticas del cache (opcional)
+export const getCacheStats = onRequest(
+  {
+    region: "us-central1",
+    timeoutSeconds: 30,
+  },
+  async (req, res) => {
+    cleanExpiredCache();
+
+    const stats = {
+      totalCachedPrompts: promptCache.size,
+      prompts: Array.from(promptCache.entries()).map(([id, cached]) => ({
+        id,
+        timestamp: new Date(cached.timestamp).toISOString(),
+        expiresAt: new Date(cached.expiresAt).toISOString(),
+        contentLength: cached.content.length
+      }))
+    };
+
+    res.json(stats);
   }
 );

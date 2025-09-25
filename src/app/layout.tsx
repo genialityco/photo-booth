@@ -25,13 +25,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen relative`}
+        className={`${geistSans.variable} ${geistMono.variable} `}
       >
         {/* 🔹 Fondo de madera */}
-        <div
+        {/* <div
           className="fixed inset-0 -z-10 bg-cover bg-center"
           style={{ backgroundImage: "url('/images/frame.jpg')" }}
-        />
+        /> */}
 
         {/* Contenido */}
         <div className="min-h-screen w-full flex items-center justify-center p-4">

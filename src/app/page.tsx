@@ -34,7 +34,14 @@ export default function Home() {
 
   return (
     <>
+    <div className="antialiased min-h-screen relative">
+
+     <div
+          className="fixed inset-0 -z-10 bg-cover bg-center "
+          style={{ backgroundImage: "url('/images/frame.jpg')" }}
+        />
       <Page />
+    </div>
     </>
   );
 }
