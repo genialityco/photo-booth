@@ -66,7 +66,7 @@ export default function PhotoBoothPromptsPage() {
 
   const [totalPages, setTotalPages] = useState<number>(0);
   const [totalElements, setTotalElements] = useState<number>(0);
-  const pageSize = 2;
+  const pageSize = 10;
 
   const loadPrompts = async (
     lastDocParam: QueryDocumentSnapshot | null = null,
