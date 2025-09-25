@@ -11,7 +11,7 @@ import {
 } from "@/app/services/brandService";
 import Modal from "@/app/home/components/admin/Modal";
 import Form from "@/app/home/components/admin/Form";
-import { Edit, Trash} from "lucide-react";
+import { Edit, Trash } from "lucide-react";
 import DataTable from "@/app/home/components/admin/DataTable";
 import Pagination from "@/app/home/components/admin/Pagination";
 
@@ -48,7 +48,6 @@ interface PaginationState {
   totalPages: number | null;
   pages: Array<{
     pageNumber: number;
-    firstDoc: QueryDocumentSnapshot | null;
     lastDoc: QueryDocumentSnapshot | null;
   }>;
 }
@@ -58,18 +57,16 @@ export default function PhotoBoothPromptsPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<PhotoBoothPrompt | null>(null);
-  
-  // Estado mejorado para paginación
+
   const [pagination, setPagination] = useState<PaginationState>({
     currentPage: 1,
     totalPages: null,
-    pages: [{ pageNumber: 1, firstDoc: null, lastDoc: null }],
+    pages: [{ pageNumber: 1, lastDoc: null }],
   });
-  
-  const [hasNext, setHasNext] = useState<boolean>(false);
+
   const [totalPages, setTotalPages] = useState<number>(0);
   const [totalElements, setTotalElements] = useState<number>(0);
-  const pageSize = 10;
+  const pageSize = 2;
 
   const loadPrompts = async (
     lastDocParam: QueryDocumentSnapshot | null = null,
@@ -79,44 +76,29 @@ export default function PhotoBoothPromptsPage() {
     try {
       const result = await getPhotoBoothPrompts(pageSize, lastDocParam);
       setPrompts(result.data);
-      setHasNext(result.hasNext);
-      
-      // Calcular páginas totales correctamente
-      const totalElements =  result.total || 0;
+
+      const totalElements = result.total || 0;
       const calculatedTotalPages = Math.ceil(totalElements / pageSize);
-      
-      // Debug temporal
-      console.log("Debug pagination:", {
-        totalElements,
-        pageSize,
-        calculatedTotalPages,
-        hasNext: result.hasNext,
-        currentDataLength: result.data.length,
-        pageNumber
-      });
-      
+
       setTotalPages(calculatedTotalPages);
       setTotalElements(totalElements);
-      
-      // Actualizar información de paginación con el total conocido
+
       setPagination(prev => {
         const newPages = [...prev.pages];
         const pageIndex = newPages.findIndex(p => p.pageNumber === pageNumber);
-        
+
         if (pageIndex >= 0) {
           newPages[pageIndex] = {
             pageNumber,
-            firstDoc: result.data.length > 0 ? result.firstDoc || null : null,
             lastDoc: result.lastDoc,
           };
         } else if (result.hasNext && pageNumber < calculatedTotalPages) {
           newPages.push({
             pageNumber: pageNumber + 1,
-            firstDoc: result.lastDoc,
             lastDoc: null,
           });
         }
-        
+
         return {
           ...prev,
           currentPage: pageNumber,
@@ -124,7 +106,7 @@ export default function PhotoBoothPromptsPage() {
           pages: newPages,
         };
       });
-      
+
       console.log("Loaded prompts:", result.data);
     } catch (error) {
       console.error("Error loading prompts:", error);
@@ -134,38 +116,20 @@ export default function PhotoBoothPromptsPage() {
   };
 
   useEffect(() => {
-    loadPrompts(); // Cargar datos iniciales
+    loadPrompts();
   }, []);
-
 
   const handleGoToPage = async (pageNumber: number) => {
     if (pageNumber === pagination.currentPage || pageNumber < 1 || pageNumber > totalPages) return;
-    
-    const pageInfo = pagination.pages.find(p => p.pageNumber === pageNumber);
-    
-    // Si ya tenemos la información de la página, usarla
-    if (pageInfo && pageInfo.firstDoc !== undefined) {
-      await loadPrompts(pageInfo.firstDoc, pageNumber);
-    } else {
-      // Si no tenemos la información, necesitamos navegar secuencialmente
-      // Para páginas anteriores, usar la lógica existente
-      if (pageNumber < pagination.currentPage) {
-        const prevPageInfo = pagination.pages.find(p => p.pageNumber === pageNumber);
-        await loadPrompts(prevPageInfo?.firstDoc || null, pageNumber);
-      } else {
-        // Para páginas posteriores, navegar paso a paso (esto podría optimizarse)
-        let currentPage = pagination.currentPage;
-        while (currentPage < pageNumber && hasNext) {
-          const currentPageInfo = pagination.pages.find(p => p.pageNumber === currentPage);
-          await loadPrompts(currentPageInfo?.lastDoc || null, currentPage + 1);
-          currentPage++;
-        }
-      }
-    }
+
+    // Buscar el lastDoc de la página anterior
+    const prevPageInfo = pagination.pages.find(p => p.pageNumber === pageNumber - 1);
+    const lastDoc = prevPageInfo?.lastDoc || null;
+
+    await loadPrompts(lastDoc, pageNumber);
   };
 
   const onEdit = (prompt: PhotoBoothPrompt) => {
-    console.log("Edit prompt:", prompt);
     setSelectedPrompt(prompt);
     setIsModalOpen(true);
   };
@@ -173,9 +137,8 @@ export default function PhotoBoothPromptsPage() {
   const onDelete = async (id: string) => {
     try {
       await deletePhotoBoothPrompt(id);
-      // Recargar la página actual después de eliminar
       const currentPageInfo = pagination.pages.find(p => p.pageNumber === pagination.currentPage);
-      await loadPrompts(currentPageInfo?.firstDoc || null, pagination.currentPage);
+      await loadPrompts(currentPageInfo?.lastDoc || null, pagination.currentPage);
     } catch (error) {
       console.error("Error deleting prompt:", error);
     }
@@ -207,38 +170,13 @@ export default function PhotoBoothPromptsPage() {
   ];
 
   const formFields = [
-    {
-      name: "brand",
-      label: "Brand",
-      type: "text",
-      required: true,
-      placeholder: "Ingresa la marca",
-    },
-    {
-      name: "basePrompt",
-      label: "Prompt",
-      type: "textarea",
-      required: true,
-      placeholder: "Ingresa el prompt",
-    },
-    {
-      name: "colorDirectiveTemplate",
-      label: "Color Template",
-      type: "textarea",
-      required: true,
-      placeholder: "Ingresa el prompt de color",
-    },
-    {
-      name: "active",
-      label: "Active",
-      type: "checkbox",
-      required: true,
-      placeholder: "",
-    },
+    { name: "brand", label: "Brand", type: "text", required: true, placeholder: "Ingresa la marca" },
+    { name: "basePrompt", label: "Prompt", type: "textarea", required: true, placeholder: "Ingresa el prompt" },
+    { name: "colorDirectiveTemplate", label: "Color Template", type: "textarea", required: true, placeholder: "Ingresa el prompt de color" },
+    { name: "active", label: "Active", type: "checkbox", required: true },
   ];
 
   const handleSubmit = async (data: PhotoBoothPrompt) => {
-    console.log("Updating prompt:", data);
     try {
       if (data?.id) {
         await updatePhotoBoothPrompt(data.id, data);
@@ -246,9 +184,9 @@ export default function PhotoBoothPromptsPage() {
         await createPhotoBoothPrompt(data);
       }
       setIsModalOpen(false);
-      // Recargar la página actual después de crear/actualizar
+
       const currentPageInfo = pagination.pages.find(p => p.pageNumber === pagination.currentPage);
-      await loadPrompts(currentPageInfo?.firstDoc || null, pagination.currentPage);
+      await loadPrompts(currentPageInfo?.lastDoc || null, pagination.currentPage);
     } catch (error) {
       console.error("Error submitting prompt:", error);
     }
@@ -262,21 +200,18 @@ export default function PhotoBoothPromptsPage() {
         actions={actions}
         searchFields={["brand", "basePrompt"]}
         title="Prompts"
-        selectable={true}
+        selectable
         onCreate={onCreate}
       />
 
-<Pagination
- 
-  totalPages={totalPages}
-  totalElements={totalElements}
-  pageSize={pageSize}
-  isLoading={isLoading}
-  onPageChange={handleGoToPage}
-  currentPage={pagination.currentPage}
- 
-/>
-     
+      <Pagination
+        totalPages={totalPages}
+        totalElements={totalElements}
+        pageSize={pageSize}
+        isLoading={isLoading}
+        onPageChange={handleGoToPage}
+        currentPage={pagination.currentPage}
+      />
 
       <Modal
         isOpen={isModalOpen}
