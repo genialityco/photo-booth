@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -5,19 +6,19 @@ import { useState, useEffect } from 'react';
 interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'textarea' | 'number' | 'email' | 'checkbox'; // Added checkbox type
+  type: 'text' | 'textarea' | 'number' | 'email' | 'checkbox' | string; // Added checkbox type
   required?: boolean;
   placeholder?: string;
 }
 
 interface FormProps<T> {
-  initialData: T;
+  initialData: any;
   fields: FormField[];
-  onSubmit: (data: T) => Promise<void>;
+  onSubmit: (data: any) => Promise<void>;
   submitButtonText?: string;
 }
 
-export default function Form<T extends Record<string, string>>({
+export default function Form<T extends Record<string, string >>({
   initialData,
   fields,
   onSubmit,

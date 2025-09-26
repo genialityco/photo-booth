@@ -159,13 +159,13 @@ export default function PhotoBoothPromptsPage() {
       key: "edit",
       label: "Editar",
       icon: <Edit className="h-4 w-4" />,
-      onClick: (item: PhotoBoothPrompt) => onEdit(item),
+      onClick: (item: any) => onEdit(item),
     },
     {
       key: "delete",
       label: "Eliminar",
       icon: <Trash className="h-4 w-4 hover:text-red-500" />,
-      onClick: (id: string) => onDelete(id),
+      onClick: (id: any) => onDelete(id),
     },
   ];
 

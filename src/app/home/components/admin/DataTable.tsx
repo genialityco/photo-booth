@@ -15,13 +15,13 @@ import {
 } from 'lucide-react';
 
 // Tipos genéricos
-interface Column<T = unknown> {
+interface Column<T = any> {
   key: string;
   label: string;
   width?: string;
   sortable?: boolean;
   searchable?: boolean;
-  render?: (item: T, value: unknown) => React.ReactNode;
+  render?: (item: T, value: any) => React.ReactNode;
   className?: string;
   mobileHidden?: boolean;
   tabletHidden?: boolean; // New: Flag to hide column on tablets
@@ -39,7 +39,7 @@ interface SortOption {
   order: 'asc' | 'desc';
 }
 
-interface Action<T = unknown> {
+interface Action<T> {
   key: string;
   label: string;
   icon?: React.ReactNode;
@@ -48,7 +48,7 @@ interface Action<T = unknown> {
   className?: string;
 }
 
-interface GenericDataTableProps<T = unknown> {
+interface GenericDataTableProps<T> {
   data: T[];
   loading?: boolean;
   columns: Column<T>[];
@@ -82,7 +82,7 @@ interface GenericDataTableProps<T = unknown> {
   loadingMessage?: string;
 }
 
-export default function GenericDataTable<T = unknown>({
+export default function GenericDataTable<T = any>({
   data = [],
   loading = false,
   columns = [],
