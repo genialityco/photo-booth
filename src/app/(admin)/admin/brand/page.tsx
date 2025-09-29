@@ -11,9 +11,10 @@ import {
 } from "@/app/services/brandService";
 import Modal from "@/app/home/components/admin/Modal";
 import Form from "@/app/home/components/admin/Form";
-import { Edit, Trash } from "lucide-react";
+import { Edit, Link, Trash } from "lucide-react";
 import DataTable from "@/app/home/components/admin/DataTable";
 import Pagination from "@/app/home/components/admin/Pagination";
+import { useRouter } from "next/navigation";
 
 const columns = [
   {
@@ -52,12 +53,13 @@ interface PaginationState {
   }>;
 }
 
+
 export default function PhotoBoothPromptsPage() {
   const [prompts, setPrompts] = useState<PhotoBoothPrompt[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<PhotoBoothPrompt | null>(null);
-
+  const router = useRouter();
   const [pagination, setPagination] = useState<PaginationState>({
     currentPage: 1,
     totalPages: null,
@@ -156,6 +158,12 @@ export default function PhotoBoothPromptsPage() {
 
   const actions = [
     {
+      key: "copyUrl",
+      label: "Copiar URL",
+      icon: <Link className="h-4 w-4" />,
+      onClick: (item: any) => onCopyUrl(item),
+    },
+    {
       key: "edit",
       label: "Editar",
       icon: <Edit className="h-4 w-4" />,
@@ -191,6 +199,10 @@ export default function PhotoBoothPromptsPage() {
       console.error("Error submitting prompt:", error);
     }
   };
+
+  const onCopyUrl = (prompt: PhotoBoothPrompt) => {
+    window.open(`/?brand=${prompt.brand}`, "_blank");
+  }
 
   return (
     <div className="py-8">

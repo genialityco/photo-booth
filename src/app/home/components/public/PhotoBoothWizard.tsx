@@ -6,7 +6,7 @@ import CaptureStep from "./CaptureStep";
 import PreviewStep from "./PreviewStep";
 import LoaderStep from "./LoaderStep";
 import ResultStep from "./ResultStep";
-
+import { useSearchParams } from "next/navigation"
 import { db } from "@/firebaseConfig"; // ajusta si tu export es distinto
 import {
   getStorage,
@@ -28,11 +28,14 @@ export default function PhotoBoothWizard({
   frameSrc = null,
   mirror = true,
   boxSize = "min(88vw, 60svh)",
+  
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
+  
 }) {
+  const searchParams = useSearchParams()
   const [step, setStep] = useState<
     "capture" | "preview" | "loading" | "result"
   >("capture");
@@ -41,10 +44,17 @@ export default function PhotoBoothWizard({
   const [aiUrl, setAiUrl] = useState<string | null>(null); // URL devuelta por la Function
   const [framedUrl, setFramedUrl] = useState<string | null>(null); // URL generada al subir framed.png
   const [taskId, setTaskId] = useState<string | null>(null);
-
+  const [brand, setBrand] = useState<string | null>("electronic");
+  const [color, setColor] = useState<string | null>(null);
   const unsubRef = useRef<() => void | undefined>(undefined);
 
+
   useEffect(() => {
+       if (!searchParams) {setBrand("default"); setColor(null)}
+    else
+
+    setBrand(searchParams.get("brand") as string || "default");
+    setColor(searchParams.get("color") as string || null)
     return () => {
       if (unsubRef.current) {
         unsubRef.current();
@@ -83,11 +93,15 @@ export default function PhotoBoothWizard({
 
       // 3) Crear doc imageTasks/{taskId}
       const taskRef = doc(collection(db, "imageTasks"), newTaskId);
+      console.log(brand)
       await setDoc(taskRef, {
         status: "queued",
         inputPath, // usado por la Function
         framedPath, // = inputPath
         framedUrl: framedDownloadUrl,
+        brand,
+        color,
+        taskId: newTaskId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

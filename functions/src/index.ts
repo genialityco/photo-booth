@@ -5,7 +5,8 @@ import { initializeApp } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
 import { getFirestore } from "firebase-admin/firestore";
 import { randomUUID } from "crypto";
-
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { GoogleGenAI } from "@google/genai";
 // Inicializa Admin SDK
 initializeApp();
 
@@ -328,5 +329,160 @@ export const getCacheStats = onRequest(
     };
 
     res.json(stats);
+  }
+);
+
+
+
+// Define tu secret para Gemini API Key
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+
+export const processImageTask = onDocumentCreated(
+  {
+    document: "imageTasks/{taskId}",
+    region: "us-central1",
+    timeoutSeconds: 540, // hasta 9 min
+    memory: "1GiB",
+    secrets: [GEMINI_API_KEY],
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const taskId = event.params.taskId as string;
+    const db = getFirestore();
+    const bucket = getStorage().bucket();
+    const docRef = db.collection("imageTasks").doc(taskId);
+    const data = snap.data() as { 
+      inputPath?: string; 
+      brand?: string; 
+      color?: string;
+    } | undefined;
+
+    let PROMPT = DEFAULT_PROMPT;
+    if (data?.brand) {
+      PROMPT = await buildPromptWithBrand({ 
+        brand: data.brand, 
+        color: data.color 
+      });
+    }
+
+    console.log("brand prompt", PROMPT);
+
+    if (!data?.inputPath) {
+      await docRef.update({
+        status: "error",
+        error: "Falta inputPath",
+        updatedAt: Date.now(),
+      });
+      return;
+    }
+
+    try {
+      await docRef.update({ status: "processing", updatedAt: Date.now() });
+
+      // 1) Descargar input desde Storage
+      const file = bucket.file(data.inputPath);
+      const [meta] = await file
+        .getMetadata()
+        .catch(() => [{ contentType: "application/octet-stream" } as any]);
+      const [fileBuf] = await file.download();
+
+      const bytes = new Uint8Array(fileBuf);
+      const byteLen = bytes.byteLength;
+      const mime = (meta?.contentType || "image/png").startsWith("image/")
+        ? meta.contentType
+        : "image/png";
+
+      // Convertir a base64 para Gemini
+      const base64Image = Buffer.from(bytes).toString("base64");
+
+      // Guarda diagnóstico mínimo en el doc
+      await docRef.update({
+        debug: {
+          inputPath: data.inputPath,
+          mime,
+          byteLen,
+        },
+      });
+
+      // 2) Llamar a Gemini API
+      const ai = new GoogleGenAI({
+        apiKey: GEMINI_API_KEY.value(),
+      });
+
+      const prompt = [
+        { text: PROMPT },
+        {
+          inlineData: {
+            mimeType: mime,
+            data: base64Image,
+          },
+        },
+      ];
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-image-preview",
+        contents: prompt,
+      });
+
+      // 3) Extraer la imagen generada
+      let generatedImageData: string | undefined;
+      if (!response.candidates) return
+      const img = response.candidates[0].content?.parts
+
+      for (const part of img || []) {
+        if (part.inlineData) {
+          generatedImageData = part.inlineData.data;
+          break;
+        }
+      }
+
+      if (!generatedImageData) {
+        await docRef.update({
+          status: "error",
+          error: "Respuesta sin imagen",
+          updatedAt: Date.now(),
+          details: response,
+        });
+        return;
+      }
+
+      // 4) Guardar salida y generar URL con token
+      const outPath = `tasks/${taskId}/output.png`;
+      const outBuf = Buffer.from(generatedImageData, "base64");
+
+      const token = randomUUID();
+      await bucket.file(outPath).save(outBuf, {
+        contentType: "image/png",
+        resumable: false,
+        metadata: {
+          metadata: {
+            firebaseStorageDownloadTokens: token,
+          },
+        },
+      });
+
+      // URL pública con token
+      const url = `https://firebasestorage.googleapis.com/v0/b/${
+        bucket.name
+      }/o/${encodeURIComponent(outPath)}?alt=media&token=${token}`;
+
+      // 5) Done
+      await docRef.update({
+        status: "done",
+        url,
+        outputPath: outPath,
+        updatedAt: Date.now(),
+      });
+    } catch (e: any) {
+      console.error("processImageTask error:", e);
+      await docRef.update({
+        status: "error",
+        error: e?.message ?? "Error",
+        prompt: PROMPT,
+        updatedAt: Date.now(),
+      });
+    }
   }
 );
