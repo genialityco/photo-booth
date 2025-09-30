@@ -7,6 +7,8 @@ import { getFirestore } from "firebase-admin/firestore";
 import { randomUUID } from "crypto";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { GoogleGenAI } from "@google/genai";
+import axios from "axios";
+import sharp from "sharp";
 // Inicializa Admin SDK
 initializeApp();
 
@@ -39,7 +41,7 @@ Background: a futuristic 2026 stadium with cheering fans under dramatic lights. 
 Lighting: cinematic golden stadium glow fused with Lenovo neon accents (red, white, cyan), highlighting the player's confident expression and athletic energy.
 Style: hyper-detailed, cinematic, elegant, and inspiring — portraying a timeless soccer icon who embodies Colombia's World Cup passion and Lenovo's vision of innovation.`;
 
-
+const DEFAULT_LOGO_PROMPT = `Place the uploaded logo on the jersey, centered on the chest area. The logo must be clearly visible, sharp, and seamlessly integrated into the fabric — as if naturally printed or embroidered on the jersey. Preserve the logo’s original colors, proportions, and design without distortion. Adjust lighting, shadows, and reflections so the logo blends realistically with the folds and texture of the jersey material. Ensure the placement looks authentic, like a real sports uniform detail`
 // === SISTEMA DE CACHE PARA PROMPTS ===
 interface CachedPrompt {
   content: string;
@@ -49,13 +51,15 @@ interface CachedPrompt {
 
 interface PromptDoc {
   basePrompt?: string;
+  logoPath?: string 
+  logoPrompt?: string;
   colorDirectiveTemplate?: string;
   active?: boolean;
 }
 
 const CACHE_DURATION_MS = 60 * 1000; // 60 segundos
 const promptCache = new Map<string, CachedPrompt>();
-const brandedPromptCache = new Map<string, { value: { basePrompt: string; colorDirectiveTemplate?: string; color?: string }; expiresAt: number }>();
+const brandedPromptCache = new Map<string, { value: { basePrompt: string; colorDirectiveTemplate?: string; color?: string; logoPath?: string, logoPrompt?: string}; expiresAt: number }>();
 
 // Función para limpiar cache expirado
 function cleanExpiredCache() {
@@ -70,7 +74,7 @@ function cleanExpiredCache() {
 // === Branded prompt loader with cache (60s) ===
 async function getBrandedPromptCached(
   brand?: string
-): Promise<{ basePrompt: string; colorDirectiveTemplate?: string; color?: string }> {
+): Promise<{ basePrompt: string; colorDirectiveTemplate?: string; color?: string,  logoPath?: string, logoPrompt?: string}> {
   const key = `brand:${brand || "default"}`;
   const now = Date.now();
   const cached = brandedPromptCache.get(key);
@@ -82,16 +86,16 @@ async function getBrandedPromptCached(
 
     for (const b of tryBrands) {
       const snap = await col.where("brand", "==", b).limit(1).get();
-
+      
       if (!snap.empty) {
         const doc = snap.docs[0];
         const data = doc.data() as PromptDoc | undefined;
-
         if (data?.active && data.basePrompt?.trim()) {
           const value = {
             basePrompt: data.basePrompt,
             colorDirectiveTemplate: data.colorDirectiveTemplate,
-            color: (data as any).color as string | undefined,
+            logoPath: data.logoPath,
+            logoPrompt: data.logoPrompt
           };
           brandedPromptCache.set(key, {
             value,
@@ -132,7 +136,7 @@ function sanitizeColor(color?: string): string | null {
 }
 
 // Construye el prompt dinámico usando basePrompt + colorDirectiveTemplate (si existe)
-async function buildPromptWithBrand(opts: { brand?: string; color?: string }): Promise<string> {
+async function buildPromptWithBrand(opts: { brand?: string; color?: string }): Promise<{logoPath: string | undefined, prompt: string, logoPrompt?: string}> {
   const { brand, color } = opts || {};
   const branded = await getBrandedPromptCached(brand);
   const basePrompt = branded.basePrompt || DEFAULT_PROMPT;
@@ -142,9 +146,9 @@ async function buildPromptWithBrand(opts: { brand?: string; color?: string }): P
     const applied = c
       ? t.replace(/\${?color}?/gi, c).replace(/\{color\}/gi, c)
       : t;
-    return basePrompt + "\n\n" + applied;
+    return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, prompt:basePrompt + "\n\n" + applied};
   }
-  return basePrompt;
+  return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, prompt:basePrompt};
 }
 
 export const processGoatShotHttp = onRequest(
@@ -171,7 +175,6 @@ export const processGoatShotHttp = onRequest(
       const { inputUrl, inputPath, inputB64, mime, color, brand } = req.body || {};
       const finalPrompt = await buildPromptWithBrand({ brand, color });
 
-      console.log("finalPrompt", finalPrompt);
       if (!inputUrl && !inputPath && !inputB64) {
         res
           .status(400)
@@ -226,7 +229,7 @@ export const processGoatShotHttp = onRequest(
       async function callOpenAI(fieldName: "image" | "image[]") {
         const form = new FormData();
         form.set("model", MODEL);
-        form.set("prompt", finalPrompt);
+        form.set("prompt", finalPrompt.prompt);
         form.set("size", "1024x1024");
         form.set("input_fidelity", "high");
         form.set("output_format", "png");
@@ -337,11 +340,70 @@ export const getCacheStats = onRequest(
 // Define tu secret para Gemini API Key
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
+async function downloadAndConvertLogo(
+  logoUrl: string
+): Promise<{ base64: string; mime: string } | null> {
+  try {
+    console.log("Downloading logo from URL:", logoUrl);
+    
+    // Descargar el archivo
+    const response = await axios.get(logoUrl, { 
+        responseType: "arraybuffer", // Importante para manejar archivos binarios
+        maxContentLength: 10 * 1024 * 1024, // Limitar tamaño de descarga a 10MB
+    });
+
+    const logoFileBuf = Buffer.from(response.data as ArrayBuffer);
+    const contentType = response.headers["content-type"] || "";
+    const isSvg = contentType.includes("image/svg") || logoUrl.toLowerCase().endsWith(".svg");
+
+    let base64Logo: string;
+    let logoMime: string;
+
+    if (isSvg) {
+      // SVG no es soportado por Gemini, convertir a PNG
+      console.log("SVG detected, converting to PNG...");
+
+      // Convertir SVG a PNG
+      const pngBuffer = await sharp(logoFileBuf)
+        .resize(512, 512, { // Tamaño razonable para logo
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .png()
+        .toBuffer();
+
+      base64Logo = pngBuffer.toString("base64");
+      logoMime = "image/png";
+      console.log("SVG converted to PNG, size:", pngBuffer.length);
+    } else {
+      // PNG o JPG - usar directamente
+      base64Logo = logoFileBuf.toString("base64");
+
+      if (contentType.startsWith("image/")) {
+        logoMime = contentType; // image/png, image/jpeg
+      } else if (logoUrl.toLowerCase().endsWith(".jpg") || logoUrl.toLowerCase().endsWith(".jpeg")) {
+        logoMime = "image/jpeg";
+      } else {
+        logoMime = "image/png"; // Default fallback
+      }
+
+      console.log("Logo loaded:", logoUrl, "MIME:", logoMime, "size:", logoFileBuf.length);
+    }
+
+    return { base64: base64Logo, mime: logoMime };
+  } catch (logoError: any) {
+    console.error("Error loading or converting logo from URL:", logoUrl, logoError.message);
+    return null; // Continuar sin logo si hay error
+  }
+}
+
+// --- Función Principal Modificada ---
+
 export const processImageTask = onDocumentCreated(
   {
     document: "imageTasks/{taskId}",
     region: "us-central1",
-    timeoutSeconds: 540, // hasta 9 min
+    timeoutSeconds: 540,
     memory: "1GiB",
     secrets: [GEMINI_API_KEY],
   },
@@ -353,21 +415,27 @@ export const processImageTask = onDocumentCreated(
     const db = getFirestore();
     const bucket = getStorage().bucket();
     const docRef = db.collection("imageTasks").doc(taskId);
-    const data = snap.data() as { 
-      inputPath?: string; 
-      brand?: string; 
-      color?: string;
-    } | undefined;
+    const data = snap.data() as
+      | {
+          inputPath?: string;
+          brand?: string;
+          color?: string;
+        }
+      | undefined;
 
     let PROMPT = DEFAULT_PROMPT;
+    let LOGO_PROMPT = DEFAULT_LOGO_PROMPT;
+    let LOGO_URL = ""; // Cambiado el nombre de la variable para reflejar su contenido (URL)
     if (data?.brand) {
-      PROMPT = await buildPromptWithBrand({ 
-        brand: data.brand, 
-        color: data.color 
+      const promptData = await buildPromptWithBrand({
+        brand: data.brand,
+        color: data.color,
       });
+      PROMPT = promptData.prompt;
+      LOGO_URL = promptData.logoPath || ""; // Asumimos que buildPromptWithBrand devuelve la URL en logoPath
+      LOGO_PROMPT = promptData.logoPrompt || DEFAULT_LOGO_PROMPT;
+    
     }
-
-    console.log("brand prompt", PROMPT);
 
     if (!data?.inputPath) {
       await docRef.update({
@@ -381,7 +449,7 @@ export const processImageTask = onDocumentCreated(
     try {
       await docRef.update({ status: "processing", updatedAt: Date.now() });
 
-      // 1) Descargar input desde Storage
+      // 1) Descargar input desde Storage (esto sigue igual)
       const file = bucket.file(data.inputPath);
       const [meta] = await file
         .getMetadata()
@@ -394,24 +462,41 @@ export const processImageTask = onDocumentCreated(
         ? meta.contentType
         : "image/png";
 
-      // Convertir a base64 para Gemini
       const base64Image = Buffer.from(bytes).toString("base64");
 
-      // Guarda diagnóstico mínimo en el doc
+      // 2) Descargar logo desde URL si existe
+      let base64Logo: string | null = null;
+      let logoMime = "image/png";
+      
+      if (LOGO_URL) {
+        const logoData = await downloadAndConvertLogo(LOGO_URL);
+        if (logoData) {
+            base64Logo = logoData.base64;
+            logoMime = logoData.mime;
+        }
+      }
+      
+      // Actualizar debug info
       await docRef.update({
         debug: {
           inputPath: data.inputPath,
           mime,
           byteLen,
+          prompt: PROMPT,
+          hasLogo: !!base64Logo,
+          logoUrl: LOGO_URL || null, // Cambiado a logoUrl
         },
       });
 
-      // 2) Llamar a Gemini API
+      console.log("Calling Gemini API...");
+
+      // 3) Llamar a Gemini API
       const ai = new GoogleGenAI({
         apiKey: GEMINI_API_KEY.value(),
       });
 
-      const prompt = [
+      // Construir parts dinámicamente
+      const parts = [
         { text: PROMPT },
         {
           inlineData: {
@@ -421,34 +506,94 @@ export const processImageTask = onDocumentCreated(
         },
       ];
 
+      // Agregar logo si existe
+      if (base64Logo) {
+        parts.unshift(
+          { text:  LOGO_PROMPT},
+          {
+            inlineData: {
+              mimeType: logoMime,
+              data: base64Logo,
+            },
+          }
+        );
+      }
+      
+      // ... (El resto del código para llamar a Gemini y guardar la salida sigue igual)
+      // ... (Resto del código para la llamada a Gemini, verificación de errores y guardado de salida)
+      const contents = [
+        {
+          role: "user",
+          parts: parts,
+        },
+      ];
+
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-image-preview",
-        contents: prompt,
+        contents: contents,
+   
       });
 
-      // 3) Extraer la imagen generada
-      let generatedImageData: string | undefined;
-      if (!response.candidates) return
-      const img = response.candidates[0].content?.parts
+      console.log("Response received:", JSON.stringify(response, null, 2));
 
-      for (const part of img || []) {
-        if (part.inlineData) {
-          generatedImageData = part.inlineData.data;
-          break;
-        }
-      }
-
-      if (!generatedImageData) {
+      // 3) Verificar si hay error de quota
+      if (response.promptFeedback?.blockReason) {
         await docRef.update({
           status: "error",
-          error: "Respuesta sin imagen",
+          error: `Blocked: ${response.promptFeedback.blockReason}`,
           updatedAt: Date.now(),
-          details: response,
+          details: response.promptFeedback,
         });
         return;
       }
 
-      // 4) Guardar salida y generar URL con token
+      // 4) Extraer la imagen generada
+      const firstCandidate = response.candidates?.[0];
+      
+      if (!firstCandidate) {
+        console.error("No candidates in response:", response);
+        await docRef.update({
+          status: "error",
+          error: "Sin candidatos en respuesta",
+          updatedAt: Date.now(),
+          details: { response },
+        });
+        return;
+      }
+
+      // Buscar la imagen en las partes
+      const imagePart = firstCandidate.content?.parts?.find(
+        (part) => part.inlineData && part.inlineData.mimeType?.startsWith("image/")
+      );
+      
+      const generatedImageData = imagePart?.inlineData?.data;
+      
+      if (!generatedImageData) {
+        // Intentar obtener texto de error si existe
+        const textParts = firstCandidate.content?.parts
+          ?.filter(p => p.text)
+          .map(p => p.text)
+          .join(" ") || "Sin respuesta de texto";
+        
+        console.error("No image found in response. Text:", textParts);
+        console.error("Full candidate:", JSON.stringify(firstCandidate, null, 2));
+        
+        await docRef.update({
+          status: "error",
+          error: "Respuesta sin imagen generada",
+          updatedAt: Date.now(),
+          details: { 
+            textResponse: textParts.substring(0, 500),
+            finishReason: firstCandidate.finishReason,
+            safetyRatings: firstCandidate.safetyRatings,
+          },
+        });
+        return;
+      }
+     
+      console.log("Image found, saving to storage...");
+
+      // 5) Guardar salida y generar URL con token
       const outPath = `tasks/${taskId}/output.png`;
       const outBuf = Buffer.from(generatedImageData, "base64");
 
@@ -463,12 +608,13 @@ export const processImageTask = onDocumentCreated(
         },
       });
 
-      // URL pública con token
       const url = `https://firebasestorage.googleapis.com/v0/b/${
         bucket.name
       }/o/${encodeURIComponent(outPath)}?alt=media&token=${token}`;
 
-      // 5) Done
+      console.log("Image saved successfully:", url);
+
+      // 6) Done
       await docRef.update({
         status: "done",
         url,
@@ -477,11 +623,21 @@ export const processImageTask = onDocumentCreated(
       });
     } catch (e: any) {
       console.error("processImageTask error:", e);
+      
+      // Detectar error de quota específicamente
+      const isQuotaError = e?.message?.includes("quota") || 
+                          e?.message?.includes("429") ||
+                          e?.status === 429;
+      
       await docRef.update({
         status: "error",
-        error: e?.message ?? "Error",
+        error: isQuotaError 
+          ? "Error de quota: Necesitas habilitar billing en Google AI Studio"
+          : e?.message ?? "Error desconocido",
+        errorType: isQuotaError ? "quota_exceeded" : "unknown",
         prompt: PROMPT,
         updatedAt: Date.now(),
+        stackTrace: e?.stack?.substring(0, 500),
       });
     }
   }
