@@ -132,6 +132,8 @@ export default function PhotoBoothPromptsPage() {
   };
 
   const onEdit = (prompt: PhotoBoothPrompt) => {
+    //console.log("Edit prompt:", prompt);
+    prompt.logo = prompt.logoPath
     setSelectedPrompt(prompt);
     setIsModalOpen(true);
   };
@@ -173,19 +175,29 @@ export default function PhotoBoothPromptsPage() {
       key: "delete",
       label: "Eliminar",
       icon: <Trash className="h-4 w-4 hover:text-red-500" />,
-      onClick: (id: any) => onDelete(id),
+      onClick: (item: any) => onDelete(item.id),
     },
   ];
 
   const formFields = [
     { name: "brand", label: "Brand", type: "text", required: true, placeholder: "Ingresa la marca" },
     { name: "basePrompt", label: "Prompt", type: "textarea", required: true, placeholder: "Ingresa el prompt" },
+    { name: "logoPrompt", label: "Logo Prompt", type: "textarea", required: true, placeholder: "Ingresa el prompt" },
     { name: "colorDirectiveTemplate", label: "Color Template", type: "textarea", required: true, placeholder: "Ingresa el prompt de color" },
     { name: "active", label: "Active", type: "checkbox", required: true },
+    {
+      name: 'logo',
+      label: 'Logo',
+      type: 'image',
+      required: false,
+      accept: 'image/png,image/jpeg',
+      maxSize: 5 // 5MB máximo
+    }
   ];
 
-  const handleSubmit = async (data: PhotoBoothPrompt) => {
+  const handleSubmit = async (data: PhotoBoothPrompt, updatedImages: string[]) => {
     try {
+      console.log("update images", updatedImages)
       if (data?.id) {
         await updatePhotoBoothPrompt(data.id, data);
       } else {

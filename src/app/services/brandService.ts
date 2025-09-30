@@ -8,15 +8,26 @@ import {
      getCountFromServer
 } from "firebase/firestore";
 
+import {
+    getDownloadURL,
+    getStorage,
+    ref,
+    uploadBytes,
+   
+  } from "firebase/storage";
+
 // Tipos
 export type PhotoBoothPrompt = {
     id: string;
     brand?: string;
+    logo?: string;
+    logoPath?: string;
+    logoPrompt?: string;
     basePrompt: string;
     colorDirectiveTemplate: string;
     active: boolean;
-    createdAt: Date | null;
-    updatedAt: Date | null;
+    createdAt: Timestamp | Date | null;
+    updatedAt: Timestamp | Date | null;
 };
 
 export type PaginationResult<T> = {
@@ -44,6 +55,7 @@ function mapDocToPrompt(d: DocumentSnapshot): PhotoBoothPrompt {
         id: d.id,
         brand: data.brand ?? "",
         basePrompt: data.basePrompt ?? "",
+        logoPath: data.logoPath ?? "",
         colorDirectiveTemplate: data.colorDirectiveTemplate ?? "",
         active: data.active ?? false,
         createdAt: tsToDate(data.createdAt),
@@ -51,27 +63,78 @@ function mapDocToPrompt(d: DocumentSnapshot): PhotoBoothPrompt {
     };
 }
 
-/* ================== Servicio CRUD ================== */
-
-// CREATE - Crear un nuevo prompt
-export async function createPhotoBoothPrompt(
-    data: Omit<PhotoBoothPrompt, 'id' | 'createdAt' | 'updatedAt'>
-): Promise<string> {
-    try {
-        const promptData = {
-            ...data,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now()
-        };
-        
-        const docRef = await addDoc(collection(db, PHOTO_BOOTH_PROMPTS_COLLECTION), promptData);
-        return docRef.id;
-    } catch (error) {
-        console.error('Error creating prompt:', error);
-        throw new Error('Error al crear el prompt');
+function dataURLtoBlob(dataurl: string): Blob {
+    const arr = dataurl.split(',');
+    // Extraer el tipo de contenido (MIME type)
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    if (!mimeMatch) throw new Error("Invalid Data URL format");
+    const mime = mimeMatch[1];
+    
+    // Decodificar la base64
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    
+    // Crear un Uint8Array
+    const u8arr = new Uint8Array(n);
+    while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
     }
+    
+    // Devolver el Blob
+    return new Blob([u8arr], {type: mime});
 }
 
+/* ================== Servicio CRUD ================== */
+
+export async function createPhotoBoothPrompt(
+    data: Omit<PhotoBoothPrompt, "id" | "createdAt" | "updatedAt" | "logoPath">,
+  ): Promise<string> {
+    try {
+      const storage = getStorage();
+      let logoUrl = "";
+      let fileData = data.logo; 
+  
+      if (fileData) {
+        // 1. Normalizar la Data URL
+        if (typeof fileData === "string" && !fileData.startsWith("data:")) {
+          fileData = `data:${fileData}`;
+        }
+  
+        // 2. Convertir la Data URL a un Blob
+        const logoBlob = dataURLtoBlob(fileData as string);
+        const contentType = logoBlob.type;
+  
+        // 3. Crear referencia en Storage
+        const extension = contentType.split("/")[1] || "png"; // ej: "svg+xml" o "png"
+        const fileName = `${Date.now()}_${data.brand}.${extension.replace("+", "_")}`;
+        const logoRef = ref(storage, `logos/${fileName}`);
+  
+        // 4. Subir archivo
+        await uploadBytes(logoRef, logoBlob, { contentType });
+  
+        // 5. Obtener URL de descarga
+        logoUrl = await getDownloadURL(logoRef);
+      }
+  
+      // 6. Crear documento en Firestore con logoUrl
+      const promptData: Omit<PhotoBoothPrompt, "id"> = {
+        brand: data.brand,
+        basePrompt: data.basePrompt,
+        colorDirectiveTemplate: data.colorDirectiveTemplate,
+        active: data.active,
+        logoPath: logoUrl, // <-- ahora guarda la URL
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+  
+      const docRef = await addDoc(collection(db, PHOTO_BOOTH_PROMPTS_COLLECTION), promptData);
+      return docRef.id;
+  
+    } catch (error) {
+      console.error("Error creating prompt:", error);
+      throw new Error("Error al crear el prompt");
+    }
+  }
 // READ - Obtener todos los prompts con paginación
 export async function getPhotoBoothPrompts(
     pageSize = 10,
@@ -192,11 +255,40 @@ export async function updatePhotoBoothPrompt(
     id: string, 
     data: Partial<Omit<PhotoBoothPrompt,  | 'createdAt' | 'updatedAt'>>
 ): Promise<void> {
+    console.log(data)
     try {
+        const storage = getStorage();
         const docRef = doc(db, PHOTO_BOOTH_PROMPTS_COLLECTION, id);
-        
+        let logoUrl = "";
+      let fileData = data.logo; 
+  
+      if (fileData) {
+        // 1. Normalizar la Data URL
+        if (typeof fileData === "string" && !fileData.startsWith("data:")) {
+          fileData = `data:${fileData}`;
+        }
+        console.log(fileData)
+        // 2. Convertir la Data URL a un Blob
+        const logoBlob = dataURLtoBlob(fileData as string);
+        const contentType = logoBlob.type;
+  
+        // 3. Crear referencia en Storage
+        const extension = contentType.split("/")[1] || "png"; // ej: "svg+xml" o "png"
+        const fileName = `${Date.now()}_${data.brand}.${extension.replace("+", "_")}`;
+        const logoRef = ref(storage, `logos/${fileName}`);
+  
+        // 4. Subir archivo
+        await uploadBytes(logoRef, logoBlob, { contentType });
+  
+        // 5. Obtener URL de descarga
+        logoUrl = await getDownloadURL(logoRef);
+      }
         const updateData = {
-            ...data,
+            brand: data.brand,
+        basePrompt: data.basePrompt,
+        colorDirectiveTemplate: data.colorDirectiveTemplate,
+        active: data.active,
+        logoPath: logoUrl, // <-- ahora guarda la URL
             updatedAt: Timestamp.now()
         };
         
