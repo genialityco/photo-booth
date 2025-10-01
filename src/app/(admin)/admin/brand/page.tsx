@@ -78,7 +78,6 @@ export default function PhotoBoothPromptsPage() {
     try {
       const result = await getPhotoBoothPrompts(pageSize, lastDocParam);
       setPrompts(result.data);
-
       const totalElements = result.total || 0;
       const calculatedTotalPages = Math.ceil(totalElements / pageSize);
 
@@ -133,7 +132,7 @@ export default function PhotoBoothPromptsPage() {
 
   const onEdit = (prompt: PhotoBoothPrompt) => {
     //console.log("Edit prompt:", prompt);
-    prompt.logo = prompt.logoPath
+   
     setSelectedPrompt(prompt);
     setIsModalOpen(true);
   };
@@ -141,8 +140,12 @@ export default function PhotoBoothPromptsPage() {
   const onDelete = async (id: string) => {
     try {
       await deletePhotoBoothPrompt(id);
-      const currentPageInfo = pagination.pages.find(p => p.pageNumber === pagination.currentPage);
-      await loadPrompts(currentPageInfo?.lastDoc || null, pagination.currentPage);
+      const prevPageNumber = pagination.currentPage - 1;
+      const prevPageInfo = pagination.pages.find(p => p.pageNumber === prevPageNumber);
+      const lastDocToStartFrom = prevPageInfo?.lastDoc || null;
+
+      // Recargar la página actual
+      await loadPrompts(lastDocToStartFrom, pagination.currentPage);
     } catch (error) {
       console.error("Error deleting prompt:", error);
     }
@@ -195,9 +198,10 @@ export default function PhotoBoothPromptsPage() {
     }
   ];
 
-  const handleSubmit = async (data: PhotoBoothPrompt, updatedImages: string[]) => {
+  const handleSubmit = async (data: PhotoBoothPrompt) => {
     try {
-      console.log("update images", updatedImages)
+      console.log("data:", data)
+     
       if (data?.id) {
         await updatePhotoBoothPrompt(data.id, data);
       } else {
@@ -205,8 +209,12 @@ export default function PhotoBoothPromptsPage() {
       }
       setIsModalOpen(false);
 
-      const currentPageInfo = pagination.pages.find(p => p.pageNumber === pagination.currentPage);
-      await loadPrompts(currentPageInfo?.lastDoc || null, pagination.currentPage);
+      const prevPageNumber = pagination.currentPage - 1;
+      const prevPageInfo = pagination.pages.find(p => p.pageNumber === prevPageNumber);
+      const lastDocToStartFrom = prevPageInfo?.lastDoc || null;
+
+      // Recargar la página actual
+      await loadPrompts(lastDocToStartFrom, pagination.currentPage);
     } catch (error) {
       console.error("Error submitting prompt:", error);
     }

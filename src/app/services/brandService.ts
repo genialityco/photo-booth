@@ -56,6 +56,7 @@ function mapDocToPrompt(d: DocumentSnapshot): PhotoBoothPrompt {
         brand: data.brand ?? "",
         basePrompt: data.basePrompt ?? "",
         logoPath: data.logoPath ?? "",
+        logoPrompt: data.logoPrompt ?? "",
         colorDirectiveTemplate: data.colorDirectiveTemplate ?? "",
         active: data.active ?? false,
         createdAt: tsToDate(data.createdAt),
@@ -120,6 +121,7 @@ export async function createPhotoBoothPrompt(
       const promptData: Omit<PhotoBoothPrompt, "id"> = {
         brand: data.brand,
         basePrompt: data.basePrompt,
+        logoPrompt: data.logoPrompt,
         colorDirectiveTemplate: data.colorDirectiveTemplate,
         active: data.active,
         logoPath: logoUrl, // <-- ahora guarda la URL
@@ -259,9 +261,9 @@ export async function updatePhotoBoothPrompt(
     try {
         const storage = getStorage();
         const docRef = doc(db, PHOTO_BOOTH_PROMPTS_COLLECTION, id);
-        let logoUrl = "";
+        let logoUrl = data.logoPath;
       let fileData = data.logo; 
-  
+        console.log("filedata", fileData)
       if (fileData) {
         // 1. Normalizar la Data URL
         if (typeof fileData === "string" && !fileData.startsWith("data:")) {
@@ -289,6 +291,7 @@ export async function updatePhotoBoothPrompt(
         colorDirectiveTemplate: data.colorDirectiveTemplate,
         active: data.active,
         logoPath: logoUrl, // <-- ahora guarda la URL
+        logoPrompt: data.logoPrompt,
             updatedAt: Timestamp.now()
         };
         
