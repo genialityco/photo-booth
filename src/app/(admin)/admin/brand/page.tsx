@@ -59,7 +59,7 @@ export default function PhotoBoothPromptsPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<PhotoBoothPrompt | null>(null);
-  const router = useRouter();
+  const [color, setColor] = useState<string | null>(null);
   const [pagination, setPagination] = useState<PaginationState>({
     currentPage: 1,
     totalPages: null,
@@ -221,11 +221,19 @@ export default function PhotoBoothPromptsPage() {
   };
 
   const onCopyUrl = (prompt: PhotoBoothPrompt) => {
-    window.open(`/?brand=${prompt.brand}`, "_blank");
+    console.log("color:", color)
+    if (color) {
+      window.open(`/?brand=${prompt.brand}&color=${color}`, "_blank");
+    }
+    else {
+      window.open(`/?brand=${prompt.brand}`, "_blank");
+    }
   }
 
   return (
+
     <div className="py-8">
+      <input type="color" value={color || "#000000"} onChange={(e) => setColor(e.target.value)} />
       <DataTable
         data={prompts}
         columns={columns}
