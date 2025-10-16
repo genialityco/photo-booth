@@ -19,7 +19,6 @@ type NavigatorWithLegacy = Navigator & {
 };
 
 export default function FrameCamera({
-  // sin marco por defecto
   frameSrc = null,
   mirror = true,
   boxSize = "min(88vw, 60svh)",
@@ -43,7 +42,6 @@ export default function FrameCamera({
       n.getUserMedia || n.webkitGetUserMedia || n.mozGetUserMedia;
 
     if (!n.mediaDevices) {
-      // Creamos el objeto mediaDevices de forma segura sin usar `any`
       (n as unknown as { mediaDevices: MediaDevices }).mediaDevices = {} as MediaDevices;
     }
 
@@ -67,7 +65,6 @@ export default function FrameCamera({
     const start = async () => {
       if (typeof window === "undefined") return;
 
-      // (Opcional) Si prefieres intentar siempre y capturar el error en catch, puedes comentar este bloque:
       const isLocalhost =
         typeof location !== "undefined" &&
         /^localhost$|^127\.0\.0\.1$/.test(location.hostname);
@@ -88,14 +85,18 @@ export default function FrameCamera({
           streamRef.current = null;
         }
 
-        const stream = await (navigator.mediaDevices as MediaDevices).getUserMedia({
+        // CAMBIO CLAVE: Configuración más compatible para móviles
+        const constraints: MediaStreamConstraints = {
           audio: false,
-            video: {
-    facingMode: "user",
-    width: { ideal: 1280, max: 1920 },
-    height: { ideal: 720, max: 1080 },
-  },
-        });
+          video: {
+            facingMode: "user",
+            // Reducir resolución inicial - muchos móviles fallan con HD
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
         if (!mounted) {
           stream.getTracks().forEach((t) => t.stop());
@@ -103,14 +104,55 @@ export default function FrameCamera({
         }
 
         streamRef.current = stream;
+        
+        // CAMBIO CLAVE: Asignar srcObject ANTES de play()
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => { });
+          
+          // Esperar a que el video esté listo
+          await new Promise<void>((resolve) => {
+            if (videoRef.current) {
+              videoRef.current.onloadedmetadata = () => {
+                resolve();
+              };
+            } else {
+              resolve();
+            }
+          });
+
+          // Intentar reproducir
+          try {
+            await videoRef.current.play();
+          } catch (playError) {
+            console.warn("Error al reproducir:", playError);
+            // En algunos móviles, el play() puede fallar pero el video funciona igual
+          }
         }
+        
         setError(null);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        setError(msg || "No se pudo acceder a la cámara.");
+        console.error("Error detallado:", e);
+        
+        let msg = "No se pudo acceder a la cámara.";
+        
+        if (e instanceof Error) {
+          // Mensajes más específicos según el error
+          if (e.name === "NotAllowedError" || e.name === "PermissionDeniedError") {
+            msg = "Permiso de cámara denegado. Por favor, permite el acceso en la configuración de tu navegador.";
+          } else if (e.name === "NotFoundError" || e.name === "DevicesNotFoundError") {
+            msg = "No se encontró ninguna cámara en este dispositivo.";
+          } else if (e.name === "NotReadableError" || e.name === "TrackStartError") {
+            msg = "La cámara está siendo usada por otra aplicación. Cierra otras apps y recarga la página.";
+          } else if (e.name === "OverconstrainedError") {
+            msg = "La configuración solicitada no es compatible con tu cámara. Intenta con otra resolución.";
+          } else if (e.name === "TypeError") {
+            msg = "Error de configuración. Verifica que estés usando HTTPS.";
+          } else {
+            msg = e.message || msg;
+          }
+        }
+        
+        setError(msg);
       }
     };
 
@@ -121,6 +163,9 @@ export default function FrameCamera({
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
     };
   }, []);
@@ -142,14 +187,9 @@ export default function FrameCamera({
           playsInline
           autoPlay
           muted
+          // NUEVO: webkit-playsinline para iOS viejos
+          {...({ "webkit-playsinline": "" } as any)}
         />
-
-        {/*
-          ─────────────────────────────────────────────────────────────────
-          Marco DESACTIVADO por defecto.
-          Para ACTIVAR el marco, descomenta este bloque y pasa un string válido
-          en `frameSrc` (ej: "/images/marco.png"). NO pases "".
-          ─────────────────────────────────────────────────────────────────
 
         {frameSrc && (
           <img
@@ -159,7 +199,6 @@ export default function FrameCamera({
             draggable={false}
           />
         )}
-        */}
       </div>
 
       {error && <p className="text-red-500 text-sm text-center px-3">{error}</p>}
