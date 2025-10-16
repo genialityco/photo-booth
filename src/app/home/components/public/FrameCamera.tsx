@@ -90,11 +90,11 @@ export default function FrameCamera({
 
         const stream = await (navigator.mediaDevices as MediaDevices).getUserMedia({
           audio: false,
-          video: {
-            facingMode: "user",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
+            video: {
+    facingMode: "user",
+    width: { ideal: 1280, max: 1920 },
+    height: { ideal: 720, max: 1080 },
+  },
         });
 
         if (!mounted) {
