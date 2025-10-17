@@ -92,8 +92,8 @@ export default function FrameCamera({
           audio: false,
             video: {
     facingMode: "user",
-    width: { ideal: 1280, max: 1920 },
-    height: { ideal: 720, max: 1080 },
+    width: { ideal: 320, max: 1920 },
+    height: { ideal: 240, max: 1080 },
   },
         });
 
