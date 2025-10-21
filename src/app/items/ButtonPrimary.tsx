@@ -21,8 +21,8 @@ export default function ButtonPrimary({
     onClick,
     label = "EMPEZAR",
     imageSrc = "/images/btn_principal.png",
-    width = 192,  // 192px ~ w-48
-    height = 64,  // 64px  ~ h-16
+    width = 192,  
+    height = 64,  
     className = "",
     textClassName = "",
     disabled = false,

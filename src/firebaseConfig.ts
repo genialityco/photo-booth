@@ -1,4 +1,3 @@
-// firebaseConfig.ts  ✅ SEGURO para server y client (sin APIs de navegador en top-level)
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
