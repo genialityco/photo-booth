@@ -3,12 +3,12 @@
 "use client";
 import React from "react";
 
-type BrandKey = "juan-valdez" | "colombina" | "frisby";
+type BrandKey = "juanvaldez" | "colombina" | "alpina";
 type BrandConfig = { k: BrandKey; logo: string; aria: string };
 
 const BRANDS: BrandConfig[] = [
   {
-    k: "juan-valdez",
+    k: "juanvaldez",
     logo: "/fenalco/inicio/LOGO-JUAN-VALDEZ.png",
     aria: "Comenzar con Juan Valdez",
   },
@@ -18,13 +18,17 @@ const BRANDS: BrandConfig[] = [
     aria: "Comenzar con Colombina",
   },
   {
-    k: "frisby",
-    logo: "/fenalco/inicio/LOGO-FRISBY.png",
-    aria: "Comenzar con Frisby",
+    k: "alpina",
+    logo: "/fenalco/inicio/LOGO-ALPINA.png",
+    aria: "Comenzar con Alpina",
   },
 ];
 
-export default function Landing({ onStart }: { onStart: (brand: BrandKey) => void }) {
+export default function Landing({
+  onStart,
+}: {
+  onStart: (brand: BrandKey) => void;
+}) {
   const handleStart = (brand: BrandKey) => {
     const params = new URLSearchParams(window.location.search);
     params.set("brand", brand.replace("-", ""));
@@ -44,7 +48,9 @@ export default function Landing({ onStart }: { onStart: (brand: BrandKey) => voi
       {/* Fondo */}
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{ backgroundImage: "url('/fenalco/inicio/FONDO_HOME_EMB_MARCA.jpg')" }}
+        style={{
+          backgroundImage: "url('/fenalco/inicio/FONDO_HOME_EMB_MARCA.jpg')",
+        }}
         aria-hidden
       />
 
@@ -97,7 +103,7 @@ export default function Landing({ onStart }: { onStart: (brand: BrandKey) => voi
                 "
               >
                 {/* Contenedor con padding para que el logo nunca toque bordes */}
-                <div className="flex w-full items-center justify-center overflow-hidden rounded-xl sm:rounded-2xl">
+                <div className="flex w-full items-center justify-center overflow-hidden">
                   {/* Altura adaptable sin recorte; en móvil 4/3, en iPad cuadrado */}
                   <div className="w-full">
                     <div className="relative w-full aspect-[4/3] md:aspect-square">
@@ -109,6 +115,7 @@ export default function Landing({ onStart }: { onStart: (brand: BrandKey) => voi
                           object-contain
                         "
                         draggable={false}
+                        style={{borderRadius: "30px"}}
                       />
                     </div>
                   </div>
