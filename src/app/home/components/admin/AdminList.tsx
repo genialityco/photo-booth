@@ -42,17 +42,76 @@ function toDate(v: TaskItem["createdAt"]) {
 }
 
 async function downloadAs(filename: string, url: string) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error("No se pudo descargar el archivo.");
-  const blob = await res.blob();
-  const blobUrl = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = blobUrl;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(blobUrl);
+  try {
+    // Cargar imagen original
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error("No se pudo descargar la imagen base.");
+    const blob = await res.blob();
+    const baseImage = await createImageBitmap(blob);
+
+    // Cargar el marco
+    const frameUrl = "/fenalco/MARCO_EMB_MARCA_1024x1024.png";
+    const frameRes = await fetch(frameUrl, { cache: "no-store" });
+    if (!frameRes.ok) throw new Error("No se pudo cargar el marco.");
+    const frameBlob = await frameRes.blob();
+    const frameImage = await createImageBitmap(frameBlob);
+
+    // Crear canvas con tamaño del marco
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const size = 1024;
+    canvas.width = size;
+    canvas.height = size;
+
+    if (!ctx) throw new Error("No se pudo obtener el contexto del canvas.");
+
+    // Dibujar fondo transparente
+    ctx.clearRect(0, 0, size, size);
+
+    // Calcular área interna (con padding)
+    const paddingTop = 10;
+    const paddingSides = 10;
+    const paddingBottom = 30;
+    const innerWidth = size - paddingSides * 2;
+    const innerHeight = size - (paddingTop + paddingBottom);
+
+    // Escalar la imagen base para que encaje en el área interna
+    const aspectBase = baseImage.width / baseImage.height;
+    let drawWidth = innerWidth;
+    let drawHeight = drawWidth / aspectBase;
+    if (drawHeight > innerHeight) {
+      drawHeight = innerHeight;
+      drawWidth = drawHeight * aspectBase;
+    }
+
+    // Centrar dentro del área interior
+    const x = paddingSides + (innerWidth - drawWidth) / 2;
+    const y = paddingTop + (innerHeight - drawHeight) / 2;
+
+    // Dibujar imagen base
+    ctx.drawImage(baseImage, x, y, drawWidth, drawHeight);
+
+    // Dibujar marco encima
+    ctx.drawImage(frameImage, 0, 0, size, size);
+
+    // Descargar resultado final
+    const finalBlob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), "image/png")
+    );
+
+    const blobUrl = URL.createObjectURL(finalBlob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+
+    console.log("✅ Imagen con marco descargada correctamente.");
+  } catch (err) {
+    console.error("❌ Error al generar la imagen con marco:", err);
+  }
 }
 
 /* ================== Helpers de paths ================== */
