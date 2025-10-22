@@ -77,25 +77,25 @@ export default function ResultStep({
 
         {/* QR de encuesta */}
         <div
-          className="rounded-xl flex items-center justify-center mt-3"
+          className="rounded-xl flex items-center justify-center mt-5 z-10"
           style={{ width: BOX_QR, height: BOX_QR }}
         >
-          <QrTag value={surveyAI} label="Encuesta (Imagen IA)" />
+          <QrTag value={surveyAI} />
         </div>
 
         {/* Botones */}
-        <div className="pt-4 flex gap-4 items-center justify-center">
+        <div className="pt-4 flex items-center justify-center">
           <ButtonPrimary
             onClick={onAgain}
             label="NUEVA FOTO"
-            width={200}
-            height={60}
+            width={190}
+            height={50}
           />
           <ButtonPrimary
             onClick={handleDownload}
             label="DESCARGAR FOTO"
-            width={200}
-            height={60}
+            width={190}
+            height={50}
           />
         </div>
       </main>

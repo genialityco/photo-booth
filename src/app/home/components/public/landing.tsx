@@ -4,55 +4,28 @@
 import React from "react";
 
 type BrandKey = "juan-valdez" | "colombina" | "frisby";
-
-type XY = { x?: number; y?: number };
-
-type BrandConfig = {
-  k: BrandKey;
-  logo: string;
-  aria: string;
-  logoScale?: number;
-  logoTranslate?: XY;
-  logoMaxHeight?: number;
-  cardScale?: number;
-  cardTranslate?: XY;
-  cardHeight?: number;
-};
+type BrandConfig = { k: BrandKey; logo: string; aria: string };
 
 const BRANDS: BrandConfig[] = [
   {
     k: "juan-valdez",
     logo: "/fenalco/inicio/LOGO-JUAN-VALDEZ.png",
     aria: "Comenzar con Juan Valdez",
-    logoScale: 2.3,
-    logoTranslate: { x: 0, y: 0 },
-    logoMaxHeight: 120,
   },
   {
     k: "colombina",
     logo: "/fenalco/inicio/LOGO-COLOMBINA.png",
     aria: "Comenzar con Colombina",
-    logoScale: 2.1,
-    logoTranslate: { x: 0, y: 2 },
-    logoMaxHeight: 120,
   },
   {
     k: "frisby",
     logo: "/fenalco/inicio/LOGO-FRISBY.png",
     aria: "Comenzar con Frisby",
-    logoScale: 2.3,
-    logoTranslate: { x: 0, y: -2 },
-    logoMaxHeight: 120,
   },
 ];
 
-export default function Landing({
-  onStart,
-}: {
-  onStart: (brand: BrandKey) => void;
-}) {
+export default function Landing({ onStart }: { onStart: (brand: BrandKey) => void }) {
   const handleStart = (brand: BrandKey) => {
-    // ✅ Actualiza la URL sin recargar
     const params = new URLSearchParams(window.location.search);
     params.set("brand", brand.replace("-", ""));
     const newUrl = `${window.location.pathname}?${params.toString()}`;
@@ -61,72 +34,96 @@ export default function Landing({
   };
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden">
+    <div
+      className="relative min-h-[100svh] w-full overflow-hidden"
+      style={{
+        paddingTop: "max(12px, env(safe-area-inset-top))",
+        paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+      }}
+    >
       {/* Fondo */}
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{
-          backgroundImage: "url('/fenalco/inicio/FONDO_HOME_EMB_MARCA.jpg')",
-        }}
+        style={{ backgroundImage: "url('/fenalco/inicio/FONDO_HOME_EMB_MARCA.jpg')" }}
         aria-hidden
       />
 
-      {/* Contenido principal */}
-      <div className="mx-auto flex h-dvh max-w-4xl flex-col items-center justify-between overflow-hidden">
-        {/* Logo principal */}
-        <div className="mt-6 w-full max-w-md sm:max-w-lg lg:max-w-xl">
+      {/* Contenido */}
+      <div className="mx-auto flex min-h-[100svh] max-w-[980px] flex-col items-center">
+        {/* Título/Logo */}
+        <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
           <img
             src="/fenalco/inicio/TITULO_80-ANIOS.png"
             alt="Embajadores de Marca - 80 años Fenalco"
-            className="w-full select-none"
+            className="mx-auto w-full max-w-[620px] select-none"
             draggable={false}
           />
         </div>
 
-        {/* Texto guía */}
-        <h1 className="mt-8 text-center text-3xl font-semibold text-white drop-shadow-lg">
+        {/* Texto guía (exacto) */}
+        <h1 className="mt-4 sm:mt-6 text-center text-base sm:text-lg md:text-xl font-semibold text-white drop-shadow-md">
           ¡Escoge una de estas queridas marcas!
         </h1>
 
-        {/* Grid de marcas */}
-        <div className="mt-8 grid w-full px-8 grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:max-w-2xl">
-          {BRANDS.map((b) => {
-            const logoScale = b.logoScale ?? 1;
-            const logoTx = b.logoTranslate?.x ?? 0;
-            const logoTy = b.logoTranslate?.y ?? 0;
-
-            return (
+        {/* Grid: 2 cols en mobile, 3 en iPad+ */}
+        <div className="mt-5 sm:mt-7 w-full px-5 sm:px-6 md:px-8">
+          <div
+            className="
+              grid gap-3 sm:gap-4 md:gap-5
+              grid-cols-2
+              md:grid-cols-3
+            "
+          >
+            {BRANDS.map((b) => (
               <article
                 key={b.k}
-                onClick={() => handleStart(b.k)}
+                role="button"
+                tabIndex={0}
                 aria-label={b.aria}
-                className="cursor-pointer flex flex-col items-center rounded-2xl bg-white/80 backdrop-blur-md shadow-xl hover:scale-[1.03] active:scale-[0.98] transition-transform duration-200"
+                title={b.aria}
+                onClick={() => handleStart(b.k)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") handleStart(b.k);
+                }}
+                className="
+                  group cursor-pointer select-none
+                  rounded-xl sm:rounded-2xl
+                  backdrop-blur
+                  shadow-md sm:shadow-xl ring-1 ring-black/5
+                  transition-transform duration-150
+                  supports-[hover:hover]:hover:scale-[1.015]
+                  active:scale-[0.985]
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70
+                "
               >
-                <div className="flex aspect-square w-full items-center justify-center rounded-2xl overflow-hidden">
-                  <img
-                    src={b.logo}
-                    alt={b.aria}
-                    className="select-none object-contain"
-                    style={{
-                      maxHeight: (b.logoMaxHeight ?? 120) + "px",
-                      maxWidth: "60%",
-                      transform: `translate(${logoTx}px, ${logoTy}px) scale(${logoScale})`,
-                      transformOrigin: "center",
-                    }}
-                    draggable={false}
-                  />
+                {/* Contenedor con padding para que el logo nunca toque bordes */}
+                <div className="flex w-full items-center justify-center overflow-hidden rounded-xl sm:rounded-2xl">
+                  {/* Altura adaptable sin recorte; en móvil 4/3, en iPad cuadrado */}
+                  <div className="w-full">
+                    <div className="relative w-full aspect-[4/3] md:aspect-square">
+                      <img
+                        src={b.logo}
+                        alt={b.aria}
+                        className="
+                          absolute inset-0 w-full h-full
+                          object-contain
+                        "
+                        draggable={false}
+                      />
+                    </div>
+                  </div>
                 </div>
               </article>
-            );
-          })}
+            ))}
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="mt-auto w-full px-8 mb-6">
+        <div className="mt-auto w-full px-5 sm:px-6 md:px-8 pb-3 sm:pb-4 md:pb-6">
           <img
             src="/fenalco/inicio/LOGOS_COLOR_UNA-LINEA.png"
             alt="Logos Footer"
-            className="w-full select-none"
+            className="mx-auto w-full max-w-[980px] select-none"
             draggable={false}
           />
         </div>
