@@ -6,6 +6,9 @@ export default function LoaderStep() {
   const [dots, setDots] = useState("");
 
   useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (media.matches) return; // evita animación si el usuario lo prefiere
+
     const id = setInterval(
       () => setDots((p) => (p.length < 3 ? p + "." : "")),
       500
@@ -14,75 +17,60 @@ export default function LoaderStep() {
   }, []);
 
   return (
-    <div className="fixed inset-0 h-full w-full overflow-hidden text-white z-50">
+    <div
+      className="fixed inset-0 z-50 h-dvh w-dvw overflow-hidden text-white"
+      style={{
+        paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+        paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
+      }}
+    >
       {/* Fondo */}
       <Image
         src="/fenalco/loading/FONDO_HABILITAR-CAMARA_EMB_MARCA.jpg"
-        alt="Fondo"
+        alt="Fondo decorativo"
         fill
         priority
         sizes="100vw"
-        className="object-cover !h-full !w-full" // fuerza cubrir todo
+        className="object-cover select-none"
+        draggable={false}
       />
-      <div className="absolute inset-0 bg-black/40" />
+      {/* Velo para legibilidad */}
+      <div className="absolute inset-0 bg-black/45" />
 
-      {/* Logo arriba */}
-      <div className="absolute top-30 inset-x-0 flex justify-center z-20">
+      {/* Logo superior (opcional) */}
+      <div className="absolute inset-x-0 top-6 flex justify-center z-20">
         <Image
           src="/fenalco/loading/TITULO_80-ANIOS.png"
-          alt="80 Años Fenalco"
-          width={500} // Ajusta el tamaño si es necesario
-          height={80} // Ajusta el tamaño si es necesario
-          className="animate-fadeIn"
+          alt="80 años FENALCO"
+          width={520}
+          height={96}
+          className="drop-shadow-md"
+          priority
         />
       </div>
 
-      {/* Texto centro */}
-      <div className="relative z-10 flex h-full flex-col items-center justify-center px-6">
-        <h1 className="text-center text-4xl md:text-6xl font-semibold drop-shadow">
-          Generando la magia{dots}
+      {/* Contenido central */}
+      <div className="relative z-20 flex h-full items-center justify-center px-6">
+        <h1
+          className="text-center text-4xl md:text-6xl font-semibold drop-shadow-lg tracking-tight"
+          role="status"
+          aria-live="polite"
+        >
+          Generando magia{dots}
         </h1>
       </div>
-      
 
-      {/* GIFs abajo */}
-      {/* <div className="absolute bottom-10 inset-x-0 flex justify-center gap-8 z-20">
-        <img
-          src="/images/laboratorio2.gif"
-          alt="Laboratorio 2"
-          className="w-[120px] md:w-[200px] rounded-xl shadow-xl animate-float"
-        />
-        <img
-          src="/images/laboratorio3.gif"
-          alt="Laboratorio 3"
-          className="w-[200px] md:w-[240px] rounded-xl shadow-xl animate-float [animation-delay:200ms]"
-        />
-      </div> */}
-
-      {/* PNG esquinas con animación extra */}
-      {/* <img
-        src="/images/estructura_quimica.png"
-        alt="estructura química"
-        className="absolute top-6 left-6 w-[90px] md:w-[120px] opacity-90 drop-shadow-[0_0_12px_rgba(56,189,248,0.8)] animate-glowSway animate-spin-slow"
-        style={{ animationDuration: "6s" }}
-      />
-      <img
-        src="/images/estructura_quimica.png"
-        alt="estructura química"
-        className="absolute top-6 right-6 w-[90px] md:w-[120px] opacity-90 drop-shadow-[0_0_12px_rgba(56,189,248,0.8)] animate-glowSway animate-spin-slow [animation-delay:400ms]"
-        style={{ animationDuration: "6s", animationDirection: "reverse" }}
-      /> */}
-
-      {/* Footer con logo */}
-      {/* <div className="absolute bottom-6 inset-x-0 flex justify-center z-20">
+      {/* Footer con logos (opcional)
+      <div className="absolute inset-x-0 bottom-6 z-20 flex justify-center">
         <Image
           src="/fenalco/loading/LOGOS-FOOTER_HC.png"
-          alt="Footer Logos"
-          width={500} // Ajusta el tamaño si es necesario
-          height={50} // Ajusta el tamaño si es necesario
-          className="w-[120px] md:w-[200px] rounded-xl shadow-xl animate-float"
+          alt="Aliados y patrocinadores"
+          width={520}
+          height={60}
+          className="opacity-90"
         />
-      </div> */}
+      </div>
+      */}
     </div>
   );
 }

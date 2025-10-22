@@ -47,6 +47,58 @@ export default function SurveyClient() {
     return `${base}-${t}.png`;
   }, [filenameFromQS, kind]);
 
+  // ⬇️ Helpers NUEVOS para componer con marco en cliente (no remuevas ni cambies tus comentarios)
+  const loadImage = (url: string) =>
+    new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      // Si la imagen proviene de un bucket/CDN, esto ayuda a evitar canvas "tainted"
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+
+  // Dibuja la imagen tipo "cover" dentro de un lienzo cuadrado
+  const drawCover = (
+    ctx: CanvasRenderingContext2D,
+    img: HTMLImageElement,
+    size: number
+  ) => {
+    const iw = img.naturalWidth || img.width;
+    const ih = img.naturalHeight || img.height;
+    const s = Math.max(size / iw, size / ih); // cover
+    const dw = iw * s;
+    const dh = ih * s;
+    const dx = (size - dw) / 2;
+    const dy = (size - dh) / 2;
+    ctx.drawImage(img, dx, dy, dw, dh);
+  };
+
+  // Compone la foto + el marco y devuelve un blob URL listo para descargar
+  const composeFramed = async (baseUrl: string) => {
+    const [baseImg, frameImg] = await Promise.all([
+      loadImage(baseUrl),
+      loadImage("/fenalco/MARCO_EMB_MARCA_1024x1024.png"),
+    ]);
+    const size = 1024; // coincide con el PNG del marco
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, size, size);
+
+    // Primero la foto (cover en el cuadrado) y luego el marco encima
+    drawCover(ctx, baseImg, size);
+    ctx.drawImage(frameImg, 0, 0, size, size);
+
+    const blob: Blob | null = await new Promise((res) =>
+      canvas.toBlob(res, "image/png")
+    );
+    if (!blob) throw new Error("No se pudo generar la imagen con marco.");
+    const url = URL.createObjectURL(blob);
+    return url;
+  };
+
   // Carga de la imagen (igual que antes)
   useEffect(() => {
     let abort = false;
@@ -83,19 +135,43 @@ export default function SurveyClient() {
   // ⬇️ NUEVO: cuando la imagen esté lista, “simulamos” el estado posterior al envío
   // y preparamos el enlace de descarga.
   useEffect(() => {
-    if (!loadingPhoto && photo) {
+    let active = true;
+    (async () => {
+      if (loadingPhoto || !photo) return;
+
       // Limpieza de blobs previos si la tuvieses
       if (revokeRef.current) {
         revokeRef.current();
         revokeRef.current = null;
       }
-      setDownloadHref(photo);
-      setDownloadName(filenameFromQS || suggestedName);
-      setSaved(true);
-    }
+
+      try {
+        // 👉 Aquí componemos SIEMPRE la imagen con el marco para la descarga
+        const framedUrl = await composeFramed(photo);
+        if (!active) {
+          URL.revokeObjectURL(framedUrl);
+          return;
+        }
+        setDownloadHref(framedUrl);
+        setDownloadName(filenameFromQS || suggestedName);
+        setSaved(true);
+
+        // Registra función para revocar este blob cuando cambie/desmonte
+        revokeRef.current = () => URL.revokeObjectURL(framedUrl);
+      } catch (e: any) {
+        console.error(e);
+        setErr(e.message || "No se pudo preparar la imagen con marco.");
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+    // Mantén las dependencias como están para respetar tu orden/comentarios
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingPhoto, photo, filenameFromQS, suggestedName]);
 
-  const canDownload = !!photo && !loadingPhoto && saved;
+  const canDownload = !!downloadHref && !loadingPhoto && saved;
 
   // ⬇️ Manejadores del formulario (comentados para uso futuro)
   /*
@@ -117,7 +193,7 @@ export default function SurveyClient() {
             Descarga tu imagen 📸
           </h1>
           <p className="text-white/80 mt-2 max-w-2xl mx-auto">
-            Tu imagen se preparará automáticamente si proporcionaste un <code>src</code> o <code>qrId</code>.
+            Tu imagen se preparará automáticamente
           </p>
         </header>
 
@@ -220,33 +296,51 @@ export default function SurveyClient() {
               href={canDownload ? downloadHref : undefined}
               download={downloadName || suggestedName}
               className={`px-4 py-2 rounded-xl font-semibold shadow transition
-                ${canDownload ? "bg-white text-black hover:bg-white/90" : "bg-white/40 text-black/60 cursor-not-allowed"}
+                ${
+                  canDownload
+                    ? "bg-white text-black hover:bg-white/90"
+                    : "bg-white/40 text-black/60 cursor-not-allowed"
+                }
               `}
               aria-disabled={!canDownload}
-              title={!canDownload ? "Esperando a que la imagen esté lista…" : "Descargar imagen"}
+              title={
+                !canDownload
+                  ? "Esperando a que la imagen esté lista…"
+                  : "Descargar imagen"
+              }
             >
               Descargar imagen
             </a>
             {canDownload && (
               <span className="text-xs text-white/60">
                 Nombre sugerido:{" "}
-                <code className="text-white/80">{downloadName || suggestedName}</code>
+                <code className="text-white/80">
+                  {downloadName || suggestedName}
+                </code>
               </span>
             )}
           </div>
 
           {/* Vista previa opcional (déjala comentada si quieres SOLO el botón) */}
-          {/*
+
           {canDownload && (
-            <div className="mt-4 w-full bg-white/5 rounded-xl p-3 border border-white/10">
+            <div className="mt-4 w-full bg-white/5 rounded-xl p-3 border border-white/10 relative aspect-square overflow-hidden">
+              {/* Imagen base */}
               <img
                 src={photo}
                 alt="Tu imagen"
-                className="w-full h-auto object-contain rounded-lg"
+                className="absolute inset-0 w-full h-full object-contain rounded-lg select-none"
+                draggable={false}
+              />
+              {/* Marco superpuesto */}
+              <img
+                src="/fenalco/MARCO_EMB_MARCA_1024x1024.png"
+                alt="Marco decorativo"
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+                draggable={false}
               />
             </div>
           )}
-          */}
         </div>
       </div>
     </div>
