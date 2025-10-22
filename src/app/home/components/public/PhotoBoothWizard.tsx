@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -24,9 +25,9 @@ import {
 } from "firebase/firestore";
 
 export default function PhotoBoothWizard({
-  frameSrc = null,
   mirror = true,
-  boxSize = "min(88vw, 60svh)",
+  // Caja cuadrada responsiva: mínimo 320px, escala con viewport, máximo 820px
+  boxSize = "clamp(320px, min(72vmin, 78svh), 820px)",
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
@@ -49,14 +50,17 @@ export default function PhotoBoothWizard({
     if (!searchParams) {
       setBrand("default");
       setColor(null);
-    } else setBrand((searchParams.get("brand") as string) || "default");
-    setColor((searchParams.get("color") as string) || null);
+    } else {
+      setBrand((searchParams.get("brand") as string) || "default");
+      setColor((searchParams.get("color") as string) || null);
+    }
     return () => {
       if (unsubRef.current) {
         unsubRef.current();
         unsubRef.current = undefined;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCaptured = (payload: { framed: string; raw: string }) => {
@@ -75,14 +79,14 @@ export default function PhotoBoothWizard({
         .slice(2, 10)}_${Date.now().toString(36)}`;
       setTaskId(newTaskId);
 
-      // 1) Subir la FOTO CON MARCO como input de la Function
+      // 1) Subir la FOTO CON MARCO como input
       const inputPath = `tasks/${newTaskId}/input.png`;
       const inputRef = ref(storage, inputPath);
       await uploadString(inputRef, framedShot, "data_url", {
         contentType: "image/png",
       });
 
-      // 2) URL pública de ese mismo archivo (framed)
+      // 2) URL pública (framed)
       const framedDownloadUrl = await getDownloadURL(inputRef);
       setFramedUrl(framedDownloadUrl);
 
@@ -143,8 +147,8 @@ export default function PhotoBoothWizard({
   };
 
   return (
-    <div className="relative h-[100svh] w-[100vw] overflow-hidden">
-      {/* Fondo de pantalla */}
+    <div className="relative h-[100svh] w-screen overflow-hidden">
+      {/* Fondo full-screen */}
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
         style={{
@@ -154,8 +158,18 @@ export default function PhotoBoothWizard({
         aria-hidden
       />
 
-      {/* Logo de 80 años encima de la cámara */}
-      <div className="absolute top-10 left-1/2 -translate-x-1/2 w-full max-w-md sm:max-w-lg lg:max-w-xl z-10">
+      {/* Logo superior — responsivo por breakpoint */}
+      <div
+        className={`
+          absolute z-10 left-1/2 -translate-x-1/2
+          top-[max(1.5rem,env(safe-area-inset-top))]
+          w-[70vw] max-w-[380px]
+          sm:max-w-[380px]
+          md:max-w-[460px]
+          lg:max-w-[540px]
+          xl:max-w-[620px]
+        `}
+      >
         <img
           src="/fenalco/capture/TITULO_80-ANIOS.png"
           alt="80 años Fenalco"
@@ -165,40 +179,50 @@ export default function PhotoBoothWizard({
       </div>
 
       {/* Contenido centrado */}
-      <div className="relative z-10 flex h-full w-full items-center justify-center px-4">
-        {step === "capture" && (
-          <CaptureStep
-            mirror={mirror}
-            boxSize={boxSize}
-            onCaptured={handleCaptured} /* frameSrc={frameSrc} */
-          />
-        )}
+      <div className="relative z-10 grid h-full w-full place-items-center px-3 sm:px-6">
+        <div
+          className="flex items-center justify-center overflow-visible"
+          style={{ width: boxSize, height: boxSize }}
+        >
+          {step === "capture" && (
+            <CaptureStep
+              mirror={mirror}
+              boxSize={boxSize}
+              onCaptured={handleCaptured}
+              /* frameSrc={frameSrc} */
+            />
+          )}
 
-        {step === "preview" && framedShot && (
-          <PreviewStep
-            framedShot={framedShot}
-            boxSize={boxSize}
-            onRetake={resetAll}
-            onConfirm={confirmAndProcess}
-          />
-        )}
+          {step === "preview" && framedShot && (
+            <PreviewStep
+              framedShot={framedShot}
+              boxSize={boxSize}
+              onRetake={resetAll}
+              onConfirm={confirmAndProcess}
+            />
+          )}
 
-        {step === "loading" && <LoaderStep />}
+          {step === "loading" && <LoaderStep />}
 
-        {step === "result" && framedShot && aiUrl && (
-          <ResultStep
-            taskId={taskId!}
-            framedShotUrl={framedUrl!}
-            aiUrl={aiUrl}
-            onAgain={resetAll}
-          />
-        )}
+          {step === "result" && framedShot && aiUrl && (
+            <ResultStep
+              taskId={taskId!}
+              framedShotUrl={framedUrl!}
+              aiUrl={aiUrl}
+              onAgain={resetAll}
+            />
+          )}
+        </div>
       </div>
 
-      {/* Footer pegado abajo con safe-area */}
+      {/* Footer fijo con safe-area */}
       <div
-        className="pointer-events-none absolute inset-x-0 z-10 mx-auto w-full max-w-xl px-4"
-        style={{ bottom: "max(env(safe-area-inset-bottom), 0px)" }}
+        className="
+          pointer-events-none absolute inset-x-0 z-10 mx-auto
+          w-[86vw] max-w-[320px] sm:max-w-[440px] md:max-w-[560px] lg:max-w-[680px]
+          px-4
+        "
+        style={{ bottom: "max(env(safe-area-inset-bottom), 16px)" }}
       >
         <img
           src="/fenalco/capture/LOGOS-FOOTER_HC.png"
