@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -5,9 +6,9 @@ import React, { useEffect, useRef, useState } from "react";
 import CaptureStep from "./CaptureStep";
 import PreviewStep from "./PreviewStep";
 import LoaderStep from "./LoaderStep";
-import ResultStep from "./ResultStep";
-import { useSearchParams } from "next/navigation"
-import { db } from "@/firebaseConfig"; // ajusta si tu export es distinto
+import ResultStep from "./ResultStep_Frame_No_frame";
+import { useSearchParams } from "next/navigation";
+import { db } from "@/firebaseConfig";
 import {
   getStorage,
   ref,
@@ -22,45 +23,44 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
-// import { json } from "stream/consumers";
 
 export default function PhotoBoothWizard({
-  frameSrc = null,
   mirror = true,
-  boxSize = "min(88vw, 60svh)",
-  
+  // Caja cuadrada responsiva: mínimo 320px, escala con viewport, máximo 820px
+  boxSize = "clamp(320px, min(72vmin, 78svh), 820px)",
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
-  
 }) {
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<
     "capture" | "preview" | "loading" | "result"
   >("capture");
-  const [framedShot, setFramedShot] = useState<string | null>(null); // dataURL (con marco) para mostrar
-  const [, setRawShot] = useState<string | null>(null); // dataURL (sin marco) para la Function
-  const [aiUrl, setAiUrl] = useState<string | null>(null); // URL devuelta por la Function
-  const [framedUrl, setFramedUrl] = useState<string | null>(null); // URL generada al subir framed.png
+  const [framedShot, setFramedShot] = useState<string | null>(null);
+  const [, setRawShot] = useState<string | null>(null);
+  const [aiUrl, setAiUrl] = useState<string | null>(null);
+  const [framedUrl, setFramedUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [brand, setBrand] = useState<string | null>("electronic");
   const [color, setColor] = useState<string | null>(null);
   const unsubRef = useRef<() => void | undefined>(undefined);
 
-
   useEffect(() => {
-       if (!searchParams) {setBrand("default"); setColor(null)}
-    else
-
-    setBrand(searchParams.get("brand") as string || "default");
-    setColor(searchParams.get("color") as string || null)
+    if (!searchParams) {
+      setBrand("default");
+      setColor(null);
+    } else {
+      setBrand((searchParams.get("brand") as string) || "default");
+      setColor((searchParams.get("color") as string) || null);
+    }
     return () => {
       if (unsubRef.current) {
         unsubRef.current();
         unsubRef.current = undefined;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCaptured = (payload: { framed: string; raw: string }) => {
@@ -70,7 +70,7 @@ export default function PhotoBoothWizard({
   };
 
   const confirmAndProcess = async () => {
-    if (!framedShot) return; // <- ya no dependemos de rawShot
+    if (!framedShot) return;
     setStep("loading");
     try {
       const storage = getStorage();
@@ -79,25 +79,23 @@ export default function PhotoBoothWizard({
         .slice(2, 10)}_${Date.now().toString(36)}`;
       setTaskId(newTaskId);
 
-      // 1) Subir la FOTO CON MARCO como input de la Function
+      // 1) Subir la FOTO CON MARCO como input
       const inputPath = `tasks/${newTaskId}/input.png`;
       const inputRef = ref(storage, inputPath);
       await uploadString(inputRef, framedShot, "data_url", {
         contentType: "image/png",
       });
 
-      // 2) Ese mismo input será tu "framed"
-      const framedPath = inputPath;
+      // 2) URL pública (framed)
       const framedDownloadUrl = await getDownloadURL(inputRef);
       setFramedUrl(framedDownloadUrl);
 
-      // 3) Crear doc imageTasks/{taskId}
+      // 3) Crear doc en Firestore
       const taskRef = doc(collection(db, "imageTasks"), newTaskId);
-      console.log(brand)
       await setDoc(taskRef, {
         status: "queued",
-        inputPath, // usado por la Function
-        framedPath, // = inputPath
+        inputPath,
+        framedPath: inputPath,
         framedUrl: framedDownloadUrl,
         brand,
         color,
@@ -106,7 +104,7 @@ export default function PhotoBoothWizard({
         updatedAt: serverTimestamp(),
       });
 
-      // 4) Escuchar hasta done
+      // 4) Suscripción hasta "done"
       if (unsubRef.current) {
         unsubRef.current();
         unsubRef.current = undefined;
@@ -127,7 +125,6 @@ export default function PhotoBoothWizard({
           try {
             await updateDoc(taskRef, { finishedAt: serverTimestamp() });
           } catch {}
-
           if (unsubRef.current) {
             unsubRef.current();
             unsubRef.current = undefined;
@@ -150,37 +147,85 @@ export default function PhotoBoothWizard({
   };
 
   return (
-    <div
-      className="h-[90svh] w-[100vw] flex items-center justify-center"
-    >
-      {step === "capture" && (
-        <CaptureStep
-          //frameSrc={frameSrc}
-          mirror={mirror}
-          boxSize={boxSize}
-          onCaptured={handleCaptured}
-        />
-      )}
+    <div className="relative h-screen w-screen overflow-hidden">
+      {/* Fondo full-screen */}
+      <div
+        className="fixed inset-0 -z-10 bg-cover bg-center"
+        style={{
+          backgroundImage:
+            "url('/fenalco/capture/FONDO_HABILITAR-CAMARA_EMB_MARCA.jpg')",
+        }}
+        aria-hidden
+      />
 
-      {step === "preview" && framedShot && (
-        <PreviewStep
-          framedShot={framedShot}
-          boxSize={boxSize}
-          onRetake={resetAll}
-          onConfirm={confirmAndProcess}
+      {/* Logo superior — responsivo por breakpoint */}
+      <div
+        className={`
+          absolute z-10 left-1/2 -translate-x-1/2
+          top-[max(1.5rem,env(safe-area-inset-top))]
+          w-[70vw] max-w-[380px]
+        `}
+      >
+        <img
+          src="/fenalco/capture/TITULO_80-ANIOS.png"
+          alt="80 años Fenalco"
+          className="w-full select-none"
+          draggable={false}
         />
-      )}
+      </div>
 
-      {step === "loading" && <LoaderStep />}
+      {/* Contenido centrado */}
+      <div className="relative z-10 grid h-full w-full place-items-center">
+        <div
+          className="flex items-center justify-center overflow-visible"
+          style={{ width: boxSize, height: boxSize }}
+        >
+          {step === "capture" && (
+            <CaptureStep
+              mirror={mirror}
+              boxSize={boxSize}
+              onCaptured={handleCaptured}
+              /* frameSrc={frameSrc} */
+            />
+          )}
 
-      {step === "result" && framedShot && aiUrl && (
-        <ResultStep
-          taskId={taskId!}
-          framedShotUrl={framedUrl!} // URL de Storage de la foto con marco
-          aiUrl={aiUrl} // URL devuelta por la Function (ya en Storage)
-          onAgain={resetAll}
+          {step === "preview" && framedShot && (
+            <PreviewStep
+              framedShot={framedShot}
+              boxSize={boxSize}
+              onRetake={resetAll}
+              onConfirm={confirmAndProcess}
+            />
+          )}
+
+          {step === "loading" && <LoaderStep />}
+
+          {step === "result" && framedShot && aiUrl && (
+            <ResultStep
+              taskId={taskId!}
+              framedShotUrl={framedUrl!}
+              aiUrl={aiUrl}
+              onAgain={resetAll}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Footer fijo con safe-area */}
+      <div
+        className="
+          pointer-events-none absolute inset-x-0 z-10 mx-auto
+
+        "
+        style={{ bottom: "max(env(safe-area-inset-bottom), 16px)" }}
+      >
+        <img
+          src="/fenalco/capture/LOGOS_BLANCO_UNA-LINEA.png"
+          alt="Logos Footer"
+          className="w-full select-none"
+          draggable={false}
         />
-      )}
+      </div>
     </div>
   );
 }

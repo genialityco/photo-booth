@@ -5,17 +5,27 @@ import React, { useMemo } from "react";
 import ButtonPrimary from "@/app/items/ButtonPrimary";
 import QrTag from "./QrTag";
 
+type Props = {
+  taskId: string;
+  framedShotUrl: string;
+  aiUrl: string;
+  onAgain: () => void;
+  /** Opcional: logo superior (por defecto /logo.svg) */
+  logoSrc?: string;
+  logoAlt?: string;
+  /** Opcional: contenido de footer (texto o nodo) */
+  footer?: React.ReactNode;
+};
+
 export default function ResultStep({
   taskId,
   framedShotUrl,
   aiUrl,
   onAgain,
-}: {
-  taskId: string;
-  framedShotUrl: string;
-  aiUrl: string;
-  onAgain: () => void;
-}) {
+  logoSrc = "/logo.svg",
+  logoAlt = "Logo",
+  footer,
+}: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const surveyFramed = useMemo(() => {
@@ -32,80 +42,64 @@ export default function ResultStep({
     url.searchParams.set("kind", "raw");
     url.searchParams.set("filename", `foto-ia-${taskId}.png`);
     return url.toString();
+    console.log({ url: url.toString() });
   }, [origin, aiUrl, taskId]);
 
-  const BOX_IMG = "clamp(220px, 38svh, 380px)";
-  const BOX_QR = "clamp(140px, 25svh, 250px)";
+  // Tamaños pensados para iPad / tótem vertical u horizontal
+  const BOX_IMG = "clamp(260px, 35svh, 520px)"; // cuadro principal (cuadrado)
+  const BOX_QR = "clamp(140px, 22svh, 260px)"; // QR debajo de la imagen
 
   return (
-    <div className="h-[100svh] w-full flex flex-col items-center justify-between p-4 overflow-hidden">
-      <div className="flex-1 w-full flex flex-col items-center justify-center">
-        {/* ======= MOBILE ======= */}
-        <div className="w-full sm:hidden flex flex-col items-center">
-          {/* Imagen IA + QR */}
-          <div className="flex flex-col items-center gap-2">
-            <div className="relative overflow-hidden rounded-xl shadow-xl w-[min(78vw,24vh)] aspect-square">
-              <img
-                src={aiUrl}
-                alt="Imagen IA"
-                className="absolute inset-0 w-full h-full object-contain"
-              />
-            </div>
-            <div className="rounded-lg flex items-center justify-center w-[min(52vw,12vh)] aspect-square">
-              <QrTag value={surveyAI} />
-            </div>
-          </div>
+    <div
+      className="min-h-[100svh] w-full flex flex-col items-center justify-between px-6 py-4"
+      style={{
+        paddingTop: "max(1rem, env(safe-area-inset-top))",
+        paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
+      }}
+    >
+
+      {/* Contenido principal */}
+      <main className="flex-1 w-full flex flex-col items-center justify-center mt-32">
+        {/* Imagen IA */}
+        <div
+          className="relative overflow-hidden rounded-2xl shadow-xl bg-black/5"
+          style={{ width: BOX_IMG, height: BOX_IMG }}
+        >
+          <img
+            src={aiUrl}
+            alt="Imagen generada por IA"
+            className="absolute inset-0 w-full h-full object-contain"
+            draggable={false}
+          />
         </div>
 
-        {/* ======= DESKTOP/TABLET ======= */}
-        <div className="hidden sm:flex flex-col items-center justify-center gap-3">
-          {/* FILA 1: Foto con marco + QR (COMENTADO) */}
-          {/*
-          <div className="flex items-center justify-center gap-3">
-            <div
-              className="relative overflow-hidden rounded-xl shadow-xl"
-              style={{ width: BOX_IMG, height: BOX_IMG }}
-            >
-              <img
-                src={framedShotUrl}
-                alt="Foto con marco"
-                className="absolute inset-0 w-full h-full object-contain"
-              />
-            </div>
-            <div
-              className="rounded-lg flex items-center justify-center"
-              style={{ width: BOX_QR }}
-            >
-              <QrTag value={surveyFramed} label="Encuesta (Foto con marco)" />
-            </div>
-          </div>
-          */}
-
-          {/* FILA 2: Imagen IA + QR (ACTIVO) */}
-          <div className="flex items-center justify-center gap-3">
-            <div
-              className="relative overflow-hidden rounded-xl shadow-xl"
-              style={{ width: BOX_IMG, height: BOX_IMG }}
-            >
-              <img
-                src={aiUrl}
-                alt="Imagen IA"
-                className="absolute inset-0 w-full h-full object-contain"
-              />
-            </div>
-            <div
-              className="rounded-lg flex items-center justify-center"
-              style={{ width: BOX_QR }}
-            >
-              <QrTag value={surveyAI} label="Encuesta (Imagen IA)" />
-            </div>
-          </div>
+        {/* QR de encuesta (IA) */}
+        <div
+          className="rounded-xl flex items-center justify-center"
+          style={{ width: BOX_QR, height: BOX_QR }}
+        >
+          <QrTag value={surveyAI} label="Encuesta (Imagen IA)" />
         </div>
-      </div>
 
-      <div className="pb-1 shrink-0">
-        <ButtonPrimary onClick={onAgain} label="NUEVA FOTO" width={200} height={64} />
-      </div>
+        {/* Botón principal */}
+        <div className="pt-2">
+          <ButtonPrimary
+            onClick={onAgain}
+            label="NUEVA FOTO"
+            width={240}
+            height={64}
+          />
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="w-full flex items-center justify-center mt-2 text-center text-xs opacity-70">
+        {footer ?? (
+          <span>
+            Escanea el QR para descargar tu foto · {new Date().getFullYear()}
+          </span>
+        )}
+      </footer>
     </div>
   );
 }

@@ -4,9 +4,9 @@ export default function Page() {
   return (
     <Suspense fallback={<div>Cargando...</div>}>
       <PhotoBoothWizard
-        //frameSrc="/images/marco.png"
+        frameSrc="/images/marco.png"
         mirror
-        boxSize="min(88vw, 70svh)"
+        boxSize="min(50vw, 70svh)"
       />
     </Suspense>
   );
