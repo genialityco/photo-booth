@@ -1,11 +1,25 @@
 import Sidebar from "../../home/components/admin/Sidebar";
 
-
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="relative min-h-screen w-full overflow-hidden bg-gray-100">
+      {/* Sidebar fija (no ocupa flujo) */}
       <Sidebar />
-      <main className="flex-1 p-6 bg-gray-100">
+
+      {/* Contenido principal: en móviles ocupa todo el ancho; en md+ deja espacio de la sidebar */}
+      <main
+        className="
+          relative
+          h-[100svh]
+          overflow-y-auto overscroll-contain
+          p-6
+          md:pl-48 lg:pl-64
+        "
+      >
         {children}
       </main>
     </div>

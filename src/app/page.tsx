@@ -4,7 +4,7 @@ import React from "react";
 import Landing from "./home/components/public/landing";
 import Page from "./home/page";
 
-type BrandKey = "juanvaldez2" | "colombina" | "alpina";
+type BrandKey = "juanvaldez" | "colombina" | "alpina";
 
 export default function AppRoot() {
   const [enabledCamara, setEnabledCamara] = React.useState(false);
