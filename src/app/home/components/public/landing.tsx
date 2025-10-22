@@ -28,9 +28,9 @@ const BRANDS: BrandConfig[] = [
     logoScale: 2.3,
     logoTranslate: { x: 0, y: 0 },
     logoMaxHeight: 120,
-    cardScale: 1.2,
+    cardScale: 0.85,
     cardTranslate: { x: 0, y: 0 },
-    cardHeight: 300,
+    cardHeight: 220,
   },
   {
     k: "colombina",
@@ -39,9 +39,9 @@ const BRANDS: BrandConfig[] = [
     logoScale: 2.1,
     logoTranslate: { x: 0, y: 2 },
     logoMaxHeight: 120,
-    cardScale: 1.2,
+    cardScale: 0.85,
     cardTranslate: { x: 0, y: 0 },
-    cardHeight: 300,
+    cardHeight: 220,
   },
   {
     k: "frisby",
@@ -50,9 +50,9 @@ const BRANDS: BrandConfig[] = [
     logoScale: 2.3,
     logoTranslate: { x: 0, y: -2 },
     logoMaxHeight: 120,
-    cardScale: 1.2,
+    cardScale: 0.85,
     cardTranslate: { x: 0, y: 0 },
-    cardHeight: 300,
+    cardHeight: 220,
   },
 ];
 
@@ -83,9 +83,9 @@ export default function Landing({
       />
 
       {/* Centrado total sin scroll */}
-      <div className="mx-auto flex h-dvh max-w-4xl flex-col items-center justify-center px-4 py-6 sm:px-6 lg:px-8 lg:max-w-5xl overflow-hidden">
+      <div className="mx-auto flex h-dvh max-w-4xl flex-col items-center justify-start px-4 pt-4 pb-3 sm:justify-center sm:px-6 sm:py-6 lg:px-8 lg:max-w-5xl overflow-hidden">
         {/* Título */}
-        <div className="mb-4 w-full max-w-md sm:max-w-lg lg:max-w-xl">
+        <div className="mb-3 w-full max-w-[280px] sm:mb-4 sm:max-w-md lg:max-w-xl">
           <img
             src="/fenalco/inicio/TITULO_80-ANIOS.png"
             alt="Embajadores de Marca - 80 años Fenalco"
@@ -95,7 +95,7 @@ export default function Landing({
         </div>
 
         {/* Grid de marcas */}
-        <div className="mb-4 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4 lg:max-w-2xl overflow-hidden">
+        <div className="mb-3 grid w-full max-w-[280px] grid-cols-1 gap-2 sm:mb-4 sm:max-w-3xl sm:grid-cols-2 md:grid-cols-3 md:gap-4 lg:max-w-2xl overflow-hidden">
           {BRANDS.map((b) => {
             const cardScale = b.cardScale ?? 1;
             const cardTx = b.cardTranslate?.x ?? 0;
@@ -108,13 +108,13 @@ export default function Landing({
             return (
               <article
                 key={b.k}
-                className="flex w-full flex-col items-center rounded-2xl p-3 shadow-lg sm:p-4 lg:p-3"
+                className="flex w-full flex-col items-center rounded-2xl p-2 shadow-lg sm:p-4 lg:p-3"
                 style={{
                   transform: `translate(${cardTx}px, ${cardTy}px) scale(${cardScale})`,
                   transformOrigin: "center",
                   height: b.cardHeight ?? undefined,
                   maxWidth: "280px",
-                  margin: "50px auto",
+                  margin: "0 auto",
                 }}
               >
                 <div className="mb-2 flex aspect-square w-full items-center justify-center rounded-xl bg-white p-2 sm:mb-3 sm:p-3 overflow-hidden">
@@ -150,7 +150,7 @@ export default function Landing({
         </div>
 
         {/* Footer */}
-        <div className="mt-auto w-full max-w-md sm:max-w-lg lg:max-w-xl">
+        <div className="mt-auto w-full max-w-[280px] sm:max-w-lg lg:max-w-xl">
           <img
             src="/fenalco/inicio/LOGOS-FOOTER.png"
             alt="Logos Footer"
