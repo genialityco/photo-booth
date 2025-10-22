@@ -9,17 +9,17 @@ type BrandConfig = { k: BrandKey; logo: string; aria: string };
 const BRANDS: BrandConfig[] = [
   {
     k: "juanvaldez",
-    logo: "/fenalco/inicio/LOGO-JUAN-VALDEZ.png",
+    logo: "/fenalco/inicio/juanvaldez_logo.jpeg",
     aria: "Comenzar con Juan Valdez",
   },
   {
     k: "colombina",
-    logo: "/fenalco/inicio/LOGO-COLOMBINA.png",
+    logo: "/fenalco/inicio/colombina-logo.webp",
     aria: "Comenzar con Colombina",
   },
   {
     k: "alpina",
-    logo: "/fenalco/inicio/LOGO-ALPINA.png",
+    logo: "/fenalco/inicio/alpina_logo.jpeg",
     aria: "Comenzar con Alpina",
   },
   {
@@ -116,17 +116,17 @@ export default function Landing({
                         src={b.logo}
                         alt={b.aria}
                         className="
-                          bg-[#FEF5DF]
+                          bg-white
                           absolute inset-0 w-full h-full
                           object-contain
                         "
                         draggable={false}
                         style={{
                           borderRadius: "30px",
-                          paddingLeft: b.logo?.includes("macpollo")
+                          paddingLeft: b.logo?.includes("macpollo") || b.logo?.includes("colombina") 
                             ? "20px"
                             : "0",
-                          paddingRight: b.logo?.includes("macpollo")
+                          paddingRight: b.logo?.includes("macpollo") || b.logo?.includes("colombina") 
                             ? "20px"
                             : "0",
                         }}
