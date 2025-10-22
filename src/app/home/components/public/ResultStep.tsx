@@ -7,34 +7,17 @@ import QrTag from "./QrTag";
 
 type Props = {
   taskId: string;
-  framedShotUrl: string;
   aiUrl: string;
   onAgain: () => void;
-  /** Opcional: logo superior (por defecto /logo.svg) */
-  logoSrc?: string;
-  logoAlt?: string;
-  /** Opcional: contenido de footer (texto o nodo) */
   footer?: React.ReactNode;
 };
 
 export default function ResultStep({
   taskId,
-  framedShotUrl,
   aiUrl,
   onAgain,
-  logoSrc = "/logo.svg",
-  logoAlt = "Logo",
-  footer,
 }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-
-  const surveyFramed = useMemo(() => {
-    const url = new URL(`${origin}/survey`);
-    url.searchParams.set("src", framedShotUrl);
-    url.searchParams.set("kind", "framed");
-    url.searchParams.set("filename", `foto-con-marco-${taskId}.png`);
-    return url.toString();
-  }, [origin, framedShotUrl, taskId]);
 
   const surveyAI = useMemo(() => {
     const url = new URL(`${origin}/survey`);
@@ -42,12 +25,32 @@ export default function ResultStep({
     url.searchParams.set("kind", "raw");
     url.searchParams.set("filename", `foto-ia-${taskId}.png`);
     return url.toString();
-    console.log({ url: url.toString() });
   }, [origin, aiUrl, taskId]);
 
   // Tamaños pensados para iPad / tótem vertical u horizontal
-  const BOX_IMG = "clamp(260px, 35svh, 520px)"; // cuadro principal (cuadrado)
-  const BOX_QR = "clamp(140px, 22svh, 260px)"; // QR debajo de la imagen
+  const BOX_IMG = "clamp(260px, 35svh, 520px)";
+  const BOX_QR = "clamp(140px, 22svh, 260px)";
+
+  /** Maneja la descarga de la foto IA */
+  const handleDownload = async () => {
+    try {
+      const res = await fetch(aiUrl);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `foto-ia-${taskId}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error descargando la imagen:", err);
+      alert("No se pudo descargar la imagen. Inténtalo nuevamente.");
+    }
+  };
 
   return (
     <div
@@ -57,7 +60,6 @@ export default function ResultStep({
         paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
       }}
     >
-
       {/* Contenido principal */}
       <main className="flex-1 w-full flex flex-col items-center justify-center mt-32">
         {/* Imagen IA */}
@@ -73,33 +75,30 @@ export default function ResultStep({
           />
         </div>
 
-        {/* QR de encuesta (IA) */}
+        {/* QR de encuesta */}
         <div
-          className="rounded-xl flex items-center justify-center"
+          className="rounded-xl flex items-center justify-center mt-3"
           style={{ width: BOX_QR, height: BOX_QR }}
         >
           <QrTag value={surveyAI} label="Encuesta (Imagen IA)" />
         </div>
 
-        {/* Botón principal */}
-        <div className="pt-2">
+        {/* Botones */}
+        <div className="pt-4 flex gap-4 items-center justify-center">
           <ButtonPrimary
             onClick={onAgain}
             label="NUEVA FOTO"
-            width={240}
-            height={64}
+            width={200}
+            height={60}
+          />
+          <ButtonPrimary
+            onClick={handleDownload}
+            label="DESCARGAR FOTO"
+            width={200}
+            height={60}
           />
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="w-full flex items-center justify-center mt-2 text-center text-xs opacity-70">
-        {footer ?? (
-          <span>
-            Escanea el QR para descargar tu foto · {new Date().getFullYear()}
-          </span>
-        )}
-      </footer>
     </div>
   );
 }

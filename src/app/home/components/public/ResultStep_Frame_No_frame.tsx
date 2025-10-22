@@ -5,7 +5,7 @@ import React, { useMemo } from "react";
 import ButtonPrimary from "@/app/items/ButtonPrimary";
 import QrTag from "./QrTag";
 
-export default function ResultStep({
+export default function ResultStep_old({
   taskId,
   framedShotUrl,
   aiUrl,
