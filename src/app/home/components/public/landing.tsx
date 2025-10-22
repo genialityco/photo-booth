@@ -3,12 +3,12 @@
 "use client";
 import React from "react";
 
-type BrandKey = "juanvaldez" | "colombina" | "alpina";
+type BrandKey = "juanvaldez2" | "colombina" | "alpina";
 type BrandConfig = { k: BrandKey; logo: string; aria: string };
 
 const BRANDS: BrandConfig[] = [
   {
-    k: "juanvaldez",
+    k: "juanvaldez2",
     logo: "/fenalco/inicio/LOGO-JUAN-VALDEZ.png",
     aria: "Comenzar con Juan Valdez",
   },

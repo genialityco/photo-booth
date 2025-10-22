@@ -12,11 +12,7 @@ type Props = {
   footer?: React.ReactNode;
 };
 
-export default function ResultStep({
-  taskId,
-  aiUrl,
-  onAgain,
-}: Props) {
+export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const surveyAI = useMemo(() => {
@@ -27,11 +23,8 @@ export default function ResultStep({
     return url.toString();
   }, [origin, aiUrl, taskId]);
 
-  // Tamaños pensados para iPad / tótem vertical u horizontal
-  const BOX_IMG = "clamp(260px, 35svh, 520px)";
-  const BOX_QR = "clamp(140px, 22svh, 260px)";
+  const SIZE_IMG = "clamp(260px, min(70vw, 60svh), 520px)";
 
-  /** Maneja la descarga de la foto IA */
   const handleDownload = async () => {
     try {
       const res = await fetch(aiUrl);
@@ -54,37 +47,34 @@ export default function ResultStep({
 
   return (
     <div
-      className="min-h-[100svh] w-full flex flex-col items-center justify-between px-6 py-4"
+      className="min-h-[100svh] w-full flex flex-col items-center justify-start px-6"
       style={{
-        paddingTop: "max(1rem, env(safe-area-inset-top))",
+        paddingTop: "max(-3rem, env(safe-area-inset-top))", // 🔼 Subido visualmente
         paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
       }}
     >
       {/* Contenido principal */}
-      <main className="flex-1 w-full flex flex-col items-center justify-center mt-32">
-        {/* Imagen IA */}
+      <main className="flex-1 w-full flex flex-col items-center gap-5 mt-6">
+        {/* Imagen IA (siempre cuadrada) */}
         <div
-          className="relative overflow-hidden rounded-2xl shadow-xl bg-black/5"
-          style={{ width: BOX_IMG, height: BOX_IMG }}
+          className="relative overflow-hidden rounded-2xl shadow-xl bg-black/5 aspect-square"
+          style={{ width: SIZE_IMG }}
         >
           <img
             src={aiUrl}
             alt="Imagen generada por IA"
-            className="absolute inset-0 w-full h-full object-contain"
+            className="absolute inset-0 w-full h-full object-contain select-none"
             draggable={false}
           />
         </div>
 
-        {/* QR de encuesta */}
-        <div
-          className="rounded-xl flex items-center justify-center mt-5 z-10"
-          style={{ width: BOX_QR, height: BOX_QR }}
-        >
+        {/* QR de encuesta (siempre cuadrado) */}
+        <div className="rounded-xl flex items-center justify-center aspect-square z-10">
           <QrTag value={surveyAI} />
         </div>
 
         {/* Botones */}
-        <div className="pt-4 flex items-center justify-center">
+        <div className="pt-4 flex flex-row items-center justify-center">
           <ButtonPrimary
             onClick={onAgain}
             label="NUEVA FOTO"
