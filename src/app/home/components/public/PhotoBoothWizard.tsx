@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from "react";
 import CaptureStep from "./CaptureStep";
 import PreviewStep from "./PreviewStep";
 import LoaderStep from "./LoaderStep";
-import ResultStep from "./ResultStep_Frame_No_frame";
+import ResultStep from "./ResultStep";
 import { useSearchParams } from "next/navigation";
 import { db } from "@/firebaseConfig";
 import {
@@ -144,6 +144,10 @@ export default function PhotoBoothWizard({
     setFramedUrl(null);
     setTaskId(null);
     setStep("capture");
+
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
   };
 
   return (
@@ -203,7 +207,6 @@ export default function PhotoBoothWizard({
           {step === "result" && framedShot && aiUrl && (
             <ResultStep
               taskId={taskId!}
-              framedShotUrl={framedUrl!}
               aiUrl={aiUrl}
               onAgain={resetAll}
             />

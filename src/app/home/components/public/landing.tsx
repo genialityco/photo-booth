@@ -2,7 +2,6 @@
 /* app/components/Landing.tsx */
 "use client";
 import React from "react";
-import ButtonPrimary from "../../../items/ButtonPrimary";
 
 type BrandKey = "juan-valdez" | "colombina" | "frisby";
 
@@ -28,9 +27,6 @@ const BRANDS: BrandConfig[] = [
     logoScale: 2.3,
     logoTranslate: { x: 0, y: 0 },
     logoMaxHeight: 120,
-    cardScale: 0.85,
-    cardTranslate: { x: 0, y: 0 },
-    cardHeight: 220,
   },
   {
     k: "colombina",
@@ -39,9 +35,6 @@ const BRANDS: BrandConfig[] = [
     logoScale: 2.1,
     logoTranslate: { x: 0, y: 2 },
     logoMaxHeight: 120,
-    cardScale: 0.85,
-    cardTranslate: { x: 0, y: 0 },
-    cardHeight: 220,
   },
   {
     k: "frisby",
@@ -50,9 +43,6 @@ const BRANDS: BrandConfig[] = [
     logoScale: 2.3,
     logoTranslate: { x: 0, y: -2 },
     logoMaxHeight: 120,
-    cardScale: 0.85,
-    cardTranslate: { x: 0, y: 0 },
-    cardHeight: 220,
   },
 ];
 
@@ -67,13 +57,12 @@ export default function Landing({
     params.set("brand", brand.replace("-", ""));
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", newUrl);
-
-    // Llama al callback existente
     onStart(brand);
   };
 
   return (
     <div className="relative h-dvh w-full overflow-hidden">
+      {/* Fondo */}
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
         style={{
@@ -82,10 +71,10 @@ export default function Landing({
         aria-hidden
       />
 
-      {/* Centrado total sin scroll */}
-      <div className="mx-auto flex h-dvh max-w-4xl flex-col items-center justify-center overflow-hidden">
-        {/* Título */}
-        <div className="mb-20 w-full max-w-md sm:max-w-lg lg:max-w-xl">
+      {/* Contenido principal */}
+      <div className="mx-auto flex h-dvh max-w-4xl flex-col items-center justify-between overflow-hidden">
+        {/* Logo principal */}
+        <div className="mt-6 w-full max-w-md sm:max-w-lg lg:max-w-xl">
           <img
             src="/fenalco/inicio/TITULO_80-ANIOS.png"
             alt="Embajadores de Marca - 80 años Fenalco"
@@ -94,8 +83,13 @@ export default function Landing({
           />
         </div>
 
+        {/* Texto guía */}
+        <h1 className="mt-8 text-center text-3xl font-semibold text-white drop-shadow-lg">
+          ¡Escoge una de estas queridas marcas!
+        </h1>
+
         {/* Grid de marcas */}
-        <div className=" grid w-full px-8 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4 lg:max-w-2xl overflow-hidden">
+        <div className="mt-8 grid w-full px-8 grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:max-w-2xl">
           {BRANDS.map((b) => {
             const logoScale = b.logoScale ?? 1;
             const logoTx = b.logoTranslate?.x ?? 0;
@@ -104,40 +98,31 @@ export default function Landing({
             return (
               <article
                 key={b.k}
-                className="flex w-full flex-col items-center rounded-2xl shadow-lg"
+                onClick={() => handleStart(b.k)}
+                aria-label={b.aria}
+                className="cursor-pointer flex flex-col items-center rounded-2xl bg-white/80 backdrop-blur-md shadow-xl hover:scale-[1.03] active:scale-[0.98] transition-transform duration-200"
               >
-                <div className="mb-2 flex aspect-square w-full items-center justify-center rounded-xl bg-white overflow-hidden">
+                <div className="flex aspect-square w-full items-center justify-center rounded-2xl overflow-hidden">
                   <img
                     src={b.logo}
                     alt={b.aria}
                     className="select-none object-contain"
                     style={{
                       maxHeight: (b.logoMaxHeight ?? 120) + "px",
-                      maxWidth: "50%",
+                      maxWidth: "60%",
                       transform: `translate(${logoTx}px, ${logoTy}px) scale(${logoScale})`,
                       transformOrigin: "center",
                     }}
                     draggable={false}
                   />
                 </div>
-
-                <ButtonPrimary
-                  onClick={() => handleStart(b.k)}
-                  ariaLabel={b.aria}
-                  label="COMENZAR"
-                  imageSrc="/fenalco/inicio/BOTON-COMENZAR.png"
-                  width={160}
-                  height={40}
-                  className="relative mx-auto block text-white"
-                  textClassName="text-white"
-                />
               </article>
             );
           })}
         </div>
 
         {/* Footer */}
-        <div className="mt-auto w-full px-8">
+        <div className="mt-auto w-full px-8 mb-6">
           <img
             src="/fenalco/inicio/LOGOS_COLOR_UNA-LINEA.png"
             alt="Logos Footer"
