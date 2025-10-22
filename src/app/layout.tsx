@@ -21,18 +21,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-dvh overflow-hidden">
-      {" "}
-      {/* ✅ bloquea scroll global */}
       <body
         className={`${geistSans.variable} ${geistMono.variable} h-dvh overflow-hidden`}
       >
-        {/* 🔹 Fondo de madera */}
-        {/* <div
+        {/* ✅ bloquea scroll global */}
+        {/* Fondo opcional
+        <div
           className="fixed inset-0 -z-10 bg-cover bg-center"
           style={{ backgroundImage: "url('/images/frame.jpg')" }}
-        /> */}
-
-        {/* Contenido */}
+        />
+        */}
         <div className="h-dvh w-full flex items-center justify-center p-0 overflow-hidden">
           {children}
         </div>

@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from "react";
 import CaptureStep from "./CaptureStep";
 import PreviewStep from "./PreviewStep";
 import LoaderStep from "./LoaderStep";
-import ResultStep from "./ResultStep";
+import ResultStep from "./ResultStep_Frame_No_frame";
 import { useSearchParams } from "next/navigation";
 import { db } from "@/firebaseConfig";
 import {

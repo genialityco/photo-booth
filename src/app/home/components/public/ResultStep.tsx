@@ -42,6 +42,7 @@ export default function ResultStep({
     url.searchParams.set("kind", "raw");
     url.searchParams.set("filename", `foto-ia-${taskId}.png`);
     return url.toString();
+    console.log({ url: url.toString() });
   }, [origin, aiUrl, taskId]);
 
   // Tamaños pensados para iPad / tótem vertical u horizontal

@@ -74,7 +74,7 @@ export default function LoaderStep() {
       /> */}
 
       {/* Footer con logo */}
-      <div className="absolute bottom-6 inset-x-0 flex justify-center z-20">
+      {/* <div className="absolute bottom-6 inset-x-0 flex justify-center z-20">
         <Image
           src="/fenalco/loading/LOGOS-FOOTER_HC.png"
           alt="Footer Logos"
@@ -82,7 +82,7 @@ export default function LoaderStep() {
           height={50} // Ajusta el tamaño si es necesario
           className="w-[120px] md:w-[200px] rounded-xl shadow-xl animate-float"
         />
-      </div>
+      </div> */}
     </div>
   );
 }

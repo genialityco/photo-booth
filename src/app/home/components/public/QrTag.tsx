@@ -9,7 +9,7 @@ import React, { useEffect, useState } from "react";
  */
 export default function QrTag({
   value,
-  size = 140,
+  size = 200,
   label,
 }: {
   value: string;

@@ -28,9 +28,9 @@ const BRANDS: BrandConfig[] = [
     logoScale: 2.3,
     logoTranslate: { x: 0, y: 0 },
     logoMaxHeight: 120,
-    cardScale: 1.2,
+    cardScale: 0.85,
     cardTranslate: { x: 0, y: 0 },
-    cardHeight: 300,
+    cardHeight: 220,
   },
   {
     k: "colombina",
@@ -39,9 +39,9 @@ const BRANDS: BrandConfig[] = [
     logoScale: 2.1,
     logoTranslate: { x: 0, y: 2 },
     logoMaxHeight: 120,
-    cardScale: 1.2,
+    cardScale: 0.85,
     cardTranslate: { x: 0, y: 0 },
-    cardHeight: 300,
+    cardHeight: 220,
   },
   {
     k: "frisby",
@@ -50,9 +50,9 @@ const BRANDS: BrandConfig[] = [
     logoScale: 2.3,
     logoTranslate: { x: 0, y: -2 },
     logoMaxHeight: 120,
-    cardScale: 1.2,
+    cardScale: 0.85,
     cardTranslate: { x: 0, y: 0 },
-    cardHeight: 300,
+    cardHeight: 220,
   },
 ];
 
