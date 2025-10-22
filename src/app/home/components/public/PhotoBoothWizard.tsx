@@ -147,7 +147,7 @@ export default function PhotoBoothWizard({
   };
 
   return (
-    <div className="relative h-[100svh] w-screen overflow-hidden">
+    <div className="relative h-screen w-screen overflow-hidden">
       {/* Fondo full-screen */}
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
@@ -164,10 +164,6 @@ export default function PhotoBoothWizard({
           absolute z-10 left-1/2 -translate-x-1/2
           top-[max(1.5rem,env(safe-area-inset-top))]
           w-[70vw] max-w-[380px]
-          sm:max-w-[380px]
-          md:max-w-[460px]
-          lg:max-w-[540px]
-          xl:max-w-[620px]
         `}
       >
         <img
@@ -179,7 +175,7 @@ export default function PhotoBoothWizard({
       </div>
 
       {/* Contenido centrado */}
-      <div className="relative z-10 grid h-full w-full place-items-center px-3 sm:px-6">
+      <div className="relative z-10 grid h-full w-full place-items-center">
         <div
           className="flex items-center justify-center overflow-visible"
           style={{ width: boxSize, height: boxSize }}
@@ -219,13 +215,12 @@ export default function PhotoBoothWizard({
       <div
         className="
           pointer-events-none absolute inset-x-0 z-10 mx-auto
-          w-[86vw] max-w-[320px] sm:max-w-[440px] md:max-w-[560px] lg:max-w-[680px]
-          px-4
+
         "
         style={{ bottom: "max(env(safe-area-inset-bottom), 16px)" }}
       >
         <img
-          src="/fenalco/capture/LOGOS-FOOTER_HC.png"
+          src="/fenalco/capture/LOGOS_BLANCO_UNA-LINEA.png"
           alt="Logos Footer"
           className="w-full select-none"
           draggable={false}

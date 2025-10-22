@@ -83,9 +83,9 @@ export default function Landing({
       />
 
       {/* Centrado total sin scroll */}
-      <div className="mx-auto flex h-dvh max-w-4xl flex-col items-center justify-center px-4 py-6 sm:px-6 lg:px-8 lg:max-w-5xl overflow-hidden">
+      <div className="mx-auto flex h-dvh max-w-4xl flex-col items-center justify-center overflow-hidden">
         {/* Título */}
-        <div className="mb-4 w-full max-w-md sm:max-w-lg lg:max-w-xl">
+        <div className="mb-20 w-full max-w-md sm:max-w-lg lg:max-w-xl">
           <img
             src="/fenalco/inicio/TITULO_80-ANIOS.png"
             alt="Embajadores de Marca - 80 años Fenalco"
@@ -95,12 +95,8 @@ export default function Landing({
         </div>
 
         {/* Grid de marcas */}
-        <div className="mb-4 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4 lg:max-w-2xl overflow-hidden">
+        <div className=" grid w-full px-8 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4 lg:max-w-2xl overflow-hidden">
           {BRANDS.map((b) => {
-            const cardScale = b.cardScale ?? 1;
-            const cardTx = b.cardTranslate?.x ?? 0;
-            const cardTy = b.cardTranslate?.y ?? 0;
-
             const logoScale = b.logoScale ?? 1;
             const logoTx = b.logoTranslate?.x ?? 0;
             const logoTy = b.logoTranslate?.y ?? 0;
@@ -108,16 +104,9 @@ export default function Landing({
             return (
               <article
                 key={b.k}
-                className="flex w-full flex-col items-center rounded-2xl p-3 shadow-lg sm:p-4 lg:p-3"
-                style={{
-                  transform: `translate(${cardTx}px, ${cardTy}px) scale(${cardScale})`,
-                  transformOrigin: "center",
-                  height: b.cardHeight ?? undefined,
-                  maxWidth: "280px",
-                  margin: "50px auto",
-                }}
+                className="flex w-full flex-col items-center rounded-2xl shadow-lg"
               >
-                <div className="mb-2 flex aspect-square w-full items-center justify-center rounded-xl bg-white p-2 sm:mb-3 sm:p-3 overflow-hidden">
+                <div className="mb-2 flex aspect-square w-full items-center justify-center rounded-xl bg-white overflow-hidden">
                   <img
                     src={b.logo}
                     alt={b.aria}
@@ -132,27 +121,25 @@ export default function Landing({
                   />
                 </div>
 
-                <div className="w-full">
-                  <ButtonPrimary
-                    onClick={() => handleStart(b.k)}
-                    ariaLabel={b.aria}
-                    label="COMENZAR"
-                    imageSrc="/fenalco/inicio/BOTON-COMENZAR.png"
-                    width={160}
-                    height={40}
-                    className="relative mx-auto block"
-                    textClassName="pointer-events-none absolute inset-0 grid place-items-center text-xs font-bold tracking-wide text-white sm:text-sm"
-                  />
-                </div>
+                <ButtonPrimary
+                  onClick={() => handleStart(b.k)}
+                  ariaLabel={b.aria}
+                  label="COMENZAR"
+                  imageSrc="/fenalco/inicio/BOTON-COMENZAR.png"
+                  width={160}
+                  height={40}
+                  className="relative mx-auto block text-white"
+                  textClassName="text-white"
+                />
               </article>
             );
           })}
         </div>
 
         {/* Footer */}
-        <div className="mt-auto w-full max-w-md sm:max-w-lg lg:max-w-xl">
+        <div className="mt-auto w-full px-8">
           <img
-            src="/fenalco/inicio/LOGOS-FOOTER.png"
+            src="/fenalco/inicio/LOGOS_COLOR_UNA-LINEA.png"
             alt="Logos Footer"
             className="w-full select-none"
             draggable={false}

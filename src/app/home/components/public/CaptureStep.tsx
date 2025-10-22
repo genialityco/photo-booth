@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import FrameCamera from "./FrameCamera";
 import captureWithFrame from "./captureWithFrame";
 import captureRawSquare from "./captureRawSquare";
