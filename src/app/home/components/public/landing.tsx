@@ -3,7 +3,7 @@
 "use client";
 import React from "react";
 
-type BrandKey = "juanvaldez" | "colombina" | "alpina";
+type BrandKey = "juanvaldez" | "colombina" | "alpina" | "macpollo";
 type BrandConfig = { k: BrandKey; logo: string; aria: string };
 
 const BRANDS: BrandConfig[] = [
@@ -20,6 +20,11 @@ const BRANDS: BrandConfig[] = [
   {
     k: "alpina",
     logo: "/fenalco/inicio/LOGO-ALPINA.png",
+    aria: "Comenzar con Alpina",
+  },
+  {
+    k: "macpollo",
+    logo: "/fenalco/inicio/macpollo_logo.webp",
     aria: "Comenzar con Alpina",
   },
 ];
@@ -111,11 +116,20 @@ export default function Landing({
                         src={b.logo}
                         alt={b.aria}
                         className="
+                          bg-[#FEF5DF]
                           absolute inset-0 w-full h-full
                           object-contain
                         "
                         draggable={false}
-                        style={{borderRadius: "30px"}}
+                        style={{
+                          borderRadius: "30px",
+                          paddingLeft: b.logo?.includes("macpollo")
+                            ? "20px"
+                            : "0",
+                          paddingRight: b.logo?.includes("macpollo")
+                            ? "20px"
+                            : "0",
+                        }}
                       />
                     </div>
                   </div>

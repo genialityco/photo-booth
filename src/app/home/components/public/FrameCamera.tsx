@@ -20,7 +20,7 @@ type NavigatorWithLegacy = Navigator & {
 
 export default function FrameCamera({
   // sin marco por defecto
-  frameSrc = null,
+  frameSrc = "fenalco/capture/MARCO_EMB_MARCA_1024x1024.png",
   mirror = true,
   boxSize = "min(88vw, 60svh)",
   onReady,
@@ -144,12 +144,12 @@ export default function FrameCamera({
           muted
         />
 
-        {/*
-          ─────────────────────────────────────────────────────────────────
+        
+          {/* ─────────────────────────────────────────────────────────────────
           Marco DESACTIVADO por defecto.
           Para ACTIVAR el marco, descomenta este bloque y pasa un string válido
           en `frameSrc` (ej: "/images/marco.png"). NO pases "".
-          ─────────────────────────────────────────────────────────────────
+          ───────────────────────────────────────────────────────────────── */}
 
         {frameSrc && (
           <img
@@ -159,7 +159,7 @@ export default function FrameCamera({
             draggable={false}
           />
         )}
-        */}
+       
       </div>
 
       {error && <p className="text-red-500 text-sm text-center px-3">{error}</p>}
