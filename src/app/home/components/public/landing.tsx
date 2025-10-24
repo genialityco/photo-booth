@@ -12,11 +12,11 @@ const BRANDS: BrandConfig[] = [
     logo: "/fenalco/inicio/juanvaldez_logo.jpeg",
     aria: "Comenzar con Juan Valdez",
   },
-  {
-    k: "colombina",
-    logo: "/fenalco/inicio/colombina-logo.webp",
-    aria: "Comenzar con Colombina",
-  },
+  // {
+  //   k: "colombina",
+  //   logo: "/fenalco/inicio/colombina-logo.webp",
+  //   aria: "Comenzar con Colombina",
+  // },
   {
     k: "alpina",
     logo: "/fenalco/inicio/alpina_logo.jpeg",
