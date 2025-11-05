@@ -3,7 +3,12 @@
 "use client";
 import React from "react";
 
-type BrandKey = "col40_alien" | "col40_angel" | "col40_cyborg" | "col40_virus" | "col40_plant";
+type BrandKey =
+  | "col40_alien"
+  | "col40_angel"
+  | "col40_cyborg"
+  | "col40_virus"
+  | "col40_plant";
 type BrandConfig = { k: BrandKey; logo: string; aria: string };
 
 const BRANDS: BrandConfig[] = [
@@ -36,7 +41,7 @@ const BRANDS: BrandConfig[] = [
     k: "col40_plant",
     logo: "/Colombia4.0/PLANTA.png",
     aria: "Evolución PLANT",
-  }
+  },
 ];
 
 export default function Landing({
@@ -141,27 +146,29 @@ export default function Landing({
                   if (e.key === "Enter" || e.key === " ") handleStart(b.k);
                 }}
                 className="
-                  group cursor-pointer select-none
-                  rounded-xl sm:rounded-2xl
-                  backdrop-blur
-                  shadow-md sm:shadow-xl ring-1 ring-black/5
-                  transition-transform duration-150
-                  supports-[hover:hover]:hover:scale-[1.015]
-                  active:scale-[0.985]
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70
-                "
+      group cursor-pointer select-none
+      rounded-xl sm:rounded-2xl
+      backdrop-blur
+      shadow-md sm:shadow-xl ring-1 ring-black/5
+      transition-transform duration-150
+      supports-[hover:hover]:hover:scale-[1.015]
+      active:scale-[0.985]
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70
+      bg-white/5
+    "
               >
-                <div className="flex w-full items-center justify-center overflow-hidden">
+                <div className="flex w-full flex-col items-center justify-center overflow-hidden">
+                  {/* Imagen */}
                   <div className="w-full">
                     <div className="relative w-full aspect-[4/3] md:aspect-square">
                       <img
                         src={b.logo}
                         alt={b.aria}
                         className="
-                          bg-white
-                          absolute inset-0 w-full h-full
-                          object-contain
-                        "
+              bg-white
+              absolute inset-0 w-full h-full
+              object-contain
+            "
                         draggable={false}
                         style={{
                           borderRadius: "30px",
@@ -178,6 +185,18 @@ export default function Landing({
                         }}
                       />
                     </div>
+                  </div>
+
+                  {/* Texto debajo de la imagen */}
+                  <div
+                    className="
+          w-full px-4 py-2
+          text-center font-semibold
+          text-white drop-shadow
+          text-sm sm:text-base
+        "
+                  >
+                    {b.aria}
                   </div>
                 </div>
               </article>
