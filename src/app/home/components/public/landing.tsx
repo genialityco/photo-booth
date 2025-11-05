@@ -54,7 +54,7 @@ export default function Landing({
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
         style={{
-          backgroundImage: "url('/fenalco/inicio/FONDO_HOME_EMB_MARCA.jpg')",
+          backgroundImage: "url('/Colombia4.0/fondoCel.png')",
         }}
         aria-hidden
       />
@@ -64,8 +64,8 @@ export default function Landing({
         {/* Título/Logo */}
         <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
           <img
-            src="/fenalco/inicio/TITULO_80-ANIOS.png"
-            alt="Embajadores de Marca - 80 años Fenalco"
+            src="/Colombia4.0/LOGO_GEN.png"
+            alt="GEN.IALITY LOGO"
             className="mx-auto w-full max-w-[620px] select-none"
             draggable={false}
           />
@@ -142,7 +142,7 @@ export default function Landing({
         {/* Footer */}
         <div className="mt-auto w-full px-5 sm:px-6 md:px-8 pb-3 sm:pb-4 md:pb-6">
           <img
-            src="/fenalco/inicio/LOGOS_COLOR_UNA-LINEA.png"
+            src="/Colombia4.0/COLOMBIA4.0.png"
             alt="Logos Footer"
             className="mx-auto w-full max-w-[980px] select-none"
             draggable={false}

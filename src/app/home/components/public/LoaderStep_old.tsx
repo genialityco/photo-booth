@@ -17,7 +17,7 @@ export default function LoaderStep_old() {
     <div className="fixed inset-0 h-full w-full overflow-hidden text-white z-50">
       {/* Fondo */}
       <Image
-        src="/fenalco/loading/FONDO_HABILITAR-CAMARA_EMB_MARCA.jpg"
+        src="/Colombia4.0/fondoCel.png"
         alt="Fondo"
         fill
         priority

@@ -157,7 +157,7 @@ export default function PhotoBoothWizard({
         className="fixed inset-0 -z-10 bg-cover bg-center"
         style={{
           backgroundImage:
-            "url('/fenalco/capture/FONDO_HABILITAR-CAMARA_EMB_MARCA.jpg')",
+            "url('/Colombia4.0/fondoCel.png')",
         }}
         aria-hidden
       />
@@ -171,7 +171,7 @@ export default function PhotoBoothWizard({
         `}
       >
         <img
-          src="/fenalco/capture/TITULO_80-ANIOS.png"
+          src="/Colombia4.0/LOGO_GEN.png"
           alt="80 años Fenalco"
           className="w-full select-none"
           draggable={false}
@@ -223,7 +223,7 @@ export default function PhotoBoothWizard({
         style={{ bottom: "max(env(safe-area-inset-bottom), 16px)" }}
       >
         <img
-          src="/fenalco/capture/LOGOS_BLANCO_UNA-LINEA.png"
+          src="/Colombia4.0/COLOMBIA4.0.png"
           alt="Logos Footer"
           className="w-full select-none"
           draggable={false}

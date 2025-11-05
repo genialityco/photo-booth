@@ -14,13 +14,15 @@ type NavigatorWithLegacy = Navigator & {
   mozGetUserMedia?: LegacyGetUserMedia;
   getUserMedia?: LegacyGetUserMedia;
   mediaDevices?: MediaDevices & {
-    getUserMedia?: (constraints: MediaStreamConstraints) => Promise<MediaStream>;
+    getUserMedia?: (
+      constraints: MediaStreamConstraints
+    ) => Promise<MediaStream>;
   };
 };
 
 export default function FrameCamera({
   // sin marco por defecto
-  frameSrc = "fenalco/capture/MARCO_EMB_MARCA_1024x1024.png",
+  frameSrc = "colombia4.0/MARCO_IA_4.0.png",
   mirror = true,
   boxSize = "min(88vw, 60svh)",
   onReady,
@@ -39,16 +41,18 @@ export default function FrameCamera({
     if (typeof navigator === "undefined") return false;
     const n = navigator as NavigatorWithLegacy;
 
-    const legacy =
-      n.getUserMedia || n.webkitGetUserMedia || n.mozGetUserMedia;
+    const legacy = n.getUserMedia || n.webkitGetUserMedia || n.mozGetUserMedia;
 
     if (!n.mediaDevices) {
       // Creamos el objeto mediaDevices de forma segura sin usar `any`
-      (n as unknown as { mediaDevices: MediaDevices }).mediaDevices = {} as MediaDevices;
+      (n as unknown as { mediaDevices: MediaDevices }).mediaDevices =
+        {} as MediaDevices;
     }
 
     const md = n.mediaDevices as MediaDevices & {
-      getUserMedia?: (constraints: MediaStreamConstraints) => Promise<MediaStream>;
+      getUserMedia?: (
+        constraints: MediaStreamConstraints
+      ) => Promise<MediaStream>;
     };
 
     if (!md.getUserMedia && legacy) {
@@ -72,7 +76,9 @@ export default function FrameCamera({
         typeof location !== "undefined" &&
         /^localhost$|^127\.0\.0\.1$/.test(location.hostname);
       if (window.isSecureContext === false && !isLocalhost) {
-        setError("La cámara requiere HTTPS (o localhost). Abre el sitio en https:// o usa localhost.");
+        setError(
+          "La cámara requiere HTTPS (o localhost). Abre el sitio en https:// o usa localhost."
+        );
         return;
       }
 
@@ -88,13 +94,15 @@ export default function FrameCamera({
           streamRef.current = null;
         }
 
-        const stream = await (navigator.mediaDevices as MediaDevices).getUserMedia({
+        const stream = await (
+          navigator.mediaDevices as MediaDevices
+        ).getUserMedia({
           audio: false,
-            video: {
-    facingMode: "user",
-    width: { ideal: 320, max: 1920 },
-    height: { ideal: 240, max: 1080 },
-  },
+          video: {
+            facingMode: "user",
+            width: { ideal: 320, max: 1920 },
+            height: { ideal: 240, max: 1080 },
+          },
         });
 
         if (!mounted) {
@@ -105,7 +113,7 @@ export default function FrameCamera({
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => { });
+          await videoRef.current.play().catch(() => {});
         }
         setError(null);
       } catch (e) {
@@ -144,8 +152,7 @@ export default function FrameCamera({
           muted
         />
 
-        
-          {/* ─────────────────────────────────────────────────────────────────
+        {/* ─────────────────────────────────────────────────────────────────
           Marco DESACTIVADO por defecto.
           Para ACTIVAR el marco, descomenta este bloque y pasa un string válido
           en `frameSrc` (ej: "/images/marco.png"). NO pases "".
@@ -159,10 +166,11 @@ export default function FrameCamera({
             draggable={false}
           />
         )}
-       
       </div>
 
-      {error && <p className="text-red-500 text-sm text-center px-3">{error}</p>}
+      {error && (
+        <p className="text-red-500 text-sm text-center px-3">{error}</p>
+      )}
     </div>
   );
 }

@@ -26,7 +26,7 @@ export default function LoaderStep() {
     >
       {/* Fondo */}
       <Image
-        src="/fenalco/loading/FONDO_HABILITAR-CAMARA_EMB_MARCA.jpg"
+        src="/Colombia4.0/fondoCel.png"
         alt="Fondo decorativo"
         fill
         priority
@@ -38,9 +38,9 @@ export default function LoaderStep() {
       <div className="absolute inset-0 bg-black/45" />
 
       {/* Logo superior (opcional) */}
-      <div className="absolute inset-x-0 top-6 flex justify-center z-20">
+      <div className="absolute inset-x-0 top-30 flex justify-center z-20">
         <Image
-          src="/fenalco/loading/TITULO_80-ANIOS.png"
+          src="/Colombia4.0/LOGO_GEN.png"
           alt="80 años FENALCO"
           width={520}
           height={96}
