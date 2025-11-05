@@ -36,7 +36,7 @@ export default function PhotoBoothWizard({
   const searchParams = useSearchParams();
   const [step, setStep] = useState<
     "capture" | "preview" | "loading" | "result"
-  >("capture");
+  >("result");
   const [framedShot, setFramedShot] = useState<string | null>(null);
   const [, setRawShot] = useState<string | null>(null);
   const [aiUrl, setAiUrl] = useState<string | null>(null);
@@ -156,8 +156,7 @@ export default function PhotoBoothWizard({
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
         style={{
-          backgroundImage:
-            "url('/Colombia4.0/fondoCel.png')",
+          backgroundImage: "url('/Colombia4.0/fondoCel.png')",
         }}
         aria-hidden
       />
@@ -165,15 +164,24 @@ export default function PhotoBoothWizard({
       {/* Logo superior — responsivo por breakpoint */}
       <div
         className={`
-          absolute z-10 left-1/2 -translate-x-1/2
-          top-[max(1.5rem,env(safe-area-inset-top))]
-          w-[70vw] max-w-[380px]
-        `}
+    absolute z-10 left-1/2 -translate-x-1/2
+    top-[max(1.5rem,env(safe-area-inset-top))]
+    w-[70vw] max-w-[380px]
+    flex flex-col items-center gap-2
+  `}
       >
         <img
           src="/Colombia4.0/LOGO_GEN.png"
-          alt="80 años Fenalco"
+          alt="Logo Gen.iality"
           className="w-full select-none"
+          draggable={false}
+        />
+
+        {/* ← NUEVO: título debajo del logo */}
+        <img
+          src="/Colombia4.0/TITULO.png"
+          alt="Título Gen.iality"
+          className="w-full select-none mt-10"
           draggable={false}
         />
       </div>
@@ -205,11 +213,7 @@ export default function PhotoBoothWizard({
           {step === "loading" && <LoaderStep />}
 
           {step === "result" && framedShot && aiUrl && (
-            <ResultStep
-              taskId={taskId!}
-              aiUrl={aiUrl}
-              onAgain={resetAll}
-            />
+            <ResultStep taskId={taskId!} aiUrl={aiUrl} onAgain={resetAll} />
           )}
         </div>
       </div>

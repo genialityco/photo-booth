@@ -31,6 +31,7 @@ export default function PreviewStep({
       <div className="flex gap-3">
         <ButtonPrimary
           onClick={onRetake}
+          imageSrc="/Colombia4.0/BOTON-COMENZAR.png"
           label="REPETIR"
           width={180}
           height={60}
@@ -38,6 +39,7 @@ export default function PreviewStep({
         {onConfirm && (
           <ButtonPrimary
             onClick={onConfirm}
+            imageSrc="/Colombia4.0/BOTON-COMENZAR.png"
             label="CONFIRMAR"
             width={180}
             height={60}

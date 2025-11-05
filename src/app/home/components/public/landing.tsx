@@ -62,13 +62,23 @@ export default function Landing({
       {/* Contenido */}
       <div className="mx-auto flex min-h-[100svh] max-w-[980px] flex-col items-center">
         {/* Título/Logo */}
+        {/* Título/Logo */}
         <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
-          <img
-            src="/Colombia4.0/LOGO_GEN.png"
-            alt="GEN.IALITY LOGO"
-            className="mx-auto w-full max-w-[620px] select-none"
-            draggable={false}
-          />
+          <div className="mx-auto w-full max-w-[620px] flex flex-col items-center gap-2">
+            <img
+              src="/Colombia4.0/LOGO_GEN.png"
+              alt="GEN.IALITY LOGO"
+              className="w-full select-none"
+              draggable={false}
+            />
+            {/* NUEVO: imagen de título debajo del logo */}
+            <img
+              src="/Colombia4.0/TITULO.png"
+              alt="Título Gen.iality"
+              className="w-full select-none"
+              draggable={false}
+            />
+          </div>
         </div>
 
         {/* Texto guía (exacto) */}
@@ -123,12 +133,16 @@ export default function Landing({
                         draggable={false}
                         style={{
                           borderRadius: "30px",
-                          paddingLeft: b.logo?.includes("macpollo") || b.logo?.includes("colombina") 
-                            ? "20px"
-                            : "0",
-                          paddingRight: b.logo?.includes("macpollo") || b.logo?.includes("colombina") 
-                            ? "20px"
-                            : "0",
+                          paddingLeft:
+                            b.logo?.includes("macpollo") ||
+                            b.logo?.includes("colombina")
+                              ? "20px"
+                              : "0",
+                          paddingRight:
+                            b.logo?.includes("macpollo") ||
+                            b.logo?.includes("colombina")
+                              ? "20px"
+                              : "0",
                         }}
                       />
                     </div>
