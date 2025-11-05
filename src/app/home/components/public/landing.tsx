@@ -3,7 +3,7 @@
 "use client";
 import React from "react";
 
-type BrandKey = "col40_alien" | "col40_angel" | "col40_cyborg";
+type BrandKey = "col40_alien" | "col40_angel" | "col40_cyborg" | "col40_virus" | "col40_plant";
 type BrandConfig = { k: BrandKey; logo: string; aria: string };
 
 const BRANDS: BrandConfig[] = [
@@ -27,6 +27,16 @@ const BRANDS: BrandConfig[] = [
     logo: "/Colombia4.0/CYBORG.png",
     aria: "Evolución CYBORG",
   },
+  {
+    k: "col40_virus",
+    logo: "/Colombia4.0/VIRUS.png",
+    aria: "Evolución VIRUS",
+  },
+  {
+    k: "col40_plant",
+    logo: "/Colombia4.0/PLANTA.png",
+    aria: "Evolución PLANT",
+  }
 ];
 
 export default function Landing({
