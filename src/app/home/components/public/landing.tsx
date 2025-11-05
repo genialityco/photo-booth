@@ -3,14 +3,14 @@
 "use client";
 import React from "react";
 
-type BrandKey = "juanvaldez" | "colombina" | "alpina" | "macpollo";
+type BrandKey = "col40_alien" | "col40_angel" | "col40_cyborg";
 type BrandConfig = { k: BrandKey; logo: string; aria: string };
 
 const BRANDS: BrandConfig[] = [
   {
-    k: "juanvaldez",
-    logo: "/fenalco/inicio/juanvaldez_logo.jpeg",
-    aria: "Comenzar con Juan Valdez",
+    k: "col40_alien",
+    logo: "/Colombia4.0/ALIEN.png",
+    aria: "Evolución ALIEN",
   },
   // {
   //   k: "colombina",
@@ -18,14 +18,14 @@ const BRANDS: BrandConfig[] = [
   //   aria: "Comenzar con Colombina",
   // },
   {
-    k: "alpina",
-    logo: "/fenalco/inicio/alpina_logo.jpeg",
-    aria: "Comenzar con Alpina",
+    k: "col40_angel",
+    logo: "/Colombia4.0/ANGEL.png",
+    aria: "Evolución ANGEL",
   },
   {
-    k: "macpollo",
-    logo: "/fenalco/inicio/macpollo_logo.webp",
-    aria: "Comenzar con Alpina",
+    k: "col40_cyborg",
+    logo: "/Colombia4.0/CYBORG.png",
+    aria: "Evolución CYBORG",
   },
 ];
 
@@ -40,6 +40,19 @@ export default function Landing({
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", newUrl);
     onStart(brand);
+  };
+
+  // NUEVO: elegir una marca aleatoria
+  const pickRandomBrand = (): BrandKey => {
+    if (!BRANDS.length) throw new Error("No hay marcas configuradas.");
+    const idx = Math.floor(Math.random() * BRANDS.length);
+    return BRANDS[idx].k;
+  };
+
+  // NUEVO: handler para el título
+  const handleTitlePick = () => {
+    const random = pickRandomBrand();
+    handleStart(random);
   };
 
   return (
@@ -62,7 +75,6 @@ export default function Landing({
       {/* Contenido */}
       <div className="mx-auto flex min-h-[100svh] max-w-[980px] flex-col items-center">
         {/* Título/Logo */}
-        {/* Título/Logo */}
         <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
           <div className="mx-auto w-full max-w-[620px] flex flex-col items-center gap-2">
             <img
@@ -71,12 +83,24 @@ export default function Landing({
               className="w-full select-none"
               draggable={false}
             />
-            {/* NUEVO: imagen de título debajo del logo */}
+
+            {/* NUEVO: imagen de título clickeable para elegir marca aleatoria */}
             <img
               src="/Colombia4.0/TITULO.png"
-              alt="Título Gen.iality"
-              className="w-full select-none"
+              alt="Título Gen.iality (clic para elegir una marca al azar)"
+              className="w-full select-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-lg"
+              role="button"
+              tabIndex={0}
+              aria-label="Elegir una marca al azar"
               draggable={false}
+              onClick={handleTitlePick}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault(); // evita doble activación con espacio
+                  handleTitlePick();
+                }
+              }}
+              title="Haz clic para sorprenderte con una marca al azar"
             />
           </div>
         </div>
@@ -117,9 +141,7 @@ export default function Landing({
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70
                 "
               >
-                {/* Contenedor con padding para que el logo nunca toque bordes */}
                 <div className="flex w-full items-center justify-center overflow-hidden">
-                  {/* Altura adaptable sin recorte; en móvil 4/3, en iPad cuadrado */}
                   <div className="w-full">
                     <div className="relative w-full aspect-[4/3] md:aspect-square">
                       <img
@@ -154,7 +176,7 @@ export default function Landing({
         </div>
 
         {/* Footer */}
-        <div className="mt-auto w-full px-5 sm:px-6 md:px-8 pb-3 sm:pb-4 md:pb-6">
+        <div className="mt-auto w-full px-5 sm:pb-4 md:pb-6 pb-3 sm:px-6 md:px-8">
           <img
             src="/Colombia4.0/COLOMBIA4.0.png"
             alt="Logos Footer"

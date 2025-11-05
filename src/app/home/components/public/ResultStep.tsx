@@ -40,7 +40,7 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
     try {
       const [baseImg, frameImg] = await Promise.all([
         loadImage(aiUrl),
-        loadImage("/fenalco/MARCO_EMB_MARCA_1024x1024.png"),
+        loadImage("/Colombia4.0/MARCO_IA_4.0.png"),
       ]);
 
       const size = 1024;
@@ -106,7 +106,7 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
           />
           {/* Marco superpuesto */}
           <img
-            src="/fenalco/MARCO_EMB_MARCA_1024x1024.png"
+            src="/Colombia4.0/MARCO_IA_4.0.png"
             alt="Marco decorativo"
             className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
             draggable={false}
@@ -123,12 +123,14 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
           <ButtonPrimary
             onClick={onAgain}
             label="NUEVA FOTO"
+            imageSrc="/Colombia4.0/BOTON-COMENZAR.png"
             width={190}
             height={50}
           />
           <ButtonPrimary
             onClick={handleDownload}
             label="DESCARGAR FOTO"
+            imageSrc="/Colombia4.0/BOTON-COMENZAR.png"
             width={190}
             height={50}
           />

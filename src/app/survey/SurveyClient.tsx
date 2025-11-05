@@ -78,7 +78,7 @@ export default function SurveyClient() {
   const composeFramed = async (baseUrl: string) => {
     const [baseImg, frameImg] = await Promise.all([
       loadImage(baseUrl),
-      loadImage("/fenalco/MARCO_EMB_MARCA_1024x1024.png"),
+      loadImage("/Colombia4.0/MARCO_IA_4.0.png"),
     ]);
     const size = 1024; // coincide con el PNG del marco
     const canvas = document.createElement("canvas");
@@ -334,7 +334,7 @@ export default function SurveyClient() {
               />
               {/* Marco superpuesto */}
               <img
-                src="/fenalco/MARCO_EMB_MARCA_1024x1024.png"
+                src="/Colombia4.0/MARCO_IA_4.0.png"
                 alt="Marco decorativo"
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
                 draggable={false}
