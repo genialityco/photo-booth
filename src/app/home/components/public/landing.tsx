@@ -122,7 +122,7 @@ export default function Landing({
 
         {/* Texto guía (exacto) */}
         <h1 className="mt-4 sm:mt-6 text-center text-base sm:text-lg md:text-xl font-semibold text-white drop-shadow-md">
-          ¡Escoge una de estas queridas marcas!
+          selecciona tu evolución...{" "}
         </h1>
 
         {/* Grid: 2 cols en mobile, 3 en iPad+ */}
