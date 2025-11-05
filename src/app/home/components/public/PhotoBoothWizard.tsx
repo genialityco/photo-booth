@@ -221,7 +221,7 @@ export default function PhotoBoothWizard({
       {/* Footer fijo con safe-area */}
       <div
         className="
-          pointer-events-none absolute inset-x-0 z-10 mx-auto
+          pointer-events-none absolute inset-x-0 z-1 mx-auto
 
         "
         style={{ bottom: "max(env(safe-area-inset-bottom), 16px)" }}
