@@ -56,7 +56,7 @@ export default function LoaderStep() {
           role="status"
           aria-live="polite"
         >
-          Generando magia{dots}
+          Evolucionando{dots}
         </h1>
       </div>
 
