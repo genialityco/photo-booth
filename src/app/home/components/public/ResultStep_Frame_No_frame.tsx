@@ -45,9 +45,9 @@ export default function ResultStep_old({
           {/* Imagen IA + QR */}
           <div className="flex flex-col items-center gap-2">
             <div className="relative overflow-hidden rounded-xl shadow-xl w-[min(78vw,24vh)] aspect-square">
-              <img
+              <video
                 src={aiUrl}
-                alt="Imagen IA"
+                autoPlay
                 className="absolute inset-0 w-full h-full object-contain"
               />
             </div>

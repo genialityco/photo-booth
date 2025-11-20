@@ -98,9 +98,9 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
           style={{ width: SIZE_IMG }}
         >
           {/* Imagen IA */}
-          <img
+          <video
             src={aiUrl}
-            alt="Imagen generada por IA"
+            autoPlay
             className="absolute inset-0 w-full h-full object-contain select-none"
             draggable={false}
           />
