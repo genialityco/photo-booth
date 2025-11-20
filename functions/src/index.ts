@@ -9,6 +9,7 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { GoogleGenAI } from "@google/genai";
 import axios from "axios";
 import sharp from "sharp";
+import { GoogleAuth } from "google-auth-library"
 // Inicializa Admin SDK
 initializeApp();
 
@@ -60,7 +61,13 @@ interface PromptDoc {
 const CACHE_DURATION_MS = 60 * 1000; // 60 segundos
 const promptCache = new Map<string, CachedPrompt>();
 const brandedPromptCache = new Map<string, { value: { basePrompt: string; colorDirectiveTemplate?: string; color?: string; logoPath?: string, logoPrompt?: string}; expiresAt: number }>();
-
+const VERTEX_PROJECT_ID = "lenovo-experiences"; // Usar tu ID de proyecto
+const VERTEX_LOCATION = "us-central1"; // Usar la región adecuada
+const VERTEX_MODEL_ID = "veo-3.1-fast-generate-preview"; // El modelo Veo en Vertex AI
+const TAG1 = "predictLongRunning"
+const TAG2 = "fetchPredictOperation"
+const VERTEX_API_BASE_URL = `https://${VERTEX_LOCATION}-aiplatform.googleapis.com/v1/projects/${VERTEX_PROJECT_ID}/locations/${VERTEX_LOCATION}/publishers/google/models/${VERTEX_MODEL_ID}:${TAG1}`;
+const VERTEX_API_BASE_URL_FETCH = `https://${VERTEX_LOCATION}-aiplatform.googleapis.com/v1/projects/${VERTEX_PROJECT_ID}/locations/${VERTEX_LOCATION}/publishers/google/models/${VERTEX_MODEL_ID}:${TAG2}`;
 // Función para limpiar cache expirado
 function cleanExpiredCache() {
   const now = Date.now();
@@ -339,6 +346,7 @@ export const getCacheStats = onRequest(
 
 // Define tu secret para Gemini API Key
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+
 
 async function downloadAndConvertLogo(
   logoUrl: string
@@ -634,6 +642,269 @@ export const processImageTask = onDocumentCreated(
         error: isQuotaError 
           ? "Error de quota: Necesitas habilitar billing en Google AI Studio"
           : e?.message ?? "Error desconocido",
+        errorType: isQuotaError ? "quota_exceeded" : "unknown",
+        prompt: PROMPT,
+        updatedAt: Date.now(),
+        stackTrace: e?.stack?.substring(0, 500),
+      });
+    }
+  }
+);
+
+export const processVideoTask = onDocumentCreated(
+  {
+    document: "videoTasks/{taskId}",
+    region: VERTEX_LOCATION,
+    timeoutSeconds: 540,
+    memory: "1GiB",
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const taskId = event.params.taskId;
+    const db = getFirestore();
+    const bucket = getStorage().bucket();
+    const docRef = db.collection("videoTasks").doc(taskId);
+    const data = snap.data();
+
+    // --------------------------
+    // 1. Prompts y logos (NO MODIFICADO)
+    // --------------------------
+    let PROMPT = DEFAULT_PROMPT;
+    let LOGO_PROMPT = DEFAULT_LOGO_PROMPT;
+    let LOGO_URL = "";
+
+    if (data?.brand) {
+      const promptData = await buildPromptWithBrand({
+        brand: data.brand,
+        color: data.color,
+      });
+
+      PROMPT = promptData.prompt;
+      LOGO_URL = promptData.logoPath || "";
+      LOGO_PROMPT = promptData.logoPrompt || DEFAULT_LOGO_PROMPT;
+    }
+
+    if (!data?.inputPath) {
+      await docRef.update({
+        status: "error",
+        error: "Falta inputPath",
+        updatedAt: Date.now(),
+      });
+      return;
+    }
+
+    try {
+      await docRef.update({
+        status: "processing",
+        updatedAt: Date.now(),
+      });
+
+      // --------------------------
+      // 2. Descargar la imagen input (NO MODIFICADO)
+      // --------------------------
+      const file = bucket.file(data.inputPath);
+      const [meta] = await file.getMetadata().catch(() => [
+        { contentType: "application/octet-stream" },
+      ]);
+      const [fileBuf] = await file.download();
+
+      const bytes = new Uint8Array(fileBuf);
+      const byteLen = bytes.byteLength;
+      const mime = (meta?.contentType || "image/png").startsWith("image/")
+        ? meta!.contentType
+        : "image/png";
+
+      const base64Image = Buffer.from(bytes).toString("base64");
+
+      // --------------------------
+      // 3. Descargar logo si existe (NO MODIFICADO)
+      // --------------------------
+      let base64Logo: string | null = null;
+      //let logoMime = "image/png";
+
+      if (LOGO_URL) {
+        const logoData = await downloadAndConvertLogo(LOGO_URL);
+        if (logoData) {
+          base64Logo = logoData.base64;
+          //logoMime = logoData.mime;
+        }
+      }
+
+      await docRef.update({
+        debug: {
+          inputPath: data.inputPath,
+          mime,
+          byteLen,
+          prompt: PROMPT,
+          hasLogo: !!base64Logo,
+          logoUrl: LOGO_URL || null,
+        },
+      });
+
+      // -----------------------------------------------------------
+      // 4. Llamar a Vertex AI VEO 3.1 con REST y axios
+      // -----------------------------------------------------------
+
+      // Obtener el token de acceso para la cuenta de servicio
+      const auth = new GoogleAuth({
+        scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+      });
+      const authToken = await auth.getAccessToken();
+
+      // **USAR EL MISMO BUCKET DE FIREBASE STORAGE COMO OUTPUT DE GCS**
+      const VERTEX_OUTPUT_GCS_BUCKET = `gs://${bucket.name}`; 
+      const outputGcsPath = `veo-output/${taskId}/`; // Carpeta de salida temporal
+      const outputGcsUri = `${VERTEX_OUTPUT_GCS_BUCKET}/${outputGcsPath}`;
+
+
+      // Estructura del cuerpo de la petición REST
+      const instances: any[] = [
+        {
+          prompt: PROMPT+LOGO_PROMPT, // Limitar a 1000 caracteres
+          image: {
+            bytesBase64Encoded: base64Image,
+            mimeType: mime,
+          },
+         
+        },
+      ];
+
+      const payload = {
+        instances: instances,
+        parameters: {
+          sampleCount: 1,
+          durationSeconds: 4,
+          storageUri: outputGcsUri, // Vertex AI guardará aquí
+        },
+      };
+      console.log("authToken", authToken);
+      console.log("Payload enviado a Vertex AI:", JSON.stringify(payload, null, 2));
+      // **Paso 4.1: Llamar al endpoint Long Running Operation (LRO)**
+      const veoResponse = await axios.post(VERTEX_API_BASE_URL, payload, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const operationName = veoResponse.data.name; 
+      await docRef.update({
+        vertexName: operationName,
+        updatedAt: Date.now(),
+      });
+
+      // **Paso 4.2: Sondear el estado de la LRO hasta que se complete**
+      let isDone = false;
+      let finalResult: any = null;
+      let attempt = 0;
+      const MAX_ATTEMPTS = 50; 
+
+      while (!isDone && attempt < MAX_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, 10000)); // Esperar 10 segundos
+        attempt++;
+        
+        const fetchPayload= {
+          operationName: operationName
+        }
+
+        const lroResponse = await axios.post(VERTEX_API_BASE_URL_FETCH, fetchPayload,{
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+
+        const lroData = lroResponse.data;
+        isDone = !!lroData.done;
+
+        if (isDone) {
+          if (lroData.error) {
+            throw new Error(`Vertex AI LRO failed: ${lroData.error.message}`);
+          }
+          finalResult = lroData.response;
+        }
+      }
+
+      if (!isDone) {
+        throw new Error("Vertex AI LRO Timeout: La operación no se completó a tiempo.");
+      }
+      console.log("resultado final de LRO:", JSON.stringify(finalResult, null, 2));
+
+      // **Paso 4.3: Obtener y Descargar el video desde GCS/Firebase Storage**
+      const generatedFilePath = finalResult?.videos?.[0]?.gcsUri;
+      
+      if (!generatedFilePath) {
+         throw new Error("Respuesta de LRO sin ruta GCS del video generado.");
+      }
+      
+      // La ruta GCS es algo como: 'gs://BUCKET_NAME/veo-output/taskId/output_file.mp4'
+      // Extraer la ruta del archivo dentro del bucket (Ej: 'veo-output/taskId/output_file.mp4')
+      const gcsFilePath = generatedFilePath.replace(VERTEX_OUTPUT_GCS_BUCKET + "/", "");
+      
+      // Usar la librería de GCS para descargar el archivo a un Buffer
+      const [fileContents] = await bucket.file(gcsFilePath).download();
+
+      // Opcional: eliminar archivo temporal
+      await bucket.file(gcsFilePath).delete().catch(() => {});
+      
+      // Convertir el Buffer a Base64 para que el código de Firebase Storage funcione
+      const generatedVideoData = fileContents.toString("base64");
+      
+      // Opcional: Eliminar el archivo temporal creado por Vertex AI en el bucket
+      
+      // -------------------------------------------------------------------
+
+      if (!generatedVideoData) {
+        await docRef.update({
+          status: "error",
+          error: "No se pudo descargar el video generado de GCS",
+          updatedAt: Date.now(),
+        });
+        return;
+      }
+
+      // -------------------------------------------------------------
+      // 5. Guardar video en Firebase Storage (NO MODIFICADO - CÓDIGO ORIGINAL)
+      // -------------------------------------------------------------
+      const outPath = `video/task/${taskId}/output.mp4`;
+      const outBuf = Buffer.from(generatedVideoData, "base64");
+      const token = randomUUID();
+
+      await bucket.file(outPath).save(outBuf, {
+        contentType: "video/mp4",
+        resumable: false,
+        metadata: {
+          metadata: {
+            firebaseStorageDownloadTokens: token,
+          },
+        },
+      });
+      // -------------------------------------------------------------
+      // 6. Actualizar Documento (NO MODIFICADO - CÓDIGO ORIGINAL)
+      // -------------------------------------------------------------
+      const url = `https://firebasestorage.googleapis.com/v0/b/${
+        bucket.name
+      }/o/${encodeURIComponent(outPath)}?alt=media&token=${token}`;
+
+      await docRef.update({
+        status: "done",
+        url,
+        outputPath: outPath,
+        updatedAt: Date.now(),
+      });
+    } catch (e: any) {
+      // Manejo de errores (NO MODIFICADO)
+      const isQuotaError =
+        e?.message?.includes("quota") ||
+        e?.message?.includes("429") ||
+        e?.response?.status === 429;
+
+      await docRef.update({
+        status: "error",
+        error: isQuotaError
+          ? "Error de quota: habilita billing en Google AI Studio o Vertex AI"
+          : e?.message || "Error desconocido",
         errorType: isQuotaError ? "quota_exceeded" : "unknown",
         prompt: PROMPT,
         updatedAt: Date.now(),

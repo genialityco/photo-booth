@@ -91,7 +91,7 @@ export default function PhotoBoothWizard({
       setFramedUrl(framedDownloadUrl);
 
       // 3) Crear doc en Firestore
-      const taskRef = doc(collection(db, "imageTasks"), newTaskId);
+      const taskRef = doc(collection(db, "videoTasks"), newTaskId);
       await setDoc(taskRef, {
         status: "queued",
         inputPath,
