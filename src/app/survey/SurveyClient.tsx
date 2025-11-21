@@ -5,8 +5,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-// ⬇️ Ya no guardamos en base, así que puedes comentar/retirar estos imports si no se usan
-// import { createSurveyRecord, createSurveyRecordQuick } from "../services/surveyServices";
 
 type QRResponse =
   | { ok: true; dataUrl: string; kind: "raw" | "framed" }
@@ -17,14 +15,16 @@ export default function SurveyClient() {
 
   const src = sp.get("src");
   const qrId = sp.get("qrId");
-  const kind = (sp.get("kind") as "raw" | "framed") || undefined;
+  const kindQS = sp.get("kind");
   const filenameFromQS = sp.get("filename") || undefined;
+
+  // Permitimos también "video"
+  const kind = (kindQS as "raw" | "framed" | "video" | null) || undefined;
 
   const [photo, setPhoto] = useState<string>("");
   const [loadingPhoto, setLoadingPhoto] = useState(true);
   const [err, setErr] = useState<string>("");
 
-  // ⬇️ Estado del formulario preservado por si luego lo reactivas (no se usa ahora)
   const [form, setForm] = useState({
     nombre: "",
     telefono: "",
@@ -40,25 +40,45 @@ export default function SurveyClient() {
   const [downloadName, setDownloadName] = useState<string>("");
   const revokeRef = useRef<null | (() => void)>(null);
 
+  // Detectar si es video: preferimos el kind=video, y si no, inferimos por extensión
+  const isVideo = useMemo(() => {
+    if (kind === "video") return true;
+    const srcLower = (src || "").toLowerCase();
+    if (
+      srcLower.endsWith(".mp4") ||
+      srcLower.endsWith(".webm") ||
+      srcLower.endsWith(".mov")
+    ) {
+      return true;
+    }
+    return false;
+  }, [kind, src]);
+
   const suggestedName = useMemo(() => {
     if (filenameFromQS) return filenameFromQS;
-    const base = kind === "framed" ? "foto-con-marco" : "foto-sin-marco";
-    const t = new Date().toISOString().replace(/[:.]/g, "-");
-    return `${base}-${t}.png`;
-  }, [filenameFromQS, kind]);
 
-  // ⬇️ Helpers NUEVOS para componer con marco en cliente (no remuevas ni cambies tus comentarios)
+    const base =
+      kind === "framed"
+        ? "foto-con-marco"
+        : isVideo
+        ? "video-ia"
+        : "foto-sin-marco";
+
+    const t = new Date().toISOString().replace(/[:.]/g, "-");
+    const ext = isVideo ? "mp4" : "png";
+    return `${base}-${t}.${ext}`;
+  }, [filenameFromQS, kind, isVideo]);
+
+  // Helpers imagen
   const loadImage = (url: string) =>
     new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image();
-      // Si la imagen proviene de un bucket/CDN, esto ayuda a evitar canvas "tainted"
       img.crossOrigin = "anonymous";
       img.onload = () => resolve(img);
       img.onerror = reject;
       img.src = url;
     });
 
-  // Dibuja la imagen tipo "cover" dentro de un lienzo cuadrado
   const drawCover = (
     ctx: CanvasRenderingContext2D,
     img: HTMLImageElement,
@@ -74,7 +94,6 @@ export default function SurveyClient() {
     ctx.drawImage(img, dx, dy, dw, dh);
   };
 
-  // Compone la foto + el marco y devuelve un blob URL listo para descargar
   const composeFramed = async (baseUrl: string) => {
     const [baseImg, frameImg] = await Promise.all([
       loadImage(baseUrl),
@@ -87,7 +106,6 @@ export default function SurveyClient() {
     const ctx = canvas.getContext("2d")!;
     ctx.clearRect(0, 0, size, size);
 
-    // Primero la foto (cover en el cuadrado) y luego el marco encima
     drawCover(ctx, baseImg, size);
     ctx.drawImage(frameImg, 0, 0, size, size);
 
@@ -99,7 +117,7 @@ export default function SurveyClient() {
     return url;
   };
 
-  // Carga de la imagen (igual que antes)
+  // Cargar foto/video desde src o qrId
   useEffect(() => {
     let abort = false;
     (async () => {
@@ -132,21 +150,30 @@ export default function SurveyClient() {
     };
   }, [src, qrId]);
 
-  // ⬇️ NUEVO: cuando la imagen esté lista, “simulamos” el estado posterior al envío
-  // y preparamos el enlace de descarga.
+  // Preparar enlace de descarga (video directo o imagen con marco)
   useEffect(() => {
     let active = true;
     (async () => {
       if (loadingPhoto || !photo) return;
 
-      // Limpieza de blobs previos si la tuvieses
       if (revokeRef.current) {
         revokeRef.current();
         revokeRef.current = null;
       }
 
       try {
-        // 👉 Aquí componemos SIEMPRE la imagen con el marco para la descarga
+        if (isVideo) {
+          // VIDEO: no componemos, usamos la URL tal cual
+          const href = photo;
+          if (!active) return;
+          setDownloadHref(href);
+          setDownloadName(filenameFromQS || suggestedName);
+          setSaved(true);
+          // no hay blob que revocar aquí
+          return;
+        }
+
+        // IMAGEN: componemos con marco
         const framedUrl = await composeFramed(photo);
         if (!active) {
           URL.revokeObjectURL(framedUrl);
@@ -156,7 +183,6 @@ export default function SurveyClient() {
         setDownloadName(filenameFromQS || suggestedName);
         setSaved(true);
 
-        // Registra función para revocar este blob cuando cambie/desmonte
         revokeRef.current = () => URL.revokeObjectURL(framedUrl);
       } catch (e: any) {
         console.error(e);
@@ -167,39 +193,26 @@ export default function SurveyClient() {
     return () => {
       active = false;
     };
-    // Mantén las dependencias como están para respetar tu orden/comentarios
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingPhoto, photo, filenameFromQS, suggestedName]);
+  }, [loadingPhoto, photo, filenameFromQS, suggestedName, isVideo]);
 
   const canDownload = !!downloadHref && !loadingPhoto && saved;
-
-  // ⬇️ Manejadores del formulario (comentados para uso futuro)
-  /*
-  const handleChange =
-    (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm((f) => ({ ...f, [key]: e.target.value }));
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Lógica original de guardado con createSurveyRecord / createSurveyRecordQuick...
-  };
-  */
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center py-8 px-4">
       <div className="w-full max-w-3xl">
         <header className="text-center mb-6">
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
-            Descarga tu imagen 📸
+            {isVideo ? "Descarga tu video 🎥" : "Descarga tu imagen 📸"}
           </h1>
           <p className="text-white/80 mt-2 max-w-2xl mx-auto">
-            Tu imagen se preparará automáticamente
+            Tu {isVideo ? "video" : "imagen"} se preparará automáticamente
           </p>
         </header>
 
         {loadingPhoto && (
           <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-white/80">
-            Preparando tu imagen…
+            Preparando tu {isVideo ? "video" : "imagen"}…
           </div>
         )}
         {err && (
@@ -208,88 +221,7 @@ export default function SurveyClient() {
           </div>
         )}
 
-        {/* ⬇️ FORMULARIO ORIGINAL (COMENTADO)
-        {!saved && (
-          <div className="rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6">
-            <h2 className="text-xl font-bold text-white mb-1">Completa el formulario</h2>
-            <p className="text-sm text-white/70 mb-4">
-              Al enviar, te mostraremos tu foto y podrás descargarla.
-            </p>
-
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm text-white/80">Nombre</label>
-                  <input
-                    required
-                    className="mt-1 w-full px-3 py-2 rounded-lg bg-white/90 text-black placeholder-black/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    value={form.nombre}
-                    onChange={handleChange("nombre")}
-                    placeholder="Tu nombre"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-white/80">Teléfono</label>
-                  <input
-                    required
-                    className="mt-1 w-full px-3 py-2 rounded-lg bg-white/90 text-black placeholder-black/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    value={form.telefono}
-                    onChange={handleChange("telefono")}
-                    type="tel"
-                    inputMode="tel"
-                    placeholder="Ej. 3001234567"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm text-white/80">Correo</label>
-                <input
-                  required
-                  className="mt-1 w-full px-3 py-2 rounded-lg bg-white/90 text-black placeholder-black/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  value={form.correo}
-                  onChange={handleChange("correo")}
-                  type="email"
-                  inputMode="email"
-                  placeholder="tucorreo@ejemplo.com"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm text-white/80">Cargo</label>
-                  <input
-                    required
-                    className="mt-1 w-full px-3 py-2 rounded-lg bg-white/90 text-black placeholder-black/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    value={form.cargo}
-                    onChange={handleChange("cargo")}
-                    placeholder="Tu cargo"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-white/80">Empresa</label>
-                  <input
-                    required
-                    className="mt-1 w-full px-3 py-2 rounded-lg bg-white/90 text-black placeholder-black/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    value={form.empresa}
-                    onChange={handleChange("empresa")}
-                    placeholder="Nombre de la empresa"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="mt-2 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition"
-              >
-                Enviar y habilitar descarga
-              </button>
-            </form>
-          </div>
-        )}
-        */}
-
-        {/* ⬇️ SOLO DESCARGA */}
+        {/* SOLO DESCARGA */}
         <div className="rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6">
           <div className="flex flex-wrap items-center gap-3">
             <a
@@ -299,17 +231,19 @@ export default function SurveyClient() {
                 ${
                   canDownload
                     ? "bg-white text-black hover:bg-white/90"
-                    : "bg-white/40 text-black/60 cursor-not-allowed"
+                    : "bg.white/40 text-black/60 cursor-not-allowed"
                 }
               `}
               aria-disabled={!canDownload}
               title={
                 !canDownload
-                  ? "Esperando a que la imagen esté lista…"
-                  : "Descargar imagen"
+                  ? `Esperando a que el ${
+                      isVideo ? "video" : "imagen"
+                    } esté listo…`
+                  : `Descargar ${isVideo ? "video" : "imagen"}`
               }
             >
-              Descargar imagen
+              {isVideo ? "Descargar video" : "Descargar imagen"}
             </a>
             {canDownload && (
               <span className="text-xs text-white/60">
@@ -321,24 +255,34 @@ export default function SurveyClient() {
             )}
           </div>
 
-          {/* Vista previa opcional (déjala comentada si quieres SOLO el botón) */}
-
+          {/* Vista previa */}
           {canDownload && (
-            <div className="mt-4 w-full bg-white/5 rounded-xl p-3 border border-white/10 relative aspect-square overflow-hidden">
-              {/* Imagen base */}
-              <img
-                src={photo}
-                alt="Tu imagen"
-                className="absolute inset-0 w-full h-full object-contain rounded-lg select-none"
-                draggable={false}
-              />
-              {/* Marco superpuesto */}
-              <img
-                src="/fenalco/MARCO_EMB_MARCA_1024x1024.png"
-                alt="Marco decorativo"
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-                draggable={false}
-              />
+            <div className="mt-4 w-full bg-white/5 rounded-xl p-3 border border.white/10 relative aspect-square overflow-hidden">
+              {isVideo ? (
+                <video
+                  src={photo}
+                  className="absolute inset-0 w-full h-full object.contain rounded-lg select-none"
+                  autoPlay
+                  loop
+                  controls
+                  playsInline
+                />
+              ) : (
+                <>
+                  <img
+                    src={photo}
+                    alt="Tu imagen"
+                    className="absolute inset-0 w-full h-full object-contain rounded-lg select-none"
+                    draggable={false}
+                  />
+                  <img
+                    src="/fenalco/MARCO_EMB_MARCA_1024x1024.png"
+                    alt="Marco decorativo"
+                    className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+                    draggable={false}
+                  />
+                </>
+              )}
             </div>
           )}
         </div>

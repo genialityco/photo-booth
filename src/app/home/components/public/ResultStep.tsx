@@ -15,17 +15,42 @@ type Props = {
 export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
+  // Detectar si la URL es de video o imagen
+  const isVideo = useMemo(() => {
+    const lower = aiUrl.toLowerCase();
+    if (
+      lower.includes(".mp4") ||
+      lower.includes(".webm") ||
+      lower.includes(".mov")
+    ) {
+      return true;
+    }
+    if (
+      lower.includes(".png") ||
+      lower.includes(".jpg") ||
+      lower.includes(".jpeg") ||
+      lower.includes(".webp")
+    ) {
+      return false;
+    }
+    // Si no se puede inferir, y tu backend ahora genera video, asumimos video
+    return true;
+  }, [aiUrl]);
+
   const surveyAI = useMemo(() => {
     const url = new URL(`${origin}/survey`);
     url.searchParams.set("src", aiUrl);
-    url.searchParams.set("kind", "raw");
-    url.searchParams.set("filename", `foto-ia-${taskId}.png`);
+    url.searchParams.set("kind", isVideo ? "video" : "raw");
+    url.searchParams.set(
+      "filename",
+      `foto-ia-${taskId}.${isVideo ? "mp4" : "png"}`
+    );
     return url.toString();
-  }, [origin, aiUrl, taskId]);
+  }, [origin, aiUrl, taskId, isVideo]);
 
   const SIZE_IMG = "clamp(260px, min(70vw, 60svh), 520px)";
 
-  // === Helper para cargar imágenes con soporte CORS ===
+  // === Helper para cargar imágenes con soporte CORS (solo se usa en modo imagen) ===
   const loadImage = (src: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
       const img = new Image();
@@ -35,8 +60,25 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
       img.src = src;
     });
 
-  // === Descargar imagen compuesta con marco ===
+  // === Descargar: video directo o imagen compuesta con marco ===
   const handleDownload = async () => {
+    // MODO VIDEO: descarga el archivo tal cual
+    if (isVideo) {
+      try {
+        const a = document.createElement("a");
+        a.href = aiUrl;
+        a.download = `video-ia-${taskId}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (err) {
+        console.error("Error descargando el video:", err);
+        alert("No se pudo descargar el video. Inténtalo nuevamente.");
+      }
+      return;
+    }
+
+    // MODO IMAGEN: compone en canvas con el marco
     try {
       const [baseImg, frameImg] = await Promise.all([
         loadImage(aiUrl),
@@ -92,18 +134,30 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
     >
       {/* Contenido principal */}
       <main className="flex-1 w-full flex flex-col items-center gap-5 mt-6">
-        {/* Imagen IA con marco visible */}
+        {/* Media IA con marco visible */}
         <div
           className="relative overflow-hidden rounded-2xl shadow-xl bg-black/5 aspect-square"
           style={{ width: SIZE_IMG }}
         >
-          {/* Imagen IA */}
-          <video
-            src={aiUrl}
-            autoPlay
-            className="absolute inset-0 w-full h-full object-contain select-none"
-            draggable={false}
-          />
+          {/* Imagen o video IA */}
+          {isVideo ? (
+            <video
+              src={aiUrl}
+              autoPlay
+              loop
+              controls
+              playsInline
+              className="absolute inset-0 w-full h-full object-contain select-none"
+            />
+          ) : (
+            <img
+              src={aiUrl}
+              alt="Imagen generada por IA"
+              className="absolute inset-0 w-full h-full object-contain select-none"
+              draggable={false}
+            />
+          )}
+
           {/* Marco superpuesto */}
           <img
             src="/fenalco/MARCO_EMB_MARCA_1024x1024.png"
@@ -128,7 +182,7 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
           />
           <ButtonPrimary
             onClick={handleDownload}
-            label="DESCARGAR FOTO"
+            label={isVideo ? "DESCARGAR VIDEO" : "DESCARGAR FOTO"}
             width={190}
             height={50}
           />
