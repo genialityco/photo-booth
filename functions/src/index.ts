@@ -672,7 +672,7 @@ export const processVideoTask = onDocumentCreated(
     // 1. Prompts y logos (NO MODIFICADO)
     // --------------------------
     let PROMPT = DEFAULT_PROMPT;
-    let LOGO_PROMPT = DEFAULT_LOGO_PROMPT;
+    //let LOGO_PROMPT = DEFAULT_LOGO_PROMPT;
     let LOGO_URL = "";
 
     if (data?.brand) {
@@ -683,7 +683,7 @@ export const processVideoTask = onDocumentCreated(
 
       PROMPT = promptData.prompt;
       LOGO_URL = promptData.logoPath || "";
-      LOGO_PROMPT = promptData.logoPrompt || DEFAULT_LOGO_PROMPT;
+      //LOGO_PROMPT = promptData.logoPrompt || DEFAULT_LOGO_PROMPT;
     }
 
     if (!data?.inputPath) {
@@ -762,7 +762,7 @@ export const processVideoTask = onDocumentCreated(
       // Estructura del cuerpo de la petición REST
       const instances: any[] = [
         {
-          prompt: PROMPT+LOGO_PROMPT, // Limitar a 1000 caracteres
+          prompt: PROMPT,
           image: {
             bytesBase64Encoded: base64Image,
             mimeType: mime,
@@ -774,9 +774,11 @@ export const processVideoTask = onDocumentCreated(
       const payload = {
         instances: instances,
         parameters: {
+          aspectRatio: "9:16",
           sampleCount: 1,
-          durationSeconds: 4,
+          durationSeconds: 8,
           storageUri: outputGcsUri, // Vertex AI guardará aquí
+          negativePrompt: "imagen original en el video final",
         },
       };
       console.log("authToken", authToken);
@@ -913,3 +915,4 @@ export const processVideoTask = onDocumentCreated(
     }
   }
 );
+

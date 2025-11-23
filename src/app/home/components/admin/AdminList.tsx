@@ -271,7 +271,7 @@ function AdminItemCard({ it }: { it: TaskItem }) {
           {it.url ? (
             <>
               <div className="aspect-square w-full overflow-hidden rounded-lg border border-neutral-200 bg-white">
-                <img src={it.url} alt="ai" className="w-full h-full object-contain" />
+                <video src={it.url} controls className="w-full h-full object-contain" />
               </div>
               <div className="flex flex-wrap gap-2 mt-3">
                 <a
@@ -283,7 +283,7 @@ function AdminItemCard({ it }: { it: TaskItem }) {
                 </a>
                 <button
                   className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 text-sm font-semibold"
-                  onClick={() => downloadAs(`ai-${it.id}.png`, it.url!)}
+                  onClick={() => downloadAs(`ai-${it.id}.mp4`, it.url!)}
                 >
                   Descargar
                 </button>
@@ -307,7 +307,7 @@ export default function AdminList() {
   const itemsPerPage = 5;
   const unsubRef = useRef<undefined | (() => void)>(undefined);
 
-  const baseCol = useMemo(() => collection(db, "imageTasks"), []);
+  const baseCol = useMemo(() => collection(db, "videoTasks"), []);
 
   // Cargar todos los datos (sin límite) en tiempo real
   useEffect(() => {

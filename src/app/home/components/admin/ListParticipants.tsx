@@ -1,6 +1,6 @@
 "use client";
 
-import { listPrintJobsWithFiles, PrintJob } from "@/app/services/printJobsService";
+import { listPrintJobsWithFiles, listPrintJobsWithFilesVideo, PrintJob } from "@/app/services/printJobsService";
 import { useEffect, useMemo, useState } from "react";
 
 
@@ -61,7 +61,7 @@ export default function PrintJobsPage() {
             const all: Participant[] = [];
 
             while (true) {
-                const { items, nextCursorId } = await listPrintJobsWithFiles({
+                const { items, nextCursorId } = await listPrintJobsWithFilesVideo({
                     pageSize,
                     includeFiles: false,
                     cursorId,

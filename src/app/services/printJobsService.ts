@@ -284,3 +284,53 @@ export async function listPrintJobsWithFiles(opts?: {
     const nextCursorId = snap.docs.length === size ? snap.docs[snap.docs.length - 1].id : null;
     return { items: jobs as (PrintJob & { files?: PrintJobFile[] })[], nextCursorId };
 }
+
+export async function listPrintJobsWithFilesVideo(opts?: {
+    pageSize?: number;
+    cursorId?: string | null;
+    includeFiles?: boolean;
+    maxFilesPerJob?: number;
+}): Promise<{
+    items: (PrintJob & { files?: PrintJobFile[] })[];
+    nextCursorId: string | null;
+}> {
+    const size = Math.max(1, Math.min(opts?.pageSize ?? 10, 100));
+    const includeFiles = !!opts?.includeFiles;
+
+    const baseQ = query(collection(db, "videoTasks"), orderBy("createdAt", "desc"));
+    let q = baseQ;
+
+    if (opts?.cursorId) {
+        const cursorSnap = await getDoc(doc(db, PRINT_JOBS_COLLECTION, opts.cursorId));
+        q = cursorSnap.exists()
+            ? query(baseQ, startAfter(cursorSnap), fqLimit(size))
+            : query(baseQ, fqLimit(size));
+    } else {
+        q = query(baseQ, fqLimit(size));
+    }
+
+    const snap = await getDocs(q);
+    const jobs = snap.docs.map(mapDocToJob);
+
+    if (includeFiles) {
+        await Promise.all(
+            jobs.map(async (job, i) => {
+                let path: string | null = null;
+                if (job.url) {
+                    if (job.url.startsWith("gs://") || job.url.startsWith("printJobs/")) {
+                        path = job.url;
+                    } else {
+                        path = pathFromStorageUrl(job.url);
+                    }
+                }
+                if (!path) return;
+                const files = await listFilesFromFolderPath(path);
+                (jobs[i] as PrintJob & { files?: PrintJobFile[] }).files = files;
+            })
+        );
+    }
+
+    const nextCursorId = snap.docs.length === size ? snap.docs[snap.docs.length - 1].id : null;
+    return { items: jobs as (PrintJob & { files?: PrintJobFile[] })[], nextCursorId };
+}
+
