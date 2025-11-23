@@ -87,9 +87,10 @@ export default function ResultStep({
               className="relative overflow-hidden rounded-xl shadow-xl"
               style={{ width: BOX_IMG, height: BOX_IMG }}
             >
-              <img
+              <video
                 src={aiUrl}
-                alt="Imagen IA"
+                controls
+                autoPlay
                 className="absolute inset-0 w-full h-full object-contain"
               />
             </div>

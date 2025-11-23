@@ -92,7 +92,7 @@ export default function PhotoBoothWizard({
       setFramedUrl(framedDownloadUrl);
 
       // 3) Crear doc imageTasks/{taskId}
-      const taskRef = doc(collection(db, "imageTasks"), newTaskId);
+      const taskRef = doc(collection(db, "videoTasks"), newTaskId);
       console.log(brand)
       await setDoc(taskRef, {
         status: "queued",

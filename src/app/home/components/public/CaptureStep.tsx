@@ -98,7 +98,7 @@ export default function CaptureStep({
   const canShoot = videoReady;
 
   const startCapture = () => {
-    if (!canShoot) return;
+    //if (!canShoot) return;
     setCountdown(3);
     const tick = () =>
       setCountdown((c) => {
@@ -177,7 +177,7 @@ export default function CaptureStep({
         imageSrc="/images/btn_principal.png"
         width={220}
         height={68}
-        disabled={!canShoot}
+        // disabled={!canShoot}
         ariaLabel="Tomar foto"
       />
     </div>
