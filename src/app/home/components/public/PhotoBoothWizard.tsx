@@ -184,29 +184,31 @@ export default function PhotoBoothWizard({
             <div className="flex flex-col items-center justify-center gap-8">
               {/* Tarjeta seleccionada */}
               {brand && getBrandConfig(brand) && (
-                <div className="rounded-2xl bg-white p-6 shadow-2xl">
+                <div
+                  className="
+      rounded-[30px]
+      shadow-lg
+      p-6
+    "
+                >
                   <img
-                    src={getBrandConfig(brand)!.logo}
+                    src={
+                      getBrandConfig(brand)!.k.startsWith("suredInt")
+                        ? "/suRed/home/MUNDO-HABILIATAR-CAMARA.png"
+                        : "/suRed/home/MUNDO-COLOMBIA-HABILIATAR-CAMARA.png"
+                    }
                     alt={getBrandConfig(brand)!.aria}
-                    className="h-auto w-64 select-none object-contain"
+                    className="h-auto w-100 select-none object-contain drop-shadow-xl"
                     draggable={false}
-                    style={{
-                      paddingLeft:
-                        brand === "macpollo" || brand === "colombina"
-                          ? "20px"
-                          : "0",
-                      paddingRight:
-                        brand === "macpollo" || brand === "colombina"
-                          ? "20px"
-                          : "0",
-                    }}
                   />
                 </div>
               )}
+
               <ButtonPrimary
                 {...{ onClick: () => setStep("capture") }}
                 label="HABILITAR CAMARA"
                 imageSrc="/suRed/home/BOTON.png"
+                className="font-extrabold drop-shadow-md"
               />
             </div>
           )}

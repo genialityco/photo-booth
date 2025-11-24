@@ -1,54 +1,94 @@
 /* eslint-disable @next/next/no-img-element */
 /* app/components/Landing.tsx */
 "use client";
+import ButtonPrimary from "@/app/items/ButtonPrimary";
 import React from "react";
 
-type BrandKey = "suredmarcha" | "colombina" | "alpina" | "macpollo";
-type BrandConfig = { k: BrandKey; logo: string; aria: string };
+/** =========================
+ *  Tipos y Config compartida
+ *  ========================= */
+export type BrandKey =
+  | "suredColHui"
+  | "suredColBog"
+  | "suredColMed"
+  | "suredIntNY";
 
-export const BRANDS: BrandConfig[] = [
-  {
-    k: "suredmarcha",
-    logo: "/fenalco/inicio/juanvaldez_logo.jpeg",
-    aria: "Comenzar con Juan Valdez",
-  },
-  // {
-  //   k: "colombina",
-  //   logo: "/fenalco/inicio/colombina-logo.webp",
-  //   aria: "Comenzar con Colombina",
-  // },
-  {
-    k: "alpina",
-    logo: "/fenalco/inicio/alpina_logo.jpeg",
-    aria: "Comenzar con Alpina",
-  },
-  {
-    k: "macpollo",
-    logo: "/fenalco/inicio/macpollo_logo.webp",
-    aria: "Comenzar con Mac Pollo",
-  },
-];
+export type BrandGroupKey = "BrandCol" | "BrandWorld";
 
-// Helper para obtener la configuración de una marca por su key
-export const getBrandConfig = (brandKey: string | null): BrandConfig | null => {
-  if (!brandKey) return null;
-  return (
-    BRANDS.find((b) => b.k === brandKey || b.k === brandKey.replace("-", "")) ||
-    null
-  );
+export type BrandGroupCfg = {
+  label: string; // Texto del botón
+  logo: string; // Misma imagen por grupo
+  options: BrandKey[]; // Keys reales del grupo
 };
 
+export const BRAND_GROUPS: Record<BrandGroupKey, BrandGroupCfg> = {
+  BrandCol: {
+    label: "Colombia",
+    logo: "/suRed/home/BOTON-COLOMBIA.png",
+    options: ["suredColHui", "suredColBog", "suredColMed"],
+  },
+  BrandWorld: {
+    label: "Internacional",
+    logo: "/suRed/home/BOTON-MUNDO.png",
+    options: ["suredIntNY"],
+  },
+};
+
+export const VISIBLE_CARDS: BrandGroupKey[] = ["BrandCol", "BrandWorld"];
+
+/** Helper para elegir aleatorio */
+export const pickRandom = <T,>(arr: T[]) =>
+  arr[Math.floor(Math.random() * arr.length)];
+
+/** Resolver brand → {logo, aria} usando imagen/label por grupo */
+export function getBrandConfig(brandKey?: string | null) {
+  if (!brandKey) return null;
+  const key = brandKey.replace("-", "") as BrandKey;
+
+  if (BRAND_GROUPS.BrandCol.options.includes(key)) {
+    return {
+      k: key,
+      aria: BRAND_GROUPS.BrandCol.label,
+      logo: BRAND_GROUPS.BrandCol.logo,
+    };
+  }
+  if (BRAND_GROUPS.BrandWorld.options.includes(key)) {
+    return {
+      k: key,
+      aria: BRAND_GROUPS.BrandWorld.label,
+      logo: BRAND_GROUPS.BrandWorld.logo,
+    };
+  }
+  return null;
+}
+
+/** =========================
+ *  Componente de Landing
+ *  ========================= */
 export default function Landing({
   onStart,
 }: {
   onStart: (brand: BrandKey) => void;
 }) {
-  const handleStart = (brand: BrandKey) => {
+  const handleStartGroup = (groupKey: BrandGroupKey) => {
+    const cfg = BRAND_GROUPS[groupKey];
+    const picked = pickRandom(cfg.options); // ← elige 1 de las keys reales
+
+    // Mostrar en consola la brand seleccionada con todos sus atributos
+    const brandInfo = getBrandConfig(picked);
+    console.log("Brand seleccionada:", {
+      groupKey,
+      picked,
+      brandInfo,
+      groupCfg: cfg,
+    });
+
     const params = new URLSearchParams(window.location.search);
-    params.set("brand", brand.replace("-", ""));
+    params.set("brand", picked);
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", newUrl);
-    onStart(brand);
+
+    onStart(picked);
   };
 
   return (
@@ -69,7 +109,7 @@ export default function Landing({
       />
 
       {/* Contenido */}
-      <div className="mx-auto flex min-h-[100svh] max-w-[980px] flex-col items-center">
+      <div className="mx-auto flex min-h-[100svh] max-w-[700px] flex-col items-center">
         {/* Título/Logo */}
         <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
           <img
@@ -86,84 +126,81 @@ export default function Landing({
           />
         </div>
 
-        {/* Texto guía (exacto) */}
-        <h1 className="mt-4 sm:mt-6 text-center text-base sm:text-lg md:text-xl font-semibold text-white drop-shadow-md">
+        {/* Texto guía */}
+        {/* <h1 className="mt-4 sm:mt-6 text-center text-base sm:text-lg md:text-xl font-semibold text-white drop-shadow-md">
           ¡Escoge una de estas queridas marcas!
-        </h1>
+        </h1> */}
 
-        {/* Grid: 2 cols en mobile, 3 en iPad+ */}
+        {/* Grid con SOLO 2 cards visibles */}
         <div className="mt-5 sm:mt-7 w-full px-5 sm:px-6 md:px-8">
           <div
             className="
               grid gap-3 sm:gap-4 md:gap-5
               grid-cols-2
-              md:grid-cols-3
+              md:grid-cols-2
             "
           >
-            {BRANDS.map((b) => (
-              <article
-                key={b.k}
-                role="button"
-                tabIndex={0}
-                aria-label={b.aria}
-                title={b.aria}
-                onClick={() => handleStart(b.k)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") handleStart(b.k);
-                }}
-                className="
-                  group cursor-pointer select-none
-                  rounded-xl sm:rounded-2xl
-                  backdrop-blur
-                  shadow-md sm:shadow-xl ring-1 ring-black/5
-                  transition-transform duration-150
-                  supports-[hover:hover]:hover:scale-[1.015]
-                  active:scale-[0.985]
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70
-                "
-              >
-                {/* Contenedor con padding para que el logo nunca toque bordes */}
-                <div className="flex w-full items-center justify-center overflow-hidden">
-                  {/* Altura adaptable sin recorte; en móvil 4/3, en iPad cuadrado */}
-                  <div className="w-full">
-                    <div className="relative w-full aspect-[4/3] md:aspect-square">
-                      <img
-                        src={b.logo}
-                        alt={b.aria}
-                        className="
-                          bg-white
-                          absolute inset-0 w-full h-full
-                          object-contain
-                        "
-                        draggable={false}
-                        style={{
-                          borderRadius: "30px",
-                          paddingLeft:
-                            b.logo?.includes("macpollo") ||
-                            b.logo?.includes("colombina")
-                              ? "20px"
-                              : "0",
-                          paddingRight:
-                            b.logo?.includes("macpollo") ||
-                            b.logo?.includes("colombina")
-                              ? "20px"
-                              : "0",
-                        }}
-                      />
+            {VISIBLE_CARDS.map((key) => {
+              const card = BRAND_GROUPS[key];
+              return (
+                <article
+                  key={key}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={card.label}
+                  title={card.label}
+                  onClick={() => handleStartGroup(key)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ")
+                      handleStartGroup(key);
+                  }}
+                  className="
+                    group cursor-pointer select-none
+                    rounded-xl sm:rounded-2xl
+                    backdrop-blur
+                    shadow-md sm:shadow-xl ring-1 ring-black/5
+                    transition-transform duration-150
+                    supports-[hover:hover]:hover:scale-[1.015]
+                    active:scale-[0.985]
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70
+                  "
+                >
+                  <div className="flex w-full items-center justify-center overflow-hidden">
+                    <div className="w-full">
+                      <figure className="w-full">
+                        <div className="relative w-full aspect-[4/3] md:aspect-square overflow-hidden rounded-[30px]">
+                          <img
+                            src={card.logo}
+                            alt={card.label}
+                            draggable={false}
+                            loading="lazy"
+                            className="absolute inset-0 h-full w-full object-contain"
+                          />
+                        </div>
+
+                        {/* botón centrado debajo de la imagen */}
+                        <figcaption className="mt-2 text-center">
+                          <ButtonPrimary
+                            label={card.label}
+                            imageSrc="/suRed/home/BOTON.png"
+                            className="block mx-auto"
+                          />
+                        </figcaption>
+                      </figure>
                     </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="mt-auto w-full px-5 sm:px-6 md:px-8 pb-3 sm:pb-4 md:pb-6">
+        <div className="mt-auto w-full px-5 sm:px-6 md:px-8 pb-3 sm:pb-4 md:pb-6 relative -top-20">
           <img
             src="/suRed/home/COPY-FOOTER.png"
             alt="Logos Footer"
-            className="mx-auto w-full max-w-[980px] select-none"
+            className="mx-auto w-full max-w-full select-none"
             draggable={false}
           />
         </div>

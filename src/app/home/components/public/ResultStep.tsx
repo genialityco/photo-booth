@@ -163,12 +163,12 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
           )}
 
           {/* Marco superpuesto (debajo del QR) */}
-          <img
+          {/* <img
             src="/suRed/MARCO_UM_RECUERDO.png"
             alt="Marco decorativo"
             className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none z-20"
             draggable={false}
-          />
+          /> */}
 
           {/* QR superpuesto (encima de TODO) */}
         </div>
