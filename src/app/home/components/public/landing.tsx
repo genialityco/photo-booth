@@ -6,7 +6,7 @@ import React from "react";
 type BrandKey = "suredmarcha" | "colombina" | "alpina" | "macpollo";
 type BrandConfig = { k: BrandKey; logo: string; aria: string };
 
-const BRANDS: BrandConfig[] = [
+export const BRANDS: BrandConfig[] = [
   {
     k: "suredmarcha",
     logo: "/fenalco/inicio/juanvaldez_logo.jpeg",
@@ -25,9 +25,18 @@ const BRANDS: BrandConfig[] = [
   {
     k: "macpollo",
     logo: "/fenalco/inicio/macpollo_logo.webp",
-    aria: "Comenzar con Alpina",
+    aria: "Comenzar con Mac Pollo",
   },
 ];
+
+// Helper para obtener la configuración de una marca por su key
+export const getBrandConfig = (brandKey: string | null): BrandConfig | null => {
+  if (!brandKey) return null;
+  return (
+    BRANDS.find((b) => b.k === brandKey || b.k === brandKey.replace("-", "")) ||
+    null
+  );
+};
 
 export default function Landing({
   onStart,
@@ -54,7 +63,7 @@ export default function Landing({
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
         style={{
-          backgroundImage: "url('/fenalco/inicio/FONDO_HOME_EMB_MARCA.jpg')",
+          backgroundImage: "url('suRed/home/FONDO_UNIENDO-AL-MUNDO_HOME.jpg')",
         }}
         aria-hidden
       />
@@ -64,8 +73,14 @@ export default function Landing({
         {/* Título/Logo */}
         <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
           <img
-            src="/fenalco/inicio/TITULO_80-ANIOS.png"
-            alt="Embajadores de Marca - 80 años Fenalco"
+            src="/suRed/home/LOGOS-JUNTOS.png"
+            alt="LOGOS SURED"
+            className="mx-auto w-full max-w-[620px] select-none"
+            draggable={false}
+          />
+          <img
+            src="/suRed/home/TITULO-UNIENDO-AL-MUNDO.png"
+            alt="UNIENDO AL MUNDO"
             className="mx-auto w-full max-w-[620px] select-none"
             draggable={false}
           />
@@ -123,12 +138,16 @@ export default function Landing({
                         draggable={false}
                         style={{
                           borderRadius: "30px",
-                          paddingLeft: b.logo?.includes("macpollo") || b.logo?.includes("colombina") 
-                            ? "20px"
-                            : "0",
-                          paddingRight: b.logo?.includes("macpollo") || b.logo?.includes("colombina") 
-                            ? "20px"
-                            : "0",
+                          paddingLeft:
+                            b.logo?.includes("macpollo") ||
+                            b.logo?.includes("colombina")
+                              ? "20px"
+                              : "0",
+                          paddingRight:
+                            b.logo?.includes("macpollo") ||
+                            b.logo?.includes("colombina")
+                              ? "20px"
+                              : "0",
                         }}
                       />
                     </div>
@@ -142,7 +161,7 @@ export default function Landing({
         {/* Footer */}
         <div className="mt-auto w-full px-5 sm:px-6 md:px-8 pb-3 sm:pb-4 md:pb-6">
           <img
-            src="/fenalco/inicio/LOGOS_COLOR_UNA-LINEA.png"
+            src="/suRed/home/COPY-FOOTER.png"
             alt="Logos Footer"
             className="mx-auto w-full max-w-[980px] select-none"
             draggable={false}

@@ -174,7 +174,7 @@ export default function CaptureStep({
       <ButtonPrimary
         onClick={startCapture}
         label={canShoot ? "TOMAR FOTO" : "Cargando cámara…"}
-        imageSrc="/images/btn_principal.png"
+        imageSrc="/suRed/home/BOTON.png"
         width={220}
         height={68}
         disabled={!canShoot}

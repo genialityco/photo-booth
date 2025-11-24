@@ -26,7 +26,7 @@ export default function LoaderStep() {
     >
       {/* Fondo */}
       <Image
-        src="/fenalco/loading/FONDO_HABILITAR-CAMARA_EMB_MARCA.jpg"
+        src="/suRed/home/SPLASH_UNIENDO-AL-MUNDO_HOME.jpg"
         alt="Fondo decorativo"
         fill
         priority
@@ -35,19 +35,19 @@ export default function LoaderStep() {
         draggable={false}
       />
       {/* Velo para legibilidad */}
-      <div className="absolute inset-0 bg-black/45" />
+      {/* <div className="absolute inset-0 bg-black/45" /> */}
 
       {/* Logo superior (opcional) */}
-      <div className="absolute inset-x-0 top-6 flex justify-center z-20">
+      {/* <div className="absolute inset-x-0 top-6 flex justify-center z-20">
         <Image
-          src="/fenalco/loading/TITULO_80-ANIOS.png"
+          src=""
           alt="80 años FENALCO"
           width={520}
           height={96}
           className="drop-shadow-md"
           priority
         />
-      </div>
+      </div> */}
 
       {/* Contenido central */}
       <div className="relative z-20 flex h-full items-center justify-center px-6">
@@ -55,9 +55,7 @@ export default function LoaderStep() {
           className="text-center text-4xl md:text-6xl font-semibold drop-shadow-lg tracking-tight"
           role="status"
           aria-live="polite"
-        >
-          Generando magia{dots}
-        </h1>
+        ></h1>
       </div>
 
       {/* Footer con logos (opcional)

@@ -7,8 +7,10 @@ import CaptureStep from "./CaptureStep";
 import PreviewStep from "./PreviewStep";
 import LoaderStep from "./LoaderStep";
 import ResultStep from "./ResultStep";
+import ButtonPrimary from "@/app/items/ButtonPrimary";
 import { useSearchParams } from "next/navigation";
 import { db } from "@/firebaseConfig";
+import { getBrandConfig } from "./landing";
 import {
   getStorage,
   ref,
@@ -26,7 +28,6 @@ import {
 
 export default function PhotoBoothWizard({
   mirror = true,
-  // Caja cuadrada responsiva: mínimo 320px, escala con viewport, máximo 820px
   boxSize = "clamp(320px, min(72vmin, 78svh), 820px)",
 }: {
   frameSrc?: string | null;
@@ -35,8 +36,8 @@ export default function PhotoBoothWizard({
 }) {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<
-    "capture" | "preview" | "loading" | "result"
-  >("capture");
+    "init" | "capture" | "preview" | "loading" | "result"
+  >("init");
   const [framedShot, setFramedShot] = useState<string | null>(null);
   const [, setRawShot] = useState<string | null>(null);
   const [aiUrl, setAiUrl] = useState<string | null>(null);
@@ -79,18 +80,15 @@ export default function PhotoBoothWizard({
         .slice(2, 10)}_${Date.now().toString(36)}`;
       setTaskId(newTaskId);
 
-      // 1) Subir la FOTO CON MARCO como input
       const inputPath = `tasks/${newTaskId}/input.png`;
       const inputRef = ref(storage, inputPath);
       await uploadString(inputRef, framedShot, "data_url", {
         contentType: "image/png",
       });
 
-      // 2) URL pública (framed)
       const framedDownloadUrl = await getDownloadURL(inputRef);
       setFramedUrl(framedDownloadUrl);
 
-      // 3) Crear doc en Firestore
       const taskRef = doc(collection(db, "videoTasks"), newTaskId);
       await setDoc(taskRef, {
         status: "queued",
@@ -104,7 +102,6 @@ export default function PhotoBoothWizard({
         updatedAt: serverTimestamp(),
       });
 
-      // 4) Suscripción hasta "done"
       if (unsubRef.current) {
         unsubRef.current();
         unsubRef.current = undefined;
@@ -143,7 +140,7 @@ export default function PhotoBoothWizard({
     setAiUrl(null);
     setFramedUrl(null);
     setTaskId(null);
-    setStep("capture");
+    setStep("init");
 
     if (typeof window !== "undefined") {
       window.location.href = "/";
@@ -156,24 +153,23 @@ export default function PhotoBoothWizard({
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
         style={{
-          backgroundImage:
-            "url('/fenalco/capture/FONDO_HABILITAR-CAMARA_EMB_MARCA.jpg')",
+          backgroundImage: "url('suRed/home/FONDO_UNIENDO-AL-MUNDO_HOME.jpg')",
         }}
         aria-hidden
       />
 
-      {/* Logo superior — responsivo por breakpoint */}
+      {/* Logo superior */}
       <div
         className={`
           absolute z-10 left-1/2 -translate-x-1/2
-          top-[max(1.5rem,env(safe-area-inset-top))]
-          w-[70vw] max-w-[380px]
+          top-[max(6rem,env(safe-area-inset-top))]
+          w-[80vw] max-w-[580px]
         `}
       >
         <img
-          src="/fenalco/capture/TITULO_80-ANIOS.png"
-          alt="80 años Fenalco"
-          className="w-full select-none"
+          src="/suRed/home/TITULO-UNIENDO-AL-MUNDO.png"
+          alt="UNIENDO AL MUNDO"
+          className="mx-auto w-full max-w-[620px] select-none"
           draggable={false}
         />
       </div>
@@ -184,12 +180,42 @@ export default function PhotoBoothWizard({
           className="flex items-center justify-center overflow-visible"
           style={{ width: boxSize, height: boxSize }}
         >
+          {step === "init" && (
+            <div className="flex flex-col items-center justify-center gap-8">
+              {/* Tarjeta seleccionada */}
+              {brand && getBrandConfig(brand) && (
+                <div className="rounded-2xl bg-white p-6 shadow-2xl">
+                  <img
+                    src={getBrandConfig(brand)!.logo}
+                    alt={getBrandConfig(brand)!.aria}
+                    className="h-auto w-64 select-none object-contain"
+                    draggable={false}
+                    style={{
+                      paddingLeft:
+                        brand === "macpollo" || brand === "colombina"
+                          ? "20px"
+                          : "0",
+                      paddingRight:
+                        brand === "macpollo" || brand === "colombina"
+                          ? "20px"
+                          : "0",
+                    }}
+                  />
+                </div>
+              )}
+              <ButtonPrimary
+                {...{ onClick: () => setStep("capture") }}
+                label="HABILITAR CAMARA"
+                imageSrc="/suRed/home/BOTON.png"
+              />
+            </div>
+          )}
+
           {step === "capture" && (
             <CaptureStep
               mirror={mirror}
               boxSize={boxSize}
               onCaptured={handleCaptured}
-              /* frameSrc={frameSrc} */
             />
           )}
 
@@ -205,11 +231,7 @@ export default function PhotoBoothWizard({
           {step === "loading" && <LoaderStep />}
 
           {step === "result" && framedShot && aiUrl && (
-            <ResultStep
-              taskId={taskId!}
-              aiUrl={aiUrl}
-              onAgain={resetAll}
-            />
+            <ResultStep taskId={taskId!} aiUrl={aiUrl} onAgain={resetAll} />
           )}
         </div>
       </div>
@@ -217,13 +239,17 @@ export default function PhotoBoothWizard({
       {/* Footer fijo con safe-area */}
       <div
         className="
-          pointer-events-none absolute inset-x-0 z-10 mx-auto
-
-        "
-        style={{ bottom: "max(env(safe-area-inset-bottom), 16px)" }}
+    pointer-events-none absolute inset-x-0 z-10 mx-auto
+    origin-bottom scale-75 sm:scale-50 md:scale-75
+  "
+        style={{
+          bottom: "max(env(safe-area-inset-bottom),120px)",
+          width: 960,
+          maxWidth: "90vw",
+        }}
       >
         <img
-          src="/fenalco/capture/LOGOS_BLANCO_UNA-LINEA.png"
+          src="/suRed/home/LOGOS-JUNTOS.png"
           alt="Logos Footer"
           className="w-full select-none"
           draggable={false}
