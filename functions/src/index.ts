@@ -10,6 +10,11 @@ import { GoogleGenAI } from "@google/genai";
 import axios from "axios";
 import sharp from "sharp";
 import { GoogleAuth } from "google-auth-library"
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+import * as os from 'os';
+import * as path from 'path';
+import * as fs from 'fs';
 // Inicializa Admin SDK
 initializeApp();
 
@@ -651,12 +656,93 @@ export const processImageTask = onDocumentCreated(
   }
 );
 
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+
+// Función para agregar marco al video
+async function addFrameToVideo(
+  videoBuffer: Buffer,
+  frameConfig: {
+    color?: string;
+    thickness?: number;
+    frameImageBuffer?: Buffer;
+  } = {}
+): Promise<Buffer> {
+  const { thickness = 0, frameImageBuffer } = frameConfig;
+  
+  const tempDir = os.tmpdir();
+  const inputPath = path.join(tempDir, `input-${Date.now()}.mp4`);
+  const outputPath = path.join(tempDir, `output-${Date.now()}.mp4`);
+  let framePath: string | null = null;
+  
+  try {
+    fs.writeFileSync(inputPath, videoBuffer);
+    
+    await new Promise<void>((resolve, reject) => {
+      const command = ffmpeg(inputPath);
+      
+      if (frameImageBuffer) {
+        // Guardar el buffer del marco como archivo temporal
+        framePath = path.join(tempDir, `frame-${Date.now()}.png`);
+        fs.writeFileSync(framePath, frameImageBuffer);
+
+        command
+          .input(framePath)
+          .complexFilter([
+            // Reducir el tamaño del video para que entre dentro del marco
+            `[0:v]scale=iw-${thickness -30}:ih-${thickness-30}[scaled]`,
+            // IMPORTANTE: el marco arriba (1:v) y el video dentro (scaled)
+            `[scaled][1:v]overlay=${thickness-30}:${thickness-30}:format=auto`
+          ]);
+      } else {
+        command.videoFilters([
+          {
+            filter: 'pad',
+            options: {
+              width: `iw+${thickness * 2}`,
+              height: `ih+${thickness * 2}`,
+              x: thickness,
+              y: thickness,
+              
+            }
+          }
+        ]);
+      }
+      
+      command
+        .outputOptions([
+          '-c:v libx264',
+          '-preset fast',
+          '-crf 23',
+          '-c:a copy'
+        ])
+        .output(outputPath)
+        .on('end', () => resolve())
+        .on('error', (err) => reject(err))
+        .run();
+    });
+    
+    const outputBuffer = fs.readFileSync(outputPath);
+    return outputBuffer;
+    
+  } finally {
+    try {
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+      if (framePath && fs.existsSync(framePath)) fs.unlinkSync(framePath);
+    } catch (e) {
+      console.warn('Error limpiando archivos temporales:', e);
+    }
+  }
+}
+
+
+
 export const processVideoTask = onDocumentCreated(
   {
     document: "videoTasks/{taskId}",
     region: VERTEX_LOCATION,
     timeoutSeconds: 540,
-    memory: "1GiB",
+    memory: "2GiB",
   },
   async (event) => {
     const snap = event.data;
@@ -668,11 +754,8 @@ export const processVideoTask = onDocumentCreated(
     const docRef = db.collection("videoTasks").doc(taskId);
     const data = snap.data();
 
-    // --------------------------
-    // 1. Prompts y logos (NO MODIFICADO)
-    // --------------------------
+    // Prompts y logos
     let PROMPT = DEFAULT_PROMPT;
-    //let LOGO_PROMPT = DEFAULT_LOGO_PROMPT;
     let LOGO_URL = "";
 
     if (data?.brand) {
@@ -683,7 +766,6 @@ export const processVideoTask = onDocumentCreated(
 
       PROMPT = promptData.prompt;
       LOGO_URL = promptData.logoPath || "";
-      //LOGO_PROMPT = promptData.logoPrompt || DEFAULT_LOGO_PROMPT;
     }
 
     if (!data?.inputPath) {
@@ -701,9 +783,7 @@ export const processVideoTask = onDocumentCreated(
         updatedAt: Date.now(),
       });
 
-      // --------------------------
-      // 2. Descargar la imagen input (NO MODIFICADO)
-      // --------------------------
+      // Descargar la imagen input
       const file = bucket.file(data.inputPath);
       const [meta] = await file.getMetadata().catch(() => [
         { contentType: "application/octet-stream" },
@@ -718,17 +798,13 @@ export const processVideoTask = onDocumentCreated(
 
       const base64Image = Buffer.from(bytes).toString("base64");
 
-      // --------------------------
-      // 3. Descargar logo si existe (NO MODIFICADO)
-      // --------------------------
+      // Descargar logo si existe
       let base64Logo: string | null = null;
-      //let logoMime = "image/png";
 
       if (LOGO_URL) {
         const logoData = await downloadAndConvertLogo(LOGO_URL);
         if (logoData) {
           base64Logo = logoData.base64;
-          //logoMime = logoData.mime;
         }
       }
 
@@ -743,23 +819,16 @@ export const processVideoTask = onDocumentCreated(
         },
       });
 
-      // -----------------------------------------------------------
-      // 4. Llamar a Vertex AI VEO 3.1 con REST y axios
-      // -----------------------------------------------------------
-
-      // Obtener el token de acceso para la cuenta de servicio
+      // Llamar a Vertex AI VEO 3.1 con REST y axios
       const auth = new GoogleAuth({
         scopes: ["https://www.googleapis.com/auth/cloud-platform"],
       });
       const authToken = await auth.getAccessToken();
 
-      // **USAR EL MISMO BUCKET DE FIREBASE STORAGE COMO OUTPUT DE GCS**
-      const VERTEX_OUTPUT_GCS_BUCKET = `gs://${bucket.name}`; 
-      const outputGcsPath = `veo-output/${taskId}/`; // Carpeta de salida temporal
+      const VERTEX_OUTPUT_GCS_BUCKET = `gs://${bucket.name}`;
+      const outputGcsPath = `veo-output/${taskId}/`;
       const outputGcsUri = `${VERTEX_OUTPUT_GCS_BUCKET}/${outputGcsPath}`;
 
-
-      // Estructura del cuerpo de la petición REST
       const instances: any[] = [
         {
           prompt: PROMPT,
@@ -767,7 +836,6 @@ export const processVideoTask = onDocumentCreated(
             bytesBase64Encoded: base64Image,
             mimeType: mime,
           },
-         
         },
       ];
 
@@ -777,13 +845,15 @@ export const processVideoTask = onDocumentCreated(
           aspectRatio: "9:16",
           sampleCount: 1,
           durationSeconds: 8,
-          storageUri: outputGcsUri, // Vertex AI guardará aquí
+          storageUri: outputGcsUri,
           negativePrompt: "imagen original en el video final",
         },
       };
+
       console.log("authToken", authToken);
       console.log("Payload enviado a Vertex AI:", JSON.stringify(payload, null, 2));
-      // **Paso 4.1: Llamar al endpoint Long Running Operation (LRO)**
+
+      // Llamar al endpoint Long Running Operation (LRO)
       const veoResponse = await axios.post(VERTEX_API_BASE_URL, payload, {
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -791,27 +861,27 @@ export const processVideoTask = onDocumentCreated(
         },
       });
 
-      const operationName = veoResponse.data.name; 
+      const operationName = veoResponse.data.name;
       await docRef.update({
         vertexName: operationName,
         updatedAt: Date.now(),
       });
 
-      // **Paso 4.2: Sondear el estado de la LRO hasta que se complete**
+      // Sondear el estado de la LRO hasta que se complete
       let isDone = false;
       let finalResult: any = null;
       let attempt = 0;
-      const MAX_ATTEMPTS = 50; 
+      const MAX_ATTEMPTS = 50;
 
       while (!isDone && attempt < MAX_ATTEMPTS) {
         await new Promise((resolve) => setTimeout(resolve, 10000)); // Esperar 10 segundos
         attempt++;
-        
-        const fetchPayload= {
-          operationName: operationName
-        }
 
-        const lroResponse = await axios.post(VERTEX_API_BASE_URL_FETCH, fetchPayload,{
+        const fetchPayload = {
+          operationName: operationName,
+        };
+
+        const lroResponse = await axios.post(VERTEX_API_BASE_URL_FETCH, fetchPayload, {
           headers: {
             Authorization: `Bearer ${authToken}`,
           },
@@ -831,48 +901,81 @@ export const processVideoTask = onDocumentCreated(
       if (!isDone) {
         throw new Error("Vertex AI LRO Timeout: La operación no se completó a tiempo.");
       }
-      console.log("resultado final de LRO:", JSON.stringify(finalResult, null, 2));
 
-      // **Paso 4.3: Obtener y Descargar el video desde GCS/Firebase Storage**
+      console.log("Resultado final de LRO:", JSON.stringify(finalResult, null, 2));
+
+      // Obtener y Descargar el video desde GCS/Firebase Storage
       const generatedFilePath = finalResult?.videos?.[0]?.gcsUri;
-      
-      if (!generatedFilePath) {
-         throw new Error("Respuesta de LRO sin ruta GCS del video generado.");
-      }
-      
-      // La ruta GCS es algo como: 'gs://BUCKET_NAME/veo-output/taskId/output_file.mp4'
-      // Extraer la ruta del archivo dentro del bucket (Ej: 'veo-output/taskId/output_file.mp4')
-      const gcsFilePath = generatedFilePath.replace(VERTEX_OUTPUT_GCS_BUCKET + "/", "");
-      
-      // Usar la librería de GCS para descargar el archivo a un Buffer
-      const [fileContents] = await bucket.file(gcsFilePath).download();
 
-      // Opcional: eliminar archivo temporal
-      await bucket.file(gcsFilePath).delete().catch(() => {});
-      
-      // Convertir el Buffer a Base64 para que el código de Firebase Storage funcione
-      const generatedVideoData = fileContents.toString("base64");
-      
-      // Opcional: Eliminar el archivo temporal creado por Vertex AI en el bucket
-      
-      // -------------------------------------------------------------------
+      if (!generatedFilePath) {
+        throw new Error("Respuesta de LRO sin ruta GCS del video generado.");
+      }
+
+      const gcsFilePath = generatedFilePath.replace(VERTEX_OUTPUT_GCS_BUCKET + "/", "");
+      console.log("Descargando video desde:", gcsFilePath);
+
+      // Descargar el video generado
+      const [fileContents] = await bucket.file(gcsFilePath).download();
+      console.log("Video descargado, tamaño:", fileContents.length);
+
+      // DESCARGAR LA IMAGEN DEL MARCO DESDE FIREBASE STORAGE
+      let frameBuffer: Buffer | undefined;
+      try {
+        const frameFile = bucket.file('frames/MARCO_UM_RECUERDO.png');
+        const [frameExists] = await frameFile.exists();
+        
+        if (frameExists) {
+          const [downloadedFrame] = await frameFile.download();
+          frameBuffer = downloadedFrame;
+          console.log('Marco descargado correctamente, tamaño:', frameBuffer.length);
+        } else {
+          console.warn('Imagen de marco no encontrada en: frames/MARCO_UM_RECUERDO.png');
+        }
+      } catch (frameError) {
+        console.error('Error descargando marco:', frameError);
+      }
+
+      // AGREGAR MARCO AL VIDEO CON MANEJO DE ERRORES
+      let videoWithFrame: Buffer;
+      try {
+        console.log('Iniciando proceso de agregar marco...');
+        videoWithFrame = await addFrameToVideo(fileContents, {
+          color: 'white',
+          thickness: 30,
+          frameImageBuffer: frameBuffer
+        });
+        console.log('Marco agregado exitosamente, tamaño final:', videoWithFrame.length);
+      } catch (frameError) {
+        console.error('Error agregando marco, usando video original:', frameError);
+        videoWithFrame = fileContents; // Usar video original si falla
+      }
+
+      // Convertir a base64
+      const generatedVideoData = videoWithFrame.toString("base64");
+
+      // Opcional: eliminar archivo temporal de Vertex AI
+      try {
+        await bucket.file(gcsFilePath).delete();
+        console.log('Archivo temporal eliminado de GCS');
+      } catch (deleteError) {
+        console.warn('No se pudo eliminar archivo temporal:', deleteError);
+      }
 
       if (!generatedVideoData) {
         await docRef.update({
           status: "error",
-          error: "No se pudo descargar el video generado de GCS",
+          error: "No se pudo procesar el video generado",
           updatedAt: Date.now(),
         });
         return;
       }
 
-      // -------------------------------------------------------------
-      // 5. Guardar video en Firebase Storage (NO MODIFICADO - CÓDIGO ORIGINAL)
-      // -------------------------------------------------------------
+      // Guardar video en Firebase Storage
       const outPath = `video/task/${taskId}/output.mp4`;
       const outBuf = Buffer.from(generatedVideoData, "base64");
       const token = randomUUID();
 
+      console.log('Guardando video final en Firebase Storage...');
       await bucket.file(outPath).save(outBuf, {
         contentType: "video/mp4",
         resumable: false,
@@ -882,9 +985,10 @@ export const processVideoTask = onDocumentCreated(
           },
         },
       });
-      // -------------------------------------------------------------
-      // 6. Actualizar Documento (NO MODIFICADO - CÓDIGO ORIGINAL)
-      // -------------------------------------------------------------
+
+      console.log('Video guardado exitosamente en:', outPath);
+
+      // Actualizar Documento
       const url = `https://firebasestorage.googleapis.com/v0/b/${
         bucket.name
       }/o/${encodeURIComponent(outPath)}?alt=media&token=${token}`;
@@ -895,8 +999,12 @@ export const processVideoTask = onDocumentCreated(
         outputPath: outPath,
         updatedAt: Date.now(),
       });
+
+      console.log('Proceso completado exitosamente');
+
     } catch (e: any) {
-      // Manejo de errores (NO MODIFICADO)
+      console.error('Error en processVideoTask:', e);
+      
       const isQuotaError =
         e?.message?.includes("quota") ||
         e?.message?.includes("429") ||
@@ -915,4 +1023,3 @@ export const processVideoTask = onDocumentCreated(
     }
   }
 );
-
