@@ -70,7 +70,7 @@ export default function PhotoBoothWizard({
         
         setBrand(brandParam || "default");
         setColor(colorParam || null);
-    }
+      }
     }
 
     return () => {

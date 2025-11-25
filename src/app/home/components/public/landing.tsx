@@ -133,16 +133,16 @@ export default function Landing({
   <div className="w-full flex justify-between">
     <div className=" w-full flex justify-center  md:aspect-square">
       <div className=" absolute flex items-center justify-center  rounded-[30px]">
-                      <img
-                        src={b.logo}
-                        alt={b.aria}
+        <img
+          src={b.logo}
+          alt={b.aria}
           className=" object-contain"
-                        draggable={false}
+          draggable={false}
         />
       </div>
-                    </div>
-                  </div>
-                </div>
+    </div>
+  </div>
+</div>
               </article>
             ))}
           </div>
