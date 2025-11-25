@@ -209,7 +209,7 @@ export default function Form<T extends Record<string, any>>({
               value={formData[field.name] || ''}
               onChange={(e) => handleChange(e, field.name)}
               placeholder={field.placeholder}
-              className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+              className="border text-black border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
               rows={4}
             />
           ) : field.type === 'checkbox' ? (
@@ -277,7 +277,7 @@ export default function Form<T extends Record<string, any>>({
               value={formData[field.name] || ''}
               onChange={(e) => handleChange(e, field.name)}
               placeholder={field.placeholder}
-              className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border text-black border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           )}
           {errors[field.name] && (
