@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import ButtonPrimary from "@/app/items/ButtonPrimary";
+// import ButtonPrimary from "@/app/items/ButtonPrimary";
 import QrTag from "./QrTag";
 
 type Props = {
@@ -12,6 +12,7 @@ type Props = {
   footer?: React.ReactNode;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -48,6 +49,7 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
     return url.toString();
   }, [origin, aiUrl, taskId, isVideo]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const SIZE_IMG = "clamp(260px, min(70vw, 60svh), 520px)";
 
   // === Helper para cargar imágenes con soporte CORS (solo se usa en modo imagen) ===
@@ -61,6 +63,7 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
     });
 
   // === Descargar: video directo o imagen compuesta con marco ===
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDownload = async () => {
     // MODO VIDEO: descarga el archivo tal cual
     if (isVideo) {

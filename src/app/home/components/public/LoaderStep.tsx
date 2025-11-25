@@ -3,6 +3,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 export default function LoaderStep() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [dots, setDots] = useState("");
 
   useEffect(() => {

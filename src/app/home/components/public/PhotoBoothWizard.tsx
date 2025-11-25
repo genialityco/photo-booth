@@ -41,6 +41,7 @@ export default function PhotoBoothWizard({
   const [framedShot, setFramedShot] = useState<string | null>(null);
   const [, setRawShot] = useState<string | null>(null);
   const [aiUrl, setAiUrl] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [framedUrl, setFramedUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [brand, setBrand] = useState<string | null>(null);

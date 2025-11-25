@@ -4,14 +4,14 @@
 import ButtonPrimary from "@/app/items/ButtonPrimary";
 import React from "react";
 
-type BrandKey =
-  | "suredColBog"
-  | "suredColMed"
-  | "suredColHui"
-  | "suredIntNY"
-  | "suredIntDB"
-  | "suredIntTK";
-// Actualizamos BrandConfig para que 'k' sea un array de BrandKey
+// type BrandKey =
+//   | "suredColBog"
+//   | "suredColMed"
+//   | "suredColHui"
+//   | "suredIntNY"
+//   | "suredIntDB"
+//   | "suredIntTK";
+// // Actualizamos BrandConfig para que 'k' sea un array de BrandKey
 type BrandConfig = { k: string[]; logo: string; aria: string };
 
 // Función auxiliar para obtener un elemento aleatorio de un array
