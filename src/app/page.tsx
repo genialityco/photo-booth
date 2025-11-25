@@ -24,4 +24,4 @@ export default function AppRoot() {
       {!enabledCamara ? <Landing onStart={handleStart} /> : <Page />}
     </div>
   );
-}
+} 
