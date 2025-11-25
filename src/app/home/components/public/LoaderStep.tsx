@@ -18,7 +18,7 @@ export default function LoaderStep() {
 
   return (
     <div
-      className="fixed inset-0 z-50 h-dvh w-dvw overflow-hidden text-white"
+      className="fixed inset-0 z-[2147483647] h-dvh w-dvw overflow-hidden text-white"
       style={{
         paddingTop: "max(0.5rem, env(safe-area-inset-top))",
         paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
@@ -50,13 +50,13 @@ export default function LoaderStep() {
       </div> */}
 
       {/* Contenido central */}
-      <div className="relative z-20 flex h-full items-center justify-center px-6">
+      {/* <div className="relative z-20 flex h-full items-center justify-center px-6">
         <h1
           className="text-center text-4xl md:text-6xl font-semibold drop-shadow-lg tracking-tight"
           role="status"
           aria-live="polite"
         ></h1>
-      </div>
+      </div> */}
 
       {/* Footer con logos (opcional)
       <div className="absolute inset-x-0 bottom-6 z-20 flex justify-center">

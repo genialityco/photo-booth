@@ -34,6 +34,7 @@ export default function PreviewStep({
           label="REPETIR"
           width={180}
           height={60}
+          imageSrc="/suRed/home/BOTON.PNG"
         />
         {onConfirm && (
           <ButtonPrimary
@@ -41,6 +42,7 @@ export default function PreviewStep({
             label="CONFIRMAR"
             width={180}
             height={60}
+            imageSrc="/suRed/home/BOTON.PNG"
           />
         )}
       </div>

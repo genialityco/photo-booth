@@ -52,10 +52,10 @@ export default function PhotoBoothWizard({
     if (searchParams) {
       const brandParam = searchParams.get("brand");
       const colorParam = searchParams.get("color");
-      
+
       console.log("Brand param:", brandParam);
       console.log("Color param:", colorParam);
-      
+
       setBrand(brandParam || "default");
       setColor(colorParam || null);
     } else {
@@ -64,10 +64,10 @@ export default function PhotoBoothWizard({
         const params = new URLSearchParams(window.location.search);
         const brandParam = params.get("brand");
         const colorParam = params.get("color");
-        
+
         console.log("Brand param (fallback):", brandParam);
         console.log("Color param (fallback):", colorParam);
-        
+
         setBrand(brandParam || "default");
         setColor(colorParam || null);
       }
@@ -179,8 +179,8 @@ export default function PhotoBoothWizard({
       <div
         className={`
           absolute z-10 left-1/2 -translate-x-1/2
-          
           w-[80vw] max-w-[580px]
+          md:top-8
         `}
       >
         <img
@@ -198,7 +198,7 @@ export default function PhotoBoothWizard({
           style={{ width: boxSize, height: boxSize }}
         >
           {step === "init" && (
-            <div className="flex flex-col items-center justify-center gap-8">
+            <div className="flex flex-col items-center justify-center gap-8 md:scale-[1.7]">
               {/* Tarjeta seleccionada */}
               {brand && getBrandConfig(brand) && (
                 <div
@@ -220,12 +220,11 @@ export default function PhotoBoothWizard({
                   />
                 </div>
               )}
-
               <ButtonPrimary
                 {...{ onClick: () => setStep("capture") }}
                 label="HABILITAR CAMARA"
                 imageSrc="/suRed/home/BOTON.png"
-                className="font-extrabold drop-shadow-md"
+                className="font-bold drop-shadow-md -mt-4 md:-mt-20"
               />
             </div>
           )}
@@ -255,17 +254,14 @@ export default function PhotoBoothWizard({
         </div>
       </div>
 
-      {/* Footer fijo con safe-area */}
       <div
+        hidden={step === "loading"}
         className="
     pointer-events-none absolute inset-x-0 z-10 mx-auto
     origin-bottom scale-75 sm:scale-50 md:scale-75
   "
-        style={{
-          bottom: "max(env(safe-area-inset-bottom),40px)",
-          width: 960,
-          maxWidth: "90vw",
-        }}
+        style={{ bottom: "max(59px,60px)", width: 960, maxWidth: "90vw" }}
+        aria-hidden={step === "loading"}
       >
         <img
           src="/suRed/home/LOGOS-JUNTOS.png"

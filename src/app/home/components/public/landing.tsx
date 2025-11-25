@@ -4,9 +4,15 @@
 import ButtonPrimary from "@/app/items/ButtonPrimary";
 import React from "react";
 
-type BrandKey = "suredColBog" | "suredColMed" | "suredColHui" | "suredIntNY" | "suredIntDB" |"suredIntTK";
+type BrandKey =
+  | "suredColBog"
+  | "suredColMed"
+  | "suredColHui"
+  | "suredIntNY"
+  | "suredIntDB"
+  | "suredIntTK";
 // Actualizamos BrandConfig para que 'k' sea un array de BrandKey
-type BrandConfig = { k: string[]; logo: string; aria: string }; 
+type BrandConfig = { k: string[]; logo: string; aria: string };
 
 // Función auxiliar para obtener un elemento aleatorio de un array
 const getRandomElement = <T,>(arr: T[]): T => {
@@ -19,12 +25,12 @@ export const BRANDS: BrandConfig[] = [
   {
     k: ["suredColBog", "suredColMed", "suredColHui"],
     logo: "/suRed/home/BOTON-COLOMBIA.png",
-    aria: "Comenzar con Juan Valdez",
+    aria: "COLOMBIA",
   },
   {
     k: ["suredIntNY", "suredIntDB", "suredIntTK"],
     logo: "/suRed/home/BOTON-MUNDO.png",
-    aria: "Comenzar con Alpina",
+    aria: "MUNDO",
   },
 ];
 
@@ -32,10 +38,7 @@ export const BRANDS: BrandConfig[] = [
 export const getBrandConfig = (brandKey: string): BrandConfig | null => {
   if (!brandKey) return null;
   // Busca si el brandKey está incluido en el array 'k' de alguna BrandConfig
-  return (
-    BRANDS.find((b) => b.k.includes(brandKey)) ||
-    null
-  );
+  return BRANDS.find((b) => b.k.includes(brandKey)) || null;
 };
 
 export default function Landing({
@@ -53,7 +56,7 @@ export default function Landing({
     params.set("brand", selectedBrand.replace("-", ""));
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", newUrl);
-    
+
     // 3. Llama a onStart con la clave aleatoria
     onStart(selectedBrand);
   };
@@ -78,17 +81,17 @@ export default function Landing({
       {/* Contenido */}
       <div className="mx-auto flex min-h-[100svh] max-w-[700px] flex-col items-center">
         {/* Título/Logo */}
-        <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
+        <div className="w-full px-5 sm:px-6 md:px-6 pt-3 sm:pt-4 md:pt-6 md:mt-8">
           <img
             src="/suRed/home/LOGOS-JUNTOS.png"
             alt="LOGOS SURED"
-            className="mx-auto w-full max-w-[620px] select-none"
+            className="mx-auto w-full max-w-[520px] select-none"
             draggable={false}
           />
           <img
             src="/suRed/home/TITULO-UNIENDO-AL-MUNDO.png"
             alt="UNIENDO AL MUNDO"
-            className="mx-auto w-full max-w-[620px] select-none"
+            className="mx-auto w-full max-w-[800px] select-none"
             draggable={false}
           />
         </div>
@@ -99,62 +102,71 @@ export default function Landing({
         </h1> */}
 
         {/* Grid con SOLO 2 cards visibles */}
-        <div className="mt-5 sm:mt-7 w-full px-5 sm:px-6 md:px-8">
+        <div className="mt-5 sm:mt-20 w-full px-5 sm:px-6 md:px-6">
           <div
             className="
               grid gap-3 sm:gap-4 md:gap-5
               grid-cols-2
               md:grid-cols-2
+
             "
           >
             {BRANDS.map((b) => (
               <article
-                key={b.k.join(',')} // Usamos el array unido como key
+                key={b.k.join(",")}
                 role="button"
                 tabIndex={0}
                 aria-label={b.aria}
                 title={b.aria}
-                onClick={() => handleStart(b.k)} // Pasamos el array 'k' al handler
+                onClick={() => handleStart(b.k)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") handleStart(b.k);
                 }}
                 className="
-                  group cursor-pointer select-none
-                  rounded-xl sm:rounded-2xl
-                  backdrop-blur
-                  shadow-md sm:shadow-xl ring-1 ring-black/5
-                  transition-transform duration-150
-                  supports-[hover:hover]:hover:scale-[1.015]
-                  active:scale-[0.985]
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70
-                "
+                    group cursor-pointer select-none
+                    rounded-xl sm:rounded-2xl
+                    shadow-md sm:shadow-xl ring-1 ring-black/5
+                    transition-transform duration-150
+                    supports-[hover:hover]:hover:scale-[1.015]
+                    active:scale-[0.985]
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70
+                  "
               >
-                {/* Contenedor con padding para que el logo nunca toque bordes */}
                 <div className="flex w-full items-center justify-center overflow-hidden">
-  <div className="w-full flex justify-between">
-    <div className=" w-full flex justify-center  md:aspect-square">
-      <div className=" absolute flex items-center justify-center  rounded-[30px]">
-        <img
-          src={b.logo}
-          alt={b.aria}
-          className=" object-contain"
-          draggable={false}
-        />
-      </div>
-    </div>
-  </div>
-</div>
+                  <div className="w-full">
+                    <figure className="w-full">
+                      <div className="relative w-full aspect-[4/3] md:aspect-square overflow-hidden rounded-[65px]">
+                        <img
+                          src={b.logo}
+                          alt={b.aria}
+                          draggable={false}
+                          loading="lazy"
+                          className="absolute inset-0 h-full w-full object-contain"
+                        />
+                      </div>
+
+                      {/* botón centrado debajo de la imagen */}
+                      <figcaption className="mt-2 text-center">
+                        <ButtonPrimary
+                          label={b.aria}
+                          imageSrc="/suRed/home/BOTON.png"
+                          className="block mx-auto font-bold text-lg md:text-xl"
+                        />
+                      </figcaption>
+                    </figure>
+                  </div>
+                </div>
               </article>
             ))}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="mt-auto w-full px-5 sm:px-6 md:px-8 pb-3 sm:pb-4 md:pb-6 relative -top-10">
+        <div className="mt-auto w-full px-0 sm:px-2 md:px-4 pb-3 sm:pb-4 md:pb-6 relative -top-20">
           <img
             src="/suRed/home/COPY-FOOTER.png"
             alt="Logos Footer"
-            className="mx-auto w-full max-w-full select-none"
+            className="mx-auto w-full select-none"
             draggable={false}
           />
         </div>
