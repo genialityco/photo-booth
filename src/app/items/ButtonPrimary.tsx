@@ -41,7 +41,7 @@ export default function ButtonPrimary({
                 "outline-none focus-visible:ring-2 focus-visible:ring-white/60",
                 // animación “presionar”
                 "transition-all duration-100 ease-out",
-                "shadow-[0_8px_0_rgba(0,0,0,0.35),0_18px_28px_rgba(0,0,0,0.35)]",
+                
                 "hover:brightness-105",
                 "active:translate-y-[2px] active:scale-95 active:shadow-[0_4px_0_rgba(0,0,0,0.35),0_10px_18px_rgba(0,0,0,0.35)]",
                 // disabled

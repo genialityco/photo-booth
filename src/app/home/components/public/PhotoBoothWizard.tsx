@@ -210,7 +210,7 @@ export default function PhotoBoothWizard({
                 >
                   <img
                     src={
-                      getBrandConfig(brand)!.k.startsWith("suredInt")
+                      brand.startsWith("suredInt")
                         ? "/suRed/home/MUNDO-HABILIATAR-CAMARA.png"
                         : "/suRed/home/MUNDO-COLOMBIA-HABILIATAR-CAMARA.png"
                     }

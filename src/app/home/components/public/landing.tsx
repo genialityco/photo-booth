@@ -6,7 +6,7 @@ import React from "react";
 
 type BrandKey = "suredColBog" | "suredColMed" | "suredColHui" | "suredIntNY" | "suredIntDB" |"suredIntTK";
 // Actualizamos BrandConfig para que 'k' sea un array de BrandKey
-type BrandConfig = { k: BrandKey[]; logo: string; aria: string }; 
+type BrandConfig = { k: string[]; logo: string; aria: string }; 
 
 // Función auxiliar para obtener un elemento aleatorio de un array
 const getRandomElement = <T,>(arr: T[]): T => {
@@ -29,7 +29,7 @@ export const BRANDS: BrandConfig[] = [
 ];
 
 // Helper para obtener la configuración de una marca por su key (Opcional: Si lo sigues usando en otras partes)
-export const getBrandConfig = (brandKey: BrandKey | null): BrandConfig | null => {
+export const getBrandConfig = (brandKey: string): BrandConfig | null => {
   if (!brandKey) return null;
   // Busca si el brandKey está incluido en el array 'k' de alguna BrandConfig
   return (
@@ -41,10 +41,10 @@ export const getBrandConfig = (brandKey: BrandKey | null): BrandConfig | null =>
 export default function Landing({
   onStart,
 }: {
-  onStart: (brand: BrandKey) => void;
+  onStart: (brand: string) => void;
 }) {
   // Ahora handleStart recibe el array de posibles BrandKey
-  const handleStart = (possibleBrands: BrandKey[]) => {
+  const handleStart = (possibleBrands: string[]) => {
     // 1. Escoge una clave aleatoria del array
     const selectedBrand = getRandomElement(possibleBrands);
 
@@ -150,7 +150,7 @@ export default function Landing({
         </div>
 
         {/* Footer */}
-        <div className="mt-auto w-full px-5 sm:px-6 md:px-8 pb-3 sm:pb-4 md:pb-6 relative -top-20">
+        <div className="mt-auto w-full px-5 sm:px-6 md:px-8 pb-3 sm:pb-4 md:pb-6 relative -top-10">
           <img
             src="/suRed/home/COPY-FOOTER.png"
             alt="Logos Footer"
