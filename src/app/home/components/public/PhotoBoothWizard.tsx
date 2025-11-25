@@ -43,26 +43,43 @@ export default function PhotoBoothWizard({
   const [aiUrl, setAiUrl] = useState<string | null>(null);
   const [framedUrl, setFramedUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
-  const [brand, setBrand] = useState<string | null>("electronic");
+  const [brand, setBrand] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
   const unsubRef = useRef<() => void | undefined>(undefined);
 
   useEffect(() => {
-    if (!searchParams) {
-      setBrand("default");
-      setColor(null);
+    // Esperar a que searchParams esté disponible
+    if (searchParams) {
+      const brandParam = searchParams.get("brand");
+      const colorParam = searchParams.get("color");
+      
+      console.log("Brand param:", brandParam);
+      console.log("Color param:", colorParam);
+      
+      setBrand(brandParam || "default");
+      setColor(colorParam || null);
     } else {
-      setBrand((searchParams.get("brand") as string) || "default");
-      setColor((searchParams.get("color") as string) || null);
+      // Fallback: leer directamente del window.location
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const brandParam = params.get("brand");
+        const colorParam = params.get("color");
+        
+        console.log("Brand param (fallback):", brandParam);
+        console.log("Color param (fallback):", colorParam);
+        
+        setBrand(brandParam || "default");
+        setColor(colorParam || null);
     }
+    }
+
     return () => {
       if (unsubRef.current) {
         unsubRef.current();
         unsubRef.current = undefined;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   const handleCaptured = (payload: { framed: string; raw: string }) => {
     setFramedShot(payload.framed);
@@ -95,7 +112,7 @@ export default function PhotoBoothWizard({
         inputPath,
         framedPath: inputPath,
         framedUrl: framedDownloadUrl,
-        brand,
+        brand: brand,
         color,
         taskId: newTaskId,
         createdAt: serverTimestamp(),
@@ -162,14 +179,14 @@ export default function PhotoBoothWizard({
       <div
         className={`
           absolute z-10 left-1/2 -translate-x-1/2
-          top-[max(6rem,env(safe-area-inset-top))]
+          
           w-[80vw] max-w-[580px]
         `}
       >
         <img
           src="/suRed/home/TITULO-UNIENDO-AL-MUNDO.png"
           alt="UNIENDO AL MUNDO"
-          className="mx-auto w-full max-w-[620px] select-none"
+          className=" mx-auto w-full max-w-[620px] select-none"
           draggable={false}
         />
       </div>
@@ -243,7 +260,7 @@ export default function PhotoBoothWizard({
     origin-bottom scale-75 sm:scale-50 md:scale-75
   "
         style={{
-          bottom: "max(env(safe-area-inset-bottom),120px)",
+          bottom: "max(env(safe-area-inset-bottom),40px)",
           width: 960,
           maxWidth: "90vw",
         }}

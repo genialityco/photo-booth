@@ -154,7 +154,7 @@ export default function CaptureStep({
   };
 
   return (
-    <div className="h-[100svh] w-[100vw] flex flex-col items-center justify-center gap-6">
+    <div className="h-[100svh] w-[100vw] mt-12 flex flex-col items-center justify-center gap-6">
       <FrameCamera
         frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
         mirror={mirror}

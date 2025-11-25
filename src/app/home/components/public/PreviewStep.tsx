@@ -16,7 +16,7 @@ export default function PreviewStep({
   onConfirm?: () => void; // confirmará y pasará al loader
 }) {
   return (
-    <div className="h-[100svh] w-[100vw] flex flex-col items-center justify-center gap-6">
+    <div className="h-[100svh] w-[100vw] mt-12  flex flex-col items-center justify-center gap-6">
       <div
         className="relative overflow-hidden rounded-2xl shadow-2xl"
         style={{ width: boxSize, height: boxSize }}

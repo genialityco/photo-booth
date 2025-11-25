@@ -3,37 +3,36 @@
 "use client";
 import React from "react";
 
-type BrandKey = "suredmarcha" | "colombina" | "alpina" | "macpollo";
-type BrandConfig = { k: BrandKey; logo: string; aria: string };
+type BrandKey = "suredColBog" | "suredColMed" | "suredColHui" | "suredIntNY" | "suredIntDB" |"suredIntTK";
+// Actualizamos BrandConfig para que 'k' sea un array de BrandKey
+type BrandConfig = { k: BrandKey[]; logo: string; aria: string }; 
 
+// Función auxiliar para obtener un elemento aleatorio de un array
+const getRandomElement = <T,>(arr: T[]): T => {
+  const randomIndex = Math.floor(Math.random() * arr.length);
+  return arr[randomIndex];
+};
+
+// Actualizamos BRANDS con un array de BrandKey en la propiedad 'k'
 export const BRANDS: BrandConfig[] = [
   {
-    k: "suredmarcha",
-    logo: "/fenalco/inicio/juanvaldez_logo.jpeg",
+    k: ["suredColBog", "suredColMed", "suredColHui"],
+    logo: "/suRed/home/BOTON-COLOMBIA.png",
     aria: "Comenzar con Juan Valdez",
   },
-  // {
-  //   k: "colombina",
-  //   logo: "/fenalco/inicio/colombina-logo.webp",
-  //   aria: "Comenzar con Colombina",
-  // },
   {
-    k: "alpina",
-    logo: "/fenalco/inicio/alpina_logo.jpeg",
+    k: ["suredIntNY", "suredIntDB", "suredIntTK"],
+    logo: "/suRed/home/BOTON-MUNDO.png",
     aria: "Comenzar con Alpina",
-  },
-  {
-    k: "macpollo",
-    logo: "/fenalco/inicio/macpollo_logo.webp",
-    aria: "Comenzar con Mac Pollo",
   },
 ];
 
-// Helper para obtener la configuración de una marca por su key
-export const getBrandConfig = (brandKey: string | null): BrandConfig | null => {
+// Helper para obtener la configuración de una marca por su key (Opcional: Si lo sigues usando en otras partes)
+export const getBrandConfig = (brandKey: BrandKey | null): BrandConfig | null => {
   if (!brandKey) return null;
+  // Busca si el brandKey está incluido en el array 'k' de alguna BrandConfig
   return (
-    BRANDS.find((b) => b.k === brandKey || b.k === brandKey.replace("-", "")) ||
+    BRANDS.find((b) => b.k.includes(brandKey)) ||
     null
   );
 };
@@ -43,12 +42,19 @@ export default function Landing({
 }: {
   onStart: (brand: BrandKey) => void;
 }) {
-  const handleStart = (brand: BrandKey) => {
+  // Ahora handleStart recibe el array de posibles BrandKey
+  const handleStart = (possibleBrands: BrandKey[]) => {
+    // 1. Escoge una clave aleatoria del array
+    const selectedBrand = getRandomElement(possibleBrands);
+
+    // 2. Modifica la URL con la clave aleatoria
     const params = new URLSearchParams(window.location.search);
-    params.set("brand", brand.replace("-", ""));
+    params.set("brand", selectedBrand.replace("-", ""));
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", newUrl);
-    onStart(brand);
+    
+    // 3. Llama a onStart con la clave aleatoria
+    onStart(selectedBrand);
   };
 
   return (
@@ -102,12 +108,12 @@ export default function Landing({
           >
             {BRANDS.map((b) => (
               <article
-                key={b.k}
+                key={b.k.join(',')} // Usamos el array unido como key
                 role="button"
                 tabIndex={0}
                 aria-label={b.aria}
                 title={b.aria}
-                onClick={() => handleStart(b.k)}
+                onClick={() => handleStart(b.k)} // Pasamos el array 'k' al handler
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") handleStart(b.k);
                 }}
@@ -124,32 +130,16 @@ export default function Landing({
               >
                 {/* Contenedor con padding para que el logo nunca toque bordes */}
                 <div className="flex w-full items-center justify-center overflow-hidden">
-                  {/* Altura adaptable sin recorte; en móvil 4/3, en iPad cuadrado */}
-                  <div className="w-full">
-                    <div className="relative w-full aspect-[4/3] md:aspect-square">
+  <div className="w-full flex justify-between">
+    <div className=" w-full flex justify-center  md:aspect-square">
+      <div className=" absolute flex items-center justify-center  rounded-[30px]">
                       <img
                         src={b.logo}
                         alt={b.aria}
-                        className="
-                          bg-white
-                          absolute inset-0 w-full h-full
-                          object-contain
-                        "
+          className=" object-contain"
                         draggable={false}
-                        style={{
-                          borderRadius: "30px",
-                          paddingLeft:
-                            b.logo?.includes("macpollo") ||
-                            b.logo?.includes("colombina")
-                              ? "20px"
-                              : "0",
-                          paddingRight:
-                            b.logo?.includes("macpollo") ||
-                            b.logo?.includes("colombina")
-                              ? "20px"
-                              : "0",
-                        }}
-                      />
+        />
+      </div>
                     </div>
                   </div>
                 </div>

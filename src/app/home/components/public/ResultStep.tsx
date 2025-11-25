@@ -82,7 +82,7 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
     try {
       const [baseImg, frameImg] = await Promise.all([
         loadImage(aiUrl),
-        loadImage("/suRed/MARCO_UM_RECUERDO.png"),
+        loadImage("/fenalco/MARCO_EMB_MARCA_1024x1024.png"),
       ]);
 
       const size = 1024;
@@ -133,15 +133,11 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
       }}
     >
       {/* Contenido principal */}
-
-      <main className="flex-1 w-full flex flex-col items-center gap-5 mt-10 px-4">
-        {/* Media IA con marco visible - MÁS GRANDE (formato póster) */}
+      <main className="flex-1 w-full flex flex-col items-center gap-5 mt-6">
+        {/* Media IA con marco visible */}
         <div
-          className="
-      relative overflow-hidden rounded-2xl shadow-xl bg-black/5
-      aspect-[9/16] w-[clamp(360px,62vmin,1200px)]
-      max-h-[calc(100svh-180px)]
-    "
+          className="relative overflow-hidden rounded-2xl shadow-xl bg-black/5 aspect-square"
+          style={{ width: SIZE_IMG }}
         >
           {/* Imagen o video IA */}
           {isVideo ? (
@@ -151,41 +147,47 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
               loop
               controls
               playsInline
-              className="absolute inset-0 w-full h-full object-cover select-none z-10"
+              className="absolute inset-0 w-full h-full object-contain select-none"
             />
           ) : (
             <img
               src={aiUrl}
               alt="Imagen generada por IA"
-              className="absolute inset-0 w-full h-full object-cover select-none z-10"
+              className="absolute inset-0 w-full h-full object-contain select-none"
               draggable={false}
             />
           )}
 
-          {/* Marco superpuesto (debajo del QR) */}
-          <img
-            src="/suRed/MARCO_UM_RECUERDO.png"
+          {/* Marco superpuesto */}
+          {/* <img
+            src="/fenalco/MARCO_EMB_MARCA_1024x1024.png"
             alt="Marco decorativo"
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none z-20"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
             draggable={false}
+          /> */}
+        </div>
+
+        {/* QR (sin marco) */}
+        <div className="rounded-xl flex items-center justify-center aspect-square z-10">
+          <QrTag value={surveyAI} size={150}/>
+        </div>
+
+        {/* Botones */}
+        <div className="pt-4 flex flex-row items-center justify-center">
+          <ButtonPrimary
+            onClick={onAgain}
+            label="NUEVA FOTO"
+            width={190}
+            height={50}
           />
-
-          {/* QR superpuesto (encima de TODO) */}
+          <ButtonPrimary
+            onClick={handleDownload}
+            label={isVideo ? "DESCARGAR VIDEO" : "DESCARGAR FOTO"}
+            width={190}
+            height={50}
+          />
         </div>
-
-        {/* (Opcional) Si ya sobrepones el QR, puedes remover este bloque inferior
-  <div className="rounded-xl flex items-center justify-center aspect-square z-10">
-    <QrTag value={surveyAI} />
-  </div>
-  */}
       </main>
-      <div className="absolute left-1/2 -translate-x-1/2 z-30 bottom-[min(18%)]">
-        <div className="rounded-2xl bg-white p-3 shadow-2xl ring-1 ring-black/10">
-          <div className="w-[clamp(160px,22vmin,280px)]">
-            <QrTag value={surveyAI} />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
