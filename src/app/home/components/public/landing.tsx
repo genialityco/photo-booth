@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 /* app/components/Landing.tsx */
 "use client";
+import ButtonPrimary from "@/app/items/ButtonPrimary";
 import React from "react";
 
 type BrandKey = "suredColBog" | "suredColMed" | "suredColHui" | "suredIntNY" | "suredIntDB" |"suredIntTK";
@@ -75,7 +76,7 @@ export default function Landing({
       />
 
       {/* Contenido */}
-      <div className="mx-auto flex min-h-[100svh] max-w-[980px] flex-col items-center">
+      <div className="mx-auto flex min-h-[100svh] max-w-[700px] flex-col items-center">
         {/* Título/Logo */}
         <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
           <img
@@ -92,18 +93,18 @@ export default function Landing({
           />
         </div>
 
-        {/* Texto guía (exacto) */}
-        <h1 className="mt-4 sm:mt-6 text-center text-base sm:text-lg md:text-xl font-semibold text-white drop-shadow-md">
+        {/* Texto guía */}
+        {/* <h1 className="mt-4 sm:mt-6 text-center text-base sm:text-lg md:text-xl font-semibold text-white drop-shadow-md">
           ¡Escoge una de estas queridas marcas!
-        </h1>
+        </h1> */}
 
-        {/* Grid: 2 cols en mobile, 3 en iPad+ */}
+        {/* Grid con SOLO 2 cards visibles */}
         <div className="mt-5 sm:mt-7 w-full px-5 sm:px-6 md:px-8">
           <div
             className="
               grid gap-3 sm:gap-4 md:gap-5
               grid-cols-2
-              md:grid-cols-3
+              md:grid-cols-2
             "
           >
             {BRANDS.map((b) => (
@@ -149,11 +150,11 @@ export default function Landing({
         </div>
 
         {/* Footer */}
-        <div className="mt-auto w-full px-5 sm:px-6 md:px-8 pb-3 sm:pb-4 md:pb-6">
+        <div className="mt-auto w-full px-5 sm:px-6 md:px-8 pb-3 sm:pb-4 md:pb-6 relative -top-20">
           <img
             src="/suRed/home/COPY-FOOTER.png"
             alt="Logos Footer"
-            className="mx-auto w-full max-w-[980px] select-none"
+            className="mx-auto w-full max-w-full select-none"
             draggable={false}
           />
         </div>
