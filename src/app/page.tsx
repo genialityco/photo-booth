@@ -8,9 +8,9 @@ type BrandKey = "suredColHui" | "suredColBog" | "suredColMed" | "suredIntNY";
 
 export default function AppRoot() {
   const [enabledCamara, setEnabledCamara] = React.useState(false);
-  const [, setBrand] = React.useState<BrandKey | null>(null);
+  const [, setBrand] = React.useState<string | null>(null);
 
-  const handleStart = (selected: BrandKey) => {
+  const handleStart = (selected: string) => {
     setBrand(selected);
     setEnabledCamara(true); // activa cámara o vista principal
   };
