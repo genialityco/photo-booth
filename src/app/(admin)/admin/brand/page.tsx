@@ -27,7 +27,7 @@ const columns = [
     key: "basePrompt",
     label: "Prompt",
     sortable: false,
-    className: "truncate w-fit max-w-md",
+    className: "truncate w-fit max-w-md text-black",
     render: (item: PhotoBoothPrompt, value: string) => value,
   },
   {

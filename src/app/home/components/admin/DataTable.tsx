@@ -683,7 +683,7 @@ export default function GenericDataTable<T = any>({
                     {columns.map(column => {
                       const value = getNestedValue(item, column.key);
                       return (
-                        <td key={column.key} className={`px-6 py-4 ${column.className || ''}`}>
+                        <td key={column.key} className={`px-6 py-4 text-black ${column.className || ''}`}>
                           {column.render ? (
                             column.render(item, value)
                           ) : (
