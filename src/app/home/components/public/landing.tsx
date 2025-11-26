@@ -1,55 +1,59 @@
-/* eslint-disable @next/next/no-img-element */
-/* app/components/Landing.tsx */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import ButtonPrimary from "@/app/items/ButtonPrimary";
-import React from "react";
+import { useEffect, useState } from "react";
+import { QueryDocumentSnapshot } from "firebase/firestore";
+import {
+  createPhotoBoothPrompt,
+  deletePhotoBoothPrompt,
+  getPhotoBoothPrompts,
+  getPhotoBoothPromptsHome,
+  PhotoBoothPrompt,
+  updatePhotoBoothPrompt,
+} from "@/app/services/brandService";
 
-// type BrandKey =
-//   | "suredColBog"
-//   | "suredColMed"
-//   | "suredColHui"
-//   | "suredIntNY"
-//   | "suredIntDB"
-//   | "suredIntTK";
-// // Actualizamos BrandConfig para que 'k' sea un array de BrandKey
-type BrandConfig = { k: string[]; logo: string; aria: string };
 
-// Función auxiliar para obtener un elemento aleatorio de un array
-const getRandomElement = <T,>(arr: T[]): T => {
-  const randomIndex = Math.floor(Math.random() * arr.length);
-  return arr[randomIndex];
-};
-
-// Actualizamos BRANDS con un array de BrandKey en la propiedad 'k'
-export const BRANDS: BrandConfig[] = [
+const columns = [
   {
-    k: ["suredColBog", "suredColMed", "suredColHui"],
-    logo: "/suRed/home/BOTON-COLOMBIA.png",
-    aria: "COLOMBIA",
+    key: "brand",
+    label: "Brand",
+    sortable: true,
+    render: (item: PhotoBoothPrompt, value: string) => <strong>{value}</strong>,
   },
-  {
-    k: ["suredIntNY", "suredIntDB", "suredIntTK"],
-    logo: "/suRed/home/BOTON-MUNDO.png",
-    aria: "MUNDO",
-  },
+ 
 ];
 
-// Helper para obtener la configuración de una marca por su key (Opcional: Si lo sigues usando en otras partes)
-export const getBrandConfig = (brandKey: string): BrandConfig | null => {
-  if (!brandKey) return null;
-  // Busca si el brandKey está incluido en el array 'k' de alguna BrandConfig
-  return BRANDS.find((b) => b.k.includes(brandKey)) || null;
-};
+interface PaginationState {
+  currentPage: number;
+  totalPages: number | null;
+  pages: Array<{
+    pageNumber: number;
+    lastDoc: QueryDocumentSnapshot | null;
+  }>;
+}
 
-export default function Landing({
+
+
+   export default function Landing({
   onStart,
 }: {
   onStart: (brand: string) => void;
 }) {
+    const [prompts, setPrompts] = useState<PhotoBoothPrompt[]>([]);
+  const [color, setColor] = useState<string | null>(null);
+  const [pagination, setPagination] = useState<PaginationState>({
+    currentPage: 1,
+    totalPages: null,
+    pages: [{ pageNumber: 1, lastDoc: null }],
+  });
+
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [totalElements, setTotalElements] = useState<number>(0);
+  const pageSize = 10;
+
   // Ahora handleStart recibe el array de posibles BrandKey
-  const handleStart = (possibleBrands: string[]) => {
+  const handleStart = (selectedBrand: string) => {
     // 1. Escoge una clave aleatoria del array
-    const selectedBrand = getRandomElement(possibleBrands);
+    
 
     // 2. Modifica la URL con la clave aleatoria
     const params = new URLSearchParams(window.location.search);
@@ -60,117 +64,131 @@ export default function Landing({
     // 3. Llama a onStart con la clave aleatoria
     onStart(selectedBrand);
   };
+ const loadPrompts = async (
+    lastDocParam: QueryDocumentSnapshot | null = null,
+    pageNumber: number = 1
+  ) => {
+    
+    try {
+      const result = await getPhotoBoothPromptsHome();
+      setPrompts(result);
+      
+      const calculatedTotalPages = Math.ceil(totalElements / pageSize);
 
-  return (
+      setTotalPages(calculatedTotalPages);
+      setTotalElements(totalElements);
+
+     
+
+      console.log("Loaded prompts:", result);
+    } catch (error) {
+      console.error("Error loading prompts:", error);
+    } finally {
+     
+    }
+  };
+
+  useEffect(() => {
+    loadPrompts();
+  }, []);
+
+ 
+
+
+
+
+
+
+
+return (
+  <div
+    className="relative min-h-[100svh] w-full overflow-hidden"
+    style={{
+      paddingTop: "max(12px, env(safe-area-inset-top))",
+      paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+    }}
+  >
+
+    {/* Fondo */}
     <div
-      className="relative min-h-[100svh] w-full overflow-hidden"
+      className="fixed inset-0 -z-10 bg-cover bg-center brightness-[0.92]"
       style={{
-        paddingTop: "max(12px, env(safe-area-inset-top))",
-        paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+        backgroundImage: "url('suRed/home/FONDO_UNIENDO-AL-MUNDO_HOME.jpg')",
       }}
-    >
-      {/* Fondo */}
-      <div
-        className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{
-          backgroundImage: "url('suRed/home/FONDO_UNIENDO-AL-MUNDO_HOME.jpg')",
-        }}
-        aria-hidden
-      />
+      aria-hidden
+    />
 
-      {/* Contenido */}
-      <div className="mx-auto flex min-h-[100svh] max-w-[700px] flex-col items-center">
-        {/* Título/Logo */}
-        <div className="w-full px-5 sm:px-6 md:px-6 pt-3 sm:pt-4 md:pt-6 md:mt-8">
-          <img
-            src="/suRed/home/LOGOS-JUNTOS.png"
-            alt="LOGOS SURED"
-            className="mx-auto w-full max-w-[520px] select-none"
-            draggable={false}
-          />
-          <img
-            src="/suRed/home/TITULO-UNIENDO-AL-MUNDO.png"
-            alt="UNIENDO AL MUNDO"
-            className="mx-auto w-full max-w-[800px] select-none"
-            draggable={false}
-          />
-        </div>
+    {/* Contenido */}
+    <div className="mx-auto flex min-h-[100svh] max-w-[700px] flex-col items-center">
 
-        {/* Texto guía */}
-        {/* <h1 className="mt-4 sm:mt-6 text-center text-base sm:text-lg md:text-xl font-semibold text-white drop-shadow-md">
-          ¡Escoge una de estas queridas marcas!
-        </h1> */}
+      {/* Logo + Título */}
+      <div className="w-full px-6 pt-6 md:pt-10">
+        <img
+          src="/suRed/home/LOGOS-JUNTOS.png"
+          alt="LOGOS SURED"
+          className="mx-auto w-full max-w-[480px] select-none drop-shadow-lg"
+          draggable={false}
+        />
+        <img
+          src="/suRed/home/TITULO-UNIENDO-AL-MUNDO.png"
+          alt="UNIENDO AL MUNDO"
+          className="mx-auto mt-3 w-full max-w-[720px] select-none drop-shadow-md"
+          draggable={false}
+        />
+      </div>
 
-        {/* Grid con SOLO 2 cards visibles */}
-        <div className="mt-5 sm:mt-20 w-full px-5 sm:px-6 md:px-6">
-          <div
-            className="
-              grid gap-3 sm:gap-4 md:gap-5
-              grid-cols-2
-              md:grid-cols-2
+      {/* Texto guía */}
+      <h1 className="mt-10 text-center text-lg md:text-xl font-semibold text-white drop-shadow-xl tracking-wide">
+        Selecciona una marca para comenzar
+      </h1>
 
-            "
-          >
-            {BRANDS.map((b) => (
-              <article
-                key={b.k.join(",")}
-                role="button"
-                tabIndex={0}
-                aria-label={b.aria}
-                title={b.aria}
-                onClick={() => handleStart(b.k)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") handleStart(b.k);
-                }}
-                className="
-                    group cursor-pointer select-none
-                    rounded-xl sm:rounded-2xl
-                    shadow-md sm:shadow-xl ring-1 ring-black/5
-                    transition-transform duration-150
-                    supports-[hover:hover]:hover:scale-[1.015]
-                    active:scale-[0.985]
-                    focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70
-                  "
-              >
-                <div className="flex w-full items-center justify-center overflow-hidden">
-                  <div className="w-full">
-                    <figure className="w-full">
-                      <div className="relative w-full aspect-[4/3] md:aspect-square overflow-hidden rounded-[65px]">
-                        <img
-                          src={b.logo}
-                          alt={b.aria}
-                          draggable={false}
-                          loading="lazy"
-                          className="absolute inset-0 h-full w-full object-contain"
-                        />
-                      </div>
+      {/* Grid de marcas */}
+      <div className="mt-8 w-full px-6">
+        <div className="grid grid-cols-2 gap-4 sm:gap-5">
 
-                      {/* botón centrado debajo de la imagen */}
-                      <figcaption className="mt-2 text-center">
-                        <ButtonPrimary
-                          label={b.aria}
-                          imageSrc="/suRed/home/BOTON.png"
-                          className="block mx-auto font-bold text-lg md:text-xl"
-                        />
-                      </figcaption>
-                    </figure>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
+          {prompts.map((b) => (
+            <article
+              key={b.brand}
+              role="button"
+              tabIndex={0}
+              title={b.brand}
+              onClick={() => handleStart(b.brand)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") handleStart(b.brand);
+              }}
+              className="
+                group cursor-pointer select-none
+                rounded-2xl p-5
+                bg-white/90 backdrop-blur-sm
+                border border-white/40
+                shadow-[0_6px_20px_rgba(0,0,0,0.15)]
+                transition-all duration-200
+                hover:scale-105 hover:shadow-[0_10px_24px_rgba(0,0,0,0.25)]
+                active:scale-95
+                text-center font-semibold text-gray-800
+              "
+            >
+              <div className="text-base sm:text-lg font-bold tracking-wide">
+                {b.brand}
+              </div>
+            </article>
+          ))}
 
-        {/* Footer */}
-        <div className="mt-auto w-full px-0 sm:px-2 md:px-4 pb-3 sm:pb-4 md:pb-6 relative -top-20">
-          <img
-            src="/suRed/home/COPY-FOOTER.png"
-            alt="Logos Footer"
-            className="mx-auto w-full select-none"
-            draggable={false}
-          />
         </div>
       </div>
+
+      {/* Footer */}
+      <div className="mt-auto w-full px-4 pb-4 md:pb-6 relative -top-20">
+        <img
+          src="/suRed/home/COPY-FOOTER.png"
+          alt="Footer Logos"
+          className="mx-auto w-full select-none drop-shadow"
+          draggable={false}
+        />
+      </div>
     </div>
-  );
+
+  </div>
+);
+
 }

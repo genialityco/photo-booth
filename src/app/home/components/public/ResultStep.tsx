@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-// import ButtonPrimary from "@/app/items/ButtonPrimary";
+import ButtonPrimary from "@/app/items/ButtonPrimary";
 import QrTag from "./QrTag";
 
 type Props = {
@@ -12,47 +12,20 @@ type Props = {
   footer?: React.ReactNode;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-
-  // Detectar si la URL es de video o imagen
-  const isVideo = useMemo(() => {
-    const lower = aiUrl.toLowerCase();
-    if (
-      lower.includes(".mp4") ||
-      lower.includes(".webm") ||
-      lower.includes(".mov")
-    ) {
-      return true;
-    }
-    if (
-      lower.includes(".png") ||
-      lower.includes(".jpg") ||
-      lower.includes(".jpeg") ||
-      lower.includes(".webp")
-    ) {
-      return false;
-    }
-    // Si no se puede inferir, y tu backend ahora genera video, asumimos video
-    return true;
-  }, [aiUrl]);
-
+ 
   const surveyAI = useMemo(() => {
     const url = new URL(`${origin}/survey`);
     url.searchParams.set("src", aiUrl);
-    url.searchParams.set("kind", isVideo ? "video" : "raw");
-    url.searchParams.set(
-      "filename",
-      `foto-ia-${taskId}.${isVideo ? "mp4" : "png"}`
-    );
+    url.searchParams.set("kind", "raw");
+    url.searchParams.set("filename", `foto-ia-${taskId}.png`);
     return url.toString();
-  }, [origin, aiUrl, taskId, isVideo]);
+  }, [origin, aiUrl, taskId]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const SIZE_IMG = "clamp(260px, min(70vw, 60svh), 520px)";
 
-  // === Helper para cargar imágenes con soporte CORS (solo se usa en modo imagen) ===
+  // === Helper para cargar imágenes con soporte CORS ===
   const loadImage = (src: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
       const img = new Image();
@@ -62,30 +35,12 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
       img.src = src;
     });
 
-  // === Descargar: video directo o imagen compuesta con marco ===
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // === Descargar imagen compuesta con marco ===
   const handleDownload = async () => {
-    // MODO VIDEO: descarga el archivo tal cual
-    if (isVideo) {
-      try {
-        const a = document.createElement("a");
-        a.href = aiUrl;
-        a.download = `video-ia-${taskId}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      } catch (err) {
-        console.error("Error descargando el video:", err);
-        alert("No se pudo descargar el video. Inténtalo nuevamente.");
-      }
-      return;
-    }
-
-    // MODO IMAGEN: compone en canvas con el marco
     try {
       const [baseImg, frameImg] = await Promise.all([
         loadImage(aiUrl),
-        loadImage("/suRed/MARCO_UM_RECUERDO.png"),
+        loadImage("/fenalco/MARCO_EMB_MARCA_1024x1024.png"),
       ]);
 
       const size = 1024;
@@ -136,59 +91,49 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
       }}
     >
       {/* Contenido principal */}
-
-      <main className="flex-1 w-full flex flex-col items-center gap-5 mt-10 px-4">
-        {/* Media IA con marco visible - MÁS GRANDE (formato póster) */}
+      <main className="flex-1 w-full flex flex-col items-center gap-5 mt-6">
+        {/* Imagen IA con marco visible */}
         <div
-          className="
-      relative overflow-hidden rounded-2xl shadow-xl bg-black/5
-      aspect-[9/16] w-[clamp(360px,62vmin,1200px)]
-      max-h-[calc(100svh-180px)]
-    "
+          className="relative overflow-hidden rounded-2xl shadow-xl bg-black/5 aspect-square"
+          style={{ width: SIZE_IMG }}
         >
-          {/* Imagen o video IA */}
-          {isVideo ? (
-            <video
-              src={aiUrl}
-              autoPlay
-              loop
-              controls
-              playsInline
-              className="absolute inset-0 w-full h-full object-cover select-none z-10"
-            />
-          ) : (
-            <img
-              src={aiUrl}
-              alt="Imagen generada por IA"
-              className="absolute inset-0 w-full h-full object-cover select-none z-10"
-              draggable={false}
-            />
-          )}
-
-          {/* Marco superpuesto (debajo del QR) */}
-          {/* <img
-            src="/suRed/MARCO_UM_RECUERDO.png"
-            alt="Marco decorativo"
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none z-20"
+          {/* Imagen IA */}
+          <img
+            src={aiUrl}
+            alt="Imagen generada por IA"
+            className="absolute inset-0 w-full h-full object-contain select-none"
             draggable={false}
-          /> */}
-
-          {/* QR superpuesto (encima de TODO) */}
+          />
+          {/* Marco superpuesto */}
+          <img
+            src="/fenalco/MARCO_EMB_MARCA_1024x1024.png"
+            alt="Marco decorativo"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+            draggable={false}
+          />
         </div>
 
-        {/* (Opcional) Si ya sobrepones el QR, puedes remover este bloque inferior
-  <div className="rounded-xl flex items-center justify-center aspect-square z-10">
-    <QrTag value={surveyAI} />
-  </div>
-  */}
+        {/* QR (sin marco) */}
+        <div className="rounded-xl flex items-center justify-center aspect-square z-10">
+          <QrTag value={surveyAI} />
+        </div>
+
+        {/* Botones */}
+        <div className="pt-4 flex flex-row items-center justify-center">
+          <ButtonPrimary
+            onClick={onAgain}
+            label="NUEVA FOTO"
+            width={190}
+            height={50}
+          />
+          <ButtonPrimary
+            onClick={handleDownload}
+            label="DESCARGAR FOTO"
+            width={190}
+            height={50}
+          />
+        </div>
       </main>
-      <div className="absolute left-1/2 -translate-x-1/2 z-30 bottom-[min(18%)]">
-        <div className="rounded-2xl bg-white p-3 shadow-2xl ring-1 ring-black/10">
-          <div className="w-[clamp(160px,22vmin,280px)]">
-            <QrTag value={surveyAI} />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

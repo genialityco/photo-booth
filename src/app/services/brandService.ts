@@ -148,6 +148,7 @@ export async function getPhotoBoothPrompts(
         // 📌 Query base (aquí podrías añadir where() para filtros)
         const baseQ = query(
             collection(db, PHOTO_BOOTH_PROMPTS_COLLECTION),
+            where('active', '==', true),
             orderBy("createdAt", "desc")
         );
 
@@ -184,6 +185,48 @@ export async function getPhotoBoothPrompts(
             lastDoc: docs.length > 0 ? docs[docs.length - 1] : null,
             total
         };
+    } catch (error) {
+        console.error("Error getting prompts:", error);
+        throw new Error("Error al obtener los prompts");
+    }
+}
+
+export async function getPhotoBoothPromptsHome(
+  
+): Promise<PhotoBoothPrompt[]> {
+    try {
+       
+
+        // 📌 Query base (aquí podrías añadir where() para filtros)
+        const baseQ = query(
+            collection(db, PHOTO_BOOTH_PROMPTS_COLLECTION),
+            where('active', '==', true),
+            orderBy("createdAt", "desc")
+        );
+
+        let q = baseQ;
+
+        // Si hay cursor, aplicar startAfter
+     
+
+        // 📌 Obtener los docs de la página
+        const snapshot = await getDocs(q);
+        const docs = snapshot.docs;
+
+        // 📌 Obtener el total usando el mismo query base (con filtros, pero sin paginación)
+        const countSnap = await getCountFromServer(baseQ);
+       
+
+        // Determinar si hay siguiente página
+      
+
+        // Si hay más de los que pedimos, quitamos el extra
+    
+
+        const data = docs.map(mapDocToPrompt);
+
+        return data
+           
     } catch (error) {
         console.error("Error getting prompts:", error);
         throw new Error("Error al obtener los prompts");

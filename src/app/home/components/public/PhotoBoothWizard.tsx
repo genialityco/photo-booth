@@ -10,7 +10,7 @@ import ResultStep from "./ResultStep";
 import ButtonPrimary from "@/app/items/ButtonPrimary";
 import { useSearchParams } from "next/navigation";
 import { db } from "@/firebaseConfig";
-import { getBrandConfig } from "./landing";
+
 import {
   getStorage,
   ref,
@@ -107,7 +107,7 @@ export default function PhotoBoothWizard({
       const framedDownloadUrl = await getDownloadURL(inputRef);
       setFramedUrl(framedDownloadUrl);
 
-      const taskRef = doc(collection(db, "videoTasks"), newTaskId);
+      const taskRef = doc(collection(db, "imageTasks"), newTaskId);
       await setDoc(taskRef, {
         status: "queued",
         inputPath,
@@ -201,26 +201,7 @@ export default function PhotoBoothWizard({
           {step === "init" && (
             <div className="flex flex-col items-center justify-center gap-8 md:scale-[1.7]">
               {/* Tarjeta seleccionada */}
-              {brand && getBrandConfig(brand) && (
-                <div
-                  className="
-      rounded-[30px]
-      shadow-lg
-      p-6
-    "
-                >
-                  <img
-                    src={
-                      brand.startsWith("suredInt")
-                        ? "/suRed/home/MUNDO-HABILIATAR-CAMARA.png"
-                        : "/suRed/home/MUNDO-COLOMBIA-HABILIATAR-CAMARA.png"
-                    }
-                    alt={getBrandConfig(brand)!.aria}
-                    className="h-auto w-100 select-none object-contain drop-shadow-xl"
-                    draggable={false}
-                  />
-                </div>
-              )}
+             
               <ButtonPrimary
                 {...{ onClick: () => setStep("capture") }}
                 label="HABILITAR CAMARA"
