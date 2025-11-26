@@ -152,9 +152,9 @@ return (
               role="button"
               tabIndex={0}
               title={b.brand}
-              onClick={() => handleStart(b.brand)}
+              onClick={() => handleStart(b.brand || "default")}
               onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") handleStart(b.brand);
+                if (e.key === "Enter" || e.key === " ") handleStart(b.brand || "default");
               }}
               className="
                 group cursor-pointer select-none
