@@ -9,7 +9,8 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { GoogleGenAI } from "@google/genai";
 import axios from "axios";
 import sharp from "sharp";
-import { GoogleAuth } from "google-auth-library"
+import RunwayML, { TaskFailedError } from "@runwayml/sdk";
+//import { GoogleAuth } from "google-auth-library"
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import * as os from 'os';
@@ -66,13 +67,13 @@ interface PromptDoc {
 const CACHE_DURATION_MS = 60 * 1000; // 60 segundos
 const promptCache = new Map<string, CachedPrompt>();
 const brandedPromptCache = new Map<string, { value: { basePrompt: string; colorDirectiveTemplate?: string; color?: string; logoPath?: string, logoPrompt?: string}; expiresAt: number }>();
-const VERTEX_PROJECT_ID = "lenovo-experiences"; // Usar tu ID de proyecto
-const VERTEX_LOCATION = "us-central1"; // Usar la región adecuada
-const VERTEX_MODEL_ID = "veo-3.1-fast-generate-preview"; // El modelo Veo en Vertex AI
-const TAG1 = "predictLongRunning"
-const TAG2 = "fetchPredictOperation"
-const VERTEX_API_BASE_URL = `https://${VERTEX_LOCATION}-aiplatform.googleapis.com/v1/projects/${VERTEX_PROJECT_ID}/locations/${VERTEX_LOCATION}/publishers/google/models/${VERTEX_MODEL_ID}:${TAG1}`;
-const VERTEX_API_BASE_URL_FETCH = `https://${VERTEX_LOCATION}-aiplatform.googleapis.com/v1/projects/${VERTEX_PROJECT_ID}/locations/${VERTEX_LOCATION}/publishers/google/models/${VERTEX_MODEL_ID}:${TAG2}`;
+// const VERTEX_PROJECT_ID = "lenovo-experiences"; // Usar tu ID de proyecto
+// const VERTEX_LOCATION = "us-central1"; // Usar la región adecuada
+// const VERTEX_MODEL_ID = "veo-3.1-fast-generate-preview"; // El modelo Veo en Vertex AI
+// const TAG1 = "predictLongRunning"
+// const TAG2 = "fetchPredictOperation"
+//const VERTEX_API_BASE_URL = `https://${VERTEX_LOCATION}-aiplatform.googleapis.com/v1/projects/${VERTEX_PROJECT_ID}/locations/${VERTEX_LOCATION}/publishers/google/models/${VERTEX_MODEL_ID}:${TAG1}`;
+//const VERTEX_API_BASE_URL_FETCH = `https://${VERTEX_LOCATION}-aiplatform.googleapis.com/v1/projects/${VERTEX_PROJECT_ID}/locations/${VERTEX_LOCATION}/publishers/google/models/${VERTEX_MODEL_ID}:${TAG2}`;
 // Función para limpiar cache expirado
 function cleanExpiredCache() {
   const now = Date.now();
@@ -351,6 +352,7 @@ export const getCacheStats = onRequest(
 
 // Define tu secret para Gemini API Key
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+const RUNWAY_API_KEY = defineSecret("RUNWAY_API_KEY");
 
 
 async function downloadAndConvertLogo(
@@ -737,11 +739,302 @@ async function addFrameToVideo(
 
 
 
-export const processVideoTask = onDocumentCreated(
+// export const processVideoTask = onDocumentCreated(
+//   {
+//     document: "videoTasks/{taskId}",
+//     region: VERTEX_LOCATION,
+//     timeoutSeconds: 540,
+//     memory: "2GiB",
+//   },
+//   async (event) => {
+//     const snap = event.data;
+//     if (!snap) return;
+
+//     const taskId = event.params.taskId;
+//     const db = getFirestore();
+//     const bucket = getStorage().bucket();
+//     const docRef = db.collection("videoTasks").doc(taskId);
+//     const data = snap.data();
+
+//     // Prompts y logos
+//     let PROMPT = DEFAULT_PROMPT;
+//     let LOGO_URL = "";
+
+//     if (data?.brand) {
+//       const promptData = await buildPromptWithBrand({
+//         brand: data.brand,
+//         color: data.color,
+//       });
+
+//       PROMPT = promptData.prompt;
+//       LOGO_URL = promptData.logoPath || "";
+//     }
+
+//     if (!data?.inputPath) {
+//       await docRef.update({
+//         status: "error",
+//         error: "Falta inputPath",
+//         updatedAt: Date.now(),
+//       });
+//       return;
+//     }
+
+//     try {
+//       await docRef.update({
+//         status: "processing",
+//         updatedAt: Date.now(),
+//       });
+
+//       // Descargar la imagen input
+//       const file = bucket.file(data.inputPath);
+//       const [meta] = await file.getMetadata().catch(() => [
+//         { contentType: "application/octet-stream" },
+//       ]);
+//       const [fileBuf] = await file.download();
+
+//       const bytes = new Uint8Array(fileBuf);
+//       const byteLen = bytes.byteLength;
+//       const mime = (meta?.contentType || "image/png").startsWith("image/")
+//         ? meta!.contentType
+//         : "image/png";
+
+//       const base64Image = Buffer.from(bytes).toString("base64");
+
+//       // Descargar logo si existe
+//       let base64Logo: string | null = null;
+
+//       if (LOGO_URL) {
+//         const logoData = await downloadAndConvertLogo(LOGO_URL);
+//         if (logoData) {
+//           base64Logo = logoData.base64;
+//         }
+//       }
+
+//       await docRef.update({
+//         debug: {
+//           inputPath: data.inputPath,
+//           mime,
+//           byteLen,
+//           prompt: PROMPT,
+//           hasLogo: !!base64Logo,
+//           logoUrl: LOGO_URL || null,
+//         },
+//       });
+
+//       // Llamar a Vertex AI VEO 3.1 con REST y axios
+//       const auth = new GoogleAuth({
+//         scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+//       });
+//       const authToken = await auth.getAccessToken();
+
+//       const VERTEX_OUTPUT_GCS_BUCKET = `gs://${bucket.name}`;
+//       const outputGcsPath = `veo-output/${taskId}/`;
+//       const outputGcsUri = `${VERTEX_OUTPUT_GCS_BUCKET}/${outputGcsPath}`;
+
+//       const instances: any[] = [
+//         {
+//           prompt: PROMPT,
+//           image: {
+//             bytesBase64Encoded: base64Image,
+//             mimeType: mime,
+//           },
+//         },
+//       ];
+
+//       const payload = {
+//         instances: instances,
+//         parameters: {
+//           aspectRatio: "9:16",
+//           generateAudio: false,
+//           sampleCount: 1,
+//           durationSeconds: 4,
+//           resolution: "720p",
+//           storageUri: outputGcsUri,
+//           negativePrompt: "imagen original en el video final",
+//         },
+//       };
+
+//       console.log("authToken", authToken);
+//       console.log("Payload enviado a Vertex AI:", JSON.stringify(payload, null, 2));
+
+//       // Llamar al endpoint Long Running Operation (LRO)
+//       const veoResponse = await axios.post(VERTEX_API_BASE_URL, payload, {
+//         headers: {
+//           Authorization: `Bearer ${authToken}`,
+//           "Content-Type": "application/json",
+//         },
+//       });
+
+//       const operationName = veoResponse.data.name;
+//       await docRef.update({
+//         vertexName: operationName,
+//         updatedAt: Date.now(),
+//       });
+
+//       // Sondear el estado de la LRO hasta que se complete
+//       let isDone = false;
+//       let finalResult: any = null;
+//       let attempt = 0;
+//       const MAX_ATTEMPTS = 50;
+
+//       while (!isDone && attempt < MAX_ATTEMPTS) {
+//         await new Promise((resolve) => setTimeout(resolve, 10000)); // Esperar 10 segundos
+//         attempt++;
+
+//         const fetchPayload = {
+//           operationName: operationName,
+//         };
+
+//         const lroResponse = await axios.post(VERTEX_API_BASE_URL_FETCH, fetchPayload, {
+//           headers: {
+//             Authorization: `Bearer ${authToken}`,
+//           },
+//         });
+
+//         const lroData = lroResponse.data;
+//         isDone = !!lroData.done;
+
+//         if (isDone) {
+//           if (lroData.error) {
+//             throw new Error(`Vertex AI LRO failed: ${lroData.error.message}`);
+//           }
+//           finalResult = lroData.response;
+//         }
+//       }
+
+//       if (!isDone) {
+//         throw new Error("Vertex AI LRO Timeout: La operación no se completó a tiempo.");
+//       }
+
+//       console.log("Resultado final de LRO:", JSON.stringify(finalResult, null, 2));
+
+//       // Obtener y Descargar el video desde GCS/Firebase Storage
+//       const generatedFilePath = finalResult?.videos?.[0]?.gcsUri;
+
+//       if (!generatedFilePath) {
+//         throw new Error("Respuesta de LRO sin ruta GCS del video generado.");
+//       }
+
+//       const gcsFilePath = generatedFilePath.replace(VERTEX_OUTPUT_GCS_BUCKET + "/", "");
+//       console.log("Descargando video desde:", gcsFilePath);
+
+//       // Descargar el video generado
+//       const [fileContents] = await bucket.file(gcsFilePath).download();
+//       console.log("Video descargado, tamaño:", fileContents.length);
+
+//       // DESCARGAR LA IMAGEN DEL MARCO DESDE FIREBASE STORAGE
+//       let frameBuffer: Buffer | undefined;
+//       try {
+//         const frameFile = bucket.file('frames/MARCO_UM_RECUERDO.png');
+//         const [frameExists] = await frameFile.exists();
+        
+//         if (frameExists) {
+//           const [downloadedFrame] = await frameFile.download();
+//           frameBuffer = downloadedFrame;
+//           console.log('Marco descargado correctamente, tamaño:', frameBuffer.length);
+//         } else {
+//           console.warn('Imagen de marco no encontrada en: frames/MARCO_UM_RECUERDO.png');
+//         }
+//       } catch (frameError) {
+//         console.error('Error descargando marco:', frameError);
+//       }
+
+//       // AGREGAR MARCO AL VIDEO CON MANEJO DE ERRORES
+//       let videoWithFrame: Buffer;
+//       try {
+//         console.log('Iniciando proceso de agregar marco...');
+//         videoWithFrame = await addFrameToVideo(fileContents, {
+//           color: 'white',
+//           thickness: 30,
+//           frameImageBuffer: frameBuffer
+//         });
+//         console.log('Marco agregado exitosamente, tamaño final:', videoWithFrame.length);
+//       } catch (frameError) {
+//         console.error('Error agregando marco, usando video original:', frameError);
+//         videoWithFrame = fileContents; // Usar video original si falla
+//       }
+
+//       // Convertir a base64
+//       const generatedVideoData = videoWithFrame.toString("base64");
+
+//       // Opcional: eliminar archivo temporal de Vertex AI
+//       try {
+//         await bucket.file(gcsFilePath).delete();
+//         console.log('Archivo temporal eliminado de GCS');
+//       } catch (deleteError) {
+//         console.warn('No se pudo eliminar archivo temporal:', deleteError);
+//       }
+
+//       if (!generatedVideoData) {
+//         await docRef.update({
+//           status: "error",
+//           error: "No se pudo procesar el video generado",
+//           updatedAt: Date.now(),
+//         });
+//         return;
+//       }
+
+//       // Guardar video en Firebase Storage
+//       const outPath = `video/task/${taskId}/output.mp4`;
+//       const outBuf = Buffer.from(generatedVideoData, "base64");
+//       const token = randomUUID();
+
+//       console.log('Guardando video final en Firebase Storage...');
+//       await bucket.file(outPath).save(outBuf, {
+//         contentType: "video/mp4",
+//         resumable: false,
+//         metadata: {
+//           metadata: {
+//             firebaseStorageDownloadTokens: token,
+//           },
+//         },
+//       });
+
+//       console.log('Video guardado exitosamente en:', outPath);
+
+//       // Actualizar Documento
+//       const url = `https://firebasestorage.googleapis.com/v0/b/${
+//         bucket.name
+//       }/o/${encodeURIComponent(outPath)}?alt=media&token=${token}`;
+
+//       await docRef.update({
+//         status: "done",
+//         url,
+//         outputPath: outPath,
+//         updatedAt: Date.now(),
+//       });
+
+//       console.log('Proceso completado exitosamente');
+
+//     } catch (e: any) {
+//       console.error('Error en processVideoTask:', e);
+      
+//       const isQuotaError =
+//         e?.message?.includes("quota") ||
+//         e?.message?.includes("429") ||
+//         e?.response?.status === 429;
+
+//       await docRef.update({
+//         status: "error",
+//         error: isQuotaError
+//           ? "Error de quota: habilita billing en Google AI Studio o Vertex AI"
+//           : e?.message || "Error desconocido",
+//         errorType: isQuotaError ? "quota_exceeded" : "unknown",
+//         prompt: PROMPT,
+//         updatedAt: Date.now(),
+//         stackTrace: e?.stack?.substring(0, 500),
+//       });
+//     }
+//   }
+// );
+
+
+export const processVideoTaskRunway = onDocumentCreated(
   {
     document: "videoTasks/{taskId}",
-    region: VERTEX_LOCATION,
+    region: "us-central1",
     timeoutSeconds: 540,
+    secrets: [RUNWAY_API_KEY],
     memory: "2GiB",
   },
   async (event) => {
@@ -753,6 +1046,12 @@ export const processVideoTask = onDocumentCreated(
     const bucket = getStorage().bucket();
     const docRef = db.collection("videoTasks").doc(taskId);
     const data = snap.data();
+
+    // Inicializar cliente de RunwayML
+    const runwayClient = new RunwayML({
+      apiKey: RUNWAY_API_KEY.value(),
+    });
+
 
     // Prompts y logos
     let PROMPT = DEFAULT_PROMPT;
@@ -796,15 +1095,20 @@ export const processVideoTask = onDocumentCreated(
         ? meta!.contentType
         : "image/png";
 
+      // Convertir a data URI para RunwayML
       const base64Image = Buffer.from(bytes).toString("base64");
+      const dataUri = `data:${mime};base64,${base64Image}`;
 
-      // Descargar logo si existe
+      // Descargar logo si existe (opcional)
       let base64Logo: string | null = null;
-
       if (LOGO_URL) {
-        const logoData = await downloadAndConvertLogo(LOGO_URL);
-        if (logoData) {
-          base64Logo = logoData.base64;
+        try {
+          const logoResponse = await axios.get(LOGO_URL, {
+            responseType: "arraybuffer",
+          });
+          base64Logo = Buffer.from(logoResponse.data).toString("base64");
+        } catch (logoError) {
+          console.warn("Error descargando logo:", logoError);
         }
       }
 
@@ -819,164 +1123,111 @@ export const processVideoTask = onDocumentCreated(
         },
       });
 
-      // Llamar a Vertex AI VEO 3.1 con REST y axios
-      const auth = new GoogleAuth({
-        scopes: ["https://www.googleapis.com/auth/cloud-platform"],
-      });
-      const authToken = await auth.getAccessToken();
+      console.log("Iniciando generación de video con RunwayML...");
+      console.log("Prompt:", PROMPT);
 
-      const VERTEX_OUTPUT_GCS_BUCKET = `gs://${bucket.name}`;
-      const outputGcsPath = `veo-output/${taskId}/`;
-      const outputGcsUri = `${VERTEX_OUTPUT_GCS_BUCKET}/${outputGcsPath}`;
-
-      const instances: any[] = [
-        {
-          prompt: PROMPT,
-          image: {
-            bytesBase64Encoded: base64Image,
-            mimeType: mime,
-          },
-        },
-      ];
-
-      const payload = {
-        instances: instances,
-        parameters: {
-          aspectRatio: "9:16",
-          sampleCount: 1,
-          durationSeconds: 8,
-          storageUri: outputGcsUri,
-          negativePrompt: "imagen original en el video final",
-        },
-      };
-
-      console.log("authToken", authToken);
-      console.log("Payload enviado a Vertex AI:", JSON.stringify(payload, null, 2));
-
-      // Llamar al endpoint Long Running Operation (LRO)
-      const veoResponse = await axios.post(VERTEX_API_BASE_URL, payload, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          "Content-Type": "application/json",
-        },
+      // Crear tarea de imagen a video con RunwayML
+      const imageToVideoTask = await runwayClient.imageToVideo.create({
+        model: "gen3a_turbo",
+        promptImage: dataUri,
+        promptText: PROMPT,
+        ratio: "768:1280", // 9:16 para vertical
+        duration: 5, // 5 segundos
       });
 
-      const operationName = veoResponse.data.name;
+      // Guardar ID de tarea
       await docRef.update({
-        vertexName: operationName,
+        runwayTaskId: imageToVideoTask.id,
         updatedAt: Date.now(),
       });
 
-      // Sondear el estado de la LRO hasta que se complete
-      let isDone = false;
-      let finalResult: any = null;
-      let attempt = 0;
-      const MAX_ATTEMPTS = 50;
+      console.log("Tarea RunwayML creada:", imageToVideoTask.id);
+      console.log("Esperando completación...");
 
-      while (!isDone && attempt < MAX_ATTEMPTS) {
-        await new Promise((resolve) => setTimeout(resolve, 10000)); // Esperar 10 segundos
-        attempt++;
+      // Esperar a que la tarea se complete
+      const completedTask = await runwayClient.tasks.retrieve(
+        imageToVideoTask.id
+      );
 
-        const fetchPayload = {
-          operationName: operationName,
-        };
+      // Polling manual si es necesario
+      let task = completedTask;
+      let attempts = 0;
+      const MAX_ATTEMPTS = 60; // 10 minutos máximo (10s * 60)
 
-        const lroResponse = await axios.post(VERTEX_API_BASE_URL_FETCH, fetchPayload, {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        });
-
-        const lroData = lroResponse.data;
-        isDone = !!lroData.done;
-
-        if (isDone) {
-          if (lroData.error) {
-            throw new Error(`Vertex AI LRO failed: ${lroData.error.message}`);
-          }
-          finalResult = lroData.response;
+      while (task.status !== "SUCCEEDED" && attempts < MAX_ATTEMPTS) {
+        if (task.status === "FAILED" || task.status === "CANCELLED") {
+          throw new Error(
+            `RunwayML task failed with status: ${task.status}`
+          );
         }
+
+        await new Promise((resolve) => setTimeout(resolve, 10000)); // Esperar 10s
+        task = await runwayClient.tasks.retrieve(imageToVideoTask.id);
+        attempts++;
+
+        console.log(`Intento ${attempts}/${MAX_ATTEMPTS} - Status: ${task.status}`);
       }
 
-      if (!isDone) {
-        throw new Error("Vertex AI LRO Timeout: La operación no se completó a tiempo.");
+      if (task.status !== "SUCCEEDED") {
+        throw new Error("RunwayML task timeout: no se completó a tiempo");
       }
 
-      console.log("Resultado final de LRO:", JSON.stringify(finalResult, null, 2));
+      console.log("Video generado exitosamente");
 
-      // Obtener y Descargar el video desde GCS/Firebase Storage
-      const generatedFilePath = finalResult?.videos?.[0]?.gcsUri;
-
-      if (!generatedFilePath) {
-        throw new Error("Respuesta de LRO sin ruta GCS del video generado.");
+      // Obtener URL del video generado
+      const videoUrl = task.output?.[0];
+      if (!videoUrl) {
+        throw new Error("No se encontró URL del video en la respuesta");
       }
 
-      const gcsFilePath = generatedFilePath.replace(VERTEX_OUTPUT_GCS_BUCKET + "/", "");
-      console.log("Descargando video desde:", gcsFilePath);
+      console.log("Descargando video desde RunwayML...");
 
-      // Descargar el video generado
-      const [fileContents] = await bucket.file(gcsFilePath).download();
-      console.log("Video descargado, tamaño:", fileContents.length);
+      // Descargar el video
+      const videoResponse = await axios.get(videoUrl, {
+        responseType: "arraybuffer",
+      });
+      const videoBuffer = Buffer.from(videoResponse.data);
+
+      console.log("Video descargado, tamaño:", videoBuffer.length);
 
       // DESCARGAR LA IMAGEN DEL MARCO DESDE FIREBASE STORAGE
       let frameBuffer: Buffer | undefined;
       try {
-        const frameFile = bucket.file('frames/MARCO_UM_RECUERDO.png');
+        const frameFile = bucket.file("frames/MARCO_UM_RECUERDO1.png");
         const [frameExists] = await frameFile.exists();
-        
+
         if (frameExists) {
           const [downloadedFrame] = await frameFile.download();
           frameBuffer = downloadedFrame;
-          console.log('Marco descargado correctamente, tamaño:', frameBuffer.length);
+          console.log("Marco descargado correctamente, tamaño:", frameBuffer.length);
         } else {
-          console.warn('Imagen de marco no encontrada en: frames/MARCO_UM_RECUERDO.png');
+          console.warn("Imagen de marco no encontrada");
         }
       } catch (frameError) {
-        console.error('Error descargando marco:', frameError);
+        console.error("Error descargando marco:", frameError);
       }
 
-      // AGREGAR MARCO AL VIDEO CON MANEJO DE ERRORES
-      let videoWithFrame: Buffer;
+      // AGREGAR MARCO AL VIDEO
+      let finalVideoBuffer: Buffer;
       try {
-        console.log('Iniciando proceso de agregar marco...');
-        videoWithFrame = await addFrameToVideo(fileContents, {
-          color: 'white',
+        console.log("Agregando marco al video...");
+        finalVideoBuffer = await addFrameToVideo(videoBuffer, {
+          color: "white",
           thickness: 30,
-          frameImageBuffer: frameBuffer
+          frameImageBuffer: frameBuffer,
         });
-        console.log('Marco agregado exitosamente, tamaño final:', videoWithFrame.length);
+        console.log("Marco agregado exitosamente");
       } catch (frameError) {
-        console.error('Error agregando marco, usando video original:', frameError);
-        videoWithFrame = fileContents; // Usar video original si falla
-      }
-
-      // Convertir a base64
-      const generatedVideoData = videoWithFrame.toString("base64");
-
-      // Opcional: eliminar archivo temporal de Vertex AI
-      try {
-        await bucket.file(gcsFilePath).delete();
-        console.log('Archivo temporal eliminado de GCS');
-      } catch (deleteError) {
-        console.warn('No se pudo eliminar archivo temporal:', deleteError);
-      }
-
-      if (!generatedVideoData) {
-        await docRef.update({
-          status: "error",
-          error: "No se pudo procesar el video generado",
-          updatedAt: Date.now(),
-        });
-        return;
+        console.error("Error agregando marco, usando video original:", frameError);
+        finalVideoBuffer = videoBuffer;
       }
 
       // Guardar video en Firebase Storage
       const outPath = `video/task/${taskId}/output.mp4`;
-      const outBuf = Buffer.from(generatedVideoData, "base64");
       const token = randomUUID();
 
-      console.log('Guardando video final en Firebase Storage...');
-      await bucket.file(outPath).save(outBuf, {
+      console.log("Guardando video final en Firebase Storage...");
+      await bucket.file(outPath).save(finalVideoBuffer, {
         contentType: "video/mp4",
         resumable: false,
         metadata: {
@@ -986,36 +1237,44 @@ export const processVideoTask = onDocumentCreated(
         },
       });
 
-      console.log('Video guardado exitosamente en:', outPath);
+      console.log("Video guardado exitosamente en:", outPath);
 
-      // Actualizar Documento
-      const url = `https://firebasestorage.googleapis.com/v0/b/${
+      // Generar URL pública
+      const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${
         bucket.name
       }/o/${encodeURIComponent(outPath)}?alt=media&token=${token}`;
 
+      // Actualizar documento con éxito
       await docRef.update({
         status: "done",
-        url,
+        url: publicUrl,
         outputPath: outPath,
+        runwayTaskId: task.id,
         updatedAt: Date.now(),
       });
 
-      console.log('Proceso completado exitosamente');
-
+      console.log("Proceso completado exitosamente");
     } catch (e: any) {
-      console.error('Error en processVideoTask:', e);
-      
-      const isQuotaError =
-        e?.message?.includes("quota") ||
-        e?.message?.includes("429") ||
-        e?.response?.status === 429;
+      console.error("Error en processVideoTaskRunway:", e);
+
+      let errorMessage = "Error desconocido";
+      let errorType = "unknown";
+
+      if (e instanceof TaskFailedError) {
+        errorMessage = "RunwayML: Fallo en generación de video";
+        errorType = "runway_task_failed";
+        console.error("Detalles del error:", e.taskDetails);
+      } else if (e?.response?.status === 429) {
+        errorMessage = "Error de quota: límite de API alcanzado";
+        errorType = "quota_exceeded";
+      } else if (e?.message) {
+        errorMessage = e.message;
+      }
 
       await docRef.update({
         status: "error",
-        error: isQuotaError
-          ? "Error de quota: habilita billing en Google AI Studio o Vertex AI"
-          : e?.message || "Error desconocido",
-        errorType: isQuotaError ? "quota_exceeded" : "unknown",
+        error: errorMessage,
+        errorType: errorType,
         prompt: PROMPT,
         updatedAt: Date.now(),
         stackTrace: e?.stack?.substring(0, 500),
