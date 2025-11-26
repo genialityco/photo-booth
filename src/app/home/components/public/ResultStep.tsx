@@ -38,9 +38,9 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
   // === Descargar imagen compuesta con marco ===
   const handleDownload = async () => {
     try {
-      const [baseImg, frameImg] = await Promise.all([
+      const [baseImg] = await Promise.all([
         loadImage(aiUrl),
-        loadImage("/fenalco/MARCO_EMB_MARCA_1024x1024.png"),
+        //loadImage("/fenalco/MARCO_EMB_MARCA_1024x1024.png"),
       ]);
 
       const size = 1024;
@@ -59,7 +59,7 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
       const dy = (size - dh) / 2;
 
       ctx.drawImage(baseImg, dx, dy, dw, dh);
-      ctx.drawImage(frameImg, 0, 0, size, size);
+      //ctx.drawImage(frameImg, 0, 0, size, size);
 
       // Exportar como blob
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -105,12 +105,12 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
             draggable={false}
           />
           {/* Marco superpuesto */}
-          <img
+          {/* <img
             src="/fenalco/MARCO_EMB_MARCA_1024x1024.png"
             alt="Marco decorativo"
             className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
             draggable={false}
-          />
+          /> */}
         </div>
 
         {/* QR (sin marco) */}
