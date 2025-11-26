@@ -204,7 +204,7 @@ export async function getPhotoBoothPromptsHome(
             orderBy("createdAt", "desc")
         );
 
-        let q = baseQ;
+        const q = baseQ;
 
         // Si hay cursor, aplicar startAfter
      
