@@ -9,8 +9,8 @@ const CF_URL =
   process.env.NEXT_PUBLIC_CF_TEXT2IMG ??
   "https://us-central1-lenovo-experiences.cloudfunctions.net/generateImageFromText";
 
-// Mantengo tu helper tal cual para que puedas reusar/testear
-export async function generateImageFromText(
+// Mantengo tu helper tal cual pero SIN export para no romper el Page type
+async function generateImageFromText(
   text: string,
   opts?: { size?: "256x256" | "512x512" | "1024x1024"; signal?: AbortSignal }
 ): Promise<string> {
@@ -122,7 +122,7 @@ export default function ImageFromTextLanding() {
 
   return (
     <div className="min-h-screen w-full bg-gray-50 text-gray-900 flex flex-col">
-      {/* CONTENIDO */}
+      {/* MAIN */}
       <main className="flex-1">
         <div className="max-w-3xl mx-auto px-4 py-10">
           <div className="space-y-4 bg-white shadow-sm rounded-2xl p-4 md:p-6">
@@ -133,8 +133,8 @@ export default function ImageFromTextLanding() {
             )}
 
             {initialText && !imgUrl && !error && (
-              <div className="text-sm text-gray-600">
-                <h1>Estamos generando tu sueño</h1>
+              <div className="text-base md:text-lg text-gray-600 text-center">
+                <h1 className="font-semibold">Estamos generando tu sueño</h1>
               </div>
             )}
 
@@ -173,9 +173,10 @@ export default function ImageFromTextLanding() {
               </div>
             )}
 
+            {/* NEW: mostramos el input si no hay texto inicial o si hubo error */}
             {showInput && (
-              <div className="text-xs text-gray-500 mt-2">
-                <label className="block mb-1">
+              <div className="text-sm md:text-base text-gray-700 mt-2">
+                <label className="block mb-1 font-medium">
                   Ingresa tu sueño para convertirlo en imagen
                 </label>
                 <div className="flex gap-2">
@@ -194,7 +195,7 @@ export default function ImageFromTextLanding() {
                     {loading ? "Generando..." : "Generar foto"}
                   </button>
                 </div>
-                <p className="mt-2">
+                <p className="mt-2 text-xs text-gray-500">
                   Tip: si escribes una sola palabra (p. ej. “gato”), lo
                   interpretaré como:{" "}
                   <em>
@@ -205,17 +206,21 @@ export default function ImageFromTextLanding() {
                 </p>
               </div>
             )}
-            <div className="mx-auto px-4 py-4 w-56 md:w-72">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/cabecera.jpg"
-                alt="Footer"
-                className="block w-full h-auto object-contain"
-              />
-            </div>
           </div>
         </div>
       </main>
+
+      {/* FOOTER: SOLO LA IMAGEN dentro de un contenedor pequeño */}
+      <footer className="w-full mt-auto border-t bg-white">
+        <div className="mx-auto px-4 py-4 w-56 md:w-72">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/cabecera.jpg" // viene de public/cabecera.jpg
+            alt="Footer"
+            className="block w-full h-auto object-contain"
+          />
+        </div>
+      </footer>
     </div>
   );
 }
