@@ -925,7 +925,7 @@ async function addFrameToVideo(
 //       // DESCARGAR LA IMAGEN DEL MARCO DESDE FIREBASE STORAGE
 //       let frameBuffer: Buffer | undefined;
 //       try {
-//         const frameFile = bucket.file('frames/MARCO_UM_RECUERDO.png');
+//         const frameFile = bucket.file('frames/MARCO-CUADRADO.png');
 //         const [frameExists] = await frameFile.exists();
         
 //         if (frameExists) {
@@ -933,7 +933,7 @@ async function addFrameToVideo(
 //           frameBuffer = downloadedFrame;
 //           console.log('Marco descargado correctamente, tamaño:', frameBuffer.length);
 //         } else {
-//           console.warn('Imagen de marco no encontrada en: frames/MARCO_UM_RECUERDO.png');
+//           console.warn('Imagen de marco no encontrada en: frames/MARCO-CUADRADO.png');
 //         }
 //       } catch (frameError) {
 //         console.error('Error descargando marco:', frameError);
@@ -1193,7 +1193,7 @@ export const processVideoTaskRunway = onDocumentCreated(
       // DESCARGAR LA IMAGEN DEL MARCO DESDE FIREBASE STORAGE
       let frameBuffer: Buffer | undefined;
       try {
-        const frameFile = bucket.file("frames/MARCO_UM_RECUERDO1.png");
+        const frameFile = bucket.file("frames/MARCO-CUADRADO1.png");
         const [frameExists] = await frameFile.exists();
 
         if (frameExists) {

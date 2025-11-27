@@ -50,7 +50,7 @@ async function downloadAs(filename: string, url: string) {
     const baseImage = await createImageBitmap(blob);
 
     // Cargar el marco
-    const frameUrl = "/suRed/MARCO_UM_RECUERDO.png";
+    const frameUrl = "/suRed/MARCO-CUADRADO.png";
     const frameRes = await fetch(frameUrl, { cache: "no-store" });
     if (!frameRes.ok) throw new Error("No se pudo cargar el marco.");
     const frameBlob = await frameRes.blob();
