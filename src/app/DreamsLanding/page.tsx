@@ -1,7 +1,8 @@
+/* eslint-disable react/no-unescaped-entities */
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import React from "react";
+import React, { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 // ====== Config ======
@@ -38,8 +39,8 @@ function countWords(s: string) {
   return s.trim().split(/\s+/).filter(Boolean).length;
 }
 
-// ====== Página/Componente de Landing ======
-export default function ImageFromTextLanding() {
+// ====== Componente interno que usa useSearchParams ======
+function ImageFromTextContent() {
   const router = useRouter();
   const sp = useSearchParams();
 
@@ -145,7 +146,6 @@ export default function ImageFromTextLanding() {
                 </h1>
 
                 <div className="relative mx-auto w-80 md:w-96 aspect-square rounded-2xl overflow-hidden border border-gray-200 bg-white">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={imgUrl}
                     alt="Imagen generada"
@@ -196,11 +196,11 @@ export default function ImageFromTextLanding() {
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">
-                  Tip: si escribes una sola palabra (p. ej. “gato”), lo
+                  Tip: si escribes una sola palabra (p. ej. "gato"), lo
                   interpretaré como:{" "}
                   <em>
-                    “Realiza gato en forma que parezca un cuadro donde se está
-                    soñando”
+                    "Realiza gato en forma que parezca un cuadro donde se está
+                    soñando"
                   </em>
                   .
                 </p>
@@ -213,14 +213,28 @@ export default function ImageFromTextLanding() {
       {/* FOOTER: SOLO LA IMAGEN dentro de un contenedor pequeño */}
       <footer className="w-full mt-auto border-t bg-white">
         <div className="mx-auto px-4 py-4 w-56 md:w-72">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/cabecera.jpg" // viene de public/cabecera.jpg
+            src="/cabecera.jpg"
             alt="Footer"
             className="block w-full h-auto object-contain"
           />
         </div>
       </footer>
     </div>
+  );
+}
+
+// ====== Página/Componente de Landing (wrapped in Suspense) ======
+export default function ImageFromTextLanding() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen w-full bg-gray-50 flex items-center justify-center">
+          <div className="text-gray-600">Cargando...</div>
+        </div>
+      }
+    >
+      <ImageFromTextContent />
+    </Suspense>
   );
 }
