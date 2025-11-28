@@ -38,9 +38,9 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
   // === Descargar imagen compuesta con marco ===
   const handleDownload = async () => {
     try {
-      const [baseImg] = await Promise.all([
+      const [baseImg, frameImg] = await Promise.all([
         loadImage(aiUrl),
-        //loadImage("/Colombia4.0/MARCO_IA_4.0.png"),
+        loadImage("/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"),
       ]);
 
       const size = 1024;
@@ -59,7 +59,7 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
       const dy = (size - dh) / 2;
 
       ctx.drawImage(baseImg, dx, dy, dw, dh);
-      //ctx.drawImage(frameImg, 0, 0, size, size);
+      ctx.drawImage(frameImg, 0, 0, size, size);
 
       // Exportar como blob
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -105,12 +105,12 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
             draggable={false}
           />
           {/* Marco superpuesto */}
-          {/* <img
-            src="/Colombia4.0/MARCO_IA_4.0.png"
+          <img
+            src="/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"
             alt="Marco decorativo"
             className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
             draggable={false}
-          /> */}
+          />
         </div>
 
         {/* QR (sin marco) */}

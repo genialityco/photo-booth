@@ -206,12 +206,12 @@ export default function Landing({
 
         {/* Footer */}
         <div className="mt-auto w-full px-5 sm:pb-4 md:pb-6 pb-3 sm:px-6 md:px-8">
-          {/* <img
-            src="/Colombia4.0/COLOMBIA4.0.png"
+          <img
+            src="/congresoEdu/Logo-congreso-v2.png"
             alt="Logos Footer"
             className="mx-auto w-full max-w-[980px] select-none"
             draggable={false}
-          /> */}
+          />
         </div>
       </div>
     </div>

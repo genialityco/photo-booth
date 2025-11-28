@@ -244,12 +244,12 @@ export default function PhotoBoothWizard({
         "
         style={{ bottom: "max(env(safe-area-inset-bottom), 16px)" }}
       >
-        {/* <img
-          src="/Colombia4.0/COLOMBIA4.0.png"
+        <img
+          src="/congresoEdu/Logo-congreso-v2.png"
           alt="Logos Footer"
           className="w-full select-none"
           draggable={false}
-        /> */}
+        />
       </div>
     </div>
   );
