@@ -47,21 +47,39 @@ export default function PhotoBoothWizard({
   const unsubRef = useRef<() => void | undefined>(undefined);
 
   useEffect(() => {
-    if (!searchParams) {
-      setBrand("default");
-      setColor(null);
+    // Esperar a que searchParams esté disponible
+    if (searchParams) {
+      const brandParam = searchParams.get("brand");
+      const colorParam = searchParams.get("color");
+
+      console.log("Brand param:", brandParam);
+      console.log("Color param:", colorParam);
+
+      setBrand(brandParam || "default");
+      setColor(colorParam || null);
     } else {
-      setBrand((searchParams.get("brand") as string) || "default");
-      setColor((searchParams.get("color") as string) || null);
+      // Fallback: leer directamente del window.location
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const brandParam = params.get("brand");
+        const colorParam = params.get("color");
+
+        console.log("Brand param (fallback):", brandParam);
+        console.log("Color param (fallback):", colorParam);
+
+        setBrand(brandParam || "default");
+        setColor(colorParam || null);
+      }
     }
+
     return () => {
       if (unsubRef.current) {
         unsubRef.current();
         unsubRef.current = undefined;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
+
 
   const handleCaptured = (payload: { framed: string; raw: string }) => {
     setFramedShot(payload.framed);
