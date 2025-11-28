@@ -334,7 +334,7 @@ export default function SurveyClient() {
               />
               {/* Marco superpuesto */}
               <img
-                src="/Colombia4.0/MARCO_IA_4.0.png"
+                src="/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"
                 alt="Marco decorativo"
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
                 draggable={false}

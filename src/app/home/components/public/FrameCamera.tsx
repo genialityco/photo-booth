@@ -22,7 +22,7 @@ type NavigatorWithLegacy = Navigator & {
 
 export default function FrameCamera({
   // sin marco por defecto
-  frameSrc = "colombia4.0/MARCO_IA_4.0.png",
+  frameSrc = "/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png",
   mirror = true,
   boxSize = "min(88vw, 60svh)",
   onReady,
