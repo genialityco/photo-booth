@@ -158,14 +158,14 @@ export default function FrameCamera({
           en `frameSrc` (ej: "/images/marco.png"). NO pases "".
           ───────────────────────────────────────────────────────────────── */}
 
-        {frameSrc && (
+        {/* {frameSrc && (
           <img
             src={frameSrc}
             alt="Marco"
             className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
             draggable={false}
           />
-        )}
+        )} */}
       </div>
 
       {error && (

@@ -76,9 +76,9 @@ export default function SurveyClient() {
 
   // Compone la foto + el marco y devuelve un blob URL listo para descargar
   const composeFramed = async (baseUrl: string) => {
-    const [baseImg, frameImg] = await Promise.all([
+    const [baseImg] = await Promise.all([
       loadImage(baseUrl),
-      loadImage("/Colombia4.0/MARCO_IA_4.0.png"),
+      //loadImage("/Colombia4.0/MARCO_IA_4.0.png"),
     ]);
     const size = 1024; // coincide con el PNG del marco
     const canvas = document.createElement("canvas");
@@ -89,7 +89,7 @@ export default function SurveyClient() {
 
     // Primero la foto (cover en el cuadrado) y luego el marco encima
     drawCover(ctx, baseImg, size);
-    ctx.drawImage(frameImg, 0, 0, size, size);
+    //ctx.drawImage(frameImg, 0, 0, size, size);
 
     const blob: Blob | null = await new Promise((res) =>
       canvas.toBlob(res, "image/png")
@@ -333,12 +333,12 @@ export default function SurveyClient() {
                 draggable={false}
               />
               {/* Marco superpuesto */}
-              <img
+              {/* <img
                 src="/Colombia4.0/MARCO_IA_4.0.png"
                 alt="Marco decorativo"
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
                 draggable={false}
-              />
+              /> */}
             </div>
           )}
         </div>
