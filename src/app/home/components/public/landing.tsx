@@ -8,10 +8,16 @@ type BrandKey =
   | "col40_angel"
   | "col40_cyborg"
   | "col40_virus"
-  | "col40_plant";
+  | "col40_plant"
+  | "default";
 type BrandConfig = { k: BrandKey; logo: string; aria: string };
 
 const BRANDS: BrandConfig[] = [
+  {
+    k: "default",
+    logo: "/Colombia4.0/FUTBOL.png",
+    aria: "Lenovo FUTBOL",
+  },
   {
     k: "col40_alien",
     logo: "/Colombia4.0/ALIEN.png",
@@ -42,6 +48,7 @@ const BRANDS: BrandConfig[] = [
     logo: "/Colombia4.0/PLANTA.png",
     aria: "Evolución PLANT",
   },
+ 
 ];
 
 export default function Landing({
