@@ -78,7 +78,7 @@ export default function SurveyClient() {
   const composeFramed = async (baseUrl: string) => {
     const [baseImg, frameImg] = await Promise.all([
       loadImage(baseUrl),
-      loadImage(""), //"/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"),
+      loadImage("fenalco/capture/ChatGPT.png"),
     ]);
     const size = 1024; // coincide con el PNG del marco
     const canvas = document.createElement("canvas");
@@ -333,12 +333,12 @@ export default function SurveyClient() {
                 draggable={false}
               />
               {/* Marco superpuesto */}
-              <img
-                src={""} //"/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"
+              {/* <img
+                src=""
                 alt="Marco decorativo"
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
                 draggable={false}
-              />
+              /> */}
             </div>
           )}
         </div>

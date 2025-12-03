@@ -195,12 +195,12 @@ export default function PhotoBoothWizard({
         />
 
         {/* ← NUEVO: título debajo del logo */}
-        <img
+        {/* <img
           src="/Colombia4.0/TITULO.png"
           alt="Título Gen.iality"
           className="w-full select-none mt-10"
           draggable={false}
-        />
+        /> */}
       </div>
 
       {/* Contenido centrado */}
