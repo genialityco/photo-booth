@@ -26,7 +26,7 @@ export default function LoaderStep() {
     >
       {/* Fondo */}
       <Image
-        src="/Colombia4.0/fondoCel.png"
+        src="/Lenovo/app-avatars-01.png"
         alt="Fondo decorativo"
         fill
         priority
@@ -40,7 +40,7 @@ export default function LoaderStep() {
       {/* Logo superior (opcional) */}
       <div className="absolute inset-x-0 top-30 flex justify-center z-20">
         <Image
-          src="/Colombia4.0/LOGO_GEN.png"
+          src="/Lenovo/app-avatars-02.png"
           alt="80 años FENALCO"
           width={520}
           height={96}
@@ -60,17 +60,17 @@ export default function LoaderStep() {
         </h1>
       </div>
 
-      {/* Footer con logos (opcional)
+      Footer con logos (opcional)
       <div className="absolute inset-x-0 bottom-6 z-20 flex justify-center">
         <Image
-          src="/fenalco/loading/LOGOS-FOOTER_HC.png"
+          src="/Lenovo/app-avatars-04.png"
           alt="Aliados y patrocinadores"
           width={520}
           height={60}
           className="opacity-90"
         />
       </div>
-      */}
+     
     </div>
   );
 }

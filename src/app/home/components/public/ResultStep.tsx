@@ -91,13 +91,14 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
       }}
     >
       {/* Contenido principal */}
-      <main className="flex-1 w-full flex flex-col items-center gap-5 mt-6">
+      <main className="flex-1 w-full flex flex-col items-center gap-5 mt-6 translate-y-30">
         {/* Imagen IA con marco visible */}
         <div
           className="relative overflow-hidden rounded-2xl shadow-xl bg-black/5 aspect-square"
           style={{ width: SIZE_IMG }}
         >
           {/* Imagen IA */}
+
           <img
             src={aiUrl}
             alt="Imagen generada por IA"

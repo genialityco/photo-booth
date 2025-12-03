@@ -36,7 +36,7 @@ export default function PhotoBoothWizard({
   const searchParams = useSearchParams();
   const [step, setStep] = useState<
     "capture" | "preview" | "loading" | "result"
-  >("capture");
+  >("loading");
   const [framedShot, setFramedShot] = useState<string | null>(null);
   const [, setRawShot] = useState<string | null>(null);
   const [aiUrl, setAiUrl] = useState<string | null>(null);
@@ -173,7 +173,7 @@ export default function PhotoBoothWizard({
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
         style={{
-          backgroundImage: "url('/Colombia4.0/fondoCel.png')",
+          backgroundImage: "url('Lenovo/app-avatars-01.png')",
         }}
         aria-hidden
       />
@@ -188,7 +188,7 @@ export default function PhotoBoothWizard({
   `}
       >
         <img
-          src="/Colombia4.0/LOGO_GEN.png"
+          src="/Lenovo/app-avatars-02.png"
           alt="Logo Gen.iality"
           className="w-full select-none"
           draggable={false}
@@ -243,12 +243,12 @@ export default function PhotoBoothWizard({
         "
         style={{ bottom: "max(env(safe-area-inset-bottom), 16px)" }}
       >
-        {/* <img
-          src="" //"/congresoEdu/Logo-congreso-v2.png"
+        <img
+          src="/Lenovo/app-avatars-04.png" //"/congresoEdu/Logo-congreso-v2.png"
           alt="Logos Footer"
           className="w-full select-none"
           draggable={false}
-        /> */}
+        />
       </div>
     </div>
   );

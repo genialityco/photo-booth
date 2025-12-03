@@ -88,7 +88,7 @@ export default function Landing({
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
         style={{
-          backgroundImage: "url('/Colombia4.0/fondoCel.png')",
+          backgroundImage: "url('Lenovo/app-avatars-01.png')",
         }}
         aria-hidden
       />
@@ -99,15 +99,15 @@ export default function Landing({
         <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
           <div className="mx-auto w-full max-w-[620px] flex flex-col items-center gap-2">
             <img
-              src="/Colombia4.0/LOGO_GEN.png"
+              src="/Lenovo/app-avatars-02.png"
               alt="GEN.IALITY LOGO"
               className="w-full select-none"
               draggable={false}
             />
 
             {/* NUEVO: imagen de título clickeable para elegir marca aleatoria */}
-            <img
-              src="/Colombia4.0/TITULO.png"
+            {/* <img
+              src="/Lenovo/app-avatars-03.png"
               alt="Título Gen.iality (clic para elegir una marca al azar)"
               className="w-full select-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-lg"
               role="button"
@@ -122,13 +122,13 @@ export default function Landing({
                 }
               }}
               title="Haz clic para sorprenderte con una marca al azar"
-            />
+            /> */}
           </div>
         </div>
 
         {/* Texto guía (exacto) */}
         <h1 className="mt-4 sm:mt-6 text-center text-base sm:text-lg md:text-xl font-semibold text-white drop-shadow-md">
-          selecciona tu evolución...{" "}
+          Selecciona tu evolución...{" "}
         </h1>
 
         {/* Grid: 2 cols en mobile, 3 en iPad+ */}
@@ -212,12 +212,12 @@ export default function Landing({
 
         {/* Footer */}
         <div className="mt-auto w-full px-5 sm:pb-4 md:pb-6 pb-3 sm:px-6 md:px-8">
-          {/* <img
-            src={""} //"/congresoEdu/Logo-congreso-v2.png"
+          <img
+            src="/Lenovo/app-avatars-04.png" //"/congresoEdu/Logo-congreso-v2.png"
             alt="Logos Footer"
             className="mx-auto w-full max-w-[980px] select-none"
             draggable={false}
-          /> */}
+          />
         </div>
       </div>
     </div>
