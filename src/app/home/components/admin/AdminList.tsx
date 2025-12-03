@@ -14,18 +14,23 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/firebaseConfig";
-import { getStorage, ref as storageRef, listAll, getDownloadURL } from "firebase/storage";
+import {
+  getStorage,
+  ref as storageRef,
+  listAll,
+  getDownloadURL,
+} from "firebase/storage";
 
 /* ================== Tipos ================== */
 type TaskItem = {
   id: string;
   status?: "queued" | "processing" | "done" | "error";
   nombre: string;
-  inputPath?: string;   // ahora apunta a la foto con marco (input.png)
-  framedPath?: string;  // igual a inputPath
-  framedUrl?: string;   // URL pública de la foto con marco
-  outputPath?: string;  // output.png (IA)
-  url?: string;         // URL pública de la IA
+  inputPath?: string; // ahora apunta a la foto con marco (input.png)
+  framedPath?: string; // igual a inputPath
+  framedUrl?: string; // URL pública de la foto con marco
+  outputPath?: string; // output.png (IA)
+  url?: string; // URL pública de la IA
   createdAt?: Timestamp | { seconds: number; nanoseconds: number } | null;
   updatedAt?: Timestamp | { seconds: number; nanoseconds: number } | null;
   finishedAt?: Timestamp | { seconds: number; nanoseconds: number } | null;
@@ -50,7 +55,7 @@ async function downloadAs(filename: string, url: string) {
     const baseImage = await createImageBitmap(blob);
 
     // Cargar el marco
-    const frameUrl = "/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png";
+    const frameUrl = ""; //"/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png";
     const frameRes = await fetch(frameUrl, { cache: "no-store" });
     if (!frameRes.ok) throw new Error("No se pudo cargar el marco.");
     const frameBlob = await frameRes.blob();
@@ -152,7 +157,11 @@ function resolveFolderFromTask(it: TaskItem): string | null {
 }
 
 /* ================== Hook: resolver URL de foto con marco ================== */
-function useFramedURL(it: { framedUrl?: string; framedPath?: string; inputPath?: string }) {
+function useFramedURL(it: {
+  framedUrl?: string;
+  framedPath?: string;
+  inputPath?: string;
+}) {
   const [url, setUrl] = useState<string | null>(it.framedUrl || null);
 
   useEffect(() => {
@@ -241,7 +250,11 @@ function AdminItemCard({ it }: { it: TaskItem }) {
           {framedResolvedUrl ? (
             <>
               <div className="aspect-square w-full overflow-hidden rounded-lg border border-neutral-200 bg-white">
-                <img src={framedResolvedUrl} alt="framed" className="w-full h-full object-contain" />
+                <img
+                  src={framedResolvedUrl}
+                  alt="framed"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div className="flex flex-wrap gap-2 mt-3">
                 <a
@@ -253,11 +266,15 @@ function AdminItemCard({ it }: { it: TaskItem }) {
                 </a>
                 <button
                   className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 text-sm font-semibold"
-                  onClick={() => downloadAs(`framed-${it.id}.png`, framedResolvedUrl)}
+                  onClick={() =>
+                    downloadAs(`framed-${it.id}.png`, framedResolvedUrl)
+                  }
                 >
                   Descargar
                 </button>
-                <code className="text-xs break-all">{it.framedPath || it.inputPath || "—"}</code>
+                <code className="text-xs break-all">
+                  {it.framedPath || it.inputPath || "—"}
+                </code>
               </div>
             </>
           ) : (
@@ -271,7 +288,11 @@ function AdminItemCard({ it }: { it: TaskItem }) {
           {it.url ? (
             <>
               <div className="aspect-square w-full overflow-hidden rounded-lg border border-neutral-200 bg-white">
-                <img src={it.url} alt="ai" className="w-full h-full object-contain" />
+                <img
+                  src={it.url}
+                  alt="ai"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div className="flex flex-wrap gap-2 mt-3">
                 <a
@@ -287,11 +308,15 @@ function AdminItemCard({ it }: { it: TaskItem }) {
                 >
                   Descargar
                 </button>
-                <code className="text-xs break-all">{it.outputPath || "—"}</code>
+                <code className="text-xs break-all">
+                  {it.outputPath || "—"}
+                </code>
               </div>
             </>
           ) : (
-            <p className="text-sm text-neutral-500">Aún no procesada o no hay URL.</p>
+            <p className="text-sm text-neutral-500">
+              Aún no procesada o no hay URL.
+            </p>
           )}
         </div>
       </div>
@@ -333,7 +358,10 @@ export default function AdminList() {
   // Filtrar solo los que están "done"
   const filtered = items.filter((it) => it.status === "done");
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
-  const paginated = filtered.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  const paginated = filtered.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
+  );
 
   const handlePrev = () => setPage((p) => Math.max(1, p - 1));
   const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));
@@ -398,7 +426,8 @@ export default function AdminList() {
             const fileRef = files[k];
             const url = await getDownloadURL(fileRef);
             const resp = await fetch(url, { cache: "no-store" });
-            if (!resp.ok) throw new Error(`Error al descargar ${fileRef.fullPath}`);
+            if (!resp.ok)
+              throw new Error(`Error al descargar ${fileRef.fullPath}`);
             const blob = await resp.blob();
 
             const fullPath = fileRef.fullPath;
@@ -450,11 +479,15 @@ export default function AdminList() {
       {/* Cards */}
       <div className="mt-5 grid grid-cols-1 gap-4">
         {loading && (
-          <div className="rounded-xl border border-neutral-200 p-4">Cargando…</div>
+          <div className="rounded-xl border border-neutral-200 p-4">
+            Cargando…
+          </div>
         )}
 
         {!loading && filtered.length === 0 && (
-          <div className="rounded-xl border border-neutral-200 p-4">Sin resultados.</div>
+          <div className="rounded-xl border border-neutral-200 p-4">
+            Sin resultados.
+          </div>
         )}
 
         {paginated.map((it) => (
@@ -472,7 +505,9 @@ export default function AdminList() {
           >
             Anterior
           </button>
-          <span className="font-bold">Página {page} de {totalPages}</span>
+          <span className="font-bold">
+            Página {page} de {totalPages}
+          </span>
           <button
             onClick={handleNext}
             disabled={page === totalPages}

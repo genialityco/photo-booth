@@ -80,7 +80,6 @@ export default function PhotoBoothWizard({
     };
   }, [searchParams]);
 
-
   const handleCaptured = (payload: { framed: string; raw: string }) => {
     setFramedShot(payload.framed);
     setRawShot(payload.raw);
@@ -244,12 +243,12 @@ export default function PhotoBoothWizard({
         "
         style={{ bottom: "max(env(safe-area-inset-bottom), 16px)" }}
       >
-        <img
-          src="/congresoEdu/Logo-congreso-v2.png"
+        {/* <img
+          src="" //"/congresoEdu/Logo-congreso-v2.png"
           alt="Logos Footer"
           className="w-full select-none"
           draggable={false}
-        />
+        /> */}
       </div>
     </div>
   );
