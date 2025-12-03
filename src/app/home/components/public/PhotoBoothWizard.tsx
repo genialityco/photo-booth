@@ -36,7 +36,7 @@ export default function PhotoBoothWizard({
   const searchParams = useSearchParams();
   const [step, setStep] = useState<
     "capture" | "preview" | "loading" | "result"
-  >("loading");
+  >("capture");
   const [framedShot, setFramedShot] = useState<string | null>(null);
   const [, setRawShot] = useState<string | null>(null);
   const [aiUrl, setAiUrl] = useState<string | null>(null);
