@@ -3,50 +3,14 @@
 "use client";
 import React from "react";
 
-type BrandKey =
-  | "col40_alien"
-  | "col40_angel"
-  | "col40_cyborg"
-  | "col40_virus"
-  | "col40_plant"
-  | "default";
+type BrandKey = "BANDERA_COLOMBIA";
 type BrandConfig = { k: BrandKey; logo: string; aria: string };
 
 const BRANDS: BrandConfig[] = [
   {
-    k: "default",
-    logo: "/Colombia4.0/FUTBOL.png",
-    aria: "Lenovo FUTBOL",
-  },
-  {
-    k: "col40_alien",
-    logo: "/Colombia4.0/ALIEN.png",
-    aria: "Evolución ALIEN",
-  },
-  // {
-  //   k: "colombina",
-  //   logo: "/fenalco/inicio/colombina-logo.webp",
-  //   aria: "Comenzar con Colombina",
-  // },
-  {
-    k: "col40_angel",
-    logo: "/Colombia4.0/ANGEL.png",
-    aria: "Evolución ANGEL",
-  },
-  {
-    k: "col40_cyborg",
-    logo: "/Colombia4.0/CYBORG.png",
-    aria: "Evolución CYBORG",
-  },
-  {
-    k: "col40_virus",
-    logo: "/Colombia4.0/VIRUS.png",
-    aria: "Evolución VIRUS",
-  },
-  {
-    k: "col40_plant",
-    logo: "/Colombia4.0/PLANTA.png",
-    aria: "Evolución PLANT",
+    k: "BANDERA_COLOMBIA",
+    logo: "/Lenovo/brand-logos/bandera-colombia.png",
+    aria: "Bandera de Colombia",
   },
 ];
 
