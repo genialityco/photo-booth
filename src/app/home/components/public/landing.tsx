@@ -3,7 +3,7 @@
 "use client";
 import React from "react";
 
-type BrandKey = "BANDERA_COLOMBIA";
+type BrandKey = "BANDERA_COLOMBIA" | "BANDERA_MEXICO" | "BANDERA_FRANCIA";
 type BrandConfig = { k: BrandKey; logo: string; aria: string };
 
 const BRANDS: BrandConfig[] = [
@@ -12,6 +12,17 @@ const BRANDS: BrandConfig[] = [
     logo: "/Lenovo/brand-logos/bandera-colombia.png",
     aria: "Bandera de Colombia",
   },
+  {
+    k: "BANDERA_MEXICO",
+    logo: "/Lenovo/brand-logos/bandera-mexico.png",
+    aria: "Bandera de México",
+  },
+  {
+    k: "BANDERA_FRANCIA",
+    logo: "/Lenovo/brand-logos/bandera-francia.png",
+    aria: "Bandera de Francia",
+  }
+
 ];
 
 export default function Landing({
