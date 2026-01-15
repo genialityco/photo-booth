@@ -9,20 +9,19 @@ type BrandConfig = { k: BrandKey; logo: string; aria: string };
 const BRANDS: BrandConfig[] = [
   {
     k: "BANDERA_COLOMBIA",
-    logo: "/Lenovo/brand-logos/bandera-colombia.png",
+    logo: "/images/Colombia.png",
     aria: "Bandera de Colombia",
   },
   {
     k: "BANDERA_MEXICO",
-    logo: "/Lenovo/brand-logos/bandera-mexico.png",
+    logo: "/images/Mexico.png",
     aria: "Bandera de México",
   },
   {
     k: "BANDERA_FRANCIA",
-    logo: "/Lenovo/brand-logos/bandera-francia.png",
+    logo: "/images/Francia.png",
     aria: "Bandera de Francia",
-  }
-
+  },
 ];
 
 export default function Landing({
