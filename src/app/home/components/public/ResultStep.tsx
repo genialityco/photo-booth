@@ -78,7 +78,7 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Error generando la descarga:", err);
-      alert("No se pudo generar la imagen con el marco. Inténtalo nuevamente.");
+      alert("No se pudo generar la imagen con el marco.  Inténtalo nuevamente.");
     }
   };
 
