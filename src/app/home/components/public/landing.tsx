@@ -103,7 +103,7 @@ export default function Landing({
         </h1> */}
 
         {/* Grid: 2 cols en mobile, 3 en iPad+ */}
-        <div className="mt-5 sm:mt-160 w-full px-5 sm:px-6 md:px-8">
+        <div className="mt-150 sm:mt-160 w-full px-5 sm:px-6 md:px-8">
           <div
             className="
               grid gap-2 sm:gap-4 md:gap-5
