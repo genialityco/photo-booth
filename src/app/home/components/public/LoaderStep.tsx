@@ -26,7 +26,7 @@ export default function LoaderStep() {
     >
       {/* Fondo */}
       <Image
-        src="/Lenovo/app-avatars-01.png"
+        src="/COLOR_WORLD/MAIL/CARGA_COLOR_OF_THE_WORLD.png"
         alt="Fondo decorativo"
         fill
         priority
@@ -35,22 +35,22 @@ export default function LoaderStep() {
         draggable={false}
       />
       {/* Velo para legibilidad */}
-      <div className="absolute inset-0 bg-black/45" />
+      <div className="absolute inset-0" />
 
       {/* Logo superior (opcional) */}
       <div className="absolute inset-x-0 top-30 flex justify-center z-20">
-        <Image
+        {/* <Image
           src="/Lenovo/app-avatars-02.png"
           alt="80 años FENALCO"
           width={520}
           height={96}
           className="drop-shadow-md"
           priority
-        />
+        /> */}
       </div>
 
       {/* Contenido central */}
-      <div className="relative z-20 flex h-full items-center justify-center px-6">
+      {/* <div className="relative z-20 flex h-full items-center justify-center px-6">
         <h1
           className="text-center text-4xl md:text-6xl font-semibold drop-shadow-lg tracking-tight"
           role="status"
@@ -58,10 +58,10 @@ export default function LoaderStep() {
         >
           Evolucionando{dots}
         </h1>
-      </div>
+      </div> */}
 
-      Footer con logos (opcional)
-      <div className="absolute inset-x-0 bottom-6 z-20 flex justify-center">
+     {/* Footer con logos (opcional) */}
+      {/* <div className="absolute inset-x-0 bottom-6 z-20 flex justify-center">
         <Image
           src="/Lenovo/app-avatars-04.png"
           alt="Aliados y patrocinadores"
@@ -69,7 +69,7 @@ export default function LoaderStep() {
           height={60}
           className="opacity-90"
         />
-      </div>
+      </div> */}
      
     </div>
   );

@@ -1,7 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-
 import React, { useEffect, useRef, useState } from "react";
 import CaptureStep from "./CaptureStep";
 import PreviewStep from "./PreviewStep";
@@ -173,7 +172,7 @@ export default function PhotoBoothWizard({
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
         style={{
-          backgroundImage: "url('Lenovo/app-avatars-01.png')",
+          backgroundImage: "url('/COLOR_WORLD/CORTES/FONDO-PARA-FOTO.png')",
         }}
         aria-hidden
       />
@@ -187,12 +186,12 @@ export default function PhotoBoothWizard({
     flex flex-col items-center gap-2
   `}
       >
-        <img
+        {/* <img
           src="/Lenovo/app-avatars-02.png"
           alt="Logo Gen.iality"
           className="w-full select-none"
           draggable={false}
-        />
+        /> */}
 
         {/* ← NUEVO: título debajo del logo */}
         {/* <img
@@ -243,12 +242,12 @@ export default function PhotoBoothWizard({
         "
         style={{ bottom: "max(env(safe-area-inset-bottom), 16px)" }}
       >
-        <img
+        {/* <img
           src="/Lenovo/app-avatars-04.png" //"/congresoEdu/Logo-congreso-v2.png"
           alt="Logos Footer"
           className="w-full select-none"
           draggable={false}
-        />
+        /> */}
       </div>
     </div>
   );

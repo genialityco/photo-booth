@@ -41,7 +41,7 @@ Background: a futuristic 2026 stadium with cheering fans under dramatic lights. 
 Lighting: cinematic golden stadium glow fused with Lenovo neon accents (red, white, cyan), highlighting the player's confident expression and athletic energy.
 Style: hyper-detailed, cinematic, elegant, and inspiring — portraying a timeless soccer icon who embodies Colombia's World Cup passion and Lenovo's vision of innovation.`;
 
-const DEFAULT_LOGO_PROMPT = `Place the uploaded logo on the jersey, centered on the chest area. The logo must be clearly visible, sharp, and seamlessly integrated into the fabric — as if naturally printed or embroidered on the jersey. Preserve the logo’s original colors, proportions, and design without distortion. Adjust lighting, shadows, and reflections so the logo blends realistically with the folds and texture of the jersey material. Ensure the placement looks authentic, like a real sports uniform detail`
+const DEFAULT_LOGO_PROMPT = `Place the uploaded logo on the jersey, centered on the chest area. The logo must be clearly visible, sharp, and seamlessly integrated into the fabric — as if naturally printed or embroidered on the jersey. Preserve the logo’s original colors, proportions, and design without distortion. Adjust lighting, shadows, and reflections so the logo blends realistically with the folds and texture of the jersey material. Ensure the placement looks authentic, like a real sports uniform detail`;
 // === SISTEMA DE CACHE PARA PROMPTS ===
 interface CachedPrompt {
   content: string;
@@ -51,7 +51,7 @@ interface CachedPrompt {
 
 interface PromptDoc {
   basePrompt?: string;
-  logoPath?: string 
+  logoPath?: string;
   logoPrompt?: string;
   colorDirectiveTemplate?: string;
   active?: boolean;
@@ -59,7 +59,19 @@ interface PromptDoc {
 
 const CACHE_DURATION_MS = 60 * 1000; // 60 segundos
 const promptCache = new Map<string, CachedPrompt>();
-const brandedPromptCache = new Map<string, { value: { basePrompt: string; colorDirectiveTemplate?: string; color?: string; logoPath?: string, logoPrompt?: string}; expiresAt: number }>();
+const brandedPromptCache = new Map<
+  string,
+  {
+    value: {
+      basePrompt: string;
+      colorDirectiveTemplate?: string;
+      color?: string;
+      logoPath?: string;
+      logoPrompt?: string;
+    };
+    expiresAt: number;
+  }
+>();
 
 // Función para limpiar cache expirado
 function cleanExpiredCache() {
@@ -74,7 +86,13 @@ function cleanExpiredCache() {
 // === Branded prompt loader with cache (60s) ===
 async function getBrandedPromptCached(
   brand?: string
-): Promise<{ basePrompt: string; colorDirectiveTemplate?: string; color?: string,  logoPath?: string, logoPrompt?: string}> {
+): Promise<{
+  basePrompt: string;
+  colorDirectiveTemplate?: string;
+  color?: string;
+  logoPath?: string;
+  logoPrompt?: string;
+}> {
   const key = `brand:${brand || "default"}`;
   const now = Date.now();
   const cached = brandedPromptCache.get(key);
@@ -86,7 +104,7 @@ async function getBrandedPromptCached(
 
     for (const b of tryBrands) {
       const snap = await col.where("brand", "==", b).limit(1).get();
-      
+
       if (!snap.empty) {
         const doc = snap.docs[0];
         const data = doc.data() as PromptDoc | undefined;
@@ -95,7 +113,7 @@ async function getBrandedPromptCached(
             basePrompt: data.basePrompt,
             colorDirectiveTemplate: data.colorDirectiveTemplate,
             logoPath: data.logoPath,
-            logoPrompt: data.logoPrompt
+            logoPrompt: data.logoPrompt,
           };
           brandedPromptCache.set(key, {
             value,
@@ -114,7 +132,10 @@ async function getBrandedPromptCached(
     basePrompt: DEFAULT_PROMPT,
   } as { basePrompt: string; colorDirectiveTemplate?: string; color?: string };
 
-  brandedPromptCache.set(key, { value: fallback, expiresAt: now + CACHE_DURATION_MS });
+  brandedPromptCache.set(key, {
+    value: fallback,
+    expiresAt: now + CACHE_DURATION_MS,
+  });
   return fallback;
 }
 
@@ -136,7 +157,14 @@ function sanitizeColor(color?: string): string | null {
 }
 
 // Construye el prompt dinámico usando basePrompt + colorDirectiveTemplate (si existe)
-async function buildPromptWithBrand(opts: { brand?: string; color?: string }): Promise<{logoPath: string | undefined, prompt: string, logoPrompt?: string}> {
+async function buildPromptWithBrand(opts: {
+  brand?: string;
+  color?: string;
+}): Promise<{
+  logoPath: string | undefined;
+  prompt: string;
+  logoPrompt?: string;
+}> {
   const { brand, color } = opts || {};
   const branded = await getBrandedPromptCached(brand);
   const basePrompt = branded.basePrompt || DEFAULT_PROMPT;
@@ -146,9 +174,17 @@ async function buildPromptWithBrand(opts: { brand?: string; color?: string }): P
     const applied = c
       ? t.replace(/\${?color}?/gi, c).replace(/\{color\}/gi, c)
       : t;
-    return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, prompt:basePrompt + "\n\n" + applied};
+    return {
+      logoPrompt: branded.logoPrompt,
+      logoPath: branded.logoPath,
+      prompt: basePrompt + "\n\n" + applied,
+    };
   }
-  return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, prompt:basePrompt};
+  return {
+    logoPrompt: branded.logoPrompt,
+    logoPath: branded.logoPath,
+    prompt: basePrompt,
+  };
 }
 
 export const processGoatShotHttp = onRequest(
@@ -172,7 +208,8 @@ export const processGoatShotHttp = onRequest(
         return;
       }
 
-      const { inputUrl, inputPath, inputB64, mime, color, brand } = req.body || {};
+      const { inputUrl, inputPath, inputB64, mime, color, brand } =
+        req.body || {};
       const finalPrompt = await buildPromptWithBrand({ brand, color });
 
       if (!inputUrl && !inputPath && !inputB64) {
@@ -209,18 +246,23 @@ export const processGoatShotHttp = onRequest(
         inMime = ct.startsWith("image/")
           ? ct
           : mime?.startsWith?.("image/")
-            ? mime
-            : "image/png";
+          ? mime
+          : "image/png";
       } else {
         // inputPath (ruta en tu bucket)
         const bucket = getStorage().bucket();
         const file = bucket.file(String(inputPath));
         const [meta] = await file
           .getMetadata()
-          .catch(() => [{ contentType: "application/octet-stream" } as { contentType: string }]);
+          .catch(() => [
+            { contentType: "application/octet-stream" } as {
+              contentType: string;
+            },
+          ]);
         const [fileBuf] = await file.download();
         bytes = new Uint8Array(fileBuf);
-        const metaCt = typeof meta?.contentType === 'string' ? meta.contentType : undefined;
+        const metaCt =
+          typeof meta?.contentType === "string" ? meta.contentType : undefined;
         inMime = metaCt && metaCt.startsWith("image/") ? metaCt : "image/png";
       }
       // 3) Llamar a OpenAI Images/edits (puede tardar varios minutos)
@@ -287,8 +329,9 @@ export const processGoatShotHttp = onRequest(
         metadata: { metadata: { firebaseStorageDownloadTokens: token } },
       });
 
-      const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name
-        }/o/${encodeURIComponent(outPath)}?alt=media&token=${token}`;
+      const url = `https://firebasestorage.googleapis.com/v0/b/${
+        bucket.name
+      }/o/${encodeURIComponent(outPath)}?alt=media&token=${token}`;
 
       // 5) Respuesta HTTP (ideal para tu QR)
       res.json({
@@ -298,14 +341,14 @@ export const processGoatShotHttp = onRequest(
         outputPath: outPath,
         // Info adicional sobre el cache
         promptUsed: finalPrompt,
-        promptSource: brand ? 'firestore' : 'default',
+        promptSource: brand ? "firestore" : "default",
         cacheInfo: {
           totalCachedPrompts: promptCache.size,
-          usedCachedPrompt: Boolean(brand)
-        }
+          usedCachedPrompt: Boolean(brand),
+        },
       });
     } catch (e: unknown) {
-      console.error('Error en processGoatShotHttp:', e);
+      console.error("Error en processGoatShotHttp:", e);
       const message = e instanceof Error ? e.message : String(e);
       res.status(500).json({ error: message || "Error interno del servidor" });
     }
@@ -327,15 +370,13 @@ export const getCacheStats = onRequest(
         id,
         timestamp: new Date(cached.timestamp).toISOString(),
         expiresAt: new Date(cached.expiresAt).toISOString(),
-        contentLength: cached.content.length
-      }))
+        contentLength: cached.content.length,
+      })),
     };
 
     res.json(stats);
   }
 );
-
-
 
 // Define tu secret para Gemini API Key
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
@@ -345,16 +386,18 @@ async function downloadAndConvertLogo(
 ): Promise<{ base64: string; mime: string } | null> {
   try {
     console.log("Downloading logo from URL:", logoUrl);
-    
+
     // Descargar el archivo
-    const response = await axios.get(logoUrl, { 
-        responseType: "arraybuffer", // Importante para manejar archivos binarios
-        maxContentLength: 10 * 1024 * 1024, // Limitar tamaño de descarga a 10MB
+    const response = await axios.get(logoUrl, {
+      responseType: "arraybuffer", // Importante para manejar archivos binarios
+      maxContentLength: 10 * 1024 * 1024, // Limitar tamaño de descarga a 10MB
     });
 
     const logoFileBuf = Buffer.from(response.data as ArrayBuffer);
     const contentType = response.headers["content-type"] || "";
-    const isSvg = contentType.includes("image/svg") || logoUrl.toLowerCase().endsWith(".svg");
+    const isSvg =
+      contentType.includes("image/svg") ||
+      logoUrl.toLowerCase().endsWith(".svg");
 
     let base64Logo: string;
     let logoMime: string;
@@ -365,7 +408,8 @@ async function downloadAndConvertLogo(
 
       // Convertir SVG a PNG
       const pngBuffer = await sharp(logoFileBuf)
-        .resize(512, 512, { // Tamaño razonable para logo
+        .resize(512, 512, {
+          // Tamaño razonable para logo
           fit: "inside",
           withoutEnlargement: true,
         })
@@ -381,18 +425,32 @@ async function downloadAndConvertLogo(
 
       if (contentType.startsWith("image/")) {
         logoMime = contentType; // image/png, image/jpeg
-      } else if (logoUrl.toLowerCase().endsWith(".jpg") || logoUrl.toLowerCase().endsWith(".jpeg")) {
+      } else if (
+        logoUrl.toLowerCase().endsWith(".jpg") ||
+        logoUrl.toLowerCase().endsWith(".jpeg")
+      ) {
         logoMime = "image/jpeg";
       } else {
         logoMime = "image/png"; // Default fallback
       }
 
-      console.log("Logo loaded:", logoUrl, "MIME:", logoMime, "size:", logoFileBuf.length);
+      console.log(
+        "Logo loaded:",
+        logoUrl,
+        "MIME:",
+        logoMime,
+        "size:",
+        logoFileBuf.length
+      );
     }
 
     return { base64: base64Logo, mime: logoMime };
   } catch (logoError: any) {
-    console.error("Error loading or converting logo from URL:", logoUrl, logoError.message);
+    console.error(
+      "Error loading or converting logo from URL:",
+      logoUrl,
+      logoError.message
+    );
     return null; // Continuar sin logo si hay error
   }
 }
@@ -434,7 +492,6 @@ export const processImageTask = onDocumentCreated(
       PROMPT = promptData.prompt;
       LOGO_URL = promptData.logoPath || ""; // Asumimos que buildPromptWithBrand devuelve la URL en logoPath
       LOGO_PROMPT = promptData.logoPrompt || DEFAULT_LOGO_PROMPT;
-    
     }
 
     if (!data?.inputPath) {
@@ -467,15 +524,15 @@ export const processImageTask = onDocumentCreated(
       // 2) Descargar logo desde URL si existe
       let base64Logo: string | null = null;
       let logoMime = "image/png";
-      
+
       if (LOGO_URL) {
         const logoData = await downloadAndConvertLogo(LOGO_URL);
         if (logoData) {
-            base64Logo = logoData.base64;
-            logoMime = logoData.mime;
+          base64Logo = logoData.base64;
+          logoMime = logoData.mime;
         }
       }
-      
+
       // Actualizar debug info
       await docRef.update({
         debug: {
@@ -509,7 +566,7 @@ export const processImageTask = onDocumentCreated(
       // Agregar logo si existe
       if (base64Logo) {
         parts.unshift(
-          { text:  LOGO_PROMPT},
+          { text: LOGO_PROMPT },
           {
             inlineData: {
               mimeType: logoMime,
@@ -518,7 +575,7 @@ export const processImageTask = onDocumentCreated(
           }
         );
       }
-      
+
       // ... (El resto del código para llamar a Gemini y guardar la salida sigue igual)
       // ... (Resto del código para la llamada a Gemini, verificación de errores y guardado de salida)
       const contents = [
@@ -529,10 +586,11 @@ export const processImageTask = onDocumentCreated(
       ];
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image-preview",
+        model: "gemini-2.5-flash-image",
         contents: contents,
-   
       });
+      const models = await ai.models.list();
+      console.log("Available models:", models);
 
       console.log("Response received:", JSON.stringify(response, null, 2));
 
@@ -549,7 +607,7 @@ export const processImageTask = onDocumentCreated(
 
       // 4) Extraer la imagen generada
       const firstCandidate = response.candidates?.[0];
-      
+
       if (!firstCandidate) {
         console.error("No candidates in response:", response);
         await docRef.update({
@@ -563,26 +621,31 @@ export const processImageTask = onDocumentCreated(
 
       // Buscar la imagen en las partes
       const imagePart = firstCandidate.content?.parts?.find(
-        (part) => part.inlineData && part.inlineData.mimeType?.startsWith("image/")
+        (part) =>
+          part.inlineData && part.inlineData.mimeType?.startsWith("image/")
       );
-      
+
       const generatedImageData = imagePart?.inlineData?.data;
-      
+
       if (!generatedImageData) {
         // Intentar obtener texto de error si existe
-        const textParts = firstCandidate.content?.parts
-          ?.filter(p => p.text)
-          .map(p => p.text)
-          .join(" ") || "Sin respuesta de texto";
-        
+        const textParts =
+          firstCandidate.content?.parts
+            ?.filter((p) => p.text)
+            .map((p) => p.text)
+            .join(" ") || "Sin respuesta de texto";
+
         console.error("No image found in response. Text:", textParts);
-        console.error("Full candidate:", JSON.stringify(firstCandidate, null, 2));
-        
+        console.error(
+          "Full candidate:",
+          JSON.stringify(firstCandidate, null, 2)
+        );
+
         await docRef.update({
           status: "error",
           error: "Respuesta sin imagen generada",
           updatedAt: Date.now(),
-          details: { 
+          details: {
             textResponse: textParts.substring(0, 500),
             finishReason: firstCandidate.finishReason,
             safetyRatings: firstCandidate.safetyRatings,
@@ -590,7 +653,7 @@ export const processImageTask = onDocumentCreated(
         });
         return;
       }
-     
+
       console.log("Image found, saving to storage...");
 
       // 5) Guardar salida y generar URL con token
@@ -623,15 +686,16 @@ export const processImageTask = onDocumentCreated(
       });
     } catch (e: any) {
       console.error("processImageTask error:", e);
-      
+
       // Detectar error de quota específicamente
-      const isQuotaError = e?.message?.includes("quota") || 
-                          e?.message?.includes("429") ||
-                          e?.status === 429;
-      
+      const isQuotaError =
+        e?.message?.includes("quota") ||
+        e?.message?.includes("429") ||
+        e?.status === 429;
+
       await docRef.update({
         status: "error",
-        error: isQuotaError 
+        error: isQuotaError
           ? "Error de quota: Necesitas habilitar billing en Google AI Studio"
           : e?.message ?? "Error desconocido",
         errorType: isQuotaError ? "quota_exceeded" : "unknown",

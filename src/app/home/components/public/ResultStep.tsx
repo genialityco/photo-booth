@@ -38,9 +38,9 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
   // === Descargar imagen compuesta con marco ===
   const handleDownload = async () => {
     try {
-      const [baseImg] = await Promise.all([
+      const [baseImg, frameImg] = await Promise.all([
         loadImage(aiUrl),
-        //loadImage(""), //"/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"),
+        loadImage("/COLOR_WORLD/MAIL/MARCO-CUADRADO_MUNDIAL.png"),
       ]);
 
       const size = 1024;
@@ -106,12 +106,12 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
             draggable={false}
           />
           {/* Marco superpuesto */}
-          {/* <img
-            src={""} //"/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"
+          <img
+            src={"/COLOR_WORLD/MAIL/MARCO-CUADRADO_MUNDIAL.png"}
             alt="Marco decorativo"
             className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
             draggable={false}
-          /> */}
+          />
         </div>
 
         {/* QR (sin marco) */}
@@ -124,14 +124,14 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
           <ButtonPrimary
             onClick={onAgain}
             label="NUEVA FOTO"
-            imageSrc="/Colombia4.0/BOTON-COMENZAR.png"
+            imageSrc="/COLOR_WORLD/CORTES/BOTON-PEQUEÑO.png"
             width={190}
             height={50}
           />
           <ButtonPrimary
             onClick={handleDownload}
-            label="DESCARGAR FOTO"
-            imageSrc="/Colombia4.0/BOTON-COMENZAR.png"
+            label="DESCARGAR"
+            imageSrc="/COLOR_WORLD/CORTES/BOTON-PEQUEÑO.png"
             width={190}
             height={50}
           />

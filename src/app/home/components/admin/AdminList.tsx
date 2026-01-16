@@ -55,7 +55,7 @@ async function downloadAs(filename: string, url: string) {
     const baseImage = await createImageBitmap(blob);
 
     // Cargar el marco
-    const frameUrl = ""; //"/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png";
+    const frameUrl = "/COLOR_WORLD/MAIL/MARCO-CUADRADO_MUNDIAL.png";
     const frameRes = await fetch(frameUrl, { cache: "no-store" });
     if (!frameRes.ok) throw new Error("No se pudo cargar el marco.");
     const frameBlob = await frameRes.blob();

@@ -1,26 +1,22 @@
 /* eslint-disable @next/next/no-img-element */
 /* app/components/Landing.tsx */
 "use client";
+import ButtonPrimary from "@/app/items/ButtonPrimary";
 import React from "react";
 
-type BrandKey = "BANDERA_COLOMBIA" | "BANDERA_MEXICO" | "BANDERA_FRANCIA";
+type BrandKey = "BANDERA_COLOMBIA" | "BANDERA_MEXICO";
 type BrandConfig = { k: BrandKey; logo: string; aria: string };
 
 const BRANDS: BrandConfig[] = [
   {
     k: "BANDERA_COLOMBIA",
-    logo: "/images/Colombia.png",
+    logo: "/COLOR_WORLD/CORTES/COLOMBIA.png",
     aria: "Bandera de Colombia",
   },
   {
     k: "BANDERA_MEXICO",
-    logo: "/images/Mexico.png",
+    logo: "/COLOR_WORLD/CORTES/MEXICO.png",
     aria: "Bandera de México",
-  },
-  {
-    k: "BANDERA_FRANCIA",
-    logo: "/images/Francia.png",
-    aria: "Bandera de Francia",
   },
 ];
 
@@ -62,7 +58,8 @@ export default function Landing({
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
         style={{
-          backgroundImage: "url('Lenovo/app-avatars-01.png')",
+          backgroundImage:
+            "url('/COLOR_WORLD/CORTES/FONDO-SELECCION_PAIS.PNG')",
         }}
         aria-hidden
       />
@@ -72,12 +69,12 @@ export default function Landing({
         {/* Título/Logo */}
         <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
           <div className="mx-auto w-full max-w-[620px] flex flex-col items-center gap-2">
-            <img
+            {/* <img
               src="/Lenovo/app-avatars-02.png"
               alt="GEN.IALITY LOGO"
               className="w-full select-none"
               draggable={false}
-            />
+            /> */}
 
             {/* NUEVO: imagen de título clickeable para elegir marca aleatoria */}
             {/* <img
@@ -101,17 +98,17 @@ export default function Landing({
         </div>
 
         {/* Texto guía (exacto) */}
-        <h1 className="mt-4 sm:mt-6 text-center text-base sm:text-lg md:text-xl font-semibold text-white drop-shadow-md">
+        {/* <h1 className="mt-4 sm:mt-6 text-center text-base sm:text-lg md:text-xl font-semibold text-white drop-shadow-md">
           Selecciona tu evolución...{" "}
-        </h1>
+        </h1> */}
 
         {/* Grid: 2 cols en mobile, 3 en iPad+ */}
-        <div className="mt-5 sm:mt-7 w-full px-5 sm:px-6 md:px-8">
+        <div className="mt-5 sm:mt-160 w-full px-5 sm:px-6 md:px-8">
           <div
             className="
-              grid gap-3 sm:gap-4 md:gap-5
+              grid gap-2 sm:gap-4 md:gap-5
               grid-cols-2
-              md:grid-cols-3
+              md:grid-cols-2
             "
           >
             {BRANDS.map((b) => (
@@ -125,17 +122,7 @@ export default function Landing({
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") handleStart(b.k);
                 }}
-                className="
-      group cursor-pointer select-none
-      rounded-xl sm:rounded-2xl
-      backdrop-blur
-      shadow-md sm:shadow-xl ring-1 ring-black/5
-      transition-transform duration-150
-      supports-[hover:hover]:hover:scale-[1.015]
-      active:scale-[0.985]
-      focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70
-      bg-white/5
-    "
+                className=""
               >
                 <div className="flex w-full flex-col items-center justify-center overflow-hidden">
                   {/* Imagen */}
@@ -145,7 +132,6 @@ export default function Landing({
                         src={b.logo}
                         alt={b.aria}
                         className="
-              bg-white
               absolute inset-0 w-full h-full
               object-contain
             "
@@ -168,15 +154,12 @@ export default function Landing({
                   </div>
 
                   {/* Texto debajo de la imagen */}
-                  <div
-                    className="
-          w-full px-4 py-2
-          text-center font-semibold
-          text-white drop-shadow
-          text-sm sm:text-base
-        "
-                  >
-                    {b.aria}
+                  <div className="w-full px-4 py-2">
+                    <ButtonPrimary
+                      imageSrc="/COLOR_WORLD/CORTES/BOTON-GRANDE.png"
+                      label={b.aria}
+                      onClick={() => handleStart(b.k)}
+                    />
                   </div>
                 </div>
               </article>
@@ -186,12 +169,12 @@ export default function Landing({
 
         {/* Footer */}
         <div className="mt-auto w-full px-5 sm:pb-4 md:pb-6 pb-3 sm:px-6 md:px-8">
-          <img
+          {/* <img
             src="/Lenovo/app-avatars-04.png" //"/congresoEdu/Logo-congreso-v2.png"
             alt="Logos Footer"
             className="mx-auto w-full max-w-[980px] select-none"
             draggable={false}
-          />
+          /> */}
         </div>
       </div>
     </div>
