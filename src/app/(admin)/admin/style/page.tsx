@@ -127,8 +127,8 @@ export default function StyleAdminPage() {
 
   const actions = [
     { key: "view", label: "Ver", icon: <Eye className="h-4 w-4" />, onClick: (item: StyleProfile) => { if (item.frameImage) window.open(item.frameImage, "_blank"); } },
-    { key: "copy", label: "Copiar URL", icon: <Link className="h-4 w-4" />, onClick: (item: StyleProfile) => { const url = item.frameImage || ""; if (url && navigator.clipboard) navigator.clipboard.writeText(url); } },
-    { key: "openStyle", label: "Abrir con style", icon: <Link className="h-4 w-4" />, onClick: (item: StyleProfile) => { const base = `${window.location.origin}${window.location.pathname}`; window.open(`${base}?styleId=${item.id}`, "_blank"); } },
+    
+    { key: "openStyle", label: "Abrir con style", icon: <Link className="h-4 w-4" />, onClick: (item: StyleProfile) => { const base = `${window.location.origin}`; window.open(`${base}?styleId=${item.id}`, "_blank"); } },
     { key: "edit", label: "Editar", icon: <Edit className="h-4 w-4" />, onClick: (item: StyleProfile) => onEdit(item) },
     { key: "delete", label: "Eliminar", icon: <Trash className="h-4 w-4 text-red-500" />, onClick: (item: StyleProfile) => onDelete(item.id) },
   ];
