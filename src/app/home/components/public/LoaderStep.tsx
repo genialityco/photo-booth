@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
+import type { StyleProfile } from "@/app/services/styleService";
 
 export default function LoaderStep() {
   const [dots, setDots] = useState("");
-  const [style, setStyle] = useState<any | null>(null);
+  const [style, setStyle] = useState<StyleProfile | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");

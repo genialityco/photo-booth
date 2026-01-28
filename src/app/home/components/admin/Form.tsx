@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -14,13 +13,13 @@ interface FormField {
 }
 
 interface FormProps<T> {
-  initialData: any;
+  initialData: T;
   fields: FormField[];
-  onSubmit: (data: any, updatedImages: string[]) => Promise<void>;
+  onSubmit: (data: T, updatedImages: string[]) => Promise<void>;
   submitButtonText?: string;
 }
 
-export default function Form<T extends Record<string, any>>({
+export default function Form<T extends Record<string, unknown>>({
   initialData,
   fields,
   onSubmit,
@@ -51,14 +50,15 @@ export default function Form<T extends Record<string, any>>({
   useEffect(() => {
     const previews: Record<string, string> = {};
     const updated: Record<string, boolean> = {};
-    
+
     imageFields.forEach((field) => {
-      if (initialData[field.name]) {
-        previews[field.name] = initialData[field.name];
+      const val = (initialData as unknown as Record<string, unknown>)[field.name];
+      if (typeof val === 'string' && val) {
+        previews[field.name] = String(val);
         updated[field.name] = false;
       }
     });
-    
+
     if (Object.keys(previews).length > 0) {
       setImagePreviews(previews);
       setImageUpdated(updated);
@@ -111,12 +111,13 @@ export default function Form<T extends Record<string, any>>({
       }));
       setFormData((prev) => ({
         ...prev,
+        // @ts-expect-error dynamic key
         [fieldName]: result, // Store base64 string
       }));
       // Mark image as updated
       setImageUpdated((prev) => ({
         ...prev,
-        [fieldName]: result !== initialDataRef.current[fieldName],
+        [fieldName]: result !== ((initialDataRef.current as unknown as Record<string, unknown>)[fieldName] as string | undefined),
       }));
     };
     reader.readAsDataURL(file);

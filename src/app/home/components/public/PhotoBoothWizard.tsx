@@ -8,6 +8,7 @@ import PreviewStep from "./PreviewStep";
 import LoaderStep from "./LoaderStep";
 import ResultStep from "./ResultStep";
 import { getStyleProfileById } from "@/app/services/styleService";
+import type { StyleProfile } from "@/app/services/styleService";
 import { useSearchParams } from "next/navigation";
 import { db } from "@/firebaseConfig";
 import {
@@ -46,7 +47,7 @@ export default function PhotoBoothWizard({
   const [brand, setBrand] = useState<string | null>("electronic");
   const [color, setColor] = useState<string | null>(null);
   const unsubRef = useRef<() => void | undefined>(undefined);
-  const [style, setStyle] = useState<any | null>(null);
+  const [style, setStyle] = useState<StyleProfile | null>(null);
 
   useEffect(() => {
     // Esperar a que searchParams esté disponible
@@ -194,7 +195,7 @@ export default function PhotoBoothWizard({
         unsubRef.current = undefined;
       }
       unsubRef.current = onSnapshot(taskRef, async (snap) => {
-        const data = snap.data() as any;
+        const data = snap.data();
         if (!data) return;
 
         if (data.status === "error") {

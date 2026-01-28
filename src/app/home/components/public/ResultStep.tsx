@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useMemo, useEffect, useState } from "react";
+import type { StyleProfile } from "@/app/services/styleService";
 import ButtonPrimary from "@/app/items/ButtonPrimary";
 import QrTag from "./QrTag";
 
@@ -14,7 +15,7 @@ type Props = {
 
 export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const [style, setStyle] = useState<any | null>(null);
+  const [style, setStyle] = useState<StyleProfile | null>(null);
   const enableFrame = !!style?.enableFrame;
   const frameSrc = style?.frameImage ?? null;
 

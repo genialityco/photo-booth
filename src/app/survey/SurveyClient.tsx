@@ -4,6 +4,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { StyleProfile } from "@/app/services/styleService";
 import { useSearchParams } from "next/navigation";
 // ⬇️ Ya no guardamos en base, así que puedes comentar/retirar estos imports si no se usan
 // import { createSurveyRecord, createSurveyRecordQuick } from "../services/surveyServices";
@@ -23,7 +24,7 @@ export default function SurveyClient() {
   const [photo, setPhoto] = useState<string>("");
   const [loadingPhoto, setLoadingPhoto] = useState(true);
   const [err, setErr] = useState<string>("");
-  const [style, setStyle] = useState<any | null>(null);
+  const [style, setStyle] = useState<StyleProfile | null>(null);
   const enableFrame = !!style?.enableFrame;
   const frameSrc = style?.frameImage ?? null;
 
