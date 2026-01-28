@@ -6,7 +6,7 @@ import React, { useEffect, useState } from "react";
 import { getStyleProfileById, type StyleProfile } from "@/app/services/styleService";
 import { getPhotoBoothPromptById, getActivePhotoBoothPrompts, type PhotoBoothPrompt } from "@/app/services/brandService";
 
-type BrandItem = { id: string; name: string; image: string; aria?: string };
+type BrandItem = { id: string; name: string; image: string; aria?: string, brand: string };
 
 export default function Landing({ onStart, styleId }: { onStart?: (brand: string) => void; styleId?: string }) {
   const [brands, setBrands] = useState<BrandItem[]>([]);
@@ -51,14 +51,14 @@ export default function Landing({ onStart, styleId }: { onStart?: (brand: string
             if (b) {
               const name = b.brandName || b.brand || b.id;
               const image = b.imageUrl || b.logoPath || "";
-              loaded.push({ id: b.id, name, image, aria: name });
+              loaded.push({ id: b.id, name, image, aria: name, brand: b.brand || b.brandName || b.id });
             }
           }
           setBrands(loaded);
         } else {
           // fallback: use active brands
           const res = await getActivePhotoBoothPrompts(10);
-          const loaded = res.data.map(b => ({ id: b.id, name: b.brandName || b.brand || b.id, image: b.imageUrl || b.logoPath || "", aria: b.brandName || b.brand }));
+          const loaded = res.data.map(b => ({ id: b.id, name: b.brandName || b.brand || b.id, image: b.imageUrl || b.logoPath || "", aria: b.brandName || b.brand, brand: b.brand || b.brandName || b.id }));
           setBrands(loaded);
         }
       } catch (err) {
@@ -109,14 +109,14 @@ export default function Landing({ onStart, styleId }: { onStart?: (brand: string
           {useFlexCenter ? (
             <div className="flex items-center justify-center flex-wrap gap-6 py-8">
               {brands.map((b) => (
-                <article key={b.id} role="button" tabIndex={0} aria-label={b.aria} title={b.name} onClick={() => handleStart(b.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleStart(b.id); }} className="group cursor-pointer select-none rounded-xl sm:rounded-2xl backdrop-blur shadow-md sm:shadow-xl ring-1 ring-black/5 transition-transform duration-150 hover:scale-[1.015] active:scale-[0.985] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 bg-white/5 max-w-[360px] w-[min(80vw,320px)]">
+                <article key={b.id} role="button" tabIndex={0} aria-label={b.aria} title={b.name} onClick={() => handleStart(b.brand)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleStart(b.id); }} className="group cursor-pointer select-none rounded-xl sm:rounded-2xl backdrop-blur shadow-md sm:shadow-xl ring-1 ring-black/5 transition-transform duration-150 hover:scale-[1.015] active:scale-[0.985] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 bg-white/5 max-w-[360px] w-[min(80vw,320px)]">
                   <div className="flex flex-col items-center justify-center overflow-hidden p-2">
                     <div className="w-full max-w-[320px]">
                       <div className="relative w-full aspect-[4/3] md:aspect-square">
                         <img src={b.image || "/images/placeholder.png"} alt={b.aria || b.name} className="bg-white absolute inset-0 w-full h-full object-contain" draggable={false} style={{ borderRadius: "30px" }} />
                       </div>
                     </div>
-                    <div className="px-4 py-2 text-center font-semibold text-white drop-shadow text-sm sm:text-base">{b.name}</div>
+                    <div className="px-4 py-2 text-center font-semibold text-white drop-shadow text-sm sm:text-base">{b.brand}</div>
                   </div>
                 </article>
               ))}
