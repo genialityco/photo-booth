@@ -270,12 +270,14 @@ export default function PhotoBoothPromptsPage() {
         onClose={() => setIsModalOpen(false)}
         title={selectedPrompt?.id ? "Editar Prompt" : "Crear Prompt"}
       >
-        <Form
-          initialData={selectedPrompt}
-          fields={formFields}
-          onSubmit={handleSubmit}
-          submitButtonText={selectedPrompt?.id ? "Guardar Cambios" : "Crear Prompt"}
-        />
+        {selectedPrompt && (
+          <Form
+            initialData={selectedPrompt}
+            fields={formFields}
+            onSubmit={handleSubmit}
+            submitButtonText={selectedPrompt?.id ? "Guardar Cambios" : "Crear Prompt"}
+          />
+        )}
       </Modal>
     </div>
   );
