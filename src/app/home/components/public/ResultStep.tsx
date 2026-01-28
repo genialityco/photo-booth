@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import ButtonPrimary from "@/app/items/ButtonPrimary";
 import QrTag from "./QrTag";
 
@@ -14,6 +14,9 @@ type Props = {
 
 export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const [style, setStyle] = useState<any | null>(null);
+  const enableFrame = !!style?.enableFrame;
+  const frameSrc = style?.frameImage ?? null;
 
   const surveyAI = useMemo(() => {
     const url = new URL(`${origin}/survey`);
@@ -24,6 +27,19 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
   }, [origin, aiUrl, taskId]);
 
   const SIZE_IMG = "clamp(260px, min(70vw, 60svh), 520px)";
+
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem("photoBoothStyle");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setStyle(parsed);
+        console.log("[ResultStep] loaded cached style:", parsed?.id || parsed);
+      }
+    } catch (e) {
+      console.warn("[ResultStep] error reading sessionStorage", e);
+    }
+  }, []);
 
   // === Helper para cargar imágenes con soporte CORS ===
   const loadImage = (src: string): Promise<HTMLImageElement> =>
@@ -38,10 +54,11 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
   // === Descargar imagen compuesta con marco ===
   const handleDownload = async () => {
     try {
-      const [baseImg] = await Promise.all([
-        loadImage(aiUrl),
-        //loadImage(""), //"/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"),
-      ]);
+      const promises = [loadImage(aiUrl)];
+      if (enableFrame && frameSrc) promises.push(loadImage(frameSrc));
+      const imgs = await Promise.all(promises);
+      const baseImg = imgs[0];
+      const frameImg = imgs[1] ?? null;
 
       const size = 1024;
       const canvas = document.createElement("canvas");
@@ -59,7 +76,13 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
       const dy = (size - dh) / 2;
 
       ctx.drawImage(baseImg, dx, dy, dw, dh);
-      // ctx.drawImage(frameImg, 0, 0, size, size);
+      if (enableFrame && frameImg) {
+        try {
+          ctx.drawImage(frameImg, 0, 0, size, size);
+        } catch (e) {
+          console.warn("Error drawing frame on canvas:", e);
+        }
+      }
 
       // Exportar como blob
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -106,12 +129,14 @@ export default function ResultStep({ taskId, aiUrl, onAgain }: Props) {
             draggable={false}
           />
           {/* Marco superpuesto */}
-          {/* <img
-            src={""} //"/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"
-            alt="Marco decorativo"
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-            draggable={false}
-          /> */}
+          {enableFrame && frameSrc && (
+            <img
+              src={frameSrc}
+              alt="Marco decorativo"
+              className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+              draggable={false}
+            />
+          )}
         </div>
 
         {/* QR (sin marco) */}

@@ -154,6 +154,7 @@ export default function PhotoBoothPromptsPage() {
   const onCreate = () => {
     setSelectedPrompt({
       brand: "",
+      brandName: "",
       basePrompt: "",
       colorDirectiveTemplate: "",
       active: false,
@@ -183,7 +184,8 @@ export default function PhotoBoothPromptsPage() {
   ];
 
   const formFields = [
-    { name: "brand", label: "Brand", type: "text", required: true, placeholder: "Ingresa la marca" },
+    { name: "brand", label: "Brand (clave técnica)", type: "text", required: true, placeholder: "Ingresa la marca (clave)" },
+    { name: "brandName", label: "Nombre para tarjetas (landing)", type: "text", required: false, placeholder: "Nombre que se mostrará en las tarjetas" },
     { name: "basePrompt", label: "Prompt", type: "textarea", required: true, placeholder: "Ingresa el prompt" },
     { name: "logoPrompt", label: "Logo Prompt", type: "textarea", required: true, placeholder: "Ingresa el prompt" },
     { name: "colorDirectiveTemplate", label: "Color Template", type: "textarea", required: true, placeholder: "Ingresa el prompt de color" },
@@ -196,7 +198,17 @@ export default function PhotoBoothPromptsPage() {
       accept: 'image/png,image/jpeg',
       maxSize: 5 // 5MB máximo
     }
+    ,
+    {
+      name: 'imageUrl',
+      label: 'Imagen para cards (landing)',
+      type: 'image',
+      required: false,
+      accept: 'image/png,image/jpeg',
+      maxSize: 5
+    }
   ];
+
 
   const handleSubmit = async (data: PhotoBoothPrompt) => {
     try {

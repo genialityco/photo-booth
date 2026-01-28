@@ -7,6 +7,7 @@ import CaptureStep from "./CaptureStep";
 import PreviewStep from "./PreviewStep";
 import LoaderStep from "./LoaderStep";
 import ResultStep from "./ResultStep";
+import { getStyleProfileById } from "@/app/services/styleService";
 import { useSearchParams } from "next/navigation";
 import { db } from "@/firebaseConfig";
 import {
@@ -45,13 +46,15 @@ export default function PhotoBoothWizard({
   const [brand, setBrand] = useState<string | null>("electronic");
   const [color, setColor] = useState<string | null>(null);
   const unsubRef = useRef<() => void | undefined>(undefined);
+  const [style, setStyle] = useState<any | null>(null);
 
   useEffect(() => {
     // Esperar a que searchParams esté disponible
     if (searchParams) {
       const brandParam = searchParams.get("brand");
       const colorParam = searchParams.get("color");
-
+      const styleIdParam = searchParams.get("styleId");
+      console.log("StyleId param:", styleIdParam);
       console.log("Brand param:", brandParam);
       console.log("Color param:", colorParam);
 
@@ -79,6 +82,70 @@ export default function PhotoBoothWizard({
       }
     };
   }, [searchParams]);
+
+  // Load style if styleId present in query (so styles persist across steps)
+  useEffect(() => {
+    const loadStyle = async () => {
+      try {
+        console.log(
+          "[PhotoBoothWizard] loadStyle effect running",
+          "search=",
+          window.location.search,
+          "pathname=",
+          window.location.pathname
+        );
+
+        const params = new URLSearchParams(window.location.search);
+        let styleId = params.get("styleId");
+
+        if (!styleId) {
+          // Fallback: try to extract styleId from pathname (e.g. /<styleId>)
+          const path = window.location.pathname || "";
+          const segments = path.split("/").filter(Boolean);
+          if (segments.length >= 1) {
+            styleId = segments[0];
+            console.log("[PhotoBoothWizard] derived styleId from pathname:", styleId);
+          }
+        } else {
+          console.log("[PhotoBoothWizard] found styleId in search:", styleId);
+        }
+
+        // Try sessionStorage first
+        try {
+          const cached = sessionStorage.getItem("photoBoothStyle");
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            console.log("[PhotoBoothWizard] found cached style in sessionStorage:", parsed?.id || parsed);
+            // If there's no explicit styleId OR cached matches requested styleId, use cached
+            if (!styleId || parsed?.id === styleId) {
+              setStyle(parsed);
+              return;
+            }
+            console.log("[PhotoBoothWizard] cached style id differs from requested styleId, fetching requested style");
+          }
+        } catch (e) {
+          console.warn("[PhotoBoothWizard] error reading sessionStorage", e);
+        }
+
+        if (!styleId) {
+          console.log("[PhotoBoothWizard] no styleId found in search or pathname and no cached style");
+          return;
+        }
+
+        const s = await getStyleProfileById(styleId);
+        setStyle(s);
+        console.log("[PhotoBoothWizard] loaded style object:", s);
+        try {
+          console.log("[PhotoBoothWizard] loaded style JSON:\n", JSON.stringify(s, null, 2));
+        } catch (e) {
+          console.log("[PhotoBoothWizard] could not stringify style", e);
+        }
+      } catch (err) {
+        console.error("Error loading style in wizard:", err);
+      }
+    };
+    loadStyle();
+  }, []);
 
   const handleCaptured = (payload: { framed: string; raw: string }) => {
     setFramedShot(payload.framed);
@@ -167,14 +234,22 @@ export default function PhotoBoothWizard({
     }
   };
 
+  const bgUrl = style
+    ? step === "capture"
+      ? style.bgCapture || style.bgLanding
+      : step === "loading"
+      ? style.bgLoading || style.bgLanding
+      : step === "result"
+      ? style.bgResults || style.bgLanding
+      : style.bgLanding
+    : "/Lenovo/app-avatars-01.png";
+
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       {/* Fondo full-screen */}
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{
-          backgroundImage: "url('Lenovo/app-avatars-01.png')",
-        }}
+        style={{ backgroundImage: `url('${bgUrl}')` }}
         aria-hidden
       />
 
@@ -188,8 +263,18 @@ export default function PhotoBoothWizard({
   `}
       >
         <img
-          src="/Lenovo/app-avatars-02.png"
-          alt="Logo Gen.iality"
+          src={
+            style
+              ? (step === "capture"
+                  ? style.logoCaptureTop || style.logoLandingTop
+                  : step === "loading"
+                  ? style.logoLoadingTop || style.logoLandingTop
+                  : step === "result"
+                  ? style.logoResultsTop || style.logoLandingTop
+                  : style.logoLandingTop)
+              : "/Lenovo/app-avatars-02.png"
+          }
+          alt="Logo"
           className="w-full select-none"
           draggable={false}
         />
@@ -214,7 +299,7 @@ export default function PhotoBoothWizard({
               mirror={mirror}
               boxSize={boxSize}
               onCaptured={handleCaptured}
-              /* frameSrc={frameSrc} */
+              frameSrc={style?.frameImage ?? null}
             />
           )}
 
@@ -244,7 +329,17 @@ export default function PhotoBoothWizard({
         style={{ bottom: "max(env(safe-area-inset-bottom), 16px)" }}
       >
         <img
-          src="/Lenovo/app-avatars-04.png" //"/congresoEdu/Logo-congreso-v2.png"
+          src={
+            style
+              ? (step === "capture"
+                  ? style.logoCaptureBottom || style.logoLandingBottom
+                  : step === "loading"
+                  ? style.logoLoadingBottom || style.logoLandingBottom
+                  : step === "result"
+                  ? style.logoResultsBottom || style.logoLandingBottom
+                  : style.logoLandingBottom)
+              : "/Lenovo/app-avatars-04.png"
+          }
           alt="Logos Footer"
           className="w-full select-none"
           draggable={false}
