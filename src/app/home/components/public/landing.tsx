@@ -3,14 +3,14 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { getStyleProfileById } from "@/app/services/styleService";
-import { getPhotoBoothPromptById, getActivePhotoBoothPrompts } from "@/app/services/brandService";
+import { getStyleProfileById, type StyleProfile } from "@/app/services/styleService";
+import { getPhotoBoothPromptById, getActivePhotoBoothPrompts, type PhotoBoothPrompt } from "@/app/services/brandService";
 
 type BrandItem = { id: string; name: string; image: string; aria?: string };
 
 export default function Landing({ onStart, styleId }: { onStart?: (brand: string) => void; styleId?: string }) {
   const [brands, setBrands] = useState<BrandItem[]>([]);
-  const [landingStyle, setLandingStyle] = useState<any | null>(null);
+  const [landingStyle, setLandingStyle] = useState<StyleProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export default function Landing({ onStart, styleId }: { onStart?: (brand: string
         const queryStyleId = params.get("styleId");
         const effectiveStyleId = styleId || queryStyleId || null;
         console.log("Effective style ID:", effectiveStyleId);
-        let style: any = null;
+        let style: StyleProfile | null = null;
         if (effectiveStyleId) {
           style = await getStyleProfileById(effectiveStyleId);
         }
@@ -48,7 +48,11 @@ export default function Landing({ onStart, styleId }: { onStart?: (brand: string
           const loaded: BrandItem[] = [];
           for (const bid of style.brands) {
             const b = await getPhotoBoothPromptById(bid);
-            if (b) loaded.push({ id: b.id, name: (b as any).brandName || b.brand || b.id, image: b.imageUrl || b.logoPath || "", aria: (b as any).brandName || b.brand });
+            if (b) {
+              const name = b.brandName || b.brand || b.id;
+              const image = b.imageUrl || b.logoPath || "";
+              loaded.push({ id: b.id, name, image, aria: name });
+            }
           }
           setBrands(loaded);
         } else {

@@ -4,6 +4,7 @@ import { collection, addDoc, Timestamp, getDocs, query, orderBy, doc, updateDoc,
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export type StyleProfile = {
+  brands: StyleProfile | null;
   id: string;
   name: string;
   enableFrame?: boolean;
