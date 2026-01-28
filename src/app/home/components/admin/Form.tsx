@@ -111,7 +111,7 @@ export default function Form<T extends Record<string, unknown>>({
       }));
       setFormData((prev) => ({
         ...prev,
-        // @ts-expect-error dynamic key
+      
         [fieldName]: result, // Store base64 string
       }));
       // Mark image as updated
@@ -207,6 +207,7 @@ export default function Form<T extends Record<string, unknown>>({
             <textarea
               id={field.name}
               name={field.name}
+              // @ts-expect-error
               value={formData[field.name] || ''}
               onChange={(e) => handleChange(e, field.name)}
               placeholder={field.placeholder}
@@ -275,7 +276,7 @@ export default function Form<T extends Record<string, unknown>>({
               id={field.name}
               name={field.name}
               type={field.type}
-              value={formData[field.name] || ''}
+              value={(formData[field.name] as string | number | undefined) || ''}
               onChange={(e) => handleChange(e, field.name)}
               placeholder={field.placeholder}
               className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
