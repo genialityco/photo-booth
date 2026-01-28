@@ -6,7 +6,9 @@ import React, { useEffect, useState } from "react";
 import { getStyleProfileById, type StyleProfile } from "@/app/services/styleService";
 import { getPhotoBoothPromptById, getActivePhotoBoothPrompts, type PhotoBoothPrompt } from "@/app/services/brandService";
 
-type BrandItem = { id: string; name: string; image: string; aria?: string, brand: string };
+type BrandItem = {
+  [x: string]: string | undefined; id: string; name: string; image: string; aria?: string, brand: string , brandName: string 
+};
 
 export default function Landing({ onStart, styleId }: { onStart?: (brand: string) => void; styleId?: string }) {
   const [brands, setBrands] = useState<BrandItem[]>([]);
@@ -51,14 +53,21 @@ export default function Landing({ onStart, styleId }: { onStart?: (brand: string
             if (b) {
               const name = b.brandName || b.brand || b.id;
               const image = b.imageUrl || b.logoPath || "";
-              loaded.push({ id: b.id, name, image, aria: name, brand: b.brand || b.brandName || b.id });
+              loaded.push({ id: b.id, name, image, aria: name, brand: b.brand || b.brandName || b.id, brandName: b.brandName || b.brand || b.id });
             }
           }
           setBrands(loaded);
         } else {
           // fallback: use active brands
           const res = await getActivePhotoBoothPrompts(10);
-          const loaded = res.data.map(b => ({ id: b.id, name: b.brandName || b.brand || b.id, image: b.imageUrl || b.logoPath || "", aria: b.brandName || b.brand, brand: b.brand || b.brandName || b.id }));
+          const loaded = res.data.map(b => ({
+            id: b.id,
+            name: b.brandName || b.brand || b.id,
+            image: b.imageUrl || b.logoPath || "",
+            aria: b.brandName || b.brand,
+            brand: b.brand || b.brandName || b.id,
+            brandName: b.brandName || b.brand || b.id
+          }));
           setBrands(loaded);
         }
       } catch (err) {
@@ -116,7 +125,7 @@ export default function Landing({ onStart, styleId }: { onStart?: (brand: string
                         <img src={b.image || "/images/placeholder.png"} alt={b.aria || b.name} className="bg-white absolute inset-0 w-full h-full object-contain" draggable={false} style={{ borderRadius: "30px" }} />
                       </div>
                     </div>
-                    <div className="px-4 py-2 text-center font-semibold text-white drop-shadow text-sm sm:text-base">{b.brand}</div>
+                    <div className="px-4 py-2 text-center font-semibold text-white drop-shadow text-sm sm:text-base">{b.brandName || b.brand}</div>
                   </div>
                 </article>
               ))}

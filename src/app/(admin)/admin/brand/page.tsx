@@ -109,8 +109,10 @@ export default function PhotoBoothPromptsPage() {
       });
 
       console.log("Loaded prompts:", result.data);
+      return result;
     } catch (error) {
       console.error("Error loading prompts:", error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -123,11 +125,28 @@ export default function PhotoBoothPromptsPage() {
   const handleGoToPage = async (pageNumber: number) => {
     if (pageNumber === pagination.currentPage || pageNumber < 1 || pageNumber > totalPages) return;
 
-    // Buscar el lastDoc de la página anterior
-    const prevPageInfo = pagination.pages.find(p => p.pageNumber === pageNumber - 1);
-    const lastDoc = prevPageInfo?.lastDoc || null;
+    // Si ya tenemos el cursor para la página anterior, usarlo. Si no, avanzar secuencialmente
+    try {
+      // Find the highest known page < requested that has a lastDoc
+      const knownPages = pagination.pages.filter(p => p.pageNumber < pageNumber);
+      const knownWithCursor = [...knownPages].reverse().find(p => p.lastDoc);
 
-    await loadPrompts(lastDoc, pageNumber);
+      let startPage = 1;
+      let lastDoc: QueryDocumentSnapshot | null = null;
+
+      if (knownWithCursor) {
+        startPage = knownWithCursor.pageNumber + 1;
+        lastDoc = knownWithCursor.lastDoc || null;
+      }
+
+      // If we don't have any cursor and requested page is >1, we will fetch pages sequentially from page 1
+      for (let p = startPage; p <= pageNumber; p++) {
+        const res = await loadPrompts(lastDoc, p);
+        lastDoc = res.lastDoc;
+      }
+    } catch (error) {
+      console.error("Error navigating to page:", error);
+    }
   };
 
   const onEdit = (prompt: PhotoBoothPrompt) => {

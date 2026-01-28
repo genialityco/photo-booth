@@ -20,9 +20,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-dvh overflow-hidden">
+    <html lang="en" className="h-dvh">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} h-dvh overflow-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} h-dvh overflow-auto`}
       >
         {/* ✅ bloquea scroll global */}
         {/* Fondo opcional
@@ -31,7 +31,7 @@ export default function RootLayout({
           style={{ backgroundImage: "url('/images/frame.jpg')" }}
         />
         */}
-        <div className="h-dvh w-full flex items-center justify-center p-0 overflow-hidden">
+        <div className="h-dvh w-full flex items-center justify-center p-0 overflow-auto">
           {children}
         </div>
       </body>
