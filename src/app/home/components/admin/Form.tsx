@@ -207,7 +207,7 @@ export default function Form<T extends Record<string, unknown>>({
             <textarea
               id={field.name}
               name={field.name}
-              // @ts-expect-error
+              // @ts-expect-error TS2322
               value={formData[field.name] || ''}
               onChange={(e) => handleChange(e, field.name)}
               placeholder={field.placeholder}
