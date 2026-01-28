@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -56,7 +57,7 @@ export default function StyleAdminPage() {
 
   useEffect(() => {
     if (selectedStyle) {
-      const b = (selectedStyle as any).brands || [];
+      const b = selectedStyle.brands || [];
       setSelectedBrands(Array.isArray(b) ? b : []);
     } else {
       setSelectedBrands([]);
@@ -76,7 +77,7 @@ export default function StyleAdminPage() {
     const loadBrands = async () => {
       try {
         const res = await getAllBrands();
-        setBrandsList(res.map(b => ({ id: b.id, brand: (b as any).brandName || b.brand || b.id })));
+        setBrandsList(res.map(b => ({ id: b.id, brand: b.brandName || b.brand || b.id })));
       } catch (err) {
         console.error('Error loading brands for selector', err);
       }

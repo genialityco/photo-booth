@@ -58,7 +58,7 @@ export default function Landing({ onStart, styleId }: { onStart?: (brand: string
         } else {
           // fallback: use active brands
           const res = await getActivePhotoBoothPrompts(10);
-          const loaded = res.data.map(b => ({ id: b.id, name: (b as any).brandName || b.brand || b.id, image: b.imageUrl || b.logoPath || "", aria: (b as any).brandName || b.brand }));
+          const loaded = res.data.map(b => ({ id: b.id, name: b.brandName || b.brand || b.id, image: b.imageUrl || b.logoPath || "", aria: b.brandName || b.brand }));
           setBrands(loaded);
         }
       } catch (err) {
