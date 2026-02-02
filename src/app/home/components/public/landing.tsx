@@ -133,7 +133,7 @@ export default function Landing({ onStart, styleId }: { onStart?: (brand: string
           ) : (
             <div className="grid gap-3 sm:gap-4 md:gap-5 grid-cols-2 md:grid-cols-3 justify-items-center">
               {brands.map((b) => (
-                <article key={b.id} role="button" tabIndex={0} aria-label={b.aria} title={b.name} onClick={() => handleStart(b.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleStart(b.id); }} className="group cursor-pointer select-none rounded-xl sm:rounded-2xl backdrop-blur shadow-md sm:shadow-xl ring-1 ring-black/5 transition-transform duration-150 hover:scale-[1.015] active:scale-[0.985] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 bg-white/5 max-w-[320px] w-full">
+                <article key={b.id} role="button" tabIndex={0} aria-label={b.aria} title={b.name} onClick={() => handleStart(b.brand)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleStart(b.brand); }} className="group cursor-pointer select-none rounded-xl sm:rounded-2xl backdrop-blur shadow-md sm:shadow-xl ring-1 ring-black/5 transition-transform duration-150 hover:scale-[1.015] active:scale-[0.985] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 bg-white/5 max-w-[320px] w-full">
                   <div className="flex flex-col items-center justify-center overflow-hidden">
                     <div className="w-full max-w-[280px]">
                       <div className="relative w-full aspect-[4/3] md:aspect-square">
