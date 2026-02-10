@@ -273,7 +273,7 @@ export default function PhotoBoothWizard({
                   : step === "result"
                   ? style.logoResultsTop || style.logoLandingTop
                   : style.logoLandingTop)
-              : "/Lenovo/app-avatars-02.png"
+              : "/genilaty_smart_led_logo.png"
           }
           alt="Logo"
           className="w-full select-none"
@@ -339,7 +339,7 @@ export default function PhotoBoothWizard({
                   : step === "result"
                   ? style.logoResultsBottom || style.logoLandingBottom
                   : style.logoLandingBottom)
-              : "/Lenovo/app-avatars-04.png"
+              : "genilaty_smart_led_logo.png"
           }
           alt="Logos Footer"
           className="w-full select-none"

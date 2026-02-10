@@ -104,7 +104,7 @@ export default function Landing({ onStart, styleId }: { onStart?: (brand: string
         <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
           <div className="mx-auto w-full max-w-[620px] flex flex-col items-center gap-2">
             <img
-              src={landingStyle?.logoLandingTop || "/Lenovo/app-avatars-02.png"}
+              src={landingStyle?.logoLandingTop || "genilaty_smart_led_logo.png"}
               alt="GEN.IALITY LOGO"
               className="w-full select-none"
               draggable={false}
@@ -150,7 +150,7 @@ export default function Landing({ onStart, styleId }: { onStart?: (brand: string
 
         <div className="mt-auto w-full px-5 sm:pb-4 md:pb-6 pb-3 sm:px-6 md:px-8">
           <img
-            src={landingStyle?.logoLandingBottom || "/Lenovo/app-avatars-04.png"}
+            src={landingStyle?.logoLandingBottom || "genilaty_smart_led_logo.png"}
             alt="Logos Footer"
             className="mx-auto w-full max-w-[980px] select-none"
             draggable={false}

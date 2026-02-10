@@ -31,8 +31,8 @@ export default function LoaderStep() {
   }, []);
 
   const bgUrl = style ? style.bgLoading || style.bgLanding || "/Lenovo/app-avatars-01.png" : "/Lenovo/app-avatars-01.png";
-  const topLogo = style ? style.logoLoadingTop || style.logoLandingTop || "/Lenovo/app-avatars-02.png" : "/Lenovo/app-avatars-02.png";
-  const bottomLogo = style ? style.logoLoadingBottom || style.logoLandingBottom || "/Lenovo/app-avatars-04.png" : "/Lenovo/app-avatars-04.png";
+  const topLogo = style ? style.logoLoadingTop || style.logoLandingTop || "genilaty_smart_led_logo.png" : "/Lenovo/app-avatars-02.png";
+  const bottomLogo = style ? style.logoLoadingBottom || style.logoLandingBottom || "genilaty_smart_led_logo.png" : "/Lenovo/app-avatars-04.png";
 
   return (
     <div
