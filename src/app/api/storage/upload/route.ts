@@ -12,15 +12,21 @@ function getStorageBucket() {
 }
 
 function getServiceAccount() {
-  // Intentar leer del archivo primero (Netlify)
-  const filePath = path.join(process.cwd(), "firebaseServiceAccount.json");
-  if (fs.existsSync(filePath)) {
-    try {
-      const content = fs.readFileSync(filePath, "utf-8");
-      console.log("✓ Credenciales cargadas desde archivo");
-      return JSON.parse(content);
-    } catch (err) {
-      console.warn("⚠️ Error leyendo credenciales del archivo:", (err as Error).message);
+  // Intentar leer del archivo primero (Netlify publica en .next/)
+  const possiblePaths = [
+    path.join(process.cwd(), ".next", "firebaseServiceAccount.json"),
+    path.join(process.cwd(), "firebaseServiceAccount.json"),
+  ];
+  
+  for (const filePath of possiblePaths) {
+    if (fs.existsSync(filePath)) {
+      try {
+        const content = fs.readFileSync(filePath, "utf-8");
+        console.log("✓ Credenciales cargadas desde archivo");
+        return JSON.parse(content);
+      } catch (err) {
+        console.warn("⚠️ Error leyendo credenciales del archivo:", (err as Error).message);
+      }
     }
   }
 

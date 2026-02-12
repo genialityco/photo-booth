@@ -7,9 +7,15 @@
 const fs = require("fs");
 const path = require("path");
 
-// Ruta absoluta del archivo
+// Ruta absoluta del archivo (en .next para que Netlify lo incluya)
 const rootDir = __dirname;
-const filePath = path.join(rootDir, "firebaseServiceAccount.json");
+const nextDir = path.join(rootDir, ".next");
+const filePath = path.join(nextDir, "firebaseServiceAccount.json");
+
+// Crear directorio .next si no existe
+if (!fs.existsSync(nextDir)) {
+  fs.mkdirSync(nextDir, { recursive: true });
+}
 
 console.log(`📍 Generando credenciales en: ${filePath}`);
 
