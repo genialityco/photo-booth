@@ -12,7 +12,7 @@ import {
   deleteStyleProfile,
   type StyleProfile,
 } from "@/app/services/admin/styleService";
-import { getAllBrands } from "@/app/services/photo-booth/brandService";
+import { getActivePhotoBoothPrompts } from "@/app/services/photo-booth/brandService";
 import { Edit, Link, Trash, Eye } from "lucide-react";
 
 export default function StyleAdminPage() {
@@ -76,8 +76,8 @@ export default function StyleAdminPage() {
   useEffect(() => {
     const loadBrands = async () => {
       try {
-        const res = await getAllBrands();
-        setBrandsList(res.map(b => ({ id: b.id, brand: b.brandName || b.brand || b.id })));
+        const res = await getActivePhotoBoothPrompts();
+        setBrandsList(res.data.map(b => ({ id: b.id, brand: b.brand || b.id })));
       } catch (err) {
         console.error('Error loading brands for selector', err);
       }
