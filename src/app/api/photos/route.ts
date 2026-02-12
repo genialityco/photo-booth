@@ -12,7 +12,23 @@ async function getSecretManagerClient() {
   if (!secretManagerClient) {
     try {
       const { SecretManagerServiceClient } = await import('@google-cloud/secret-manager');
-      secretManagerClient = new SecretManagerServiceClient();
+      const gcloudKey = process.env.GCLOUD_KEY;
+      
+      if (gcloudKey) {
+        try {
+          const credentials = JSON.parse(gcloudKey);
+          secretManagerClient = new SecretManagerServiceClient({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            credentials: credentials as any,
+          });
+          console.log("✓ Secret Manager client inicializado con GCLOUD_KEY (photos)");
+        } catch (parseErr) {
+          console.warn("⚠️ Error parseando GCLOUD_KEY:", (parseErr as Error).message);
+          secretManagerClient = new SecretManagerServiceClient();
+        }
+      } else {
+        secretManagerClient = new SecretManagerServiceClient();
+      }
     } catch (err) {
       console.warn("Secret Manager not available:", (err as Error).message);
       return null;
