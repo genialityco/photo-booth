@@ -9,7 +9,7 @@ import React, { useEffect, useState } from "react";
  */
 export default function QrTag({
   value,
-  size = 200,
+  size = 1000,
   label,
 }: {
   value: string;
@@ -32,19 +32,17 @@ export default function QrTag({
 
   return (
     <div className="flex flex-col items-center gap-2">
-      {dataUrl ? (
-        <img
-          src={dataUrl}
-          alt={label || "QR code"}
-          style={{ width: size, height: size }}
-          className="rounded-md border border-black/10"
-        />
-      ) : (
-        <div
-          className="rounded-md border border-black/10"
-          style={{ width: size, height: size }}
-        />
-      )}
+      <div className="relative" style={{ width: size, height: size, aspectRatio: "1" }}>
+        {dataUrl ? (
+          <img
+            src={dataUrl}
+            alt={label || "QR code"}
+            className="absolute inset-0 w-full h-full object-contain rounded-md border border-black/10"
+          />
+        ) : (
+          <div className="w-full h-full rounded-md border border-black/10" />
+        )}
+      </div>
       {label && <span className="text-xs text-black/70">{label}</span>}
     </div>
   );

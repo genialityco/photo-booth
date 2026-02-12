@@ -64,41 +64,23 @@ export default function LoaderStep() {
 
   return (
     <div
-      className="fixed inset-0 z-50 h-dvh w-dvw overflow-hidden text-white"
-      style={{
-        paddingTop: "max(0.5rem, env(safe-area-inset-top))",
-        paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
-      }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center text-white"
     >
       {/* Fondo */}
       <div className="absolute inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: `url('${bgUrl}')` }} aria-hidden />
       {/* Velo para legibilidad */}
       <div className="absolute inset-0 bg-black/45" />
 
-      {/* Logo superior (opcional - controlado por showLogos) */}
-      {topLogo && (
-        <div className="absolute inset-x-0 top-30 flex justify-center z-20">
-          <img src={topLogo} alt="Logo Superior" width={520} height={96} className="drop-shadow-md select-none" draggable={false} />
-        </div>
-      )}
-
       {/* Contenido central */}
-      <div className="relative z-20 flex h-full items-center justify-center px-6">
+      <div className="relative z-20 flex flex-col items-center justify-center px-3 sm:px-6">
         <h1
-          className="text-center text-4xl md:text-6xl font-semibold drop-shadow-lg tracking-tight"
+          className="text-center text-2xl sm:text-3xl md:text-4xl font-semibold drop-shadow-lg tracking-tight"
           role="status"
           aria-live="polite"
         >
           {loadingMessage}{dots}
         </h1>
       </div>
-
-      {/* Logo inferior (opcional - controlado por showLogos) */}
-      {bottomLogo && (
-        <div className="absolute inset-x-0 bottom-6 z-20 flex justify-center">
-          <img src={bottomLogo} alt="Aliados y patrocinadores" width={520} height={60} className="opacity-90 select-none" draggable={false} />
-        </div>
-      )}
     </div>
   );
 }

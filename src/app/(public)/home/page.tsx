@@ -6,7 +6,7 @@ export default function Page() {
       <PhotoBoothWizard
         frameSrc="/images/marco.png"
         mirror
-        boxSize="min(50vw, 70svh)"
+        boxSize="min(95vw, 95vh)"
       />
     </Suspense>
   );

@@ -82,7 +82,7 @@ export default function EventBoothPage({
       ) : (
         <PhotoBoothWizard
           mirror
-          boxSize="min(50vw, 70svh)"
+          boxSize="min(95vw, 95vh)"
           eventData={event}
         />
       )}

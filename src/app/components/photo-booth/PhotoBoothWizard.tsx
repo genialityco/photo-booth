@@ -9,7 +9,10 @@ import LoaderStep from "@/app/components/photo-booth/LoaderStep";
 import ResultStep from "@/app/components/photo-booth/ResultStep";
 import { getStyleProfileById } from "@/app/services/admin/styleService";
 import type { StyleProfile } from "@/app/services/admin/styleService";
-import { getEventProfileBySlug, type EventProfile } from "@/app/services/photo-booth/eventService";
+import {
+  getEventProfileBySlug,
+  type EventProfile,
+} from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
 import { useSearchParams } from "next/navigation";
 import { db } from "@/firebaseConfig";
@@ -24,8 +27,8 @@ import {
 
 export default function PhotoBoothWizard({
   mirror = true,
-  // Caja cuadrada responsiva: mínimo 320px, escala con viewport, máximo 820px
-  boxSize = "clamp(320px, min(72vmin, 78svh), 820px)",
+  // Caja cuadrada responsiva: mínimo 320px, escala con viewport
+  boxSize = "min(95vw, 95vh)",
   eventData,
 }: {
   frameSrc?: string | null;
@@ -38,7 +41,7 @@ export default function PhotoBoothWizard({
     "capture" | "preview" | "loading" | "result"
   >("capture");
   const [framedShot, setFramedShot] = useState<string | null>(null);
-  const [, setRawShot] = useState<string | null>(null);
+  const [rawShot, setRawShot] = useState<string | null>(null);
   const [aiUrl, setAiUrl] = useState<string | null>(null);
   const [framedUrl, setFramedUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -54,11 +57,11 @@ export default function PhotoBoothWizard({
     try {
       const storedBrand = sessionStorage.getItem("selectedBrand");
       const storedColor = sessionStorage.getItem("selectedColor");
-      
+
       if (storedBrand) {
         setBrand(storedBrand);
       }
-      
+
       if (storedColor) {
         setColor(storedColor);
       }
@@ -70,7 +73,7 @@ export default function PhotoBoothWizard({
     if (searchParams) {
       const brandParam = searchParams.get("brand");
       const colorParam = searchParams.get("color");
-      
+
       if (brandParam && !sessionStorage.getItem("selectedBrand")) {
         setBrand(brandParam);
       }
@@ -107,7 +110,10 @@ export default function PhotoBoothWizard({
 
         // 1) Si tenemos eventData, usarlo como estilo
         if (eventData) {
-          console.log("[PhotoBoothWizard] Using eventData as style:", eventData.name);
+          console.log(
+            "[PhotoBoothWizard] Using eventData as style:",
+            eventData.name,
+          );
           // Convertir EventProfile a StyleProfile
           const eventAsStyle: StyleProfile = {
             id: eventData.id,
@@ -130,7 +136,10 @@ export default function PhotoBoothWizard({
           };
           setStyle(eventAsStyle);
           // También guardarlo en sessionStorage
-          sessionStorage.setItem("photoBoothStyle", JSON.stringify(eventAsStyle));
+          sessionStorage.setItem(
+            "photoBoothStyle",
+            JSON.stringify(eventAsStyle),
+          );
           return;
         }
 
@@ -143,7 +152,10 @@ export default function PhotoBoothWizard({
           const segments = path.split("/").filter(Boolean);
           if (segments.length >= 1) {
             styleId = segments[0];
-            console.log("[PhotoBoothWizard] derived styleId from pathname:", styleId);
+            console.log(
+              "[PhotoBoothWizard] derived styleId from pathname:",
+              styleId,
+            );
           }
         } else {
           console.log("[PhotoBoothWizard] found styleId in search:", styleId);
@@ -157,20 +169,27 @@ export default function PhotoBoothWizard({
           }
           if (cached) {
             const parsed = JSON.parse(cached);
-            console.log("[PhotoBoothWizard] found cached data in sessionStorage:", parsed?.id || parsed?.slug);
+            console.log(
+              "[PhotoBoothWizard] found cached data in sessionStorage:",
+              parsed?.id || parsed?.slug,
+            );
             // If there's no explicit styleId OR cached matches requested styleId, use cached
             if (!styleId || parsed?.id === styleId) {
               setStyle(parsed);
               return;
             }
-            console.log("[PhotoBoothWizard] cached style id differs from requested styleId, fetching requested style");
+            console.log(
+              "[PhotoBoothWizard] cached style id differs from requested styleId, fetching requested style",
+            );
           }
         } catch (e) {
           console.warn("[PhotoBoothWizard] error reading sessionStorage", e);
         }
 
         if (!styleId) {
-          console.log("[PhotoBoothWizard] no styleId found in search or pathname and no cached style");
+          console.log(
+            "[PhotoBoothWizard] no styleId found in search or pathname and no cached style",
+          );
           return;
         }
 
@@ -178,12 +197,14 @@ export default function PhotoBoothWizard({
         setStyle(s);
         console.log("[PhotoBoothWizard] loaded style object:", s);
         try {
-          console.log("[PhotoBoothWizard] loaded style JSON:\n", JSON.stringify(s, null, 2));
+          console.log(
+            "[PhotoBoothWizard] loaded style JSON:\n",
+            JSON.stringify(s, null, 2),
+          );
         } catch (e) {
           console.log("[PhotoBoothWizard] could not stringify style", e);
         }
-      } catch (err) {
-      }
+      } catch (err) {}
     };
     loadStyle();
   }, []);
@@ -214,8 +235,13 @@ export default function PhotoBoothWizard({
       });
 
       if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(errorData.error || `Upload failed with status ${uploadResponse.status}`);
+        const errorData = await uploadResponse
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
+        throw new Error(
+          errorData.error ||
+            `Upload failed with status ${uploadResponse.status}`,
+        );
       }
 
       const uploadData = await uploadResponse.json();
@@ -228,8 +254,13 @@ export default function PhotoBoothWizard({
       const taskRef = doc(collection(db, "imageTasks"), newTaskId);
 
       // Usar el brand/color del estado si existen, si no del sessionStorage
-      const promptId = brand || sessionStorage.getItem("selectedBrand") || eventData?.prompts?.[0] || null;
-      const finalColor = color || sessionStorage.getItem("selectedColor") || null;
+      const promptId =
+        brand ||
+        sessionStorage.getItem("selectedBrand") ||
+        eventData?.prompts?.[0] ||
+        null;
+      const finalColor =
+        color || sessionStorage.getItem("selectedColor") || null;
 
       // Resolver el brand field a partir del promptId (la Cloud Function busca por 'brand')
       let finalBrand = "default";
@@ -239,10 +270,17 @@ export default function PhotoBoothWizard({
           if (prompt) {
             // Usar el campo 'brand' que es lo que la Cloud Function busca
             finalBrand = prompt.brand || promptId;
-            console.log("[PhotoBoothWizard] Resolved brand field:", { promptId, finalBrand, prompt });
+            console.log("[PhotoBoothWizard] Resolved brand field:", {
+              promptId,
+              finalBrand,
+              prompt,
+            });
           } else {
             finalBrand = promptId; // Usar el ID como fallback
-            console.warn("[PhotoBoothWizard] Prompt not found, using ID:", promptId);
+            console.warn(
+              "[PhotoBoothWizard] Prompt not found, using ID:",
+              promptId,
+            );
           }
         } catch (error) {
           console.error("[PhotoBoothWizard] Error resolving prompt:", error);
@@ -250,8 +288,10 @@ export default function PhotoBoothWizard({
         }
       }
 
-
-      console.log("[PhotoBoothWizard] Final brand and color:", { finalBrand, finalColor });
+      console.log("[PhotoBoothWizard] Final brand and color:", {
+        finalBrand,
+        finalColor,
+      });
 
       await setDoc(taskRef, {
         status: "queued",
@@ -283,7 +323,10 @@ export default function PhotoBoothWizard({
         }
 
         if (data.status === "done" && data.url) {
-          console.log("[PhotoBoothWizard] Task completed with result URL:", data.url);
+          console.log(
+            "[PhotoBoothWizard] Task completed with result URL:",
+            data.url,
+          );
           setAiUrl(data.url as string);
           setStep("result");
           try {
@@ -309,24 +352,21 @@ export default function PhotoBoothWizard({
     setFramedUrl(null);
     setTaskId(null);
     setStep("capture");
-
-    if (typeof window !== "undefined") {
-      window.location.href = "/";
-    }
+    // No redirigir a "/" para mantener el evento actual
   };
 
   const bgUrl = style
     ? step === "capture"
       ? style.bgCapture || style.bgLanding
       : step === "loading"
-      ? style.bgLoading || style.bgLanding
-      : step === "result"
-      ? style.bgResults || style.bgLanding
-      : style.bgLanding
+        ? style.bgLoading || style.bgLanding
+        : step === "result"
+          ? style.bgResults || style.bgLanding
+          : style.bgLanding
     : "/Lenovo/app-avatars-01.png";
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden">
+    <div className="relative h-screen w-screen overflow-hidden flex flex-col">
       {/* Fondo full-screen */}
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
@@ -334,46 +374,40 @@ export default function PhotoBoothWizard({
         aria-hidden
       />
 
-      {/* Logo superior — responsivo por breakpoint */}
+      {/* HEADER: Logo superior — fijo, siempre visible */}
       <div
         className={`
-    absolute z-10 left-1/2 -translate-x-1/2
-    top-[max(1.5rem,env(safe-area-inset-top))]
-    w-[70vw] max-w-[380px]
-    flex flex-col items-center gap-2
+    relative z-5 flex-shrink-0
+    flex justify-center items-center
+    pt-[max(1.5rem,env(safe-area-inset-top))]
+    pb-2 sm:pb-3 md:pb-4
   `}
       >
-        <img
-          src={
-            style
-              ? (step === "capture"
+        <div className="w-[70vw] max-w-[380px]">
+          <img
+            src={
+              style
+                ? step === "capture"
                   ? style.logoCaptureTop || style.logoLandingTop
                   : step === "loading"
-                  ? style.logoLoadingTop || style.logoLandingTop
-                  : step === "result"
-                  ? style.logoResultsTop || style.logoLandingTop
-                  : style.logoLandingTop)
-              : "/genilaty_smart_led_logo.png"
-          }
-          alt="Logo"
-          className="w-full select-none"
-          draggable={false}
-        />
-
-        {/* ← NUEVO: título debajo del logo */}
-        {/* <img
-          src="/Colombia4.0/TITULO.png"
-          alt="Título Gen.iality"
-          className="w-full select-none mt-10"
-          draggable={false}
-        /> */}
+                    ? style.logoLoadingTop || style.logoLandingTop
+                    : step === "result"
+                      ? style.logoResultsTop || style.logoLandingTop
+                      : style.logoLandingTop
+                : "/genilaty_smart_led_logo.png"
+            }
+            alt="Logo"
+            className="w-full select-none"
+            draggable={false}
+          />
+        </div>
       </div>
 
-      {/* Contenido centrado */}
-      <div className="relative z-10 grid h-full w-full place-items-center">
+      {/* CONTENT: Contenedor del contenido (capture, preview, result) */}
+      <div className="relative z-20 flex-1 flex items-center justify-center overflow-hidden px-3 sm:px-4">
         <div
-          className="flex items-center justify-center overflow-visible"
-          style={{ width: boxSize, height: boxSize }}
+          className="flex items-center justify-center overflow-hidden"
+          style={{ width: boxSize, height: boxSize, maxHeight: "100%" }}
         >
           {step === "capture" && (
             <CaptureStep
@@ -388,6 +422,7 @@ export default function PhotoBoothWizard({
           {step === "preview" && framedShot && (
             <PreviewStep
               framedShot={framedShot}
+              rawShot={rawShot || undefined}
               boxSize={boxSize}
               onRetake={resetAll}
               onConfirm={confirmAndProcess}
@@ -395,38 +430,53 @@ export default function PhotoBoothWizard({
             />
           )}
 
-          {step === "loading" && <LoaderStep />}
+          {step === "loading" && (
+            <>
+              <div className="absolute inset-0 z-50">
+                <LoaderStep />
+              </div>
+            </>
+          )}
 
           {step === "result" && framedShot && aiUrl && (
-            <ResultStep taskId={taskId!} aiUrl={aiUrl} onAgain={resetAll} buttonImage={eventData?.buttonImage} />
+            <ResultStep
+              taskId={taskId!}
+              aiUrl={aiUrl}
+              onAgain={resetAll}
+              buttonImage={eventData?.buttonImage}
+            />
           )}
         </div>
       </div>
 
-      {/* Footer fijo con safe-area */}
+      {/* FOOTER: Logo inferior — fijo, siempre visible */}
       <div
         className="
-          pointer-events-none absolute inset-x-0 z-1 mx-auto
-
+          relative z-5 flex-shrink-0
+          flex justify-center items-center
+          pb-[max(env(safe-area-inset-bottom),1rem)]
+          pt-2 sm:pt-3 md:pt-4
+          pointer-events-none
         "
-        style={{ bottom: "max(env(safe-area-inset-bottom), 16px)" }}
       >
-        <img
-          src={
-            style
-              ? (step === "capture"
+        <div className="w-[70vw] max-w-[380px]">
+          <img
+            src={
+              style
+                ? step === "capture"
                   ? style.logoCaptureBottom || style.logoLandingBottom
                   : step === "loading"
-                  ? style.logoLoadingBottom || style.logoLandingBottom
-                  : step === "result"
-                  ? style.logoResultsBottom || style.logoLandingBottom
-                  : style.logoLandingBottom)
-              : "genilaty_smart_led_logo.png"
-          }
-          alt="Logos Footer"
-          className="w-full select-none"
-          draggable={false}
-        />
+                    ? style.logoLoadingBottom || style.logoLandingBottom
+                    : step === "result"
+                      ? style.logoResultsBottom || style.logoLandingBottom
+                      : style.logoLandingBottom
+                : "genilaty_smart_led_logo.png"
+            }
+            alt="Logos Footer"
+            className="w-full select-none"
+            draggable={false}
+          />
+        </div>
       </div>
     </div>
   );

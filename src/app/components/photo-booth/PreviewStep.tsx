@@ -6,48 +6,58 @@ import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 
 export default function PreviewStep({
   framedShot,
+  rawShot,
   boxSize = "min(88vw, 60svh)",
   onRetake,
   onConfirm,
   buttonImage,
 }: {
-  framedShot: string; // mostramos la foto con marco
+  framedShot: string; // foto con marco (no se usa visualmente)
+  rawShot?: string; // foto sin marco (para mostrar)
   boxSize?: string;
   buttonImage?: string;
   onRetake: () => void;
   onConfirm?: () => void; // confirmará y pasará al loader
 }) {
-  return (
-    <div className="h-[100svh] w-[100vw] flex flex-col items-center justify-center gap-6">
-      <div
-        className="relative overflow-hidden rounded-2xl shadow-2xl"
-        style={{ width: boxSize, height: boxSize }}
-      >
-        <img
-          src={framedShot}
-          alt="Preview"
-          className="absolute inset-0 w-full h-full object-contain"
-        />
-      </div>
+  // Mostrar la foto sin marco (rawShot si está disponible, sino framedShot)
+  const displayImage = rawShot || framedShot;
+  {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 overflow-hidden">
+        <div className="flex-1 flex items-center justify-center overflow-hidden w-full">
+          <div
+            className="relative overflow-hidden rounded-xl shadow-lg w-full flex-shrink-0"
+            style={{ width: boxSize, height: boxSize, aspectRatio: "1" }}
+          >
+            <img
+              src={displayImage}
+              alt="Preview"
+              className="absolute inset-0 w-full h-full object-contain"
+            />
+          </div>
+        </div>
 
-      <div className="flex gap-3">
-        <ButtonPrimary
-          onClick={onRetake}
-          imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-          label="REPETIR"
-          width={180}
-          height={60}
-        />
-        {onConfirm && (
+        <div className="flex flex-row gap-1 sm:gap-2 justify-center overflow-x-auto whitespace-nowrap flex-shrink-0">
           <ButtonPrimary
-            onClick={onConfirm}
+            onClick={onRetake}
             imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-            label="CONFIRMAR"
-            width={180}
-            height={60}
+            label="REPETIR"
+            width={120}
+            height={44}
+            className="min-w-[120px]"
           />
-        )}
+          {onConfirm && (
+            <ButtonPrimary
+              onClick={onConfirm}
+              imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
+              label="CONFIRMAR"
+              width={120}
+              height={44}
+              className="min-w-[120px]"
+            />
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 }

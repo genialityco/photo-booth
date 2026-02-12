@@ -16,7 +16,7 @@ export default function AdminLayout({
           relative
           h-[100svh]
           overflow-y-auto overscroll-contain
-          p-6
+          p-3 sm:p-4 md:p-6
           md:pl-48 lg:pl-64
         "
       >

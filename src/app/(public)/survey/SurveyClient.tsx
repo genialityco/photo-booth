@@ -199,24 +199,24 @@ export default function SurveyClient() {
   */
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center py-8 px-4">
-      <div className="w-full max-w-3xl">
-        <header className="text-center mb-6">
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
+    <div className="min-h-screen w-full flex flex-col items-center py-6 sm:py-8 px-3 sm:px-4">
+      <div className="w-full max-w-2xl sm:max-w-3xl">
+        <header className="text-center mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-white">
             Descarga tu imagen 📸
           </h1>
-          <p className="text-white/80 mt-2 max-w-2xl mx-auto">
+          <p className="text-xs sm:text-sm text-white/80 mt-2 max-w-2xl mx-auto px-2">
             Tu imagen se preparará automáticamente
           </p>
         </header>
 
         {loadingPhoto && (
-          <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-white/80">
+          <div className="mb-4 rounded-lg sm:rounded-xl border border-white/10 bg-white/5 p-3 sm:p-4 text-xs sm:text-sm text-white/80">
             Preparando tu imagen…
           </div>
         )}
         {err && (
-          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-red-300">
+          <div className="mb-4 rounded-lg sm:rounded-xl border border-red-500/30 bg-red-500/10 p-3 sm:p-4 text-xs sm:text-sm text-red-300">
             {err}
           </div>
         )}
@@ -303,12 +303,12 @@ export default function SurveyClient() {
         */}
 
         {/* ⬇️ SOLO DESCARGA */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6">
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="rounded-lg sm:rounded-2xl border border-white/10 bg-white/5 shadow-xl p-4 sm:p-5 md:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <a
               href={canDownload ? downloadHref : undefined}
               download={downloadName || suggestedName}
-              className={`px-4 py-2 rounded-xl font-semibold shadow transition
+              className={`px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl font-semibold shadow transition text-xs sm:text-sm whitespace-nowrap
                 ${
                   canDownload
                     ? "bg-white text-black hover:bg-white/90"
@@ -325,8 +325,8 @@ export default function SurveyClient() {
               Descargar imagen
             </a>
             {canDownload && (
-              <span className="text-xs text-white/60">
-                Nombre sugerido:{" "}
+              <span className="text-xs text-white/60 break-all">
+                Nombre:{" "}
                 <code className="text-white/80">
                   {downloadName || suggestedName}
                 </code>
@@ -337,7 +337,7 @@ export default function SurveyClient() {
           {/* Vista previa opcional (déjala comentada si quieres SOLO el botón) */}
 
           {canDownload && (
-            <div className="mt-4 w-full bg-white/5 rounded-xl p-3 border border-white/10 relative aspect-square overflow-hidden">
+            <div className="mt-4 w-full bg-white/5 rounded-lg sm:rounded-xl p-2 sm:p-3 border border-white/10 relative aspect-square overflow-hidden">
               {/* Imagen base */}
               <img
                 src={photo}

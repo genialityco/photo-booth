@@ -42,7 +42,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
@@ -50,11 +50,11 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
     >
       <div
         ref={modalRef}
-        className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-4 sm:p-5 md:p-6 mx-4 sm:mx-0 max-h-[85vh] overflow-y-auto flex flex-col"
+        className="bg-white rounded-lg shadow-lg w-full max-w-xs sm:max-w-sm md:max-w-2xl p-4 sm:p-5 md:p-6 max-h-[90vh] overflow-y-auto flex flex-col"
         tabIndex={-1}
       >
         <div className="flex justify-between items-center mb-4 sm:mb-5 md:mb-6 flex-shrink-0 gap-2">
-          <h2 id="modal-title" className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900">
+          <h2 id="modal-title" className="text-base sm:text-lg md:text-xl lg:text-2xl font-semibold text-gray-900 truncate">
             {title}
           </h2>
           <button
@@ -78,7 +78,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
             </svg>
           </button>
         </div>
-        <div>{children}</div>
+        <div className="flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

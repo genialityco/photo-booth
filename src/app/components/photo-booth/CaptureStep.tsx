@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import FrameCamera from "@/app/components/photo-booth/FrameCamera";
-import captureWithFrame from "@/app/components/photo-booth/captureWithFrame";
-import captureRawSquare from "@/app/components/photo-booth/captureRawSquare";
+import FrameCamera from "./FrameCamera";
+import captureWithFrame from "./captureWithFrame";
+import captureRawSquare from "./captureRawSquare";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 
 export default function CaptureStep({
@@ -27,7 +27,9 @@ export default function CaptureStep({
 
   // --- Solo se usan si activas marco ---
   const frameImgRef = useRef<HTMLImageElement | null>(null);
-  const [frameSize, setFrameSize] = useState<{ w: number; h: number } | null>(null);
+  const [frameSize, setFrameSize] = useState<{ w: number; h: number } | null>(
+    null,
+  );
   const [frameReady, setFrameReady] = useState(false);
 
   const [videoReady, setVideoReady] = useState(false);
@@ -86,7 +88,11 @@ export default function CaptureStep({
           const h = img.naturalHeight || img.height;
           setFrameSize({ w, h });
           setFrameReady(true);
-          console.log("Frame loaded successfully (fallback):", { w, h, src: frameSrc });
+          console.log("Frame loaded successfully (fallback):", {
+            w,
+            h,
+            src: frameSrc,
+          });
         };
         img.onerror = () => {
           console.error("Failed to load frame image:", frameSrc);
@@ -101,7 +107,9 @@ export default function CaptureStep({
   }, [frameSrc]);
 
   // 👇 Con marco: videoReady && frameReady && !!frameSize (o sin marco: solo videoReady)
-  const canShoot = frameSrc ? (videoReady && frameReady && !!frameSize) : videoReady;
+  const canShoot = frameSrc
+    ? videoReady && frameReady && !!frameSize
+    : videoReady;
 
   const startCapture = () => {
     if (!canShoot) return;
@@ -128,8 +136,6 @@ export default function CaptureStep({
     let framed: string;
     let raw: string;
 
-    let rawImage: string | Blob = "";
-
     if (frameSrc && frameSize && frameImgRef.current) {
       // --- Con marco ---
       const { w, h } = frameSize;
@@ -144,7 +150,10 @@ export default function CaptureStep({
       console.log("Capture with frame:", { w, h });
     } else {
       // --- Sin marco ---
-      const square = Math.min(video.videoWidth || 1080, video.videoHeight || 1080);
+      const square = Math.min(
+        video.videoWidth || 1080,
+        video.videoHeight || 1080,
+      );
       const targetW = square;
       const targetH = square;
 
@@ -159,23 +168,28 @@ export default function CaptureStep({
     }
 
     // Raw siempre es sin marco
-    const square = Math.min(video.videoWidth || 1080, video.videoHeight || 1080);
-    rawImage = captureRawSquare({ video, targetW: square, targetH: square, mirror });
+    const square = Math.min(
+      video.videoWidth || 1080,
+      video.videoHeight || 1080,
+    );
+    raw = captureRawSquare({ video, targetW: square, targetH: square, mirror });
 
     setFlash(true);
     setTimeout(() => setFlash(false), 120);
 
-    onCaptured({ framed, raw: rawImage });
+    onCaptured({ framed, raw });
   };
 
   return (
-    <div className="h-[100svh] w-[100vw] flex flex-col items-center justify-center gap-6">
-      <FrameCamera
-        frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
-        mirror={mirror}
-        boxSize={boxSize}
-        onReady={onReady}
-      />
+    <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 overflow-hidden px-2 sm:px-3">
+      <div className="flex-1 flex items-center justify-center w-full overflow-hidden">
+        <FrameCamera
+          frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
+          mirror={mirror}
+          boxSize={boxSize}
+          onReady={onReady}
+        />
+      </div>
 
       {countdown !== null && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -186,18 +200,17 @@ export default function CaptureStep({
         <div className="absolute inset-0 bg-white/80 animate-pulse pointer-events-none" />
       )}
 
-      <ButtonPrimary
-        onClick={startCapture}
-        label={canShoot ? "TOMAR FOTO" : "Cargando cámara…"}
-        imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-        width={220}
-        height={68}
-        disabled={!canShoot}
-        ariaLabel="Tomar foto"
-      />
+      <div className="flex-shrink-0">
+        <ButtonPrimary
+          onClick={startCapture}
+          label={canShoot ? "TOMAR FOTO" : "Cargando cámara…"}
+          imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
+          width={180}
+          height={52}
+          disabled={!canShoot}
+          ariaLabel="Tomar foto"
+        />
+      </div>
     </div>
   );
 }
-
-
-

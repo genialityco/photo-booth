@@ -78,14 +78,14 @@ export default function PrintJobsPage() {
     }, []);
 
     return (
-        <div className="px-4 py-6 max-w-7xl mx-auto">
+        <div className="px-3 sm:px-4 md:px-6 py-4 sm:py-6 max-w-7xl mx-auto">
 
             {jobs.length === 0 && !loading && (
-                <p className="text-sm text-neutral-500">No hay print jobs disponibles.</p>
+                <p className="text-xs sm:text-sm text-neutral-500">No hay print jobs disponibles.</p>
             )}
 
             {/* === GRID EN COLUMNAS DE CARDS === */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
                 {jobs.map((job) => {
                     // Usar la imagen principal desde los archivos, o desde url si no hay archivos
                     const primaryImageUrl = job.files?.[0]?.url ?? job.url ?? null;
@@ -94,7 +94,7 @@ export default function PrintJobsPage() {
                     return (
                         <section
                             key={job.id}
-                            className="border border-white/10 rounded-2xl overflow-hidden bg-black/20 flex flex-col"
+                            className="border border-white/10 rounded-lg sm:rounded-xl md:rounded-2xl overflow-hidden bg-black/20 flex flex-col"
                         >
                             {/* Imagen principal */}
                             {primaryImageUrl ? (
@@ -108,7 +108,7 @@ export default function PrintJobsPage() {
                                         <img
                                             src={primaryImageUrl}
                                             alt={job.nombre || `Job ${job.id}`}
-                                            className="w-full h-56 object-cover"
+                                            className="w-full h-40 sm:h-48 md:h-56 object-cover"
                                             loading="lazy"
                                         />
                                     </a>
@@ -117,7 +117,7 @@ export default function PrintJobsPage() {
                                     <button
                                         type="button"
                                         onClick={() => downloadFile(primaryImageUrl, primaryName)}
-                                        className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-black/70 hover:bg-black/80 text-sm"
+                                        className="absolute top-2 sm:top-3 right-2 sm:right-3 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-black/70 hover:bg-black/80 text-xs sm:text-sm"
                                         aria-label="Descargar imagen principal"
                                     >
                                         Descargar
@@ -125,26 +125,26 @@ export default function PrintJobsPage() {
                                     <button
                                         type="button"
                                         onClick={() => printFile(primaryImageUrl)}
-                                        className="absolute top-3 left-3 px-3 py-1.5 rounded-lg bg-blue-700/70 hover:bg-blue-800/80 text-sm text-white"
+                                        className="absolute top-2 sm:top-3 left-2 sm:left-3 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-blue-700/70 hover:bg-blue-800/80 text-xs sm:text-sm text-white"
                                         aria-label="Imprimir imagen principal"
                                     >
                                         Imprimir
                                     </button>
                                 </div>
                             ) : (
-                                <div className="h-56 flex items-center justify-center text-xs text-neutral-500">
+                                <div className="h-40 sm:h-48 md:h-56 flex items-center justify-center text-xs text-neutral-500">
                                     Sin imagen principal
                                 </div>
                             )}
 
                             {/* Texto + acciones */}
-                            <div className="p-4 flex flex-col gap-2">
-                                <h2 className="text-base font-semibold">
+                            <div className="p-3 sm:p-4 flex flex-col gap-2">
+                                <h2 className="text-sm sm:text-base font-semibold truncate">
                                     {job.nombre || `Job ${job.id}`}
                                 </h2>
 
                                 {job.files?.length ? (
-                                    <div className="mt-2 grid grid-cols-3 gap-2">
+                                    <div className="mt-2 grid grid-cols-3 gap-1 sm:gap-2">
                                         {job.files.map((f) => (
                                             <div
                                                 key={f.path}
@@ -155,7 +155,7 @@ export default function PrintJobsPage() {
                                                     <img
                                                         src={f.url}
                                                         alt={f.name}
-                                                        className="w-full h-24 object-cover group-hover:opacity-90"
+                                                        className="w-full h-20 sm:h-24 object-cover group-hover:opacity-90"
                                                         loading="lazy"
                                                     />
                                                 </a>
@@ -163,7 +163,7 @@ export default function PrintJobsPage() {
                                                     <button
                                                         type="button"
                                                         onClick={() => downloadFile(f.url, f.name)}
-                                                        className="w-full text-[11px] px-2 py-1 bg-neutral-900/70 hover:bg-neutral-800"
+                                                        className="w-full text-[11px] sm:text-xs px-1 sm:px-2 py-1 bg-neutral-900/70 hover:bg-neutral-800"
                                                         aria-label={`Descargar ${f.name}`}
                                                     >
                                                         Descargar
@@ -171,7 +171,7 @@ export default function PrintJobsPage() {
                                                     <button
                                                         type="button"
                                                         onClick={() => printFile(f.url)}
-                                                        className="w-full text-[11px] px-2 py-1 bg-blue-700/70 hover:bg-blue-800 text-white"
+                                                        className="w-full text-[11px] sm:text-xs px-1 sm:px-2 py-1 bg-blue-700/70 hover:bg-blue-800 text-white"
                                                         aria-label={`Imprimir ${f.name}`}
                                                     >
                                                         Imprimir
@@ -191,12 +191,12 @@ export default function PrintJobsPage() {
                 })}
             </div>
 
-            <div className="mt-8 flex items-center gap-3">
+            <div className="mt-6 sm:mt-8 flex items-center gap-3">
                 {nextCursor && (
                     <button
                         onClick={() => fetchPage(nextCursor)}
                         disabled={loading}
-                        className="px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 disabled:opacity-60"
+                        className="px-3 sm:px-4 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 disabled:opacity-60 text-xs sm:text-sm"
                     >
                         {loading ? "Cargando..." : "Cargar más"}
                     </button>

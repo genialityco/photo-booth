@@ -270,30 +270,32 @@ export default function GenericDataTable<T = any>({
 
   return (
     <div
-      className={`bg-white rounded-lg text-gray-900 shadow-sm border border-gray-200 ${className}`}
+      className={`bg-white rounded-lg text-gray-900 shadow-sm border border-gray-200 ${className} overflow-hidden`}
     >
       {/* Header con controles */}
       {(title || description || showCreateButton) && (
-        <div className="p-4 md:p-5 lg:p-6 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="p-3 sm:p-4 md:p-5 lg:p-6 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             {(title || description) && (
-              <div>
+              <div className="min-w-0">
                 {title && (
-                  <h2 className="text-lg md:text-xl font-semibold text-gray-900">
+                  <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 truncate">
                     {title}
                   </h2>
                 )}
                 {description && (
-                  <p className="text-sm text-gray-500 mt-1">{description}</p>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1 truncate">
+                    {description}
+                  </p>
                 )}
               </div>
             )}
             {showCreateButton && onCreate && (
               <button
                 onClick={onCreate}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base"
+                className="inline-flex items-center justify-center px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm md:text-base whitespace-nowrap flex-shrink-0"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4 mr-1 sm:mr-2" />
                 {createButtonLabel}
               </button>
             )}
@@ -303,16 +305,16 @@ export default function GenericDataTable<T = any>({
           {(searchFields.length > 0 ||
             filterOptions.length > 0 ||
             sortOptions.length > 0) && (
-            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 md:gap-4 mt-4">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3 md:gap-4 mt-3 sm:mt-4">
               {searchFields.length > 0 && (
-                <div className="relative flex-1 max-w-full sm:max-w-md">
-                  <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <div className="relative flex-1 min-w-0 sm:max-w-md">
+                  <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 flex-shrink-0" />
                   <input
                     type="text"
                     placeholder="Buscar..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="pl-10 pr-3 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                   />
                 </div>
               )}
@@ -323,7 +325,7 @@ export default function GenericDataTable<T = any>({
                   onChange={(e) =>
                     handleFilterChange(filter.key, e.target.value)
                   }
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm w-full sm:w-auto"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm w-full sm:w-auto"
                 >
                   {filter.options.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -336,7 +338,7 @@ export default function GenericDataTable<T = any>({
                 <select
                   value={`${sortBy}-${sortOrder}`}
                   onChange={(e) => handleSortChange(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm w-full sm:w-auto"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm w-full sm:w-auto"
                 >
                   {sortOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -350,16 +352,16 @@ export default function GenericDataTable<T = any>({
 
           {/* Acciones en lote */}
           {selectable && selectedItems.length > 0 && bulkActions.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-center gap-2 mt-4 p-3 bg-blue-50 rounded-lg">
-              <span className="text-sm text-blue-700">
+            <div className="flex flex-col sm:flex-row items-center gap-2 mt-3 sm:mt-4 p-2 sm:p-3 bg-blue-50 rounded-lg text-xs sm:text-sm">
+              <span className="text-blue-700">
                 {selectedItems.length} elemento(s) seleccionado(s)
               </span>
-              <div className="ml-auto flex flex-wrap gap-2">
+              <div className="ml-auto flex flex-wrap gap-2 w-full sm:w-auto">
                 {bulkActions.map((action) => (
                   <button
                     key={action.key}
                     onClick={() => action.onClick(selectedItems)}
-                    className={`px-3 py-1 text-sm rounded transition-colors ${
+                    className={`px-2 sm:px-3 py-1 text-xs rounded transition-colors flex-1 sm:flex-none ${
                       action.className ||
                       "bg-red-600 text-white hover:bg-red-700"
                     }`}
@@ -374,23 +376,23 @@ export default function GenericDataTable<T = any>({
       )}
 
       {/* Mobile: Card layout (<768px) */}
-      <div className="block md:hidden p-4 space-y-4">
+      <div className="block md:hidden p-2 sm:p-3 space-y-3 sm:space-y-4">
         {loading ? (
-          <div className="text-center text-gray-500">
+          <div className="text-center text-gray-500 py-8">
             <div className="flex justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
-            <p className="mt-2">{loadingMessage}</p>
+            <p className="mt-2 text-xs sm:text-sm">{loadingMessage}</p>
           </div>
         ) : paginatedData.length === 0 ? (
-          <div className="text-center text-gray-500">
+          <div className="text-center text-gray-500 py-8">
             {data.length === 0 ? (
               <div>
-                <p>{emptyMessage}</p>
+                <p className="text-xs sm:text-sm">{emptyMessage}</p>
                 {showCreateButton && onCreate && (
                   <button
                     onClick={onCreate}
-                    className="mt-2 text-blue-600 hover:text-blue-500"
+                    className="mt-2 text-xs sm:text-sm text-blue-600 hover:text-blue-500"
                   >
                     Crear el primer elemento
                   </button>
@@ -504,7 +506,7 @@ export default function GenericDataTable<T = any>({
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               {selectable && (
-                <th className="w-12 px-4 py-3 text-left">
+                <th className="w-12 px-2 sm:px-3 md:px-4 py-3 text-left">
                   <input
                     type="checkbox"
                     checked={
@@ -523,7 +525,7 @@ export default function GenericDataTable<T = any>({
                 .map((column) => (
                   <th
                     key={column.key}
-                    className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                    className={`px-2 sm:px-3 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
                       column.width || ""
                     } ${column.className || ""}`}
                   >
@@ -531,7 +533,7 @@ export default function GenericDataTable<T = any>({
                   </th>
                 ))}
               {actions.length > 0 && (
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 sm:px-3 md:px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Acciones
                 </th>
               )}
@@ -615,12 +617,12 @@ export default function GenericDataTable<T = any>({
                         return (
                           <td
                             key={column.key}
-                            className={`px-4 py-4 ${column.className || ""}`}
+                            className={`px-2 sm:px-3 md:px-4 py-3 sm:py-4 text-xs sm:text-sm ${column.className || ""}`}
                           >
                             {column.render ? (
                               column.render(item, value)
                             ) : (
-                              <div className="text-sm text-gray-900">
+                              <div className="text-gray-900">
                                 {value instanceof Date ? (
                                   formatDate(value)
                                 ) : typeof value === "boolean" ? (
@@ -628,7 +630,7 @@ export default function GenericDataTable<T = any>({
                                 ) : typeof value === "string" &&
                                   value.length > 30 ? (
                                   <div>
-                                    <div>{truncateText(value, 30)}</div>
+                                    <div className="truncate">{truncateText(value, 30)}</div>
                                     <div
                                       className="text-xs text-gray-500 mt-1"
                                       title={value}

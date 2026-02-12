@@ -36,7 +36,9 @@ export default function ButtonPrimary({
       className={[
         // base layout
         "relative flex items-center justify-center select-none",
-        // tamaño fijo por inline style (para no depender de clases dinámicas)
+        // Responsive sizing using clamp
+        typeof width !== "number" ? "" : width <= 180 ? "w-[clamp(100px,25vw,180px)]" : "w-[clamp(140px,40vw,240px)]",
+        typeof height !== "number" ? "" : height <= 64 ? "h-[clamp(40px,12vw,64px)]" : "h-[clamp(50px,15vw,80px)]",
         // visual
         "outline-none focus-visible:ring-2 focus-visible:ring-white/60",
         // animación “presionar”
@@ -48,7 +50,7 @@ export default function ButtonPrimary({
         "disabled:opacity-60 disabled:cursor-not-allowed",
         className,
       ].join(" ")}
-      style={{ width, height }}
+      style={typeof width === "string" || typeof height === "string" ? { width, height } : {}}
     >
       <img
         src={imageSrc}
@@ -59,7 +61,8 @@ export default function ButtonPrimary({
       <span
         className={[
           "relative z-10",
-          "font-azo text-white text-lg font-bold",
+          "font-azo text-white font-bold",
+          "text-xs sm:text-sm md:text-base lg:text-lg",
           textClassName,
         ].join(" ")}
       >

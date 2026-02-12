@@ -22,7 +22,7 @@ type NavigatorWithLegacy = Navigator & {
 
 export default function FrameCamera({
   // sin marco por defecto
-  frameSrc = "",//"/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png",
+  frameSrc = "", // "/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png",
   mirror = true,
   boxSize = "min(88vw, 60svh)",
   onReady,
@@ -146,7 +146,9 @@ export default function FrameCamera({
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ transform: mirror ? "scaleX(-1)" : "none" }}
+          style={{
+            transform: mirror ? "scaleX(-1)" : "none"
+          }}
           playsInline
           autoPlay
           muted
