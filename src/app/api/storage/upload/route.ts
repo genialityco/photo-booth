@@ -3,10 +3,39 @@ import { getApps, initializeApp, cert } from "firebase-admin/app";
 import { NextRequest } from "next/server";
 import { getStorage } from "firebase-admin/storage";
 import { v4 as uuidv4 } from "uuid";
+import * as fs from "fs";
+import * as path from "path";
 
 function getStorageBucket() {
   return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 
          `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "lenovo-experiences"}.appspot.com`;
+}
+
+function getServiceAccount() {
+  // Intentar leer del archivo primero (Netlify)
+  const filePath = path.join(process.cwd(), "firebaseServiceAccount.json");
+  if (fs.existsSync(filePath)) {
+    try {
+      const content = fs.readFileSync(filePath, "utf-8");
+      console.log("✓ Credenciales cargadas desde archivo");
+      return JSON.parse(content);
+    } catch (err) {
+      console.warn("⚠️ Error leyendo credenciales del archivo:", (err as Error).message);
+    }
+  }
+
+  // Fallback: decodificar desde variable de entorno (desarrollo local)
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      const decoded = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf-8');
+      console.log("✓ Credenciales cargadas desde variable de entorno");
+      return JSON.parse(decoded);
+    } catch (err) {
+      console.warn("⚠️ Error decodificando credenciales:", (err as Error).message);
+    }
+  }
+
+  throw new Error("No se encontraron credenciales de Firebase - verifícalas en FIREBASE_SERVICE_ACCOUNT o firebaseServiceAccount.json");
 }
 
 function initAdmin() {
@@ -15,25 +44,7 @@ function initAdmin() {
     
     console.log("Initializing Firebase Admin with bucket:", storageBucket);
     
-    // Parsear credenciales del entorno
-    let serviceAccount: Record<string, unknown>;
-    try {
-      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      } else {
-        throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is missing");
-      }
-    } catch (err) {
-      console.error("Error parsing service account:", err);
-      throw new Error("Invalid FIREBASE_SERVICE_ACCOUNT configuration");
-    }
-    
-    initializeApp({
-      credential: cert(serviceAccount),
-      storageBucket,
-    });
-  }
-}
+    const serviceAccount = getServiceAccount();
 
 export async function POST(req: NextRequest) {
   try {
