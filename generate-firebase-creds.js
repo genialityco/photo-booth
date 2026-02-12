@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Script para generar firebaseServiceAccount.json desde variable de entorno o Secret Manager
+ * Script para generar firebaseServiceAccount.json desde variables de entorno divididas
  * Se ejecuta antes del build de Next.js
  */
 
 const fs = require("fs");
 const path = require("path");
 
-// Ruta absoluta del archivo (en .next para que Netlify lo incluya)
+// Ruta del archivo
 const rootDir = __dirname;
 const nextDir = path.join(rootDir, ".next");
 const filePath = path.join(nextDir, "firebaseServiceAccount.json");
@@ -31,49 +31,48 @@ if (fs.existsSync(filePath)) {
   }
 }
 
-async function generateFromSecretManager() {
-  try {
-    const gcloudKey = process.env.GCLOUD_KEY;
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT || "472633703949";
-    
-    if (!gcloudKey) {
-      console.warn("⚠️ GCLOUD_KEY no disponible");
-      return null;
-    }
-
-    // Parsear la key de Google Cloud
-    const serviceAccountKey = JSON.parse(gcloudKey);
-
-    // Para usar Secret Manager en build time, necesitaríamos el SDK de Google Cloud
-    // Lo dejamos para que los API routes lo manejen en runtime
-    console.log("ℹ️ Secret Manager será usado en runtime por los API routes");
-    return null;
-  } catch (err) {
-    console.warn("⚠️ No se pudo acceder a Secret Manager:", err.message);
-    return null;
-  }
-}
-
 async function main() {
-  // 1️⃣ Si GCLOUD_KEY existe, escribir como archivo para que GOOGLE_APPLICATION_CREDENTIALS lo use
-  if (process.env.GCLOUD_KEY) {
+  // Intentar reconstruir desde variables divididas (Netlify)
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const privateKeyId = process.env.FIREBASE_PRIVATE_KEY_ID;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const clientId = process.env.FIREBASE_CLIENT_ID;
+
+  if (projectId && privateKey && clientEmail) {
     try {
-      const gcloudKeyPath = path.join(nextDir, "gcloud-key.json");
-      fs.writeFileSync(gcloudKeyPath, process.env.GCLOUD_KEY, "utf-8");
-      
+      // Reconstruir el objeto credential desde las variables
+      const serviceAccount = {
+        type: "service_account",
+        project_id: projectId,
+        private_key_id: privateKeyId,
+        private_key: privateKey.replace(/\\n/g, '\n'), // Convertir \n de string de entorno a saltos reales
+        client_email: clientEmail,
+        client_id: clientId,
+        auth_uri: "https://accounts.google.com/o/oauth2/auth",
+        token_uri: "https://oauth2.googleapis.com/token",
+        auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+        client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${encodeURIComponent(clientEmail)}`,
+        universe_domain: "googleapis.com"
+      };
+
       // Validar que es JSON válido
-      JSON.parse(process.env.GCLOUD_KEY);
+      JSON.stringify(serviceAccount); // Esto lanzará error si no es serializable
       
-      console.log("✓ gcloud-key.json guardado para Secret Manager");
+      fs.writeFileSync(filePath, JSON.stringify(serviceAccount, null, 2), "utf-8");
+      console.log("✓ firebaseServiceAccount.json generado desde variables de entorno divididas");
       
-      // Setear variable de entorno para que el cliente de Secret Manager la use
-      process.env.GOOGLE_APPLICATION_CREDENTIALS = gcloudKeyPath;
+      // Validar el archivo
+      const content = fs.readFileSync(filePath, "utf-8");
+      JSON.parse(content);
+      console.log("✓ Archivo validado correctamente");
+      return;
     } catch (err) {
-      console.warn("⚠️ Error guardando gcloud-key.json:", err.message);
+      console.warn("⚠️ Error con variables divididas:", err.message);
     }
   }
 
-  // 2️⃣ Intentar con FIREBASE_SERVICE_ACCOUNT (Base64)
+  // Fallback: intentar con FIREBASE_SERVICE_ACCOUNT (Base64, para desarrollo local)
   const encoded = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (encoded) {
     try {
@@ -92,7 +91,7 @@ async function main() {
     }
   }
 
-  // 3️⃣ Si ninguno funciona, continuar (los API routes lo manejarán en runtime)
+  // Si nada funciona, continuar (los API routes lo manejarán en runtime)
   console.log("⚠️ No se generó firebaseServiceAccount.json en build time");
   console.log("ℹ️ Los API routes intentarán cargar credenciales en runtime");
 }
