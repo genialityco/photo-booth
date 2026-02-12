@@ -69,8 +69,8 @@ async function getServiceAccountFromSecretManager() {
     const payload = version.payload.data.toString('utf8');
     console.log("✓ Credenciales cargadas desde Secret Manager (photos)");
     return JSON.parse(payload);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (err.code !== 5 && err.code !== 7) {
       console.warn("⚠️ Error accediendo Secret Manager:", err.message);
     }
