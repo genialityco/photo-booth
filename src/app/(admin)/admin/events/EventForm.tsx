@@ -310,7 +310,7 @@ export default function EventForm({
                       value={prompt.id}
                       disabled={selectedPromptIds.includes(prompt.id)}
                     >
-                      {prompt.brandName || prompt.brand} - {prompt.basePrompt}
+                      {prompt.brand} - {prompt.basePrompt}
                     </option>
                   ))}
                 </select>
@@ -330,7 +330,7 @@ export default function EventForm({
                           className="flex items-center justify-between bg-gray-50 p-3 rounded border border-gray-200"
                         >
                           <span className="text-gray-700">
-                            <strong>{prompt?.brandName || prompt?.brand}:</strong> {prompt?.basePrompt}
+                            <strong>{prompt?.brand}:</strong> {prompt?.basePrompt}
                           </span>
                           <button
                             type="button"
