@@ -201,31 +201,6 @@ export default function PhotoBoothWizard({
         .slice(2, 10)}_${Date.now().toString(36)}`;
       setTaskId(newTaskId);
 
-      // Resolver valores finales - brand/color del estado o sessionStorage
-      let promptId = brand || sessionStorage.getItem("selectedBrand") || eventData?.prompts?.[0] || null;
-      const finalColor = color || sessionStorage.getItem("selectedColor") || null;
-
-      // Resolver el brand field a partir del promptId
-      let finalBrand = "default";
-      if (promptId) {
-        try {
-          const prompt = await getPhotoBoothPromptById(promptId);
-          if (prompt) {
-            // Usar el campo 'brand' que es lo que la Cloud Function busca
-            finalBrand = prompt.brand || promptId;
-            console.log("[PhotoBoothWizard] Resolved brand field:", { promptId, finalBrand, prompt });
-          } else {
-            finalBrand = promptId; // Usar el ID como fallback
-            console.warn("[PhotoBoothWizard] Prompt not found, using ID:", promptId);
-          }
-        } catch (error) {
-          console.error("[PhotoBoothWizard] Error resolving prompt:", error);
-          finalBrand = promptId || "default";
-        }
-      }
-
-      console.log("[PhotoBoothWizard] Final brand and color:", { finalBrand, finalColor });
-
       // 1) Subir la FOTO CON MARCO como input via /api/storage/upload
       const uploadResponse = await fetch("/api/storage/upload", {
         method: "POST",
@@ -249,6 +224,32 @@ export default function PhotoBoothWizard({
 
       // 2) Crear doc en Firestore - El trigger processImageTask lo procesará
       const taskRef = doc(collection(db, "imageTasks"), newTaskId);
+
+      // Usar el brand/color del estado si existen, si no del sessionStorage
+      const promptId = brand || sessionStorage.getItem("selectedBrand") || eventData?.prompts?.[0] || null;
+      const finalColor = color || sessionStorage.getItem("selectedColor") || null;
+
+      // Resolver el brand field a partir del promptId (la Cloud Function busca por 'brand')
+      let finalBrand = "default";
+      if (promptId) {
+        try {
+          const prompt = await getPhotoBoothPromptById(promptId);
+          if (prompt) {
+            // Usar el campo 'brand' que es lo que la Cloud Function busca
+            finalBrand = prompt.brand || promptId;
+            console.log("[PhotoBoothWizard] Resolved brand field:", { promptId, finalBrand, prompt });
+          } else {
+            finalBrand = promptId; // Usar el ID como fallback
+            console.warn("[PhotoBoothWizard] Prompt not found, using ID:", promptId);
+          }
+        } catch (error) {
+          console.error("[PhotoBoothWizard] Error resolving prompt:", error);
+          finalBrand = promptId || "default";
+        }
+      }
+
+
+      console.log("[PhotoBoothWizard] Final brand and color:", { finalBrand, finalColor });
 
       await setDoc(taskRef, {
         status: "queued",
