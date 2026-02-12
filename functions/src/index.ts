@@ -642,3 +642,99 @@ export const processImageTask = onDocumentCreated(
     }
   }
 );
+
+// ===== Cloud Function para subir imágenes de eventos =====
+export const uploadEventImage = onRequest(
+  { memory: "256MiB", timeoutSeconds: 60 },
+  async (req, res) => {
+    // Agregar headers CORS
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+
+    // Manejar preflight request
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+
+    // Solo permite POST
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    try {
+      const { imageData, fileName, eventSlug } = req.body;
+
+      // Validar campos requeridos
+      if (!imageData || !fileName || !eventSlug) {
+        res.status(400).json({
+          error: "Missing required fields: imageData, fileName, eventSlug",
+        });
+        return;
+      }
+
+      // Validar que imageData sea una base64 válida
+      if (typeof imageData !== "string") {
+        res.status(400).json({ error: "imageData must be a string" });
+        return;
+      }
+
+      // Convertir base64 a buffer
+      let buffer: Buffer;
+      try {
+        // Soporta data URLs like "data:image/png;base64,..."
+        const base64String = imageData.includes(",")
+          ? imageData.split(",")[1]
+          : imageData;
+        buffer = Buffer.from(base64String, "base64");
+      } catch (e) {
+        res.status(400).json({ error: "Invalid base64 format" });
+        return;
+      }
+
+      // Determinar content type
+      let contentType = "image/png";
+      if (fileName.includes(".jpg") || fileName.includes(".jpeg")) {
+        contentType = "image/jpeg";
+      } else if (fileName.includes(".webp")) {
+        contentType = "image/webp";
+      } else if (fileName.includes(".gif")) {
+        contentType = "image/gif";
+      }
+
+      // Crear referencia en Storage
+      const storage = getStorage();
+      const bucket = storage.bucket();
+      const filePath = `events/${eventSlug}/${Date.now()}_${fileName}`;
+      const file = bucket.file(filePath);
+
+      // Subir archivo
+      await file.save(buffer, {
+        metadata: {
+          contentType,
+          cacheControl: "public, max-age=31536000", // 1 año
+        },
+      });
+
+      // Hacer público
+      await file.makePublic();
+
+      // Obtener URL pública
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+      res.status(200).json({
+        success: true,
+        url: publicUrl,
+        filePath,
+      });
+    } catch (error) {
+      console.error("Error uploading event image:", error);
+      res.status(500).json({
+        error: "Failed to upload image",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+);

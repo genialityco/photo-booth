@@ -1,15 +1,36 @@
-import { getApps, initializeApp, applicationDefault } from "firebase-admin/app";
+import { getApps, initializeApp, cert } from "firebase-admin/app";
 // app/api/storage/upload/route.ts
 import { NextRequest } from "next/server";
 import { getStorage } from "firebase-admin/storage";
 import { v4 as uuidv4 } from "uuid";
 
+function getStorageBucket() {
+  return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 
+         `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "lenovo-experiences"}.appspot.com`;
+}
+
 function initAdmin() {
   if (!getApps().length) {
-    // Usa applicationDefault() o cert({...}) según tu despliegue
+    const storageBucket = getStorageBucket();
+    
+    console.log("Initializing Firebase Admin with bucket:", storageBucket);
+    
+    // Parsear credenciales del entorno
+    let serviceAccount: Record<string, unknown>;
+    try {
+      if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      } else {
+        throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is missing");
+      }
+    } catch (err) {
+      console.error("Error parsing service account:", err);
+      throw new Error("Invalid FIREBASE_SERVICE_ACCOUNT configuration");
+    }
+    
     initializeApp({
-      credential: applicationDefault(),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET, // p.ej.: "lenovo-experiences.appspot.com"
+      credential: cert(serviceAccount),
+      storageBucket,
     });
   }
 }
@@ -21,31 +42,57 @@ export async function POST(req: NextRequest) {
     const { dataUrl, desiredPath } = await req.json();
 
     if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) {
-      return new Response("dataUrl inválido", { status: 400 });
+      return Response.json({ error: "dataUrl inválido" }, { status: 400 });
     }
 
     // Parsear dataURL
     const match = dataUrl.match(/^data:(.+);base64,(.*)$/);
-    if (!match) return new Response("dataUrl debe ser base64", { status: 400 });
+    if (!match) return Response.json({ error: "dataUrl debe ser base64" }, { status: 400 });
 
     const contentType = match[1] || "image/png";
     const base64Data = match[2];
+    
+    // Verificar que el buffer no esté vacío
+    if (!base64Data || base64Data.length === 0) {
+      return Response.json({ error: "Empty image data" }, { status: 400 });
+    }
+    
     const buffer = Buffer.from(base64Data, "base64");
+    
+    if (buffer.length === 0) {
+      return Response.json({ error: "Buffer is empty" }, { status: 400 });
+    }
 
-    const bucket = getStorage().bucket();
+    const storageBucket = getStorageBucket();
+    const bucket = getStorage().bucket(storageBucket);
     const path = desiredPath || `survey-submissions/${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
     const file = bucket.file(path);
 
     const token = uuidv4();
 
-    await file.save(buffer, {
-      resumable: false,
-      metadata: {
-        contentType,
+    // Usar createWriteStream para mejor manejo de errores
+    await new Promise<void>((resolve, reject) => {
+      const writeStream = file.createWriteStream({
         metadata: {
-          firebaseStorageDownloadTokens: token, // para URL tipo getDownloadURL
+          contentType,
+          metadata: {
+            firebaseStorageDownloadTokens: token,
+          },
         },
-      },
+        resumable: false,
+      });
+
+      writeStream.on("error", (error) => {
+        console.error("WriteStream error:", error);
+        reject(error);
+      });
+
+      writeStream.on("finish", () => {
+        console.log("Upload finished successfully");
+        resolve();
+      });
+
+      writeStream.end(buffer);
     });
 
     // Construye URL estilo getDownloadURL
@@ -53,10 +100,11 @@ export async function POST(req: NextRequest) {
       path
     )}?alt=media&token=${token}`;
 
+    console.log("Upload successful:", { path, url });
     return Response.json({ url, path });
   } catch (err: unknown) {
     console.error("Upload error:", err);
     const errorMsg = err instanceof Error ? err.message : "upload failed";
-    return new Response(`Error: ${errorMsg}`, { status: 500 });
+    return Response.json({ error: errorMsg }, { status: 500 });
   }
 }

@@ -8,12 +8,12 @@ import {
   getPhotoBoothPrompts,
   PhotoBoothPrompt,
   updatePhotoBoothPrompt,
-} from "@/app/services/brandService";
-import Modal from "@/app/home/components/admin/Modal";
-import Form from "@/app/home/components/admin/Form";
+} from "@/app/services/photo-booth/brandService";
+import Modal from "@/app/components/admin/Modal";
+import Form from "@/app/components/admin/Form";
 import { Edit, Link, Trash } from "lucide-react";
-import DataTable from "@/app/home/components/admin/DataTable";
-import Pagination from "@/app/home/components/admin/Pagination";
+import DataTable from "@/app/components/admin/DataTable";
+import Pagination from "@/app/components/admin/Pagination";
 import { useRouter } from "next/navigation";
 
 const columns = [
