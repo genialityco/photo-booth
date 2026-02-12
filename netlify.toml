@@ -1,0 +1,10 @@
+[build]
+  command = "npm run build"
+  functions = "functions"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Las credenciales solo se usan en funciones serverless, no en Next.js
+# Netlify las manejará correctamente en ese contexto
