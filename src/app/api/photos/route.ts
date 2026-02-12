@@ -35,6 +35,7 @@ function initializeAdminIfNeeded() {
   if (!admin.apps.length) {
     const serviceAccount = getServiceAccount();
     admin.initializeApp({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       credential: admin.credential.cert(serviceAccount as any),
       storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "lenovo-experiences.appspot.com",
     });
