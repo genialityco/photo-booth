@@ -1,9 +1,10 @@
 "use client";
-import Image from "next/image";
 import { useEffect, useState } from "react";
+import type { StyleProfile } from "@/app/services/admin/styleService";
 
 export default function LoaderStep() {
   const [dots, setDots] = useState("");
+  const [style, setStyle] = useState<StyleProfile | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -16,6 +17,23 @@ export default function LoaderStep() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem("photoBoothStyle");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setStyle(parsed);
+        console.log("[LoaderStep] loaded cached style:", parsed?.id || parsed);
+      }
+    } catch (e) {
+      console.warn("[LoaderStep] error reading sessionStorage", e);
+    }
+  }, []);
+
+  const bgUrl = style ? style.bgLoading || style.bgLanding || "/Lenovo/app-avatars-01.png" : "/Lenovo/app-avatars-01.png";
+  const topLogo = style ? style.logoLoadingTop || style.logoLandingTop || "genilaty_smart_led_logo.png" : "/Lenovo/app-avatars-02.png";
+  const bottomLogo = style ? style.logoLoadingBottom || style.logoLandingBottom || "genilaty_smart_led_logo.png" : "/Lenovo/app-avatars-04.png";
+
   return (
     <div
       className="fixed inset-0 z-50 h-dvh w-dvw overflow-hidden text-white"
@@ -25,28 +43,13 @@ export default function LoaderStep() {
       }}
     >
       {/* Fondo */}
-      <Image
-        src="/Lenovo/app-avatars-01.png"
-        alt="Fondo decorativo"
-        fill
-        priority
-        sizes="100vw"
-        className="object-cover select-none"
-        draggable={false}
-      />
+      <div className="absolute inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: `url('${bgUrl}')` }} aria-hidden />
       {/* Velo para legibilidad */}
       <div className="absolute inset-0 bg-black/45" />
 
       {/* Logo superior (opcional) */}
       <div className="absolute inset-x-0 top-30 flex justify-center z-20">
-        <Image
-          src="/Lenovo/app-avatars-02.png"
-          alt="80 años FENALCO"
-          width={520}
-          height={96}
-          className="drop-shadow-md"
-          priority
-        />
+        <img src={topLogo} alt="Logo" width={520} height={96} className="drop-shadow-md select-none" draggable={false} />
       </div>
 
       {/* Contenido central */}
@@ -60,17 +63,9 @@ export default function LoaderStep() {
         </h1>
       </div>
 
-      Footer con logos (opcional)
       <div className="absolute inset-x-0 bottom-6 z-20 flex justify-center">
-        <Image
-          src="/Lenovo/app-avatars-04.png"
-          alt="Aliados y patrocinadores"
-          width={520}
-          height={60}
-          className="opacity-90"
-        />
+        <img src={bottomLogo} alt="Aliados y patrocinadores" width={520} height={60} className="opacity-90 select-none" draggable={false} />
       </div>
-     
     </div>
   );
 }

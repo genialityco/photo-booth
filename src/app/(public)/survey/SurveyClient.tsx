@@ -4,10 +4,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-<<<<<<< Updated upstream:src/app/survey/SurveyClient.tsx
-=======
 import type { StyleProfile } from "@/app/services/admin/styleService";
->>>>>>> Stashed changes:src/app/(public)/survey/SurveyClient.tsx
 import { useSearchParams } from "next/navigation";
 // ⬇️ Ya no guardamos en base, así que puedes comentar/retirar estos imports si no se usan
 // import { createSurveyRecord, createSurveyRecordQuick } from "../services/surveyServices";
@@ -66,7 +63,7 @@ export default function SurveyClient() {
   const drawCover = (
     ctx: CanvasRenderingContext2D,
     img: HTMLImageElement,
-    size: number
+    size: number,
   ) => {
     const iw = img.naturalWidth || img.width;
     const ih = img.naturalHeight || img.height;
@@ -79,10 +76,10 @@ export default function SurveyClient() {
   };
 
   // Compone la foto + el marco y devuelve un blob URL listo para descargar
-  const composeFramed = async (baseUrl: string) => {
+  const composeFramed = async (baseUrl: string, frameUrl?: string) => {
     const [baseImg, frameImg] = await Promise.all([
       loadImage(baseUrl),
-      loadImage("fenalco/capture/ChatGPT.png"),
+      loadImage(frameUrl || "fenalco/capture/ChatGPT.png"),
     ]);
     const size = 1024; // coincide con el PNG del marco
     const canvas = document.createElement("canvas");
@@ -96,7 +93,7 @@ export default function SurveyClient() {
     ctx.drawImage(frameImg, 0, 0, size, size);
 
     const blob: Blob | null = await new Promise((res) =>
-      canvas.toBlob(res, "image/png")
+      canvas.toBlob(res, "image/png"),
     );
     if (!blob) throw new Error("No se pudo generar la imagen con marco.");
     const url = URL.createObjectURL(blob);
@@ -150,10 +147,6 @@ export default function SurveyClient() {
       }
 
       try {
-<<<<<<< Updated upstream:src/app/survey/SurveyClient.tsx
-        // 👉 Aquí componemos SIEMPRE la imagen con el marco para la descarga
-        const framedUrl = await composeFramed(photo);
-=======
         // Decide si usar marco según el evento o estilo en sessionStorage
         let data = sessionStorage.getItem("currentEvent");
         if (!data) {
@@ -168,7 +161,6 @@ export default function SurveyClient() {
         }
 
         const framedUrl = await composeFramed(photo, frameToUse);
->>>>>>> Stashed changes:src/app/(public)/survey/SurveyClient.tsx
         if (!active) {
           URL.revokeObjectURL(framedUrl);
           return;

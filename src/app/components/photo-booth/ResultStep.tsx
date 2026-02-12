@@ -1,17 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-<<<<<<< Updated upstream:src/app/home/components/public/ResultStep.tsx
-import React, { useMemo } from "react";
-import ButtonPrimary from "@/app/items/ButtonPrimary";
-import QrTag from "./QrTag";
-=======
 import React, { useMemo, useEffect, useState } from "react";
 import type { StyleProfile } from "@/app/services/admin/styleService";
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import QrTag from "@/app/components/photo-booth/QrTag";
->>>>>>> Stashed changes:src/app/components/photo-booth/ResultStep.tsx
 
 type Props = {
   taskId: string;
@@ -23,13 +17,10 @@ type Props = {
 
 export default function ResultStep({ taskId, aiUrl, onAgain, buttonImage }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-<<<<<<< Updated upstream:src/app/home/components/public/ResultStep.tsx
-=======
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [event, setEvent] = useState<EventProfile | null>(null);
   const enableFrame = !!style?.enableFrame;
   const frameSrc = event?.frameImage ?? style?.frameImage ?? null;
->>>>>>> Stashed changes:src/app/components/photo-booth/ResultStep.tsx
 
   const surveyAI = useMemo(() => {
     const url = new URL(`${origin}/survey`);
@@ -41,8 +32,6 @@ export default function ResultStep({ taskId, aiUrl, onAgain, buttonImage }: Prop
 
   const SIZE_IMG = "clamp(260px, min(70vw, 60svh), 520px)";
 
-<<<<<<< Updated upstream:src/app/home/components/public/ResultStep.tsx
-=======
   useEffect(() => {
     try {
       const cached = sessionStorage.getItem("photoBoothStyle");
@@ -62,8 +51,6 @@ export default function ResultStep({ taskId, aiUrl, onAgain, buttonImage }: Prop
       console.warn("[ResultStep] error reading sessionStorage", e);
     }
   }, []);
-
->>>>>>> Stashed changes:src/app/components/photo-booth/ResultStep.tsx
   // === Helper para cargar imágenes con soporte CORS ===
   const loadImage = (src: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {

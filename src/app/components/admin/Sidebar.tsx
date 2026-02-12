@@ -11,10 +11,7 @@ const Sidebar = () => {
   const navItems = [
     { name: "ImageView", href: "/admin/imageview", icon: FaImages },
     { name: "Brand", href: "/admin/brand", icon: FaTag },
-<<<<<<< Updated upstream:src/app/home/components/admin/Sidebar.tsx
-=======
     { name: "Events", href: "/admin/events", icon: FaCalendar },
->>>>>>> Stashed changes:src/app/components/admin/Sidebar.tsx
   ];
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((v) => !v);

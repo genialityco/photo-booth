@@ -50,19 +50,11 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
     >
       <div
         ref={modalRef}
-<<<<<<< Updated upstream:src/app/home/components/admin/Modal.tsx
-        className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 mx-4 sm:mx-0"
-        tabIndex={-1}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h2 id="modal-title" className="text-xl font-semibold text-gray-900">
-=======
         className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-4 sm:p-5 md:p-6 mx-4 sm:mx-0 max-h-[85vh] overflow-y-auto flex flex-col"
         tabIndex={-1}
       >
         <div className="flex justify-between items-center mb-4 sm:mb-5 md:mb-6 flex-shrink-0 gap-2">
           <h2 id="modal-title" className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900">
->>>>>>> Stashed changes:src/app/components/admin/Modal.tsx
             {title}
           </h2>
           <button

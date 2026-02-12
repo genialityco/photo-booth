@@ -3,12 +3,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-<<<<<<< Updated upstream:src/app/home/components/public/PhotoBoothWizard.tsx
-import CaptureStep from "./CaptureStep";
-import PreviewStep from "./PreviewStep";
-import LoaderStep from "./LoaderStep";
-import ResultStep from "./ResultStep";
-=======
 import CaptureStep from "@/app/components/photo-booth/CaptureStep";
 import PreviewStep from "@/app/components/photo-booth/PreviewStep";
 import LoaderStep from "@/app/components/photo-booth/LoaderStep";
@@ -17,7 +11,6 @@ import { getStyleProfileById } from "@/app/services/admin/styleService";
 import type { StyleProfile } from "@/app/services/admin/styleService";
 import { getEventProfileBySlug, type EventProfile } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
->>>>>>> Stashed changes:src/app/components/photo-booth/PhotoBoothWizard.tsx
 import { useSearchParams } from "next/navigation";
 import { db } from "@/firebaseConfig";
 import {
@@ -51,6 +44,7 @@ export default function PhotoBoothWizard({
   const [taskId, setTaskId] = useState<string | null>(null);
   const [brand, setBrand] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
+  const [style, setStyle] = useState<StyleProfile | null>(null);
   const unsubRef = useRef<() => void | undefined>(undefined);
 
   useEffect(() => {
@@ -76,14 +70,6 @@ export default function PhotoBoothWizard({
     if (searchParams) {
       const brandParam = searchParams.get("brand");
       const colorParam = searchParams.get("color");
-<<<<<<< Updated upstream:src/app/home/components/public/PhotoBoothWizard.tsx
-
-      console.log("Brand param:", brandParam);
-      console.log("Color param:", colorParam);
-
-      setBrand(brandParam || "default");
-      setColor(colorParam || null);
-=======
       
       if (brandParam && !sessionStorage.getItem("selectedBrand")) {
         setBrand(brandParam);
@@ -91,7 +77,6 @@ export default function PhotoBoothWizard({
       if (colorParam && !sessionStorage.getItem("selectedColor")) {
         setColor(colorParam);
       }
->>>>>>> Stashed changes:src/app/components/photo-booth/PhotoBoothWizard.tsx
     } else {
       // Fallback: leer directamente del window.location
       const params = new URLSearchParams(window.location.search);
@@ -113,9 +98,6 @@ export default function PhotoBoothWizard({
       }
     };
   }, [searchParams]);
-
-<<<<<<< Updated upstream:src/app/home/components/public/PhotoBoothWizard.tsx
-=======
   // Load style if styleId present in query (so styles persist across steps)
   useEffect(() => {
     const loadStyle = async () => {
@@ -204,8 +186,6 @@ export default function PhotoBoothWizard({
     };
     loadStyle();
   }, []);
-
->>>>>>> Stashed changes:src/app/components/photo-booth/PhotoBoothWizard.tsx
   const handleCaptured = (payload: { framed: string; raw: string }) => {
     setFramedShot(payload.framed);
     setRawShot(payload.raw);
@@ -256,7 +236,7 @@ export default function PhotoBoothWizard({
           const prompt = await getPhotoBoothPromptById(promptId);
           if (prompt) {
             // Usar el campo 'brand' que es lo que la Cloud Function busca
-            finalBrand = prompt.brand || prompt.brandName || promptId;
+            finalBrand = prompt.brand || promptId;
             console.log("[PhotoBoothWizard] Resolved brand field:", { promptId, finalBrand, prompt });
           } else {
             finalBrand = promptId; // Usar el ID como fallback
@@ -380,12 +360,8 @@ export default function PhotoBoothWizard({
               mirror={mirror}
               boxSize={boxSize}
               onCaptured={handleCaptured}
-<<<<<<< Updated upstream:src/app/home/components/public/PhotoBoothWizard.tsx
-              /* frameSrc={frameSrc} */
-=======
               frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
               buttonImage={eventData?.buttonImage}
->>>>>>> Stashed changes:src/app/components/photo-booth/PhotoBoothWizard.tsx
             />
           )}
 
