@@ -112,13 +112,13 @@ export default function EventPhotoBoothLanding({
                       {imgSrc ? (
                         <img
                           src={imgSrc}
-                          alt={prompt.brandName || prompt.brand}
+                          alt={prompt.brand || "Opción"}
                           className="w-full h-full object-cover"
                         />
                       ) : (
                         <div className={`${event.buttonImage ? "bg-black/40" : "bg-white/20"} w-full h-full flex items-center justify-center`}>
                           <span className="text-white text-xs text-center px-2 font-semibold drop-shadow">
-                            {prompt.brandName || prompt.brand || "Opción"}
+                            {prompt.brand || "Opción"}
                           </span>
                         </div>
                       )}
