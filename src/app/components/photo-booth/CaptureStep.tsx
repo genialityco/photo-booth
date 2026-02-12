@@ -134,7 +134,6 @@ export default function CaptureStep({
     if (!video) return;
 
     let framed: string;
-    let raw: string;
 
     if (frameSrc && frameSize && frameImgRef.current) {
       // --- Con marco ---
@@ -172,7 +171,7 @@ export default function CaptureStep({
       video.videoWidth || 1080,
       video.videoHeight || 1080,
     );
-    raw = captureRawSquare({ video, targetW: square, targetH: square, mirror });
+    const raw = captureRawSquare({ video, targetW: square, targetH: square, mirror });
 
     setFlash(true);
     setTimeout(() => setFlash(false), 120);
