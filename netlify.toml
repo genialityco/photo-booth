@@ -3,6 +3,10 @@
   functions = "functions/lib"
   publish = ".next"
 
+# Desactivar secrets scanning para públic APIs (NEXT_PUBLIC_*)
+[build.environment]
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 

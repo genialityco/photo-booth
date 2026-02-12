@@ -6,6 +6,22 @@ import { v4 as uuidv4 } from "uuid";
 import * as fs from "fs";
 import * as path from "path";
 
+// Secret Manager Client
+let secretManagerClient: any = null;
+
+async function getSecretManagerClient() {
+  if (!secretManagerClient) {
+    try {
+      const { SecretManagerServiceClient } = await import('@google-cloud/secret-manager');
+      secretManagerClient = new SecretManagerServiceClient();
+    } catch (err) {
+      console.warn("Secret Manager not available:", (err as Error).message);
+      return null;
+    }
+  }
+  return secretManagerClient;
+}
+
 function getStorageBucket() {
   return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 
          `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "lenovo-experiences"}.appspot.com`;
@@ -44,6 +60,30 @@ function getServiceAccount() {
   throw new Error("No se encontraron credenciales de Firebase - verifícalas en FIREBASE_SERVICE_ACCOUNT o firebaseServiceAccount.json");
 }
 
+async function getServiceAccountFromSecretManager() {
+  const client = await getSecretManagerClient();
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT || "472633703949";
+  
+  if (!client) {
+    return null;
+  }
+  
+  try {
+    const [version] = await client.accessSecretVersion({
+      name: `projects/${projectId}/secrets/secretPhotobooth/versions/latest`,
+    });
+    });
+    const payload = version.payload.data.toString('utf8');
+    console.log("✓ Credenciales cargadas desde Secret Manager");
+    return JSON.parse(payload);
+  } catch (err: any) {
+    if (err.code !== 5 && err.code !== 7) { // 5=NOT_FOUND, 7=PERMISSION_DENIED
+      console.warn("⚠️ Error accediendo Secret Manager:", err.message);
+    }
+    return null;
+  }
+}
+
 function initAdmin() {
   if (!getApps().length) {
     const storageBucket = getStorageBucket();
@@ -62,9 +102,31 @@ function initAdmin() {
   }
 }
 
+async function initAdminWithSecrets() {
+  if (!getApps().length) {
+    const storageBucket = getStorageBucket();
+    
+    console.log("Initializing Firebase Admin with bucket:", storageBucket);
+    
+    // Intentar Secret Manager primero, luego fallback
+    let serviceAccount = await getServiceAccountFromSecretManager();
+    if (!serviceAccount) {
+      serviceAccount = getServiceAccount();
+    }
+    
+    initializeApp({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      credential: cert(serviceAccount as any),
+      storageBucket,
+    });
+    
+    console.log("✓ Firebase Admin initialized successfully");
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    initAdmin();
+    await initAdminWithSecrets();
 
     const { dataUrl, desiredPath } = await req.json();
 
