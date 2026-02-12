@@ -72,7 +72,6 @@ async function getServiceAccountFromSecretManager() {
     const [version] = await client.accessSecretVersion({
       name: `projects/${projectId}/secrets/secretPhotobooth/versions/latest`,
     });
-    });
     const payload = version.payload.data.toString('utf8');
     console.log("✓ Credenciales cargadas desde Secret Manager");
     return JSON.parse(payload);
