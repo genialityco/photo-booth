@@ -6,5 +6,8 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
+
 # Las credenciales solo se usan en funciones serverless, no en Next.js
 # Netlify las manejará correctamente en ese contexto
