@@ -1,15 +1,56 @@
 // app/api/photos/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import * as admin from "firebase-admin";
+import * as fs from "fs";
+import * as path from "path";
 
-if (!admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.applicationDefault(), // o admin.credential.cert({...})
-        storageBucket: "lenovo-experiences.appspot.com",
-    });
+function getServiceAccount() {
+  // Intentar leer del archivo primero (Netlify)
+  const filePath = path.join(process.cwd(), "firebaseServiceAccount.json");
+  if (fs.existsSync(filePath)) {
+    try {
+      const content = fs.readFileSync(filePath, "utf-8");
+      console.log("✓ Credenciales cargadas desde archivo (photos)");
+      return JSON.parse(content);
+    } catch (err) {
+      console.warn("⚠️ Error leyendo credenciales del archivo:", (err as Error).message);
+    }
+  }
+
+  // Fallback: decodificar desde variable de entorno (desarrollo local)
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      const decoded = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf-8');
+      console.log("✓ Credenciales cargadas desde variable de entorno (photos)");
+      return JSON.parse(decoded);
+    } catch (err) {
+      console.warn("⚠️ Error decodificando credenciales:", (err as Error).message);
+    }
+  }
+
+  throw new Error("No se encontraron credenciales de Firebase - verifícalas en FIREBASE_SERVICE_ACCOUNT o firebaseServiceAccount.json");
 }
-const bucket = admin.storage().bucket();
-const afs = admin.firestore();
+
+function initializeAdminIfNeeded() {
+  if (!admin.apps.length) {
+    const serviceAccount = getServiceAccount();
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount as any),
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "lenovo-experiences.appspot.com",
+    });
+    console.log("✓ Firebase Admin initialized successfully (photos)");
+  }
+}
+
+const bucket = () => {
+  initializeAdminIfNeeded();
+  return admin.storage().bucket();
+};
+
+const afs = () => {
+  initializeAdminIfNeeded();
+  return admin.firestore();
+};
 
 function parseDataUrl(dataUrl: string) {
     const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || "");
@@ -39,10 +80,10 @@ export async function POST(req: NextRequest) {
         if (rawDataUrl) {
             const { buffer, contentType } = parseDataUrl(rawDataUrl);
             const path = `survey-submissions/${id}-raw.png`;
-            const f = bucket.file(path);
+            const f = bucket().file(path);
             await f.save(buffer, { contentType, resumable: false, metadata: { cacheControl: "public, max-age=31536000" } });
             await f.makePublic();
-            const url = `https://storage.googleapis.com/${bucket.name}/${encodeURIComponent(path)}`;
+            const url = `https://storage.googleapis.com/${bucket().name}/${encodeURIComponent(path)}`;
             paths.raw = path;
             urls.raw = url;
         }
@@ -51,16 +92,16 @@ export async function POST(req: NextRequest) {
         if (framedDataUrl) {
             const { buffer, contentType } = parseDataUrl(framedDataUrl);
             const path = `survey-submissions/${id}-framed.png`;
-            const f = bucket.file(path);
+            const f = bucket().file(path);
             await f.save(buffer, { contentType, resumable: false, metadata: { cacheControl: "public, max-age=31536000" } });
             await f.makePublic();
-            const url = `https://storage.googleapis.com/${bucket.name}/${encodeURIComponent(path)}`;
+            const url = `https://storage.googleapis.com/${bucket().name}/${encodeURIComponent(path)}`;
             paths.framed = path;
             urls.framed = url;
         }
 
         // Crear documento en Firestore
-        const docRef = await afs.collection("surveys").add({
+        const docRef = await afs().collection("surveys").add({
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             qrId: qrId ?? null,
             ...((meta && typeof meta === "object") ? meta : {}),

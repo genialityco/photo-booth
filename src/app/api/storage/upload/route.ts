@@ -45,6 +45,15 @@ function initAdmin() {
     console.log("Initializing Firebase Admin with bucket:", storageBucket);
     
     const serviceAccount = getServiceAccount();
+    
+    initializeApp({
+      credential: cert(serviceAccount as any),
+      storageBucket,
+    });
+    
+    console.log("✓ Firebase Admin initialized successfully");
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
