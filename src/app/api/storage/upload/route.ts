@@ -7,6 +7,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Secret Manager Client
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let secretManagerClient: any = null;
 
 async function getSecretManagerClient() {
@@ -76,28 +77,11 @@ async function getServiceAccountFromSecretManager() {
     console.log("✓ Credenciales cargadas desde Secret Manager");
     return JSON.parse(payload);
   } catch (err: any) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (err.code !== 5 && err.code !== 7) { // 5=NOT_FOUND, 7=PERMISSION_DENIED
       console.warn("⚠️ Error accediendo Secret Manager:", err.message);
     }
     return null;
-  }
-}
-
-function initAdmin() {
-  if (!getApps().length) {
-    const storageBucket = getStorageBucket();
-    
-    console.log("Initializing Firebase Admin with bucket:", storageBucket);
-    
-    const serviceAccount = getServiceAccount();
-    
-    initializeApp({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      credential: cert(serviceAccount as any),
-      storageBucket,
-    });
-    
-    console.log("✓ Firebase Admin initialized successfully");
   }
 }
 

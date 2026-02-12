@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 // Secret Manager Client
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let secretManagerClient: any = null;
 
 async function getSecretManagerClient() {
@@ -69,22 +70,11 @@ async function getServiceAccountFromSecretManager() {
     console.log("✓ Credenciales cargadas desde Secret Manager (photos)");
     return JSON.parse(payload);
   } catch (err: any) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (err.code !== 5 && err.code !== 7) {
       console.warn("⚠️ Error accediendo Secret Manager:", err.message);
     }
     return null;
-  }
-}
-
-function initializeAdminIfNeeded() {
-  if (!admin.apps.length) {
-    const serviceAccount = getServiceAccount();
-    admin.initializeApp({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      credential: admin.credential.cert(serviceAccount as any),
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "lenovo-experiences.appspot.com",
-    });
-    console.log("✓ Firebase Admin initialized successfully (photos)");
   }
 }
 
