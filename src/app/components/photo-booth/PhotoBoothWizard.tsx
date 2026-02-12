@@ -435,6 +435,7 @@ export default function PhotoBoothWizard({
               <div className="absolute inset-0 z-50">
                 <LoaderStep />
               </div>
+              
             </>
           )}
 
