@@ -236,6 +236,7 @@ export default function PhotoBoothWizard({
           const prompt = await getPhotoBoothPromptById(promptId);
           if (prompt) {
             // Usar el campo 'brand' que es lo que la Cloud Function busca
+
             finalBrand = prompt.brand || promptId;
             console.log("[PhotoBoothWizard] Resolved brand field:", { promptId, finalBrand, prompt });
           } else {
