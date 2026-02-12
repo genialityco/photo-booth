@@ -101,8 +101,3 @@ main().catch(err => {
   console.error("❌ Error en generate-firebase-creds.js:", err.message);
   process.exit(1);
 });
-  }
-} catch (err) {
-  console.error("❌ Error generando credenciales:", err.message);
-  process.exit(1);
-}
