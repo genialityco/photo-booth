@@ -72,15 +72,35 @@ async function main() {
     }
   }
 
-  // Fallback: intentar con FIREBASE_SERVICE_ACCOUNT (Base64, para desarrollo local)
+  // Fallback: intentar con FIREBASE_SERVICE_ACCOUNT (puede ser JSON directo o Base64)
   const encoded = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (encoded) {
     try {
+      console.log("🔄 Intentando parsear FIREBASE_SERVICE_ACCOUNT como JSON directo...");
+      
+      // Primero intentar como JSON directo (una línea con \n escapados)
+      try {
+        const unescaped = encoded.replace(/\\n/g, '\n');
+        const credentials = JSON.parse(unescaped);
+        
+        fs.writeFileSync(filePath, JSON.stringify(credentials, null, 2), "utf-8");
+        console.log("✓ firebaseServiceAccount.json generado desde FIREBASE_SERVICE_ACCOUNT (JSON directo)");
+        
+        const content = fs.readFileSync(filePath, "utf-8");
+        JSON.parse(content);
+        console.log("✓ Archivo validado correctamente");
+        return;
+      } catch (jsonErr) {
+        console.log("⚠️ No es JSON directo, intentando como Base64...");
+      }
+      
+      // Fallback: intentar decodificar como Base64
       const decoded = Buffer.from(encoded, "base64").toString("utf-8");
-      const credentials = JSON.parse(decoded);
+      const unescaped = decoded.replace(/\\n/g, '\n');
+      const credentials = JSON.parse(unescaped);
       
       fs.writeFileSync(filePath, JSON.stringify(credentials, null, 2), "utf-8");
-      console.log("✓ firebaseServiceAccount.json generado desde FIREBASE_SERVICE_ACCOUNT");
+      console.log("✓ firebaseServiceAccount.json generado desde FIREBASE_SERVICE_ACCOUNT (Base64)");
       
       const content = fs.readFileSync(filePath, "utf-8");
       JSON.parse(content);
