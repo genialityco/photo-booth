@@ -203,8 +203,8 @@ export default function ResultStep({
 
         {/* QR (sin marco) */}
         <div className="flex items-center justify-center z-10 flex-shrink-0">
-          <div className="w-16 sm:w-20 md:w-24 lg:w-28">
-            <QrTag value={surveyAI} size={120} />
+          <div className="w-24 sm:w-28 md:w-32 lg:w-40">
+            <QrTag value={surveyAI} size={180} />
           </div>
         </div>
 
