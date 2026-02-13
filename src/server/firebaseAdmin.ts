@@ -26,12 +26,22 @@ const getServiceAccount = () => {
       }
     }
     
-    // Fallback: decodificar desde variable de entorno (si existe)
-    const encoded = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (encoded) {
-      console.log("⚠️ Usando credenciales desde variable de entorno");
-      const decoded = Buffer.from(encoded, 'base64').toString('utf-8');
-      return JSON.parse(decoded);
+    // Fallback: intentar desde variable de entorno
+    const envvar = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (envvar) {
+      try {
+        console.log("⚠️ Usando credenciales desde variable de entorno");
+        // Intentar parsear como JSON directo primero
+        try {
+          return JSON.parse(envvar);
+        } catch {
+          // Si falla, intentar decodificar como Base64
+          const decoded = Buffer.from(envvar, 'base64').toString('utf-8');
+          return JSON.parse(decoded);
+        }
+      } catch (err) {
+        console.warn("⚠️ No se pudieron parsear credenciales de FIREBASE_SERVICE_ACCOUNT:", (err as Error).message);
+      }
     }
     
     console.warn("⚠️ No se encontraron credenciales de Firebase");
