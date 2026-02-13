@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * Script para generar firebaseServiceAccount.json desde variables de entorno divididas
- * Se ejecuta antes del build de Next.js
- */
 
 const fs = require("fs");
 const path = require("path");
@@ -32,36 +28,46 @@ if (fs.existsSync(filePath)) {
 }
 
 async function main() {
-  // Intentar reconstruir desde variables divididas (Netlify)
+  // Intentar reconstruir desde variables divididas (Netlify - PREFERIDO)
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const privateKeyId = process.env.FIREBASE_PRIVATE_KEY_ID;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY; // Asegúrate de manejar correctamente los saltos de línea
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const clientId = process.env.FIREBASE_CLIENT_ID;
+  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
 
   if (projectId && privateKey && clientEmail) {
     try {
-      // Reconstruir el objeto credential desde las variables
+      console.log("🔄 Intentando reconstruir desde variables divididas...");
+
+      // Reconstruir el objeto credentials desde las variables
       const serviceAccount = {
         type: "service_account",
         project_id: projectId,
         private_key_id: privateKeyId,
-        private_key: privateKey.replace(/\\n/g, '\n'), // Convertir \n de string de entorno a saltos reales
+        private_key: privateKey.replace(/\\n/g, "\n"), // Convertir \n de string de entorno a saltos reales
         client_email: clientEmail,
         client_id: clientId,
         auth_uri: "https://accounts.google.com/o/oauth2/auth",
         token_uri: "https://oauth2.googleapis.com/token",
-        auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+        auth_provider_x509_cert_url:
+          "https://www.googleapis.com/oauth2/v1/certs",
         client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${encodeURIComponent(clientEmail)}`,
-        universe_domain: "googleapis.com"
+        universe_domain: "googleapis.com",
       };
 
       // Validar que es JSON válido
-      JSON.stringify(serviceAccount); // Esto lanzará error si no es serializable
-      
-      fs.writeFileSync(filePath, JSON.stringify(serviceAccount, null, 2), "utf-8");
-      console.log("✓ firebaseServiceAccount.json generado desde variables de entorno divididas");
-      
+      JSON.stringify(serviceAccount); // Esto lanzará un error si no es serializable
+
+      fs.writeFileSync(
+        filePath,
+        JSON.stringify(serviceAccount, null, 2),
+        "utf-8",
+      );
+      console.log(
+        "✓ firebaseServiceAccount.json generado desde variables divididas",
+      );
+
       // Validar el archivo
       const content = fs.readFileSync(filePath, "utf-8");
       JSON.parse(content);
@@ -72,51 +78,12 @@ async function main() {
     }
   }
 
-  // Fallback: intentar con FIREBASE_SERVICE_ACCOUNT (puede ser JSON directo o Base64)
-  const encoded = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (encoded) {
-    try {
-      console.log("🔄 Intentando parsear FIREBASE_SERVICE_ACCOUNT como JSON directo...");
-      
-      // Primero intentar como JSON directo (una línea con \n escapados)
-      try {
-        const unescaped = encoded.replace(/\\n/g, '\n');
-        const credentials = JSON.parse(unescaped);
-        
-        fs.writeFileSync(filePath, JSON.stringify(credentials, null, 2), "utf-8");
-        console.log("✓ firebaseServiceAccount.json generado desde FIREBASE_SERVICE_ACCOUNT (JSON directo)");
-        
-        const content = fs.readFileSync(filePath, "utf-8");
-        JSON.parse(content);
-        console.log("✓ Archivo validado correctamente");
-        return;
-      } catch (jsonErr) {
-        console.log("⚠️ No es JSON directo, intentando como Base64...");
-      }
-      
-      // Fallback: intentar decodificar como Base64
-      const decoded = Buffer.from(encoded, "base64").toString("utf-8");
-      const unescaped = decoded.replace(/\\n/g, '\n');
-      const credentials = JSON.parse(unescaped);
-      
-      fs.writeFileSync(filePath, JSON.stringify(credentials, null, 2), "utf-8");
-      console.log("✓ firebaseServiceAccount.json generado desde FIREBASE_SERVICE_ACCOUNT (Base64)");
-      
-      const content = fs.readFileSync(filePath, "utf-8");
-      JSON.parse(content);
-      console.log("✓ Archivo validado correctamente");
-      return;
-    } catch (err) {
-      console.warn("⚠️ Error con FIREBASE_SERVICE_ACCOUNT:", err.message);
-    }
-  }
-
   // Si nada funciona, continuar (los API routes lo manejarán en runtime)
   console.log("⚠️ No se generó firebaseServiceAccount.json en build time");
   console.log("ℹ️ Los API routes intentarán cargar credenciales en runtime");
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("❌ Error en generate-firebase-creds.js:", err.message);
   process.exit(1);
 });
