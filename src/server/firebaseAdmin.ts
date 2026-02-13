@@ -31,16 +31,18 @@ const getServiceAccount = () => {
     if (envvar) {
       try {
         console.log("⚠️ Usando credenciales desde variable de entorno");
-        // Intentar parsear como JSON directo primero
+        // Reemplazar \\n escapados por saltos de línea reales
+        const unescaped = envvar.replace(/\\n/g, '\n');
+        // Intentar parsear como JSON directo
+        return JSON.parse(unescaped);
+      } catch (err) {
         try {
-          return JSON.parse(envvar);
-        } catch {
           // Si falla, intentar decodificar como Base64
           const decoded = Buffer.from(envvar, 'base64').toString('utf-8');
           return JSON.parse(decoded);
+        } catch (base64Err) {
+          console.warn("⚠️ No se pudieron parsear credenciales de FIREBASE_SERVICE_ACCOUNT:", (err as Error).message);
         }
-      } catch (err) {
-        console.warn("⚠️ No se pudieron parsear credenciales de FIREBASE_SERVICE_ACCOUNT:", (err as Error).message);
       }
     }
     
