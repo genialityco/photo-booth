@@ -33,6 +33,7 @@ export default function EventForm({
     loadingPageImage: event?.loadingPageImage || "",
     loadingMessage: event?.loadingMessage || "Generando imagen",
     showLogosInLoader: event?.showLogosInLoader !== false,
+    enableFrame: event?.enableFrame !== false,
     prompts: event?.prompts || [],
     isActive: event?.isActive !== false,
   });
@@ -276,6 +277,34 @@ export default function EventForm({
             <p className="text-xs text-gray-600">
               Si está activado, se mostrarán los logos superior e inferior en la pantalla de carga.
               Si está desactivado, solo se mostrará el mensaje de carga.
+            </p>
+          </div>
+
+          {/* Frame Configuration */}
+          <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+            <div className="flex items-center mb-3">
+              <input
+                type="checkbox"
+                id="enableFrame"
+                name="enableFrame"
+                checked={formData.enableFrame !== false}
+                onChange={(e) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    enableFrame: e.target.checked,
+                  }));
+                }}
+                className="h-4 w-4 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="enableFrame"
+                className="ml-2 text-sm font-medium text-gray-700"
+              >
+                Habilitar marco en resultados
+              </label>
+            </div>
+            <p className="text-xs text-gray-600">
+              Si está activado, se mostrará el marco de foto sobre la imagen generada en la pantalla de resultados.
             </p>
           </div>
         </div>

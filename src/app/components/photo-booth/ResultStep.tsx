@@ -24,7 +24,7 @@ export default function ResultStep({
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [event, setEvent] = useState<EventProfile | null>(null);
-  const enableFrame = !!style?.enableFrame;
+  const enableFrame = event?.enableFrame ?? style?.enableFrame ?? true;
   const frameSrc = event?.frameImage ?? style?.frameImage ?? null;
 
   const surveyAI = useMemo(() => {
@@ -55,8 +55,8 @@ export default function ResultStep({
 
     const composeFrame = async () => {
       try {
-        if (!frameSrc) {
-          // Sin marco, mostrar la imagen tal cual
+        // Si enableFrame está desactivado o no hay frameSrc, mostrar imagen sin marco
+        if (!enableFrame || !frameSrc) {
           setFramedImageUrl(aiUrl);
           return;
         }
@@ -96,7 +96,7 @@ export default function ResultStep({
     };
 
     composeFrame();
-  }, [aiUrl, frameSrc]);
+  }, [aiUrl, frameSrc, enableFrame]);
 
   useEffect(() => {
     try {
@@ -124,9 +124,48 @@ export default function ResultStep({
   // === Descargar imagen compuesta con marco ===
   const handleDownload = async () => {
     try {
-      const [baseImg] = await Promise.all([
+      // Si enableFrame está desactivado o no hay frameSrc, descargar solo la imagen base
+      if (!enableFrame || !frameSrc) {
+        const baseImg = await loadImage(aiUrl);
+        const size = 1024;
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d")!;
+        canvas.width = size;
+        canvas.height = size;
+
+        // Dibuja la imagen base "centrada y ajustada"
+        const iw = baseImg.naturalWidth || baseImg.width;
+        const ih = baseImg.naturalHeight || baseImg.height;
+        const scale = Math.max(size / iw, size / ih);
+        const dw = iw * scale;
+        const dh = ih * scale;
+        const dx = (size - dw) / 2;
+        const dy = (size - dh) / 2;
+
+        ctx.drawImage(baseImg, dx, dy, dw, dh);
+
+        // Exportar como blob
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, "image/png"),
+        );
+        if (!blob) throw new Error("No se pudo generar la imagen final");
+
+        // Descargar
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `foto-ia-${taskId}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        return;
+      }
+
+      // Descargar con marco
+      const [baseImg, frameImg] = await Promise.all([
         loadImage(aiUrl),
-        //loadImage(""), //"/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"),
+        loadImage(frameSrc),
       ]);
 
       const size = 1024;
@@ -145,7 +184,9 @@ export default function ResultStep({
       const dy = (size - dh) / 2;
 
       ctx.drawImage(baseImg, dx, dy, dw, dh);
-      // ctx.drawImage(frameImg, 0, 0, size, size);
+      
+      // Dibuja el marco encima
+      ctx.drawImage(frameImg, 0, 0, size, size);
 
       // Exportar como blob
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -194,12 +235,12 @@ export default function ResultStep({
           />
           {/* Marco superpuesto */}
         </div>
-        {/* <img
-            src={""} //"/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"
+        <img
+            src={event?.frameImage || "/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"} 
             alt="Marco decorativo"
             className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
             draggable={false}
-          /> */}
+          />
 
         {/* QR (sin marco) */}
         <div className="flex items-center justify-center z-10 flex-shrink-0">

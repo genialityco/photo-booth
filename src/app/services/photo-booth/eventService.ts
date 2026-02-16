@@ -27,6 +27,7 @@ export type EventProfile = {
   loadingPageImage?: string;
   loadingMessage?: string;
   showLogosInLoader?: boolean; // Controla si mostrar logos en LoaderStep
+  enableFrame?: boolean; // Controla si mostrar el marco en ResultStep
   prompts: string[];
   isActive: boolean;
   createdAt?: Timestamp | Date | null;
@@ -96,6 +97,8 @@ export async function createEventProfile(
       description: data.description || "",
       prompts: Array.isArray(data.prompts) ? data.prompts : [],
       isActive: data.isActive !== false,
+      showLogosInLoader: data.showLogosInLoader !== false,
+      enableFrame: data.enableFrame !== false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -253,6 +256,8 @@ export async function updateEventProfile(
     }
     if (data.isActive !== undefined) docData.isActive = data.isActive;
     if (data.loadingMessage !== undefined) docData.loadingMessage = data.loadingMessage;
+    if (data.showLogosInLoader !== undefined) docData.showLogosInLoader = data.showLogosInLoader;
+    if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
 
     // Process image fields
     const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage"];
