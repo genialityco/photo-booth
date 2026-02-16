@@ -101,7 +101,7 @@ async function getBrandedPromptCached(
             value,
             expiresAt: now + CACHE_DURATION_MS,
           });
-          return value;
+          return value; 
         }
       }
     }
@@ -529,7 +529,7 @@ export const processImageTask = onDocumentCreated(
       ];
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image-preview",
+        model: "gemini-2.5-flash-image",
         contents: contents,
    
       });
@@ -563,17 +563,17 @@ export const processImageTask = onDocumentCreated(
 
       // Buscar la imagen en las partes
       const imagePart = firstCandidate.content?.parts?.find(
-        (part) => part.inlineData && part.inlineData.mimeType?.startsWith("image/")
+        (part: any) => part?.inlineData?.mimeType?.startsWith?.("image/")
       );
       
       const generatedImageData = imagePart?.inlineData?.data;
       
       if (!generatedImageData) {
         // Intentar obtener texto de error si existe
-        const textParts = firstCandidate.content?.parts
-          ?.filter(p => p.text)
-          .map(p => p.text)
-          .join(" ") || "Sin respuesta de texto";
+          const textParts = firstCandidate.content?.parts
+            ?.filter((p: any): p is { text: string } => !!p?.text)
+            .map((p: any) => p.text)
+            .join(" ") || "Sin respuesta de texto";
         
         console.error("No image found in response. Text:", textParts);
         console.error("Full candidate:", JSON.stringify(firstCandidate, null, 2));

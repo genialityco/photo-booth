@@ -50,10 +50,10 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
     >
       <div
         ref={modalRef}
-        className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 mx-4 sm:mx-0"
+        className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6 mx-4 sm:mx-0 max-h-[80vh] flex flex-col"
         tabIndex={-1}
       >
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-4 flex-shrink-0">
           <h2 id="modal-title" className="text-xl font-semibold text-gray-900">
             {title}
           </h2>
@@ -78,7 +78,9 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
             </svg>
           </button>
         </div>
-        <div>{children}</div>
+        <div className="overflow-y-auto pr-2" style={{ maxHeight: '65vh' }}>
+          {children}
+        </div>
       </div>
     </div>
   );

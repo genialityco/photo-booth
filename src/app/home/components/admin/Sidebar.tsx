@@ -11,6 +11,8 @@ const Sidebar = () => {
   const navItems = [
     { name: "ImageView", href: "/admin/imageview", icon: FaImages },
     { name: "Brand", href: "/admin/brand", icon: FaTag },
+    { name: "Style", href: "/admin/style", icon: FaTag },
+
   ];
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((v) => !v);

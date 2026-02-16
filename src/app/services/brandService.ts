@@ -20,8 +20,11 @@ import {
 export type PhotoBoothPrompt = {
     id: string;
     brand?: string;
+    brandName?: string;
     logo?: string;
     logoPath?: string;
+    imageUrl?: string;
+    imagePath?: string;
     logoPrompt?: string;
     basePrompt: string;
     colorDirectiveTemplate: string;
@@ -54,8 +57,11 @@ function mapDocToPrompt(d: DocumentSnapshot): PhotoBoothPrompt {
     return {
         id: d.id,
         brand: data.brand ?? "",
+        brandName: data.brandName ?? "",
         basePrompt: data.basePrompt ?? "",
         logoPath: data.logoPath ?? "",
+        imageUrl: data.imageUrl ?? "",
+        imagePath: data.imagePath ?? "",
         logoPrompt: data.logoPrompt ?? "",
         colorDirectiveTemplate: data.colorDirectiveTemplate ?? "",
         active: data.active ?? false,
@@ -93,6 +99,7 @@ export async function createPhotoBoothPrompt(
     try {
       const storage = getStorage();
       let logoUrl = "";
+    let imageUrl = "";
       let fileData = data.logo; 
   
       if (fileData) {
@@ -116,15 +123,32 @@ export async function createPhotoBoothPrompt(
         // 5. Obtener URL de descarga
         logoUrl = await getDownloadURL(logoRef);
       }
+
+            // handle imageUrl if provided
+            let imageFileData = (data as any).imageUrl;
+            if (imageFileData) {
+                if (typeof imageFileData === "string" && !imageFileData.startsWith("data:")) {
+                    imageFileData = `data:${imageFileData}`;
+                }
+                const imageBlob = dataURLtoBlob(imageFileData as string);
+                const imageContentType = imageBlob.type;
+                const imageExt = imageContentType.split("/")[1] || "png";
+                const imageFileName = `${Date.now()}_${data.brand}_image.${imageExt.replace("+", "_")}`;
+                const imageRef = ref(storage, `brands/${imageFileName}`);
+                await uploadBytes(imageRef, imageBlob, { contentType: imageContentType });
+                imageUrl = await getDownloadURL(imageRef);
+            }
   
       // 6. Crear documento en Firestore con logoUrl
       const promptData: Omit<PhotoBoothPrompt, "id"> = {
-        brand: data.brand,
+                brand: data.brand,
+                brandName: (data as any).brandName || data.brand,
         basePrompt: data.basePrompt,
         logoPrompt: data.logoPrompt,
         colorDirectiveTemplate: data.colorDirectiveTemplate,
         active: data.active,
-        logoPath: logoUrl, // <-- ahora guarda la URL
+                logoPath: logoUrl, // <-- ahora guarda la URL
+                imageUrl: imageUrl,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
@@ -187,6 +211,17 @@ export async function getPhotoBoothPrompts(
     } catch (error) {
         console.error("Error getting prompts:", error);
         throw new Error("Error al obtener los prompts");
+    }
+}
+
+// Obtener todos los brands (sin paginación) - para selectors en admin
+export async function getAllBrands(): Promise<PhotoBoothPrompt[]> {
+    try {
+        const snapshot = await getDocs(collection(db, PHOTO_BOOTH_PROMPTS_COLLECTION));
+        return snapshot.docs.map(mapDocToPrompt);
+    } catch (error) {
+        console.error('Error getting all brands:', error);
+        return [];
     }
 }
 
@@ -261,8 +296,9 @@ export async function updatePhotoBoothPrompt(
     try {
         const storage = getStorage();
         const docRef = doc(db, PHOTO_BOOTH_PROMPTS_COLLECTION, id);
-        let logoUrl = data.logoPath;
-      let fileData = data.logo; 
+            let logoUrl = data.logoPath;
+            let imageUrl = (data as any).imageUrl || undefined;
+            let fileData = data.logo; 
         console.log("filedata", fileData)
       if (fileData) {
         // 1. Normalizar la Data URL
@@ -285,12 +321,25 @@ export async function updatePhotoBoothPrompt(
         // 5. Obtener URL de descarga
         logoUrl = await getDownloadURL(logoRef);
       }
+            // handle imageUrl upload if data.imageUrl provided as data URL
+            const imageFileData = (data as any).imageUrl;
+            if (imageFileData && typeof imageFileData === 'string' && imageFileData.startsWith('data:')) {
+                const imageBlob = dataURLtoBlob(imageFileData);
+                const imageContentType = imageBlob.type;
+                const imageExt = imageContentType.split('/')[1] || 'png';
+                const imageFileName = `${Date.now()}_${data.brand}_image.${imageExt.replace('+', '_')}`;
+                const imageRef = ref(getStorage(), `brands/${imageFileName}`);
+                await uploadBytes(imageRef, imageBlob, { contentType: imageContentType });
+                (imageUrl as any) = await getDownloadURL(imageRef);
+            }
         const updateData = {
             brand: data.brand,
+        brandName: (data as any).brandName || data.brand,
         basePrompt: data.basePrompt,
         colorDirectiveTemplate: data.colorDirectiveTemplate,
         active: data.active,
-        logoPath: logoUrl, // <-- ahora guarda la URL
+                logoPath: logoUrl, // <-- ahora guarda la URL
+                imageUrl: imageUrl,
         logoPrompt: data.logoPrompt,
             updatedAt: Timestamp.now()
         };

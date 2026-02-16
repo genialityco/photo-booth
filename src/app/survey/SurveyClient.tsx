@@ -4,6 +4,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { StyleProfile } from "@/app/services/styleService";
 import { useSearchParams } from "next/navigation";
 // ⬇️ Ya no guardamos en base, así que puedes comentar/retirar estos imports si no se usan
 // import { createSurveyRecord, createSurveyRecordQuick } from "../services/surveyServices";
@@ -23,6 +24,9 @@ export default function SurveyClient() {
   const [photo, setPhoto] = useState<string>("");
   const [loadingPhoto, setLoadingPhoto] = useState(true);
   const [err, setErr] = useState<string>("");
+  const [style, setStyle] = useState<StyleProfile | null>(null);
+  const enableFrame = !!style?.enableFrame;
+  const frameSrc = style?.frameImage ?? null;
 
   // ⬇️ Estado del formulario preservado por si luego lo reactivas (no se usa ahora)
   const [form, setForm] = useState({
@@ -75,11 +79,13 @@ export default function SurveyClient() {
   };
 
   // Compone la foto + el marco y devuelve un blob URL listo para descargar
-  const composeFramed = async (baseUrl: string) => {
-    const [baseImg, frameImg] = await Promise.all([
-      loadImage(baseUrl),
-      loadImage("fenalco/capture/ChatGPT.png"),
-    ]);
+  const composeFramed = async (baseUrl: string, frameUrl?: string) => {
+    const promises = [loadImage(baseUrl)];
+    if (frameUrl) promises.push(loadImage(frameUrl));
+    const imgs = await Promise.all(promises);
+    const baseImg = imgs[0];
+    const frameImg = imgs[1] ?? null;
+
     const size = 1024; // coincide con el PNG del marco
     const canvas = document.createElement("canvas");
     canvas.width = size;
@@ -87,14 +93,21 @@ export default function SurveyClient() {
     const ctx = canvas.getContext("2d")!;
     ctx.clearRect(0, 0, size, size);
 
-    // Primero la foto (cover en el cuadrado) y luego el marco encima
+    // Primero la foto (cover en el cuadrado)
     drawCover(ctx, baseImg, size);
-    ctx.drawImage(frameImg, 0, 0, size, size);
+    // Luego el marco encima, si existe
+    if (frameImg) {
+      try {
+        ctx.drawImage(frameImg, 0, 0, size, size);
+      } catch (e) {
+        console.warn("Error dibujando el marco:", e);
+      }
+    }
 
     const blob: Blob | null = await new Promise((res) =>
       canvas.toBlob(res, "image/png")
     );
-    if (!blob) throw new Error("No se pudo generar la imagen con marco.");
+    if (!blob) throw new Error("No se pudo generar la imagen final.");
     const url = URL.createObjectURL(blob);
     return url;
   };
@@ -146,8 +159,17 @@ export default function SurveyClient() {
       }
 
       try {
-        // 👉 Aquí componemos SIEMPRE la imagen con el marco para la descarga
-        const framedUrl = await composeFramed(photo);
+        // Decide si usar marco según el estilo en sessionStorage
+        const cached = sessionStorage.getItem("photoBoothStyle");
+        let frameToUse: string | undefined;
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (parsed?.enableFrame && parsed?.frameImage) frameToUse = parsed.frameImage;
+          } catch {}
+        }
+
+        const framedUrl = await composeFramed(photo, frameToUse);
         if (!active) {
           URL.revokeObjectURL(framedUrl);
           return;
@@ -329,16 +351,18 @@ export default function SurveyClient() {
               <img
                 src={photo}
                 alt="Tu imagen"
-                className="absolute inset-0 w-full h-full object-contain rounded-lg select-none"
+                  className="absolute inset-0 w-full h-full object-contain rounded-lg select-none"
                 draggable={false}
               />
               {/* Marco superpuesto */}
-              {/* <img
-                src=""
-                alt="Marco decorativo"
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-                draggable={false}
-              /> */}
+                {enableFrame && frameSrc && (
+                  <img
+                    src={frameSrc}
+                    alt="Marco decorativo"
+                    className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+                    draggable={false}
+                  />
+                )}
             </div>
           )}
         </div>

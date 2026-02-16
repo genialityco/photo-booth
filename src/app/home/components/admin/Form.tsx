@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -14,13 +13,13 @@ interface FormField {
 }
 
 interface FormProps<T> {
-  initialData: any;
+  initialData: T;
   fields: FormField[];
-  onSubmit: (data: any, updatedImages: string[]) => Promise<void>;
+  onSubmit: (data: T, updatedImages: string[]) => Promise<void>;
   submitButtonText?: string;
 }
 
-export default function Form<T extends Record<string, any>>({
+export default function Form<T extends Record<string, unknown>>({
   initialData,
   fields,
   onSubmit,
@@ -51,14 +50,15 @@ export default function Form<T extends Record<string, any>>({
   useEffect(() => {
     const previews: Record<string, string> = {};
     const updated: Record<string, boolean> = {};
-    
+
     imageFields.forEach((field) => {
-      if (initialData[field.name]) {
-        previews[field.name] = initialData[field.name];
+      const val = (initialData as unknown as Record<string, unknown>)[field.name];
+      if (typeof val === 'string' && val) {
+        previews[field.name] = String(val);
         updated[field.name] = false;
       }
     });
-    
+
     if (Object.keys(previews).length > 0) {
       setImagePreviews(previews);
       setImageUpdated(updated);
@@ -111,12 +111,13 @@ export default function Form<T extends Record<string, any>>({
       }));
       setFormData((prev) => ({
         ...prev,
+      
         [fieldName]: result, // Store base64 string
       }));
       // Mark image as updated
       setImageUpdated((prev) => ({
         ...prev,
-        [fieldName]: result !== initialDataRef.current[fieldName],
+        [fieldName]: result !== ((initialDataRef.current as unknown as Record<string, unknown>)[fieldName] as string | undefined),
       }));
     };
     reader.readAsDataURL(file);
@@ -206,6 +207,7 @@ export default function Form<T extends Record<string, any>>({
             <textarea
               id={field.name}
               name={field.name}
+              // @ts-expect-error TS2322
               value={formData[field.name] || ''}
               onChange={(e) => handleChange(e, field.name)}
               placeholder={field.placeholder}
@@ -274,7 +276,7 @@ export default function Form<T extends Record<string, any>>({
               id={field.name}
               name={field.name}
               type={field.type}
-              value={formData[field.name] || ''}
+              value={(formData[field.name] as string | number | undefined) || ''}
               onChange={(e) => handleChange(e, field.name)}
               placeholder={field.placeholder}
               className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
