@@ -89,7 +89,7 @@ export default function EventPhotoBoothLanding({
             ) : prompts.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 px-4">
                 {prompts.map((prompt) => {
-                  const imgSrc = prompt.logo || prompt.logoPath;
+                  const imgSrc = prompt.imageUrl || prompt.logoPath;
                   return (
                     <button
                       key={prompt.id}
@@ -111,7 +111,7 @@ export default function EventPhotoBoothLanding({
                     >
                       {imgSrc ? (
                         <img
-                          src={imgSrc}
+                          src={ imgSrc}
                           alt={prompt.brand || "Opción"}
                           className="w-full h-full object-cover"
                         />

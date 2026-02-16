@@ -63,7 +63,7 @@ export default function Form<T extends Record<string, any>>({
       setImagePreviews(previews);
       setImageUpdated(updated);
     }
-  }, []); // Solo ejecutar en el montaje inicial // Removed fields from dependencies to avoid unnecessary re-renders
+  }, [initialData, imageFields]); // Actualizar cuando cambie initialData
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,

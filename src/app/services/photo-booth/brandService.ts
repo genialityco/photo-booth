@@ -8,23 +8,19 @@ import {
      getCountFromServer
 } from "firebase/firestore";
 
-import {
-    getDownloadURL,
-    getStorage,
-    ref,
-    uploadBytes,
-   
-  } from "firebase/storage";
-
 // Tipos
 export type PhotoBoothPrompt = {
     id: string;
     brand?: string;
+    brandName?: string;
     logo?: string;
     logoPath?: string;
+    imageUrl?: string;
+    imagePath?: string;
     logoPrompt?: string;
     basePrompt: string;
     colorDirectiveTemplate: string;
+    promptBgImage?: string;
     active: boolean;
     createdAt: Timestamp | Date | null;
     updatedAt: Timestamp | Date | null;
@@ -54,10 +50,14 @@ function mapDocToPrompt(d: DocumentSnapshot): PhotoBoothPrompt {
     return {
         id: d.id,
         brand: data.brand ?? "",
+        brandName: data.brandName ?? "",
         basePrompt: data.basePrompt ?? "",
         logoPath: data.logoPath ?? "",
+        imageUrl: data.imageUrl ?? "",
+        imagePath: data.imagePath ?? "",
         logoPrompt: data.logoPrompt ?? "",
         colorDirectiveTemplate: data.colorDirectiveTemplate ?? "",
+        promptBgImage: data.promptBgImage ?? "",
         active: data.active ?? false,
         createdAt: tsToDate(data.createdAt),
         updatedAt: tsToDate(data.updatedAt),
@@ -87,12 +87,45 @@ function dataURLtoBlob(dataurl: string): Blob {
 
 /* ================== Servicio CRUD ================== */
 
+/**
+ * Upload image using Next.js API route (avoids CORS issues)
+ */
+async function uploadImageViaAPI(
+  imageData: string,
+  fileName: string,
+  folder: string
+): Promise<string> {
+  try {
+    const response = await fetch("/api/storage/upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        dataUrl: imageData,
+        desiredPath: `${folder}/${fileName}`,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: "Upload failed" }));
+      throw new Error(error.error || "Failed to upload image");
+    }
+
+    const result = await response.json();
+    return result.url;
+  } catch (error) {
+    console.error("Error uploading image via API:", error);
+    throw error;
+  }
+}
+
 export async function createPhotoBoothPrompt(
     data: Omit<PhotoBoothPrompt, "id" | "createdAt" | "updatedAt" | "logoPath">,
   ): Promise<string> {
     try {
-      const storage = getStorage();
       let logoUrl = "";
+      let imageUrl = "";
       let fileData = data.logo; 
   
       if (fileData) {
@@ -101,30 +134,56 @@ export async function createPhotoBoothPrompt(
           fileData = `data:${fileData}`;
         }
   
-        // 2. Convertir la Data URL a un Blob
+        // 2. Convertir la Data URL a un Blob para obtener el tipo
         const logoBlob = dataURLtoBlob(fileData as string);
         const contentType = logoBlob.type;
   
-        // 3. Crear referencia en Storage
-        const extension = contentType.split("/")[1] || "png"; // ej: "svg+xml" o "png"
+        // 3. Crear nombre de archivo
+        const extension = contentType.split("/")[1] || "png";
         const fileName = `${Date.now()}_${data.brand}.${extension.replace("+", "_")}`;
-        const logoRef = ref(storage, `logos/${fileName}`);
   
-        // 4. Subir archivo
-        await uploadBytes(logoRef, logoBlob, { contentType });
-  
-        // 5. Obtener URL de descarga
-        logoUrl = await getDownloadURL(logoRef);
+        // 4. Subir usando la API
+        logoUrl = await uploadImageViaAPI(fileData as string, fileName, "logos");
+      }
+
+      // handle imageUrl if provided
+      let imageFileData = (data as any).imageUrl;
+      if (imageFileData) {
+          if (typeof imageFileData === "string" && !imageFileData.startsWith("data:")) {
+              imageFileData = `data:${imageFileData}`;
+          }
+          const imageBlob = dataURLtoBlob(imageFileData as string);
+          const imageContentType = imageBlob.type;
+          const imageExt = imageContentType.split("/")[1] || "png";
+          const imageFileName = `${Date.now()}_${data.brand}_image.${imageExt.replace("+", "_")}`;
+          imageUrl = await uploadImageViaAPI(imageFileData, imageFileName, "brands");
+      }
+
+      // handle promptBgImage if provided
+      let promptBgImageUrl = "";
+      let promptBgImageData = (data as any).promptBgImage;
+      if (promptBgImageData) {
+          if (typeof promptBgImageData === "string" && !promptBgImageData.startsWith("data:")) {
+              promptBgImageData = `data:${promptBgImageData}`;
+          }
+          const bgBlob = dataURLtoBlob(promptBgImageData as string);
+          const bgContentType = bgBlob.type;
+          const bgExt = bgContentType.split("/")[1] || "png";
+          const bgFileName = `${Date.now()}_${data.brand}_promptBg.${bgExt.replace("+", "_")}`;
+          promptBgImageUrl = await uploadImageViaAPI(promptBgImageData, bgFileName, "brands");
       }
   
       // 6. Crear documento en Firestore con logoUrl
       const promptData: Omit<PhotoBoothPrompt, "id"> = {
-        brand: data.brand,
+                brand: data.brand,
+                brandName: (data as any).brandName || data.brand,
         basePrompt: data.basePrompt,
         logoPrompt: data.logoPrompt,
         colorDirectiveTemplate: data.colorDirectiveTemplate,
         active: data.active,
-        logoPath: logoUrl, // <-- ahora guarda la URL
+                logoPath: logoUrl, // <-- ahora guarda la URL
+                imageUrl: imageUrl,
+                promptBgImage: promptBgImageUrl,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
@@ -190,6 +249,17 @@ export async function getPhotoBoothPrompts(
     }
 }
 
+// Obtener todos los brands (sin paginación) - para selectors en admin
+export async function getAllBrands(): Promise<PhotoBoothPrompt[]> {
+    try {
+        const snapshot = await getDocs(collection(db, PHOTO_BOOTH_PROMPTS_COLLECTION));
+        return snapshot.docs.map(mapDocToPrompt);
+    } catch (error) {
+        console.error('Error getting all brands:', error);
+        return [];
+    }
+}
+
 
 // READ - Obtener prompts activos con paginación
 export async function getActivePhotoBoothPrompts(
@@ -252,7 +322,6 @@ export async function getPhotoBoothPromptById(id: string): Promise<PhotoBoothPro
     }
 }
 
-// Resolver múltiples prompts por IDs
 export async function getPhotoBoothPromptsByIds(
     ids: string[]
 ): Promise<PhotoBoothPrompt[]> {
@@ -277,10 +346,10 @@ export async function updatePhotoBoothPrompt(
 ): Promise<void> {
     console.log(data)
     try {
-        const storage = getStorage();
         const docRef = doc(db, PHOTO_BOOTH_PROMPTS_COLLECTION, id);
         let logoUrl = data.logoPath;
-      let fileData = data.logo; 
+        let imageUrl = (data as any).imageUrl || undefined;
+        let fileData = data.logo; 
         console.log("filedata", fileData)
       if (fileData) {
         // 1. Normalizar la Data URL
@@ -292,23 +361,42 @@ export async function updatePhotoBoothPrompt(
         const logoBlob = dataURLtoBlob(fileData as string);
         const contentType = logoBlob.type;
   
-        // 3. Crear referencia en Storage
-        const extension = contentType.split("/")[1] || "png"; // ej: "svg+xml" o "png"
+        // 3. Crear nombre de archivo
+        const extension = contentType.split("/")[1] || "png";
         const fileName = `${Date.now()}_${data.brand}.${extension.replace("+", "_")}`;
-        const logoRef = ref(storage, `logos/${fileName}`);
   
-        // 4. Subir archivo
-        await uploadBytes(logoRef, logoBlob, { contentType });
-  
-        // 5. Obtener URL de descarga
-        logoUrl = await getDownloadURL(logoRef);
+        // 4. Subir usando la API
+        logoUrl = await uploadImageViaAPI(fileData as string, fileName, "logos");
       }
+            // handle imageUrl upload if data.imageUrl provided as data URL
+            const imageFileData = (data as any).imageUrl;
+            if (imageFileData && typeof imageFileData === 'string' && imageFileData.startsWith('data:')) {
+                const imageBlob = dataURLtoBlob(imageFileData);
+                const imageContentType = imageBlob.type;
+                const imageExt = imageContentType.split('/')[1] || 'png';
+                const imageFileName = `${Date.now()}_${data.brand}_image.${imageExt.replace('+', '_')}`;
+                imageUrl = await uploadImageViaAPI(imageFileData, imageFileName, "brands");
+            }
+
+            // handle promptBgImage upload if provided as data URL
+            let promptBgImageUrl = (data as any).promptBgImage;
+            const promptBgImageData = (data as any).promptBgImage;
+            if (promptBgImageData && typeof promptBgImageData === 'string' && promptBgImageData.startsWith('data:')) {
+                const bgBlob = dataURLtoBlob(promptBgImageData);
+                const bgContentType = bgBlob.type;
+                const bgExt = bgContentType.split('/')[1] || 'png';
+                const bgFileName = `${Date.now()}_${data.brand}_promptBg.${bgExt.replace('+', '_')}`;
+                promptBgImageUrl = await uploadImageViaAPI(promptBgImageData, bgFileName, "brands");
+            }
         const updateData = {
             brand: data.brand,
+        brandName: (data as any).brandName || data.brand,
         basePrompt: data.basePrompt,
         colorDirectiveTemplate: data.colorDirectiveTemplate,
         active: data.active,
-        logoPath: logoUrl, // <-- ahora guarda la URL
+                logoPath: logoUrl, // <-- ahora guarda la URL
+                imageUrl: imageUrl,
+                promptBgImage: promptBgImageUrl,
         logoPrompt: data.logoPrompt,
             updatedAt: Timestamp.now()
         };

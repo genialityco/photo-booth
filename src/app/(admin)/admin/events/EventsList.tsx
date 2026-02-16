@@ -143,17 +143,33 @@ export default function EventsList() {
                     <p className="text-xs font-medium text-gray-700 mb-1">
                       URL Compartible:
                     </p>
-                    <input
-                      type="text"
-                      readOnly
-                      value={generateEventUrl(
-                        typeof window !== "undefined"
-                          ? window.location.origin
-                          : "http://localhost:3000",
-                        event.slug,
-                      )}
-                      className="w-full px-2 py-1 text-xs bg-white border border-gray-300 rounded text-gray-700"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={generateEventUrl(
+                          typeof window !== "undefined"
+                            ? window.location.origin
+                            : "http://localhost:3000",
+                          event.slug,
+                        )}
+                        className="flex-1 px-2 py-1 text-xs bg-white border border-gray-300 rounded text-gray-700"
+                      />
+                      <button
+                        onClick={() => {
+                          const url = generateEventUrl(
+                            typeof window !== "undefined"
+                              ? window.location.origin
+                              : "http://localhost:3000",
+                            event.slug,
+                          );
+                          window.open(url, "_blank");
+                        }}
+                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium whitespace-nowrap"
+                      >
+                        Abrir
+                      </button>
+                    </div>
                   </div>
                 </div>
 
