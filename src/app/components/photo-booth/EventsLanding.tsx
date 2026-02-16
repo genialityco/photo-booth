@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { getActiveEventProfiles, EventProfile } from "@/app/services/photo-booth/eventService";
 import Link from "next/link";
+import LoadingScreen from "@/app/components/common/LoadingScreen";
 
 export default function EventsLanding() {
   const [events, setEvents] = useState<EventProfile[]>([]);
@@ -26,14 +27,7 @@ export default function EventsLanding() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Cargando eventos...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message="Cargando eventos..." />;
   }
 
   if (events.length === 0) {

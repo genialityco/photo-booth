@@ -30,11 +30,13 @@ export default function PhotoBoothWizard({
   // Caja cuadrada responsiva: mínimo 320px, escala con viewport
   boxSize = "min(95vw, 95vh)",
   eventData,
+  onReset,
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
   eventData?: EventProfile;
+  onReset?: () => void;
 }) {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<
@@ -346,6 +348,13 @@ export default function PhotoBoothWizard({
   };
 
   const resetAll = () => {
+    // Si hay una función onReset (desde EventBoothPage), llamarla para volver a la selección de brand
+    if (onReset) {
+      onReset();
+      return;
+    }
+    
+    // Fallback: resetear el wizard
     setFramedShot(null);
     setRawShot(null);
     setAiUrl(null);

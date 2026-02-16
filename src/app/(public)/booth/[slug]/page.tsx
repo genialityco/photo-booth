@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getEventProfileBySlug, EventProfile } from "@/app/services/photo-booth/eventService";
 import EventPhotoBoothLanding from "@/app/components/photo-booth/EventPhotoBoothLanding";
 import PhotoBoothWizard from "@/app/components/photo-booth/PhotoBoothWizard";
+import LoadingScreen from "@/app/components/common/LoadingScreen";
 
 export default function EventBoothPage({
   params,
@@ -41,14 +42,7 @@ export default function EventBoothPage({
   }, [slug]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-black">
-        <div className="text-white text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Cargando...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (error || !event) {
@@ -84,6 +78,7 @@ export default function EventBoothPage({
           mirror
           boxSize="min(95vw, 95vh)"
           eventData={event}
+          onReset={() => setBoothStarted(false)}
         />
       )}
     </div>

@@ -15,6 +15,8 @@ export default function EventPhotoBoothLanding({
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [prompts, setPrompts] = useState<PhotoBoothPrompt[]>([]);
   const [loadingPrompts, setLoadingPrompts] = useState(true);
+  const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
+  const [imageErrorStates, setImageErrorStates] = useState<Record<string, boolean>>({});
 
   // Cargar los prompts completos usando los IDs del evento
   useEffect(() => {
@@ -24,6 +26,20 @@ export default function EventPhotoBoothLanding({
         if (event.prompts && event.prompts.length > 0) {
           const loadedPrompts = await getPhotoBoothPromptsByIds(event.prompts);
           setPrompts(loadedPrompts);
+          
+          // Seleccionar automáticamente la primera brand
+          if (loadedPrompts.length > 0) {
+            setSelectedBrand(loadedPrompts[0].id);
+          }
+          
+          // Inicializar estados de carga para cada imagen
+          const initialLoadingStates: Record<string, boolean> = {};
+          loadedPrompts.forEach(prompt => {
+            if (prompt.imageUrl || prompt.logoPath) {
+              initialLoadingStates[prompt.id] = true;
+            }
+          });
+          setImageLoadingStates(initialLoadingStates);
         }
       } catch (error) {
         // Error loading prompts
@@ -34,6 +50,15 @@ export default function EventPhotoBoothLanding({
 
     loadPrompts();
   }, [event.prompts]);
+
+  const handleImageLoad = (promptId: string) => {
+    setImageLoadingStates(prev => ({ ...prev, [promptId]: false }));
+  };
+
+  const handleImageError = (promptId: string) => {
+    setImageLoadingStates(prev => ({ ...prev, [promptId]: false }));
+    setImageErrorStates(prev => ({ ...prev, [promptId]: true }));
+  };
 
   const handleStart = () => {
     const brand = selectedBrand || (prompts.length > 0 ? prompts[0].id : "default");
@@ -90,6 +115,10 @@ export default function EventPhotoBoothLanding({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 px-4">
                 {prompts.map((prompt) => {
                   const imgSrc = prompt.imageUrl || prompt.logoPath;
+                  const isLoading = imageLoadingStates[prompt.id];
+                  const hasError = imageErrorStates[prompt.id];
+                  const showDefaultImage = !imgSrc || hasError;
+                  
                   return (
                     <button
                       key={prompt.id}
@@ -109,16 +138,28 @@ export default function EventPhotoBoothLanding({
                           : {}
                       }
                     >
-                      {imgSrc ? (
+                      {isLoading && imgSrc && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        </div>
+                      )}
+                      
+                      {/* Imagen - siempre renderizada pero con opacidad 0 mientras carga */}
+                      {imgSrc && !hasError && (
                         <img
-                          src={ imgSrc}
+                          src={imgSrc}
                           alt={prompt.brand || "Opción"}
-                          className="w-full h-full object-cover"
+                          className={`w-full h-full object-cover transition-opacity ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                          onLoad={() => handleImageLoad(prompt.id)}
+                          onError={() => handleImageError(prompt.id)}
                         />
-                      ) : (
+                      )}
+                      
+                      {/* Vista por defecto - solo si no hay imagen o hubo error (y no está cargando) */}
+                      {showDefaultImage && !isLoading && (
                         <div className={`${event.buttonImage ? "bg-black/40" : "bg-white/20"} w-full h-full flex items-center justify-center`}>
                           <span className="text-white text-xs text-center px-2 font-semibold drop-shadow">
-                            {prompt.brand || "Opción"}
+                            {prompt.brandName || prompt.brand || "Opción"}
                           </span>
                         </div>
                       )}
