@@ -118,52 +118,57 @@ export default function EventPhotoBoothLanding({
                   const isLoading = imageLoadingStates[prompt.id];
                   const hasError = imageErrorStates[prompt.id];
                   const showDefaultImage = !imgSrc || hasError;
+                  const displayName = prompt.brandName || prompt.brand || "Opción";
                   
                   return (
-                    <button
-                      key={prompt.id}
-                      onClick={() => setSelectedBrand(prompt.id)}
-                      className={`relative rounded-lg font-semibold transition-all overflow-hidden h-24 flex items-center justify-center ${
-                        selectedBrand === prompt.id
-                          ? "ring-4 ring-yellow-400 scale-105"
-                          : "hover:scale-105 opacity-85 hover:opacity-100"
-                      }`}
-                      style={
-                        event.buttonImage
-                          ? {
-                              backgroundImage: `url('${event.buttonImage}')`,
-                              backgroundSize: "cover",
-                              backgroundPosition: "center",
-                            }
-                          : {}
-                      }
-                    >
-                      {isLoading && imgSrc && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                          <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        </div>
-                      )}
+                    <div key={prompt.id} className="flex flex-col gap-2">
+                    
                       
-                      {/* Imagen - siempre renderizada pero con opacidad 0 mientras carga */}
-                      {imgSrc && !hasError && (
-                        <img
-                          src={imgSrc}
-                          alt={prompt.brand || "Opción"}
-                          className={`w-full h-full object-cover transition-opacity ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-                          onLoad={() => handleImageLoad(prompt.id)}
-                          onError={() => handleImageError(prompt.id)}
-                        />
-                      )}
-                      
-                      {/* Vista por defecto - solo si no hay imagen o hubo error (y no está cargando) */}
-                      {showDefaultImage && !isLoading && (
-                        <div className={`${event.buttonImage ? "bg-black/40" : "bg-white/20"} w-full h-full flex items-center justify-center`}>
-                          <span className="text-white text-xs text-center px-2 font-semibold drop-shadow">
-                            {prompt.brandName || prompt.brand || "Opción"}
-                          </span>
-                        </div>
-                      )}
-                    </button>
+                      {/* Brand Image Button */}
+                      <button
+                        onClick={() => setSelectedBrand(prompt.id)}
+                        className={`relative rounded-lg font-semibold transition-all overflow-hidden flex items-center justify-center ${
+                          selectedBrand === prompt.id
+                            ? "ring-4 ring-yellow-400 scale-105"
+                            : "hover:scale-105 opacity-85 hover:opacity-100"
+                        }`}
+                      >
+                        {isLoading && imgSrc && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                            <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          </div>
+                        )}
+                        
+                        {/* Imagen - siempre renderizada pero con opacidad 0 mientras carga */}
+                        {imgSrc && !hasError && (
+                          <div>
+                              {/* Brand Name */}
+                      <div className="absolute text-center bottom-0 left-1">
+                        <span className="text-white text-sm font-semibold drop-shadow-lg">
+                          {displayName}
+                        </span>
+                      </div>
+                            <img
+                              src={imgSrc}
+                              alt={prompt.brand || "Opción"}
+                              className={`w-full h-full object-cover transition-opacity ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                              onLoad={() => handleImageLoad(prompt.id)}
+                              onError={() => handleImageError(prompt.id)}
+                            />
+
+                          </div>
+                        )}
+                        
+                        {/* Vista por defecto - solo si no hay imagen o hubo error (y no está cargando) */}
+                        {showDefaultImage && !isLoading && (
+                          <div className={`${event.buttonImage ? "bg-black/40" : "bg-white/20"} w-full h-full flex items-center justify-center`}>
+                            <span className="text-white text-xs text-center px-2 font-semibold drop-shadow">
+                              {displayName}
+                            </span>
+                          </div>
+                        )}
+                      </button>
+                    </div>
                   );
                 })}
               </div>
