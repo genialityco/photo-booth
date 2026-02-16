@@ -26,12 +26,12 @@ export default function EventPhotoBoothLanding({
         if (event.prompts && event.prompts.length > 0) {
           const loadedPrompts = await getPhotoBoothPromptsByIds(event.prompts);
           setPrompts(loadedPrompts);
-          
+
           // Seleccionar automáticamente la primera brand
           if (loadedPrompts.length > 0) {
             setSelectedBrand(loadedPrompts[0].id);
           }
-          
+
           // Inicializar estados de carga para cada imagen
           const initialLoadingStates: Record<string, boolean> = {};
           loadedPrompts.forEach(prompt => {
@@ -98,7 +98,7 @@ export default function EventPhotoBoothLanding({
         </div>
 
         {/* Title */}
-        <h1 className="mt-4 sm:mt-6 text-center text-base sm:text-lg md:text-xl font-semibold text-white drop-shadow-md">
+        <h1 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl md:text-4xl font-black text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] tracking-wide uppercase bg-gradient-to-r from-white via-yellow-100 to-white bg-clip-text text-transparent animate-pulse">
           {event.name}
         </h1>
 
@@ -107,7 +107,7 @@ export default function EventPhotoBoothLanding({
           {/* Brand Selection */}
           <div className="mb-8">
             <h2 className="text-center text-sm sm:text-base font-semibold text-white mb-4 drop-shadow">
-              Selecciona tu Marca / Prompt
+              En quien deseeas transformarte
             </h2>
             {loadingPrompts ? (
               <div className="text-center text-white">Cargando marcas...</div>
@@ -119,49 +119,49 @@ export default function EventPhotoBoothLanding({
                   const hasError = imageErrorStates[prompt.id];
                   const showDefaultImage = !imgSrc || hasError;
                   const displayName = prompt.brandName || prompt.brand || "Opción";
-                  
+
                   return (
                     <div key={prompt.id} className="flex flex-col gap-2">
-                    
-                      
+
+
                       {/* Brand Image Button */}
                       <button
                         onClick={() => setSelectedBrand(prompt.id)}
-                        className={`relative rounded-lg font-semibold transition-all overflow-hidden flex items-center justify-center ${
-                          selectedBrand === prompt.id
+                        className={`relative rounded-lg font-semibold transition-all overflow-hidden flex items-center justify-center aspect-square ${selectedBrand === prompt.id
                             ? "ring-4 ring-yellow-400 scale-105"
                             : "hover:scale-105 opacity-85 hover:opacity-100"
-                        }`}
+                          }`}
                       >
+                        {/* Loading Spinner */}
                         {isLoading && imgSrc && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
                             <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
                           </div>
                         )}
-                        
-                        {/* Imagen - siempre renderizada pero con opacidad 0 mientras carga */}
-                        {imgSrc && !hasError && (
-                          <div>
-                              {/* Brand Name */}
-                      <div className="absolute text-center bottom-0 left-1">
-                        <span className="text-white text-sm font-semibold drop-shadow-lg">
-                          {displayName}
-                        </span>
-                      </div>
-                            <img
-                              src={imgSrc}
-                              alt={prompt.brand || "Opción"}
-                              className={`w-full h-full object-cover transition-opacity ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-                              onLoad={() => handleImageLoad(prompt.id)}
-                              onError={() => handleImageError(prompt.id)}
-                            />
 
-                          </div>
+                        {/* Brand Name - Siempre visible */}
+                        <div className="absolute bottom-2 left-2 z-20">
+                          <span className="text-white text-sm font-semibold drop-shadow-lg">
+                            {displayName}
+                          </span>
+                        </div>
+
+                        {/* Imagen */}
+                        {imgSrc && !hasError && (
+                          <img
+                            src={imgSrc}
+                            alt={prompt.brand || "Opción"}
+                            className={`w-full h-full object-cover transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'
+                              }`}
+                            onLoad={() => handleImageLoad(prompt.id)}
+                            onError={() => handleImageError(prompt.id)}
+                          />
                         )}
-                        
-                        {/* Vista por defecto - solo si no hay imagen o hubo error (y no está cargando) */}
+
+                        {/* Vista por defecto */}
                         {showDefaultImage && !isLoading && (
-                          <div className={`${event.buttonImage ? "bg-black/40" : "bg-white/20"} w-full h-full flex items-center justify-center`}>
+                          <div className={`${event.buttonImage ? "bg-black/40" : "bg-white/20"
+                            } w-full h-full flex items-center justify-center`}>
                             <span className="text-white text-xs text-center px-2 font-semibold drop-shadow">
                               {displayName}
                             </span>
@@ -186,13 +186,13 @@ export default function EventPhotoBoothLanding({
             style={
               event.buttonImage
                 ? {
-                    backgroundImage: `url('${event.buttonImage}')`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }
+                  backgroundImage: `url('${event.buttonImage}')`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }
                 : {
-                    backgroundColor: "rgba(255, 255, 255, 0.3)",
-                  }
+                  backgroundColor: "rgba(255, 255, 255, 0.3)",
+                }
             }
           >
             {event.buttonImage && (

@@ -235,12 +235,12 @@ export default function ResultStep({
           />
           {/* Marco superpuesto */}
         </div>
-        <img
+        {/* <img
             src={event?.frameImage || "/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"} 
             alt="Marco decorativo"
             className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
             draggable={false}
-          />
+          /> */}
 
         {/* QR (sin marco) */}
         <div className="flex items-center justify-center z-10 flex-shrink-0">
