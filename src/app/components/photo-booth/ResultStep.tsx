@@ -35,7 +35,7 @@ export default function ResultStep({
     return url.toString();
   }, [origin, aiUrl, taskId]);
 
-  const SIZE_IMG = "clamp(280px, min(68vw, 58svh), 450px)";
+  const SIZE_IMG = "clamp(400px, min(80vw, 75svh), 800px)";
 
   // === Helper para cargar imágenes con soporte CORS ===
   const loadImage = (src: string): Promise<HTMLImageElement> =>
@@ -211,46 +211,48 @@ export default function ResultStep({
 
   return (
     <div
-      className="w-full h-full flex flex-col items-center justify-center px-3 sm:px-4 py-2 sm:py-3 overflow-hidden"
+      className="w-full h-full flex flex-col items-center justify-center px-3 sm:px-4  overflow-hidden"
     >
       {/* Contenido principal */}
       <main
-        className="flex-1 w-full flex flex-col items-center gap-1 sm:gap-2 md:gap-2 overflow-hidden"
+        className="flex-1 w-full flex flex-col items-center  overflow-hidden"
         style={{
           marginTop: '0.5rem',
           marginBottom: '0.5rem',
         }}
       >
-        {/* Imagen IA con marco visible */}
+        {/* Imagen IA con marco visible - BORDE REDONDEADO Y SOMBRA */}
         <div
-          className="relative overflow-hidden rounded-lg sm:rounded-xl md:rounded-2xl shadow-lg md:shadow-xl bg-black/5 aspect-square w-full max-w-xs sm:max-w-sm md:max-w-md"
-          style={{ width: SIZE_IMG }}
+          className="relative overflow-hidden bg-black/5 aspect-square "
+          style={{ 
+            width: SIZE_IMG,
+            maxWidth: SIZE_IMG,
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3), 0 10px 20px rgba(0, 0, 0, 0.2)'
+          }}
         >
           {/* Imagen IA con marco */}
           <img
             src={framedImageUrl || aiUrl}
             alt="Imagen generada por IA"
-            className="absolute inset-0 w-full h-full object-contain select-none"
+            className="absolute  w-full h-full object-contain select-none rounded-2xl shadow-2xl "
             draggable={false}
           />
-          {/* Marco superpuesto */}
         </div>
-        {/* <img
-            src={event?.frameImage || "/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png"} 
-            alt="Marco decorativo"
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-            draggable={false}
-          /> */}
 
-        {/* QR (sin marco) */}
-        <div className="flex items-center justify-center z-10 flex-shrink-0">
-          <div className="w-24 sm:w-28 md:w-32 lg:w-40">
-            <QrTag value={surveyAI} size={180} />
+        {/* QR - BORDE REDONDEADO Y SOMBRA */}
+        <div 
+          className="absolute flex items-center justify-center z-10 flex-shrink-0 bottom-[10%] bg-white rounded-xl shadow-xl"
+          style={{
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.25), 0 5px 10px rgba(0, 0, 0, 0.15)'
+          }}
+        >
+          <div className="p-7 rounded-xl">
+            <QrTag value={surveyAI} size={200} />
           </div>
         </div>
 
         {/* Botones */}
-        <div className="flex flex-row items-center justify-center gap-1 sm:gap-2 overflow-x-auto whitespace-nowrap w-full flex-shrink-0">
+        <div className="flex flex-row items-center justify-center gap-1 sm:gap-2 overflow-x-auto whitespace-nowrap w-full flex-shrink-0 absolute bottom-0">
           <ButtonPrimary
             onClick={onAgain}
             label="NUEVA FOTO"

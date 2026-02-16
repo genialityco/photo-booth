@@ -389,7 +389,7 @@ export default function PhotoBoothWizard({
     relative z-5 flex-shrink-0
     flex justify-center items-center
     pt-[max(1.5rem,env(safe-area-inset-top))]
-    pb-2 sm:pb-3 md:pb-4
+    
   `}
       >
         <div className="w-[70vw] max-w-[380px]">

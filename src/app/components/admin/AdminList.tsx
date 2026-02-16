@@ -46,7 +46,7 @@ function toDate(v: TaskItem["createdAt"]) {
   }
 }
 
-async function downloadAs(filename: string, url: string) {
+async function downloadAs(filename: string, url: string, frameUrl: string = "") {
   try {
     // Cargar imagen original
     const res = await fetch(url, { cache: "no-store" });
@@ -54,8 +54,17 @@ async function downloadAs(filename: string, url: string) {
     const blob = await res.blob();
     const baseImage = await createImageBitmap(blob);
 
+    // Si no hay frameUrl, descargar solo la imagen base
+    if (!frameUrl) {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      return;
+    }
+
     // Cargar el marco
-    const frameUrl = ""; //"/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png";
     const frameRes = await fetch(frameUrl, { cache: "no-store" });
     if (!frameRes.ok) throw new Error("No se pudo cargar el marco.");
     const frameBlob = await frameRes.blob();

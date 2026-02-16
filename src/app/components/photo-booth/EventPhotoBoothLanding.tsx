@@ -84,8 +84,13 @@ export default function EventPhotoBoothLanding({
 
       <div className="mx-auto flex min-h-[100svh] max-w-[980px] flex-col items-center px-4 sm:px-6 md:px-8">
         {/* Top Logo */}
-        <div className="w-full pt-3 sm:pt-4 md:pt-6">
-          <div className="mx-auto w-full max-w-[620px] flex flex-col items-center gap-2">
+        <div  className={`
+    relative z-5 flex-shrink-0
+    flex justify-center items-center
+    pt-[max(1.5rem,env(safe-area-inset-top))]
+    pb-2 sm:pb-3 md:pb-4
+  `}>
+          <div className="w-[70vw] max-w-[380px]">
             {event.logoTop && (
               <img
                 src={event.logoTop}
