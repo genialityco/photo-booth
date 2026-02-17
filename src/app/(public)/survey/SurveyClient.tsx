@@ -152,28 +152,46 @@ export default function SurveyClient() {
         if (!data) {
           data = sessionStorage.getItem("photoBoothStyle");
         }
+        
+        let shouldUseFrame = false;
         let frameToUse: string | undefined;
+        
         if (data) {
           try {
             const parsed = JSON.parse(data);
-            if (parsed?.enableFrame && parsed?.frameImage) frameToUse = parsed.frameImage;
+            // Verificar si enableFrame está activado
+            const enableFrame = parsed?.enableFrame ?? true; // Por defecto true si no está definido
+            if (enableFrame && parsed?.frameImage) {
+              shouldUseFrame = true;
+              frameToUse = parsed.frameImage;
+            }
           } catch {}
         }
 
-        const framedUrl = await composeFramed(photo, frameToUse);
+        let finalUrl: string;
+        
+        if (shouldUseFrame && frameToUse) {
+          // Componer con marco
+          finalUrl = await composeFramed(photo, frameToUse);
+          revokeRef.current = () => URL.revokeObjectURL(finalUrl);
+        } else {
+          // Sin marco, usar la imagen directamente
+          finalUrl = photo;
+        }
+        
         if (!active) {
-          URL.revokeObjectURL(framedUrl);
+          if (shouldUseFrame && frameToUse) {
+            URL.revokeObjectURL(finalUrl);
+          }
           return;
         }
-        setDownloadHref(framedUrl);
+        
+        setDownloadHref(finalUrl);
         setDownloadName(filenameFromQS || suggestedName);
         setSaved(true);
-
-        // Registra función para revocar este blob cuando cambie/desmonte
-        revokeRef.current = () => URL.revokeObjectURL(framedUrl);
       } catch (e: any) {
         console.error(e);
-        setErr(e.message || "No se pudo preparar la imagen con marco.");
+        setErr(e.message || "No se pudo preparar la imagen.");
       }
     })();
 
