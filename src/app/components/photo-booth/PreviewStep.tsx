@@ -8,6 +8,7 @@ export default function PreviewStep({
   framedShot,
   rawShot,
   boxSize = "min(88vw, 60svh)",
+  borderRadius = "xl",
   onRetake,
   onConfirm,
   buttonImage,
@@ -15,18 +16,28 @@ export default function PreviewStep({
   framedShot: string; // foto con marco (no se usa visualmente)
   rawShot?: string; // foto sin marco (para mostrar)
   boxSize?: string;
+  borderRadius?: "none" | "md" | "lg" | "xl" | "4xl";
   buttonImage?: string;
   onRetake: () => void;
   onConfirm?: () => void; // confirmará y pasará al loader
 }) {
   // Mostrar la foto sin marco (rawShot si está disponible, sino framedShot)
   const displayImage = rawShot || framedShot;
+  
+  const borderRadiusClass = {
+    none: "",
+    md: "rounded-md",
+    lg: "rounded-lg",
+    xl: "rounded-xl",
+    "4xl": "rounded-4xl"
+  }[borderRadius];
+  
   {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 overflow-hidden">
-        <div className="flex-1 flex items-center justify-center overflow-hidden w-full">
+        <div className={`flex-1 flex items-center justify-center overflow-hidden w-full ${borderRadiusClass}`}>
           <div
-            className="relative overflow-hidden rounded-xl shadow-lg w-full flex-shrink-0"
+            className={`relative overflow-hidden shadow-lg w-full flex-shrink-0`}
             style={{ width: boxSize, height: boxSize, aspectRatio: "1" }}
           >
             <img
@@ -42,8 +53,8 @@ export default function PreviewStep({
             onClick={onRetake}
             imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
             label="REPETIR"
-            width={120}
-            height={44}
+            width={310}
+            height={50}
             className="min-w-[120px]"
           />
           {onConfirm && (
@@ -51,8 +62,8 @@ export default function PreviewStep({
               onClick={onConfirm}
               imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
               label="CONFIRMAR"
-              width={120}
-              height={44}
+              width={310}
+              height={50}
               className="min-w-[120px]"
             />
           )}

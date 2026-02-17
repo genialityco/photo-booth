@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 
 export default function ImageUploadField({
   label,
@@ -11,22 +11,46 @@ export default function ImageUploadField({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const [preview, setPreview] = useState<string | null>(
-    value && (value.startsWith("data:") || value.startsWith("http")) ? value : null
-  );
+  const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sincronizar preview con value prop
+  useEffect(() => {
+    if (value && (value.startsWith("data:") || value.startsWith("http"))) {
+      setPreview(value);
+    } else if (!value) {
+      setPreview(null);
+    }
+  }, [value]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        setPreview(result);
-        onChange(result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Validar tamaño (máx 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      alert("La imagen es demasiado grande. El tamaño máximo es 10MB.");
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      
+      // Verificar que el resultado no sea demasiado grande
+      if (result.length > 15 * 1024 * 1024) { // ~15MB en base64
+        alert("La imagen codificada es demasiado grande. Intenta con una imagen más pequeña.");
+        return;
+      }
+      
+      setPreview(result);
+      onChange(result);
+    };
+    reader.onerror = () => {
+      alert("Error al leer el archivo. Intenta con otra imagen.");
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleClear = () => {

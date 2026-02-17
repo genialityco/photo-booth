@@ -209,7 +209,7 @@ export default function EventPhotoBoothLanding({
 
         {/* Bottom Logo */}
         <div className="mt-auto flex-shrink-0 w-full pb-6 sm:pb-8 md:pb-10">
-          <div className="mx-auto w-full max-w-[500px] flex flex-col items-center gap-2">
+          <div className="mx-auto w-full max-w-[550px] flex flex-col items-center gap-2">
             {event.logoBottom && (
               <img
                 src={event.logoBottom}

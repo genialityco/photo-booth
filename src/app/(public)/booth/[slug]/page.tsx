@@ -6,6 +6,7 @@ import { getEventProfileBySlug, EventProfile } from "@/app/services/photo-booth/
 import EventPhotoBoothLanding from "@/app/components/photo-booth/EventPhotoBoothLanding";
 import PhotoBoothWizard from "@/app/components/photo-booth/PhotoBoothWizard";
 import LoadingScreen from "@/app/components/common/LoadingScreen";
+import ScreenSaver from "@/app/components/common/ScreenSaver";
 
 export default function EventBoothPage({
   params,
@@ -73,6 +74,9 @@ export default function EventBoothPage({
         !boothStarted ? "overflow-hidden" : "overflow-auto"
       }`}
     >
+      {/* ScreenSaver - se activa después de 15 segundos de inactividad */}
+      <ScreenSaver splashImage={event.splashImage} inactivityTimeout={150000} />
+
       {!boothStarted ? (
         <EventPhotoBoothLanding
           event={event}
@@ -85,7 +89,7 @@ export default function EventBoothPage({
       ) : (
         <PhotoBoothWizard
           mirror
-          boxSize="min(95vw, 95vh)"
+          boxSize="min(80vw, 80vh)"
           eventData={event}
           onReset={
             skipBrandSelection

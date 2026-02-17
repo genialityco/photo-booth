@@ -20,7 +20,7 @@ export default function SurveyClient() {
   const qrId = sp.get("qrId");
   const kind = (sp.get("kind") as "raw" | "framed") || undefined;
   const filenameFromQS = sp.get("filename") || undefined;
-
+  const frameUrlFromQS = sp.get("frameUrl") || undefined;
   const [photo, setPhoto] = useState<string>("");
   const [loadingPhoto, setLoadingPhoto] = useState(true);
   const [err, setErr] = useState<string>("");
@@ -135,71 +135,85 @@ export default function SurveyClient() {
 
   // ⬇️ NUEVO: cuando la imagen esté lista, “simulamos” el estado posterior al envío
   // y preparamos el enlace de descarga.
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      if (loadingPhoto || !photo) return;
+useEffect(() => {
+  let active = true;
 
-      // Limpieza de blobs previos si la tuvieses
-      if (revokeRef.current) {
-        revokeRef.current();
-        revokeRef.current = null;
+  (async () => {
+    if (loadingPhoto || !photo) return;
+
+    // Limpieza de blob anterior si existe
+    if (revokeRef.current) {
+      revokeRef.current();
+      revokeRef.current = null;
+    }
+
+    try {
+      let frameToUse: string | undefined;
+
+      // Prioridad 1: frame explícito en la URL (lo que pediste)
+      if (frameUrlFromQS) {
+        frameToUse = frameUrlFromQS;
       }
-
-      try {
-        // Obtener frameImage de currentEvent en sessionStorage
-        let frameImageUrl: string | undefined;
-        let shouldUseFrame = false;
-        
-        const currentEventData = sessionStorage.getItem("currentEvent");
-        if (currentEventData) {
+      // Prioridad 2: frame guardado en sessionStorage (comportamiento legacy)
+      else {
+        let data = sessionStorage.getItem("currentEvent");
+        if (!data) {
+          data = sessionStorage.getItem("photoBoothStyle");
+        }
+        if (data) {
           try {
-            const eventParsed = JSON.parse(currentEventData);
-            // Verificar si enableFrame está activado y hay frameImage
-            const enableFrame = eventParsed?.enableFrame ?? true;
-            if (enableFrame && eventParsed?.frameImage) {
-              frameImageUrl = eventParsed.frameImage;
-              shouldUseFrame = true;
+            const parsed = JSON.parse(data);
+            if (parsed?.enableFrame && parsed?.frameImage) {
+              frameToUse = parsed.frameImage;
             }
-          } catch (e) {
-            console.error("Error parsing currentEvent:", e);
+          } catch {
+            // json inválido → ignorar silenciosamente
           }
         }
-
-        let finalUrl: string;
-        
-        if (shouldUseFrame && frameImageUrl) {
-          // Componer con marco
-          finalUrl = await composeFramed(photo, frameImageUrl);
-          // Registrar función para revocar este blob cuando cambie/desmonte
-          revokeRef.current = () => URL.revokeObjectURL(finalUrl);
-        } else {
-          // Sin marco, usar la imagen directamente
-          finalUrl = photo;
-        }
-        
-        if (!active) {
-          if (shouldUseFrame && frameImageUrl) {
-            URL.revokeObjectURL(finalUrl);
-          }
-          return;
-        }
-        
-        setDownloadHref(finalUrl);
-        setDownloadName(filenameFromQS || suggestedName);
-        setSaved(true);
-      } catch (e: any) {
-        console.error(e);
-        setErr(e.message || "No se pudo preparar la imagen con marco.");
       }
-    })();
 
-    return () => {
-      active = false;
-    };
-    // Mantén las dependencias como están para respetar tu orden/comentarios
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingPhoto, photo, filenameFromQS, suggestedName]);
+      // Si hay frame → componer imagen con marco
+      // Si NO hay frame → usamos la foto original directamente
+      let finalUrl: string;
+      let isFramed = false;
+
+      if (frameToUse) {
+        finalUrl = await composeFramed(photo, frameToUse);
+        isFramed = true;
+      } else {
+        finalUrl = photo; // ← sin marco, usamos la original
+      }
+
+      if (!active) {
+        URL.revokeObjectURL(finalUrl);
+        return;
+      }
+
+      setDownloadHref(finalUrl);
+      setDownloadName(
+        isFramed
+          ? filenameFromQS || `foto-con-marco-${new Date().toISOString().replace(/[:.]/g, "-")}.png`
+          : filenameFromQS || suggestedName
+      );
+      setSaved(true);
+
+      revokeRef.current = () => URL.revokeObjectURL(finalUrl);
+    } catch (e: any) {
+      console.error(e);
+      setErr(e.message || "No se pudo preparar la imagen.");
+    }
+  })();
+
+  return () => {
+    active = false;
+  };
+}, [
+  loadingPhoto,
+  photo,
+  frameUrlFromQS,          // ← importante: agregar esta dependencia
+  filenameFromQS,
+  suggestedName,
+]);
 
   const canDownload = !!downloadHref && !loadingPhoto && saved;
 
@@ -216,24 +230,24 @@ export default function SurveyClient() {
   */
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center py-6 sm:py-8 px-3 sm:px-4">
-      <div className="w-full max-w-2xl sm:max-w-3xl">
-        <header className="text-center mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-white">
+    <div className="min-h-screen w-full flex flex-col items-center py-8 px-4">
+      <div className="w-full max-w-3xl">
+        <header className="text-center mb-6">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
             Descarga tu imagen 📸
           </h1>
-          <p className="text-xs sm:text-sm text-white/80 mt-2 max-w-2xl mx-auto px-2">
+          <p className="text-white/80 mt-2 max-w-2xl mx-auto">
             Tu imagen se preparará automáticamente
           </p>
         </header>
 
         {loadingPhoto && (
-          <div className="mb-4 rounded-lg sm:rounded-xl border border-white/10 bg-white/5 p-3 sm:p-4 text-xs sm:text-sm text-white/80">
+          <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-white/80">
             Preparando tu imagen…
           </div>
         )}
         {err && (
-          <div className="mb-4 rounded-lg sm:rounded-xl border border-red-500/30 bg-red-500/10 p-3 sm:p-4 text-xs sm:text-sm text-red-300">
+          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-red-300">
             {err}
           </div>
         )}
@@ -320,12 +334,12 @@ export default function SurveyClient() {
         */}
 
         {/* ⬇️ SOLO DESCARGA */}
-        <div className="rounded-lg sm:rounded-2xl border border-white/10 bg-white/5 shadow-xl p-4 sm:p-5 md:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+        <div className="rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6">
+          <div className="flex flex-wrap items-center gap-3">
             <a
               href={canDownload ? downloadHref : undefined}
               download={downloadName || suggestedName}
-              className={`px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl font-semibold shadow transition text-xs sm:text-sm whitespace-nowrap
+              className={`px-4 py-2 rounded-xl font-semibold shadow transition
                 ${
                   canDownload
                     ? "bg-white text-black hover:bg-white/90"
@@ -342,8 +356,8 @@ export default function SurveyClient() {
               Descargar imagen
             </a>
             {canDownload && (
-              <span className="text-xs text-white/60 break-all">
-                Nombre:{" "}
+              <span className="text-xs text-white/60">
+                Nombre sugerido:{" "}
                 <code className="text-white/80">
                   {downloadName || suggestedName}
                 </code>
@@ -354,7 +368,7 @@ export default function SurveyClient() {
           {/* Vista previa opcional (déjala comentada si quieres SOLO el botón) */}
 
           {canDownload && (
-            <div className="mt-4 w-full bg-white/5 rounded-lg sm:rounded-xl p-2 sm:p-3 border border-white/10 relative aspect-square overflow-hidden">
+            <div className="mt-4 w-full bg-white/5 rounded-xl p-3 border border-white/10 relative aspect-square overflow-hidden">
               {/* Imagen base */}
               <img
                 src={photo}

@@ -137,10 +137,11 @@ export default function FrameCamera({
     onReady?.({ getVideoEl: () => videoRef.current });
   }, [onReady]);
 
+
   return (
     <div className="w-full flex flex-col items-center justify-center gap-2">
       <div
-        className="relative overflow-hidden rounded-2xl shadow-2xl"
+        className={`relative overflow-hidden shadow-2xl`}
         style={{ width: boxSize, height: boxSize }}
       >
         <video

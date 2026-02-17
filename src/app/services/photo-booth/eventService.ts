@@ -25,6 +25,7 @@ export type EventProfile = {
   frameImage?: string;
   buttonImage?: string;
   loadingPageImage?: string;
+  splashImage?: string;
   loadingMessage?: string;
   showLogosInLoader?: boolean; // Controla si mostrar logos en LoaderStep
   enableFrame?: boolean; // Controla si mostrar el marco en ResultStep
@@ -104,7 +105,7 @@ export async function createEventProfile(
     };
 
     // Image fields to process
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage"];
 
     for (const field of imageFields) {
       const fileData = data[field];
@@ -260,7 +261,7 @@ export async function updateEventProfile(
     if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
 
     // Process image fields
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage"];
     for (const field of imageFields) {
       const fileData = data[field];
       if (!fileData) continue;

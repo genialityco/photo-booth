@@ -29,13 +29,15 @@ import { event } from "firebase-functions/v1/analytics";
 export default function PhotoBoothWizard({
   mirror = true,
   // Caja cuadrada responsiva: mínimo 320px, escala con viewport
-  boxSize = "min(95vw, 95vh)",
+  boxSize = "min(80vw, 80vh)",
+  borderRadius = "4xl",
   eventData,
   onReset,
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
+  borderRadius?: "none" | "md" | "lg" | "xl" | "4xl";
   eventData?: EventProfile;
   onReset?: () => void;
 }) {
@@ -423,6 +425,7 @@ export default function PhotoBoothWizard({
             <CaptureStep
               mirror={mirror}
               boxSize={boxSize}
+              borderRadius={borderRadius}
               onCaptured={handleCaptured}
               frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
               buttonImage={eventData?.buttonImage}
@@ -434,6 +437,7 @@ export default function PhotoBoothWizard({
               framedShot={framedShot}
               rawShot={rawShot || undefined}
               boxSize={boxSize}
+              borderRadius={borderRadius}
               onRetake={resetAll}
               onConfirm={confirmAndProcess}
               buttonImage={eventData?.buttonImage}
@@ -470,7 +474,7 @@ export default function PhotoBoothWizard({
           pointer-events-none
         "
       >
-        <div className="w-[70vw] max-w-[500px]">
+        <div className="w-[70vw] max-w-[550px]">
           <img
             src={
               style

@@ -25,17 +25,23 @@ export default function ResultStep({
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [event, setEvent] = useState<EventProfile | null>(null);
   const enableFrame = event?.enableFrame ?? style?.enableFrame ?? true;
-  const frameSrc = event?.frameImage ?? style?.frameImage ?? null;
+  const frameSrc = event?.frameImage ?? null;
 
   const surveyAI = useMemo(() => {
     const url = new URL(`${origin}/survey`);
     url.searchParams.set("src", aiUrl);
     url.searchParams.set("kind", "raw");
     url.searchParams.set("filename", `foto-ia-${taskId}.png`);
+    
+    // Agregar frameUrl solo si enableFrame está activado y hay frameImage
+    if (enableFrame && frameSrc) {
+      url.searchParams.set("frameUrl", frameSrc);
+    }
+    
     return url.toString();
-  }, [origin, aiUrl, taskId]);
+  }, [origin, aiUrl, taskId, enableFrame, frameSrc]);
 
-  const SIZE_IMG = "clamp(400px, min(80vw, 75svh), 800px)";
+  const SIZE_IMG = "clamp(300px, min(70vw, 60svh), 700px)";
 
   // === Helper para cargar imágenes con soporte CORS ===
   const loadImage = (src: string): Promise<HTMLImageElement> =>
@@ -216,10 +222,7 @@ export default function ResultStep({
       {/* Contenido principal */}
       <main
         className="flex-1 w-full flex flex-col items-center  overflow-hidden"
-        style={{
-          marginTop: '0.5rem',
-          marginBottom: '0.5rem',
-        }}
+       
       >
         {/* Imagen IA con marco visible - BORDE REDONDEADO Y SOMBRA */}
         <div
@@ -257,17 +260,17 @@ export default function ResultStep({
             onClick={onAgain}
             label="NUEVA FOTO"
             imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-            width={130}
+            width={310}
             className="min-w-[130px]"
-            height={48}
+            height={50}
           />
           <ButtonPrimary
             onClick={handleDownload}
             label="DESCARGAR"
             imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-            width={130}
+            width={310}
             className="min-w-[130px]"
-            height={48}
+            height={50}
           />
         </div>
       </main>

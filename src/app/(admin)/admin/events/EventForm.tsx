@@ -31,6 +31,7 @@ export default function EventForm({
     frameImage: event?.frameImage || "",
     buttonImage: event?.buttonImage || "",
     loadingPageImage: event?.loadingPageImage || "",
+    splashImage: event?.splashImage || "",
     loadingMessage: event?.loadingMessage || "Generando imagen",
     showLogosInLoader: event?.showLogosInLoader !== false,
     enableFrame: event?.enableFrame !== false,
@@ -68,10 +69,16 @@ export default function EventForm({
   };
 
   const handleImageChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => {
+      // Evitar actualización si el valor no ha cambiado
+      if (prev[field as keyof typeof prev] === value) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [field]: value,
+      };
+    });
   };
 
   const handleAddPrompt = (promptId: string) => {
@@ -232,6 +239,12 @@ export default function EventForm({
             label="Imagen de Pantalla de Carga (Loading Page)"
             value={formData.loadingPageImage || ""}
             onChange={(value) => handleImageChange("loadingPageImage", value)}
+          />
+
+          <ImageUploadField
+            label="Imagen Splash (Pantalla de Inicio)"
+            value={formData.splashImage || ""}
+            onChange={(value) => handleImageChange("splashImage", value)}
           />
 
           <div>

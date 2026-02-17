@@ -8,7 +8,7 @@ type ButtonPrimaryProps = {
   onClick?: () => void;
   label?: string;
   imageSrc?: string;
-  /** Ancho y alto del botón (px, rem, etc.). Ej: 192 o "12rem" */
+  /** Ancho y alto del botón (px, rem, %, etc.). Ej: 192, "12rem", "50%" */
   width?: number | string;
   height?: number | string;
   className?: string; // clases extra para el <button>
@@ -28,6 +28,17 @@ export default function ButtonPrimary({
   disabled = false,
   ariaLabel,
 }: ButtonPrimaryProps) {
+  // Función para normalizar width/height a string CSS válido
+  const normalizeSize = (size: number | string): string => {
+    if (typeof size === "number") {
+      return `${size}px`;
+    }
+    return size;
+  };
+
+  const widthStyle = normalizeSize(width);
+  const heightStyle = normalizeSize(height);
+
   return (
     <button
       onClick={onClick}
@@ -35,34 +46,30 @@ export default function ButtonPrimary({
       aria-label={ariaLabel || label}
       className={[
         // base layout
-        "relative flex items-center justify-center select-none",
-        // Responsive sizing using clamp
-        typeof width !== "number" ? "" : width <= 180 ? "w-[clamp(100px,25vw,180px)]" : "w-[clamp(140px,40vw,240px)]",
-        typeof height !== "number" ? "" : height <= 64 ? "h-[clamp(40px,12vw,64px)]" : "h-[clamp(50px,15vw,80px)]",
+        "mt-10 relative flex items-center justify-center select-none",
         // visual
         "outline-none focus-visible:ring-2 focus-visible:ring-white/60",
-        // animación “presionar”
+        // animación "presionar"
         "transition-all duration-100 ease-out",
-        //"shadow-[0_8px_0_rgba(0,0,0,0.35),0_18px_28px_rgba(0,0,0,0.35)]",
         "hover:brightness-105",
-        "active:translate-y-[2px] active:scale-95 active:shadow-[0_4px_0_rgba(0,0,0,0.35),0_10px_18px_rgba(0,0,0,0.35)]",
+        
         // disabled
         "disabled:opacity-60 disabled:cursor-not-allowed",
         className,
       ].join(" ")}
-      style={typeof width === "string" || typeof height === "string" ? { width, height } : {}}
+      style={{ width: widthStyle, height: heightStyle }}
     >
       <img
         src={imageSrc}
         alt={label}
-        className="absolute inset-0 w-full h-full object-cover rounded-[14px]"
+        className="absolute w-full h-full object-cover rounded-[14px]"
         draggable={false}
       />
       <span
         className={[
           "relative z-10",
           "font-azo text-white font-bold",
-          "text-xs sm:text-sm md:text-base lg:text-lg",
+          "text-xs sm:text-sm md:text-xl lg:text-lg",
           textClassName,
         ].join(" ")}
       >

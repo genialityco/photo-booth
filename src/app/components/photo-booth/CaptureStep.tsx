@@ -11,12 +11,14 @@ export default function CaptureStep({
   frameSrc = null,
   mirror = true,
   boxSize = "min(88vw, 60svh)",
+  borderRadius = "xl",
   onCaptured,
   buttonImage,
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
+  borderRadius?: "none" | "md" | "lg" | "xl" | "4xl";
   buttonImage?: string;
   onCaptured: (payload: { framed: string; raw: string }) => void;
 }) {
@@ -178,14 +180,22 @@ export default function CaptureStep({
 
     onCaptured({ framed, raw });
   };
+  const borderRadiusClass = {
+    none: "",
+    md: "rounded-md",
+    lg: "rounded-lg",
+    xl: "rounded-2xl",
+    "4xl": "rounded-4xl"
+  }[borderRadius];
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 overflow-hidden px-2 sm:px-3">
-      <div className="flex-1 flex items-center justify-center w-full overflow-hidden">
+      <div className={`flex-1 flex items-center justify-center w-full overflow-hidden ${borderRadiusClass}`}>
         <FrameCamera
           frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
           mirror={mirror}
           boxSize={boxSize}
+      
           onReady={onReady}
         />
       </div>
@@ -204,8 +214,8 @@ export default function CaptureStep({
           onClick={startCapture}
           label={canShoot ? "TOMAR FOTO" : "Cargando cámara…"}
           imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-          width={180}
-          height={52}
+          width={620}
+          height={50}
           disabled={!canShoot}
           ariaLabel="Tomar foto"
         />
