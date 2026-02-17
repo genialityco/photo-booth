@@ -147,32 +147,31 @@ export default function SurveyClient() {
       }
 
       try {
-        // Decide si usar marco según el evento o estilo en sessionStorage
-        let data = sessionStorage.getItem("currentEvent");
-        if (!data) {
-          data = sessionStorage.getItem("photoBoothStyle");
-        }
-        
+        // Obtener frameImage de currentEvent en sessionStorage
+        let frameImageUrl: string | undefined;
         let shouldUseFrame = false;
-        let frameToUse: string | undefined;
         
-        if (data) {
+        const currentEventData = sessionStorage.getItem("currentEvent");
+        if (currentEventData) {
           try {
-            const parsed = JSON.parse(data);
-            // Verificar si enableFrame está activado
-            const enableFrame = parsed?.enableFrame ?? true; // Por defecto true si no está definido
-            if (enableFrame && parsed?.frameImage) {
+            const eventParsed = JSON.parse(currentEventData);
+            // Verificar si enableFrame está activado y hay frameImage
+            const enableFrame = eventParsed?.enableFrame ?? true;
+            if (enableFrame && eventParsed?.frameImage) {
+              frameImageUrl = eventParsed.frameImage;
               shouldUseFrame = true;
-              frameToUse = parsed.frameImage;
             }
-          } catch {}
+          } catch (e) {
+            console.error("Error parsing currentEvent:", e);
+          }
         }
 
         let finalUrl: string;
         
-        if (shouldUseFrame && frameToUse) {
+        if (shouldUseFrame && frameImageUrl) {
           // Componer con marco
-          finalUrl = await composeFramed(photo, frameToUse);
+          finalUrl = await composeFramed(photo, frameImageUrl);
+          // Registrar función para revocar este blob cuando cambie/desmonte
           revokeRef.current = () => URL.revokeObjectURL(finalUrl);
         } else {
           // Sin marco, usar la imagen directamente
@@ -180,7 +179,7 @@ export default function SurveyClient() {
         }
         
         if (!active) {
-          if (shouldUseFrame && frameToUse) {
+          if (shouldUseFrame && frameImageUrl) {
             URL.revokeObjectURL(finalUrl);
           }
           return;
@@ -191,7 +190,7 @@ export default function SurveyClient() {
         setSaved(true);
       } catch (e: any) {
         console.error(e);
-        setErr(e.message || "No se pudo preparar la imagen.");
+        setErr(e.message || "No se pudo preparar la imagen con marco.");
       }
     })();
 
