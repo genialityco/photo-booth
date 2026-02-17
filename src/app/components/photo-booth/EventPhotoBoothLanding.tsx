@@ -67,7 +67,7 @@ export default function EventPhotoBoothLanding({
 
   return (
     <div
-      className="relative min-h-[100svh] w-full overflow-hidden"
+      className="mt-10 relative min-h-[100svh] w-full overflow-hidden"
       style={{
         paddingTop: "max(12px, env(safe-area-inset-top))",
         paddingBottom: "max(12px, env(safe-area-inset-bottom))",
@@ -103,16 +103,16 @@ export default function EventPhotoBoothLanding({
         </div>
 
         {/* Title */}
-        <h1 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl md:text-4xl font-black text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] tracking-wide uppercase bg-gradient-to-r from-white via-yellow-100 to-white bg-clip-text text-transparent animate-pulse">
+        {/* <h1 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl md:text-4xl font-black text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] tracking-wide uppercase bg-gradient-to-r from-white via-yellow-100 to-white bg-clip-text text-transparent animate-pulse">
           {event.name}
-        </h1>
+        </h1> */}
 
         {/* Selection Panels - Centered and Scrollable */}
         <div className="mt-8 sm:mt-12 w-full max-w-2xl flex-1 overflow-y-auto">
           {/* Brand Selection */}
           <div className="mb-8">
             <h2 className="text-center text-sm sm:text-base font-semibold text-white mb-4 drop-shadow">
-              En quien deseeas transformarte
+              
             </h2>
             {loadingPrompts ? (
               <div className="text-center text-white">Cargando marcas...</div>
@@ -209,7 +209,7 @@ export default function EventPhotoBoothLanding({
 
         {/* Bottom Logo */}
         <div className="mt-auto flex-shrink-0 w-full pb-6 sm:pb-8 md:pb-10">
-          <div className="mx-auto w-full max-w-[400px] flex flex-col items-center gap-2">
+          <div className="mx-auto w-full max-w-[500px] flex flex-col items-center gap-2">
             {event.logoBottom && (
               <img
                 src={event.logoBottom}

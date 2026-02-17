@@ -544,3 +544,49 @@ export const photoBoothPromptsUtils = {
         }).format(date);
     }
 };
+
+/**
+ * Get recent brands (last N brands)
+ */
+export async function getRecentBrands(limitCount: number = 5): Promise<PhotoBoothPrompt[]> {
+    try {
+        const q = query(
+            collection(db, PHOTO_BOOTH_PROMPTS_COLLECTION),
+            orderBy("createdAt", "desc"),
+            fqLimit(limitCount)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(mapDocToPrompt);
+    } catch (error) {
+        console.error("Error getting recent brands:", error);
+        throw error;
+    }
+}
+
+/**
+ * Search brands by brand name or brandName
+ */
+export async function searchBrands(searchTerm: string): Promise<PhotoBoothPrompt[]> {
+    try {
+        if (!searchTerm.trim()) return [];
+        
+        const snapshot = await getDocs(
+            query(
+                collection(db, PHOTO_BOOTH_PROMPTS_COLLECTION),
+                orderBy("createdAt", "desc")
+            )
+        );
+        
+        const allBrands = snapshot.docs.map(mapDocToPrompt);
+        const search = searchTerm.toLowerCase();
+        
+        return allBrands.filter(
+            (brand) =>
+                brand.brand?.toLowerCase().includes(search) ||
+                brand.brandName?.toLowerCase().includes(search)
+        );
+    } catch (error) {
+        console.error("Error searching brands:", error);
+        throw error;
+    }
+}

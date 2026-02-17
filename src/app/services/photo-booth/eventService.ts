@@ -346,3 +346,31 @@ export async function getRecentEvents(limit: number = 5): Promise<EventProfile[]
     throw error;
   }
 }
+
+/**
+ * Search events by name or slug
+ */
+export async function searchEvents(searchTerm: string): Promise<EventProfile[]> {
+  try {
+    if (!searchTerm.trim()) return [];
+    
+    const snapshot = await getDocs(
+      query(collection(db, COLLECTION), orderBy("createdAt", "desc"))
+    );
+    
+    const allEvents = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as EventProfile[];
+    
+    const search = searchTerm.toLowerCase();
+    return allEvents.filter(
+      (event) =>
+        event.name.toLowerCase().includes(search) ||
+        event.slug.toLowerCase().includes(search)
+    );
+  } catch (error) {
+    console.error("Error searching events:", error);
+    throw error;
+  }
+}

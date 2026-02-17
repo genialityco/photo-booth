@@ -17,6 +17,7 @@ export default function EventBoothPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [boothStarted, setBoothStarted] = useState(false);
+  const [skipBrandSelection, setSkipBrandSelection] = useState(false);
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -30,6 +31,14 @@ export default function EventBoothPage({
         setEvent(eventData);
         // Store event config in sessionStorage for PhotoBoothWizard to access
         sessionStorage.setItem("currentEvent", JSON.stringify(eventData));
+
+        // Si el evento tiene solo una brand, saltar la selección
+        if (eventData.prompts && eventData.prompts.length === 1) {
+          setSkipBrandSelection(true);
+          // Guardar la única brand en sessionStorage
+          sessionStorage.setItem("selectedBrand", eventData.prompts[0]);
+          setBoothStarted(true);
+        }
       } catch (err) {
         console.error("Error loading event:", err);
         setError("Error cargando el evento");
@@ -78,7 +87,11 @@ export default function EventBoothPage({
           mirror
           boxSize="min(95vw, 95vh)"
           eventData={event}
-          onReset={() => setBoothStarted(false)}
+          onReset={
+            skipBrandSelection
+              ? undefined // Si solo hay una brand, no permitir volver a la selección
+              : () => setBoothStarted(false) // Si hay múltiples brands, permitir volver
+          }
         />
       )}
     </div>

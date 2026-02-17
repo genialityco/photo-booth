@@ -24,6 +24,7 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
+import { event } from "firebase-functions/v1/analytics";
 
 export default function PhotoBoothWizard({
   mirror = true,
@@ -300,6 +301,7 @@ export default function PhotoBoothWizard({
         inputPath,
         framedPath: inputPath,
         framedUrl: framedDownloadUrl,
+        eventId: eventData?.id,
         brand: finalBrand,
         color: finalColor,
         prompt: finalBrand, // También enviar como 'prompt' para compatibilidad con Cloud Function
@@ -348,20 +350,19 @@ export default function PhotoBoothWizard({
   };
 
   const resetAll = () => {
-    // Si hay una función onReset (desde EventBoothPage), llamarla para volver a la selección de brand
+    // Si hay una función onReset (desde EventBoothPage con múltiples brands), llamarla para volver a la selección de brand
     if (onReset) {
       onReset();
       return;
     }
     
-    // Fallback: resetear el wizard
+    // Si no hay onReset (evento con una sola brand), simplemente reiniciar desde capture
     setFramedShot(null);
     setRawShot(null);
     setAiUrl(null);
     setFramedUrl(null);
     setTaskId(null);
     setStep("capture");
-    // No redirigir a "/" para mantener el evento actual
   };
 
   const bgUrl = style
@@ -375,7 +376,7 @@ export default function PhotoBoothWizard({
     : "/Lenovo/app-avatars-01.png";
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden flex flex-col">
+    <div className="mt-10 relative h-screen w-screen overflow-hidden flex flex-col">
       {/* Fondo full-screen */}
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
@@ -464,12 +465,12 @@ export default function PhotoBoothWizard({
         className="
           relative z-5 flex-shrink-0
           flex justify-center items-center
-          pb-[max(env(safe-area-inset-bottom),1rem)]
-          pt-2 sm:pt-3 md:pt-4
+          pb-[max(env(safe-area-inset-bottom),2rem)]
+           
           pointer-events-none
         "
       >
-        <div className="w-[70vw] max-w-[380px]">
+        <div className="w-[70vw] max-w-[500px]">
           <img
             src={
               style

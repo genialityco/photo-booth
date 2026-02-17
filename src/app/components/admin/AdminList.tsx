@@ -17,7 +17,8 @@ import {
   listAll,
   getDownloadURL,
 } from "firebase/storage";
-import { getRecentEvents, type EventProfile } from "@/app/services/photo-booth/eventService";
+import { getRecentEvents, searchEvents, type EventProfile } from "@/app/services/photo-booth/eventService";
+import { getRecentBrands, searchBrands, type PhotoBoothPrompt } from "@/app/services/photo-booth/brandService";
 
 /* ================== Tipos ================== */
 type TaskItem = {
@@ -345,6 +346,15 @@ export default function AdminList() {
   const [eventSearch, setEventSearch] = useState("");
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchingEvents, setSearchingEvents] = useState(false);
+
+  // Brand filtering
+  const [brands, setBrands] = useState<PhotoBoothPrompt[]>([]);
+  const [selectedBrandId, setSelectedBrandId] = useState<string>("");
+  const [brandSearch, setBrandSearch] = useState("");
+  const [loadingBrands, setLoadingBrands] = useState(true);
+  const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
+  const [searchingBrands, setSearchingBrands] = useState(false);
 
   const baseCol = useMemo(() => collection(db, "imageTasks"), []);
 
@@ -363,6 +373,72 @@ export default function AdminList() {
     };
     loadEvents();
   }, []);
+
+  // Load recent brands
+  useEffect(() => {
+    const loadBrands = async () => {
+      try {
+        setLoadingBrands(true);
+        const recentBrands = await getRecentBrands(5);
+        setBrands(recentBrands);
+      } catch (error) {
+        console.error("Error loading brands:", error);
+      } finally {
+        setLoadingBrands(false);
+      }
+    };
+    loadBrands();
+  }, []);
+
+  // Search events when user types
+  useEffect(() => {
+    const searchEventsDebounced = async () => {
+      if (!eventSearch.trim()) {
+        // Reset to recent events when search is empty
+        const recentEvents = await getRecentEvents(5);
+        setEvents(recentEvents);
+        return;
+      }
+
+      try {
+        setSearchingEvents(true);
+        const results = await searchEvents(eventSearch);
+        setEvents(results);
+      } catch (error) {
+        console.error("Error searching events:", error);
+      } finally {
+        setSearchingEvents(false);
+      }
+    };
+
+    const timeoutId = setTimeout(searchEventsDebounced, 300);
+    return () => clearTimeout(timeoutId);
+  }, [eventSearch]);
+
+  // Search brands when user types
+  useEffect(() => {
+    const searchBrandsDebounced = async () => {
+      if (!brandSearch.trim()) {
+        // Reset to recent brands when search is empty
+        const recentBrands = await getRecentBrands(5);
+        setBrands(recentBrands);
+        return;
+      }
+
+      try {
+        setSearchingBrands(true);
+        const results = await searchBrands(brandSearch);
+        setBrands(results);
+      } catch (error) {
+        console.error("Error searching brands:", error);
+      } finally {
+        setSearchingBrands(false);
+      }
+    };
+
+    const timeoutId = setTimeout(searchBrandsDebounced, 300);
+    return () => clearTimeout(timeoutId);
+  }, [brandSearch]);
 
   // Load all tasks in real-time
   useEffect(() => {
@@ -385,16 +461,11 @@ export default function AdminList() {
     };
   }, [baseCol]);
 
-  // Filter events by search
-  const filteredEvents = useMemo(() => {
-    if (!eventSearch.trim()) return events;
-    const search = eventSearch.toLowerCase();
-    return events.filter(
-      (event) =>
-        event.name.toLowerCase().includes(search) ||
-        event.slug.toLowerCase().includes(search)
-    );
-  }, [events, eventSearch]);
+  // Filter events by search - now just displays what's in events state
+  const filteredEvents = events;
+
+  // Filter brands by search - now just displays what's in brands state
+  const filteredBrands = brands;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -403,12 +474,15 @@ export default function AdminList() {
       if (!target.closest('.event-dropdown-container')) {
         setDropdownOpen(false);
       }
+      if (!target.closest('.brand-dropdown-container')) {
+        setBrandDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Filter tasks by selected event and status "done"
+  // Filter tasks by selected event, brand and status "done"
   const filtered = useMemo(() => {
     let result = items.filter((it) => it.status === "done");
     
@@ -416,14 +490,18 @@ export default function AdminList() {
     if (selectedEventId) {
       result = result.filter((it: any) => it.eventId === selectedEventId);
     }
+    // Apply brand filter if selected
+    if (selectedBrandId) {
+      result = result.filter((it: any) => it.brand === selectedBrandId);
+    }
     
     return result;
-  }, [items, selectedEventId]);
+  }, [items, selectedEventId, selectedBrandId]);
 
-  // Reset to first page when event filter changes
+  // Reset to first page when filters change
   useEffect(() => {
     setPage(1);
-  }, [selectedEventId]);
+  }, [selectedEventId, selectedBrandId]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const paginated = filtered.slice(
@@ -526,93 +604,194 @@ export default function AdminList() {
 
   return (
     <section className="w-full">
-      {/* Event Filter Dropdown with Search */}
-      <div className="mb-4 flex flex-col gap-2">
-        <label className="font-semibold text-sm">Filtrar por Evento</label>
-        <div className="flex gap-2 items-start">
-          <div className="flex-1 max-w-md relative event-dropdown-container">
-            {/* Dropdown Button */}
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              disabled={loadingEvents}
-              className="w-full px-3 py-2 rounded-lg border border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-neutral-900 text-left flex items-center justify-between"
-            >
-              <span className={selectedEventId ? "text-neutral-900" : "text-neutral-500"}>
-                {selectedEventId
-                  ? events.find((e) => e.id === selectedEventId)?.name || "Seleccionar evento"
-                  : "Todos los eventos"}
-              </span>
-              <span className="text-neutral-400">▼</span>
-            </button>
+      {/* Filters Row */}
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Event Filter Dropdown with Search */}
+        <div className="flex flex-col gap-2">
+          <label className="font-semibold text-sm">Filtrar por Evento</label>
+          <div className="flex gap-2 items-start">
+            <div className="flex-1 relative event-dropdown-container">
+              {/* Dropdown Button */}
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                disabled={loadingEvents}
+                className="w-full px-3 py-2 rounded-lg border border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-neutral-900 text-left flex items-center justify-between"
+              >
+                <span className={selectedEventId ? "text-neutral-900" : "text-neutral-500"}>
+                  {selectedEventId
+                    ? events.find((e) => e.id === selectedEventId)?.name || "Seleccionar evento"
+                    : "Todos los eventos"}
+                </span>
+                <span className="text-neutral-400">▼</span>
+              </button>
 
-            {/* Dropdown Menu */}
-            {dropdownOpen && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-300 rounded-lg shadow-lg">
-                {/* Search Input */}
-                <div className="p-2 border-b border-neutral-200">
-                  <input
-                    type="text"
-                    placeholder="Buscar evento..."
-                    value={eventSearch}
-                    onChange={(e) => setEventSearch(e.target.value)}
-                    className="w-full px-3 py-2 rounded border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 text-sm"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </div>
+              {/* Dropdown Menu */}
+              {dropdownOpen && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-300 rounded-lg shadow-lg">
+                  {/* Search Input */}
+                  <div className="p-2 border-b border-neutral-200">
+                    <input
+                      type="text"
+                      placeholder="Buscar evento..."
+                      value={eventSearch}
+                      onChange={(e) => setEventSearch(e.target.value)}
+                      className="w-full px-3 py-2 rounded border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 text-sm"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    {searchingEvents && (
+                      <div className="text-xs text-neutral-500 mt-1">Buscando...</div>
+                    )}
+                  </div>
 
-                {/* Options List */}
-                <div className="max-h-60 overflow-y-auto">
-                  <button
-                    onClick={() => {
-                      setSelectedEventId("");
-                      setEventSearch("");
-                      setDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 hover:bg-neutral-100 border-b border-neutral-200 ${
-                      !selectedEventId ? "bg-neutral-50 font-semibold" : ""
-                    }`}
-                  >
-                    Todos los eventos
-                  </button>
-                  
-                  {filteredEvents.length > 0 ? (
-                    filteredEvents.map((event) => (
-                      <button
-                        key={event.id}
-                        onClick={() => {
-                          setSelectedEventId(event.id);
-                          setEventSearch("");
-                          setDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 hover:bg-neutral-100 border-b border-neutral-200 last:border-b-0 ${
-                          selectedEventId === event.id ? "bg-neutral-50 font-semibold" : ""
-                        }`}
-                      >
-                        <div className="font-medium">{event.name}</div>
-                        <div className="text-xs text-neutral-500">{event.slug}</div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-3 py-2 text-neutral-500 text-sm">
-                      No se encontraron eventos
-                    </div>
-                  )}
+                  {/* Options List */}
+                  <div className="max-h-60 overflow-y-auto">
+                    <button
+                      onClick={() => {
+                        setSelectedEventId("");
+                        setEventSearch("");
+                        setDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 hover:bg-neutral-100 border-b border-neutral-200 ${
+                        !selectedEventId ? "bg-neutral-50 font-semibold" : ""
+                      }`}
+                    >
+                      Todos los eventos
+                    </button>
+                    
+                    {filteredEvents.length > 0 ? (
+                      filteredEvents.map((event) => (
+                        <button
+                          key={event.id}
+                          onClick={() => {
+                            setSelectedEventId(event.id);
+                            setEventSearch("");
+                            setDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 hover:bg-neutral-100 border-b border-neutral-200 last:border-b-0 ${
+                            selectedEventId === event.id ? "bg-neutral-50 font-semibold" : ""
+                          }`}
+                        >
+                          <div className="font-medium">{event.name}</div>
+                          <div className="text-xs text-neutral-500">{event.slug}</div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-neutral-500 text-sm">
+                        No se encontraron eventos
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
+            </div>
+
+            {selectedEventId && (
+              <button
+                onClick={() => {
+                  setSelectedEventId("");
+                  setEventSearch("");
+                }}
+                className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold"
+              >
+                Limpiar
+              </button>
             )}
           </div>
+        </div>
 
-          {selectedEventId && (
-            <button
-              onClick={() => {
-                setSelectedEventId("");
-                setEventSearch("");
-              }}
-              className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold"
-            >
-              Limpiar
-            </button>
-          )}
+        {/* Brand Filter Dropdown with Search */}
+        <div className="flex flex-col gap-2">
+          <label className="font-semibold text-sm">Filtrar por Marca</label>
+          <div className="flex gap-2 items-start">
+            <div className="flex-1 relative brand-dropdown-container">
+              {/* Dropdown Button */}
+              <button
+                onClick={() => setBrandDropdownOpen(!brandDropdownOpen)}
+                disabled={loadingBrands}
+                className="w-full px-3 py-2 rounded-lg border border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-neutral-900 text-left flex items-center justify-between"
+              >
+                <span className={selectedBrandId ? "text-neutral-900" : "text-neutral-500"}>
+                  {selectedBrandId
+                    ? brands.find((b) => b.brand === selectedBrandId)?.brandName || brands.find((b) => b.brand === selectedBrandId)?.brand || "Seleccionar marca"
+                    : "Todas las marcas"}
+                </span>
+                <span className="text-neutral-400">▼</span>
+              </button>
+
+              {/* Dropdown Menu */}
+              {brandDropdownOpen && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-300 rounded-lg shadow-lg">
+                  {/* Search Input */}
+                  <div className="p-2 border-b border-neutral-200">
+                    <input
+                      type="text"
+                      placeholder="Buscar marca..."
+                      value={brandSearch}
+                      onChange={(e) => setBrandSearch(e.target.value)}
+                      className="w-full px-3 py-2 rounded border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 text-sm"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    {searchingBrands && (
+                      <div className="text-xs text-neutral-500 mt-1">Buscando...</div>
+                    )}
+                  </div>
+
+                  {/* Options List */}
+                  <div className="max-h-60 overflow-y-auto">
+                    <button
+                      onClick={() => {
+                        setSelectedBrandId("");
+                        setBrandSearch("");
+                        setBrandDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 hover:bg-neutral-100 border-b border-neutral-200 ${
+                        !selectedBrandId ? "bg-neutral-50 font-semibold" : ""
+                      }`}
+                    >
+                      Todas las marcas
+                    </button>
+                    
+                    {filteredBrands.length > 0 ? (
+                      filteredBrands.map((brand) => (
+                        <button
+                          key={brand.id}
+                          onClick={() => {
+                            setSelectedBrandId(brand.brand || "");
+                            setBrandSearch("");
+                            setBrandDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 hover:bg-neutral-100 border-b border-neutral-200 last:border-b-0 ${
+                            selectedBrandId === brand.id ? "bg-neutral-50 font-semibold" : ""
+                          }`}
+                        >
+                          <div className="font-medium">{brand.brandName || brand.brand}</div>
+                          {brand.brand && brand.brandName && (
+                            <div className="text-xs text-neutral-500">{brand.brand}</div>
+                          )}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-neutral-500 text-sm">
+                        No se encontraron marcas
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {selectedBrandId && (
+              <button
+                onClick={() => {
+                  setSelectedBrandId("");
+                  setBrandSearch("");
+                }}
+                className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -644,8 +823,8 @@ export default function AdminList() {
 
         {!loading && filtered.length === 0 && (
           <div className="rounded-xl border border-neutral-200 p-4">
-            {selectedEventId
-              ? "No hay fotos para este evento."
+            {selectedEventId || selectedBrandId
+              ? "No hay fotos para los filtros seleccionados."
               : "Sin resultados."}
           </div>
         )}
