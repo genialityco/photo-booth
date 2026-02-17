@@ -5,12 +5,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
-  getDocs,
-  limit,
   onSnapshot,
   orderBy,
   query,
-  where,
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/firebaseConfig";
@@ -20,6 +17,7 @@ import {
   listAll,
   getDownloadURL,
 } from "firebase/storage";
+import { getRecentEvents, type EventProfile } from "@/app/services/photo-booth/eventService";
 
 /* ================== Tipos ================== */
 type TaskItem = {
@@ -341,9 +339,32 @@ export default function AdminList() {
   const itemsPerPage = 5;
   const unsubRef = useRef<undefined | (() => void)>(undefined);
 
+  // Event filtering
+  const [events, setEvents] = useState<EventProfile[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string>("");
+  const [eventSearch, setEventSearch] = useState("");
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
   const baseCol = useMemo(() => collection(db, "imageTasks"), []);
 
-  // Cargar todos los datos (sin límite) en tiempo real
+  // Load recent events
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        setLoadingEvents(true);
+        const recentEvents = await getRecentEvents(5);
+        setEvents(recentEvents);
+      } catch (error) {
+        console.error("Error loading events:", error);
+      } finally {
+        setLoadingEvents(false);
+      }
+    };
+    loadEvents();
+  }, []);
+
+  // Load all tasks in real-time
   useEffect(() => {
     setLoading(true);
     const q = query(baseCol, orderBy("createdAt", "desc"));
@@ -364,8 +385,46 @@ export default function AdminList() {
     };
   }, [baseCol]);
 
-  // Filtrar solo los que están "done"
-  const filtered = items.filter((it) => it.status === "done");
+  // Filter events by search
+  const filteredEvents = useMemo(() => {
+    if (!eventSearch.trim()) return events;
+    const search = eventSearch.toLowerCase();
+    return events.filter(
+      (event) =>
+        event.name.toLowerCase().includes(search) ||
+        event.slug.toLowerCase().includes(search)
+    );
+  }, [events, eventSearch]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.event-dropdown-container')) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filter tasks by selected event and status "done"
+  const filtered = useMemo(() => {
+    let result = items.filter((it) => it.status === "done");
+    
+    // Apply event filter if selected
+    if (selectedEventId) {
+      result = result.filter((it: any) => it.eventId === selectedEventId);
+    }
+    
+    return result;
+  }, [items, selectedEventId]);
+
+  // Reset to first page when event filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [selectedEventId]);
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const paginated = filtered.slice(
     (page - 1) * itemsPerPage,
@@ -467,6 +526,96 @@ export default function AdminList() {
 
   return (
     <section className="w-full">
+      {/* Event Filter Dropdown with Search */}
+      <div className="mb-4 flex flex-col gap-2">
+        <label className="font-semibold text-sm">Filtrar por Evento</label>
+        <div className="flex gap-2 items-start">
+          <div className="flex-1 max-w-md relative event-dropdown-container">
+            {/* Dropdown Button */}
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              disabled={loadingEvents}
+              className="w-full px-3 py-2 rounded-lg border border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-neutral-900 text-left flex items-center justify-between"
+            >
+              <span className={selectedEventId ? "text-neutral-900" : "text-neutral-500"}>
+                {selectedEventId
+                  ? events.find((e) => e.id === selectedEventId)?.name || "Seleccionar evento"
+                  : "Todos los eventos"}
+              </span>
+              <span className="text-neutral-400">▼</span>
+            </button>
+
+            {/* Dropdown Menu */}
+            {dropdownOpen && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-300 rounded-lg shadow-lg">
+                {/* Search Input */}
+                <div className="p-2 border-b border-neutral-200">
+                  <input
+                    type="text"
+                    placeholder="Buscar evento..."
+                    value={eventSearch}
+                    onChange={(e) => setEventSearch(e.target.value)}
+                    className="w-full px-3 py-2 rounded border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 text-sm"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+
+                {/* Options List */}
+                <div className="max-h-60 overflow-y-auto">
+                  <button
+                    onClick={() => {
+                      setSelectedEventId("");
+                      setEventSearch("");
+                      setDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 hover:bg-neutral-100 border-b border-neutral-200 ${
+                      !selectedEventId ? "bg-neutral-50 font-semibold" : ""
+                    }`}
+                  >
+                    Todos los eventos
+                  </button>
+                  
+                  {filteredEvents.length > 0 ? (
+                    filteredEvents.map((event) => (
+                      <button
+                        key={event.id}
+                        onClick={() => {
+                          setSelectedEventId(event.id);
+                          setEventSearch("");
+                          setDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 hover:bg-neutral-100 border-b border-neutral-200 last:border-b-0 ${
+                          selectedEventId === event.id ? "bg-neutral-50 font-semibold" : ""
+                        }`}
+                      >
+                        <div className="font-medium">{event.name}</div>
+                        <div className="text-xs text-neutral-500">{event.slug}</div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-neutral-500 text-sm">
+                      No se encontraron eventos
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {selectedEventId && (
+            <button
+              onClick={() => {
+                setSelectedEventId("");
+                setEventSearch("");
+              }}
+              className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold"
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Barra de acciones */}
       <div className="flex flex-wrap gap-2 items-center justify-end">
         <button
@@ -495,7 +644,9 @@ export default function AdminList() {
 
         {!loading && filtered.length === 0 && (
           <div className="rounded-xl border border-neutral-200 p-4">
-            Sin resultados.
+            {selectedEventId
+              ? "No hay fotos para este evento."
+              : "Sin resultados."}
           </div>
         )}
 

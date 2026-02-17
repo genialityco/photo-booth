@@ -324,3 +324,25 @@ export function generateEventUrl(
 ): string {
   return `${baseUrl}/booth/${slug}`;
 }
+
+/**
+ * Get recent events (last N events)
+ */
+export async function getRecentEvents(limit: number = 5): Promise<EventProfile[]> {
+  try {
+    const q = query(
+      collection(db, COLLECTION),
+      orderBy("createdAt", "desc")
+    );
+    const snapshot = await getDocs(q);
+    const events = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as EventProfile[];
+    
+    return events.slice(0, limit);
+  } catch (error) {
+    console.error("Error getting recent events:", error);
+    throw error;
+  }
+}
