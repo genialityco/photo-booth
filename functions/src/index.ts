@@ -561,7 +561,7 @@ export const processImageTask = onDocumentCreated(
 
       // Agregar logo si existe
       if (base64Logo) {
-        parts.unshift(
+        parts.push(
           { text:  LOGO_PROMPT},
           {
             inlineData: {

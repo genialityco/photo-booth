@@ -62,7 +62,7 @@ export default function EventsLanding() {
 
       <div className="mx-auto flex min-h-[100svh] max-w-[980px] flex-col items-center">
         {/* Top Logo */}
-        <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
+        {/* <div className="w-full px-5 sm:px-6 md:px-8 pt-3 sm:pt-4 md:pt-6">
           <div className="mx-auto w-full max-w-[620px] flex flex-col items-center gap-2">
             {events[0]?.logoTop && (
               <img
@@ -73,7 +73,7 @@ export default function EventsLanding() {
               />
             )}
           </div>
-        </div>
+        </div> */}
 
         <h1 className="mt-4 sm:mt-6 text-center text-base sm:text-lg md:text-xl font-semibold text-white drop-shadow-md">
           Selecciona tu evento

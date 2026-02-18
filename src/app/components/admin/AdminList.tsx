@@ -338,7 +338,7 @@ export default function AdminList() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const itemsPerPage = 5;
-  const unsubRef = useRef<undefined | (() => void)>(undefined);
+  
 
   // Event filtering
   const [events, setEvents] = useState<EventProfile[]>([]);
@@ -347,6 +347,7 @@ export default function AdminList() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchingEvents, setSearchingEvents] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null); // 👈 agregar
 
   // Brand filtering
   const [brands, setBrands] = useState<PhotoBoothPrompt[]>([]);
@@ -357,6 +358,7 @@ export default function AdminList() {
   const [searchingBrands, setSearchingBrands] = useState(false);
 
   const baseCol = useMemo(() => collection(db, "imageTasks"), []);
+  const unsubRef = useRef<undefined | (() => void)>(undefined);
 
   // Load recent events
   useEffect(() => {
@@ -509,8 +511,14 @@ export default function AdminList() {
     page * itemsPerPage
   );
 
-  const handlePrev = () => setPage((p) => Math.max(1, p - 1));
-  const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));
+const handlePrev = () => {
+  setPage((p) => Math.max(1, p - 1));
+  listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+const handleNext = () => {
+  setPage((p) => Math.min(totalPages, p + 1));
+  listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
 
   /* ============ Descargar TODO en un solo ZIP (todas o solo página) ============ */
   const [downloadingAll, setDownloadingAll] = useState(false);
@@ -814,7 +822,7 @@ export default function AdminList() {
       </div>
 
       {/* Cards */}
-      <div className="mt-5 grid grid-cols-1 gap-4">
+      <div ref={listRef} className="mt-5 grid grid-cols-1 gap-4">
         {loading && (
           <div className="rounded-xl border border-neutral-200 p-4">
             Cargando…
