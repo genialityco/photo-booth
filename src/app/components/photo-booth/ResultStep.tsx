@@ -24,6 +24,7 @@ export default function ResultStep({
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [event, setEvent] = useState<EventProfile | null>(null);
+  const [qrSize, setQrSize] = useState(500);
   const enableFrame = event?.enableFrame ?? style?.enableFrame ?? true;
   const frameSrc = event?.frameImage ?? null;
 
@@ -125,6 +126,20 @@ export default function ResultStep({
     } catch (e) {
       console.warn("[ResultStep] error reading sessionStorage", e);
     }
+  }, []);
+
+  // Calcular tamaño del QR responsivo
+  useEffect(() => {
+    const updateQrSize = () => {
+      const vw = window.innerWidth;
+      // QR size: 100px en móvil, hasta 200px en desktop
+      const size = Math.min(Math.max(180, vw * 0.12), 220);
+      setQrSize(size);
+    };
+
+    updateQrSize();
+    window.addEventListener("resize", updateQrSize);
+    return () => window.removeEventListener("resize", updateQrSize);
   }, []);
 
   // === Descargar imagen compuesta con marco ===
@@ -246,12 +261,11 @@ export default function ResultStep({
         <div 
           className="absolute flex items-center justify-center z-10 flex-shrink-0 bottom-[10%] bg-white rounded-xl shadow-xl"
           style={{
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.25), 0 5px 10px rgba(0, 0, 0, 0.15)'
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.25), 0 5px 10px rgba(0, 0, 0, 0.15)',
+            padding: `clamp(12px, ${qrSize * 0.12}px, 28px)`
           }}
         >
-          <div className="p-7 rounded-xl">
-            <QrTag value={surveyAI} size={200} />
-          </div>
+          <QrTag value={surveyAI} size={qrSize} />
         </div>
 
         {/* Botones */}
@@ -260,17 +274,17 @@ export default function ResultStep({
             onClick={onAgain}
             label="NUEVA FOTO"
             imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-            width={310}
+             width="clamp(120px, 40vw, 310px)"
+              height="clamp(40px, 8vh, 60px)"
             className="min-w-[130px]"
-            height={50}
           />
           <ButtonPrimary
             onClick={handleDownload}
             label="DESCARGAR"
             imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-            width={310}
+             width="clamp(120px, 40vw, 310px)"
+              height="clamp(40px, 8vh, 60px)"
             className="min-w-[130px]"
-            height={50}
           />
         </div>
       </main>

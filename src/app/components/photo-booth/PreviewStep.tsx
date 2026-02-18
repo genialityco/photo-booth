@@ -48,23 +48,23 @@ export default function PreviewStep({
           </div>
         </div>
 
-        <div className="flex flex-row gap-1 sm:gap-2 justify-center overflow-x-auto whitespace-nowrap flex-shrink-0">
+        <div className="flex flex-row gap-1 sm:gap-2 justify-center overflow-x-auto whitespace-nowrap flex-shrink-0 w-full px-2">
           <ButtonPrimary
             onClick={onRetake}
             imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
             label="REPETIR"
-            width={310}
-            height={50}
-            className="min-w-[120px]"
+            width="clamp(120px, 40vw, 310px)"
+            height="clamp(40px, 8vh, 60px)"
+            className="flex-1 max-w-[310px]"
           />
           {onConfirm && (
             <ButtonPrimary
               onClick={onConfirm}
               imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
               label="CONFIRMAR"
-              width={310}
-              height={50}
-              className="min-w-[120px]"
+              width="clamp(120px, 40vw, 310px)"
+              height="clamp(40px, 8vh, 60px)"
+              className="flex-1 max-w-[310px]"
             />
           )}
         </div>

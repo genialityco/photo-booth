@@ -525,7 +525,7 @@ export const processImageTask = onDocumentCreated(
       // Agregar imagen de fondo del prompt si existe
       if (base64PromptBg) {
         parts.push(
-          { text: "Use this image as the background for the generated portrait. Integrate it seamlessly into the scene." },
+          { text: "Use this image as the background for the generated portrait. Integrate it EXACTLY seamlessly into the scene." },
           {
             inlineData: {
               mimeType: promptBgMime,
