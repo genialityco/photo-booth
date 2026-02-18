@@ -575,7 +575,7 @@ export const processImageTask = onDocumentCreated(
       // Agregar imagen de fondo del prompt si existe
       if (base64PromptBg) {
         parts.push(
-          { text: "Use this image as the background for the generated portrait. Integrate it EXACTLY seamlessly into the scene." },
+          { text: "CRITICAL INSTRUCTION - BACKGROUND IMAGE: You MUST use the following image as the EXACT background for the generated portrait. This is NOT optional. The background image provided below must be preserved EXACTLY as shown - do not modify, reinterpret, or change it in any way. Place the person in front of this background, ensuring the background remains completely unchanged and clearly visible behind the subject. The background should fill the entire image space. Do not create a new background - use THIS specific image." },
           {
             inlineData: {
               mimeType: promptBgMime,

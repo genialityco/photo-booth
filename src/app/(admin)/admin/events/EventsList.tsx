@@ -8,12 +8,16 @@ import {
   generateEventUrl,
 } from "@/app/services/photo-booth/eventService";
 import EventForm from "./EventForm";
+import QrTag from "@/app/components/photo-booth/QrTag";
 
 export default function EventsList() {
   const [events, setEvents] = useState<EventProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventProfile | null>(null);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrUrl, setQrUrl] = useState("");
+  const [qrEventName, setQrEventName] = useState("");
 
   const loadEvents = async () => {
     try {
@@ -57,6 +61,18 @@ export default function EventsList() {
   const handleCreate = () => {
     setEditingEvent(null);
     setShowForm(true);
+  };
+
+  const handleShowQr = (event: EventProfile) => {
+    const url = generateEventUrl(
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost:3000",
+      event.slug,
+    );
+    setQrUrl(url);
+    setQrEventName(event.name);
+    setShowQrModal(true);
   };
 
   if (showForm) {
@@ -169,6 +185,12 @@ export default function EventsList() {
                       >
                         Abrir
                       </button>
+                      <button
+                        onClick={() => handleShowQr(event)}
+                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs font-medium whitespace-nowrap"
+                      >
+                        Ver QR
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -191,6 +213,50 @@ export default function EventsList() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* QR Modal */}
+      {showQrModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowQrModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">
+                QR del Evento
+              </h2>
+              <button
+                onClick={() => setShowQrModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="text-center">
+              <p className="text-gray-700 font-medium mb-4">{qrEventName}</p>
+              <div className="flex justify-center mb-4">
+                <div className="bg-white p-4 rounded-lg shadow-md">
+                  <QrTag value={qrUrl} size={256} />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 break-all mb-4">{qrUrl}</p>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(qrUrl);
+                  alert("URL copiada al portapapeles");
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+              >
+                Copiar URL
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
