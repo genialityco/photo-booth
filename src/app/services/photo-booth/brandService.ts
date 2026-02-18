@@ -21,6 +21,8 @@ export type PhotoBoothPrompt = {
     basePrompt: string;
     colorDirectiveTemplate: string;
     promptBgImage?: string;
+    objectImage?: string;
+    objectImagePrompt?: string;
     active: boolean;
     createdAt: Timestamp | Date | null;
     updatedAt: Timestamp | Date | null;
@@ -58,6 +60,8 @@ function mapDocToPrompt(d: DocumentSnapshot): PhotoBoothPrompt {
         logoPrompt: data.logoPrompt ?? "",
         colorDirectiveTemplate: data.colorDirectiveTemplate ?? "",
         promptBgImage: data.promptBgImage ?? "",
+        objectImage: data.objectImage ?? "",
+        objectImagePrompt: data.objectImagePrompt ?? "",
         active: data.active ?? false,
         createdAt: tsToDate(data.createdAt),
         updatedAt: tsToDate(data.updatedAt),
@@ -172,6 +176,20 @@ export async function createPhotoBoothPrompt(
           const bgFileName = `${Date.now()}_${data.brand}_promptBg.${bgExt.replace("+", "_")}`;
           promptBgImageUrl = await uploadImageViaAPI(promptBgImageData, bgFileName, "brands");
       }
+
+      // handle objectImage if provided
+      let objectImageUrl = "";
+      let objectImageData = (data as any).objectImage;
+      if (objectImageData) {
+          if (typeof objectImageData === "string" && !objectImageData.startsWith("data:")) {
+              objectImageData = `data:${objectImageData}`;
+          }
+          const objBlob = dataURLtoBlob(objectImageData as string);
+          const objContentType = objBlob.type;
+          const objExt = objContentType.split("/")[1] || "png";
+          const objFileName = `${Date.now()}_${data.brand}_object.${objExt.replace("+", "_")}`;
+          objectImageUrl = await uploadImageViaAPI(objectImageData, objFileName, "brands");
+      }
   
       // 6. Crear documento en Firestore con logoUrl
       const promptData: Omit<PhotoBoothPrompt, "id"> = {
@@ -184,6 +202,8 @@ export async function createPhotoBoothPrompt(
                 logoPath: logoUrl, // <-- ahora guarda la URL
                 imageUrl: imageUrl,
                 promptBgImage: promptBgImageUrl,
+                objectImage: objectImageUrl,
+                objectImagePrompt: (data as any).objectImagePrompt || "",
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
@@ -388,18 +408,34 @@ export async function updatePhotoBoothPrompt(
                 const bgFileName = `${Date.now()}_${data.brand}_promptBg.${bgExt.replace('+', '_')}`;
                 promptBgImageUrl = await uploadImageViaAPI(promptBgImageData, bgFileName, "brands");
             }
-        const updateData = {
-            brand: data.brand,
-        brandName: (data as any).brandName || data.brand,
-        basePrompt: data.basePrompt,
-        colorDirectiveTemplate: data.colorDirectiveTemplate,
-        active: data.active,
-                logoPath: logoUrl, // <-- ahora guarda la URL
-                imageUrl: imageUrl,
-                promptBgImage: promptBgImageUrl,
-        logoPrompt: data.logoPrompt,
+
+            // handle objectImage upload if provided as data URL
+            let objectImageUrl = (data as any).objectImage;
+            const objectImageData = (data as any).objectImage;
+            if (objectImageData && typeof objectImageData === 'string' && objectImageData.startsWith('data:')) {
+                const objBlob = dataURLtoBlob(objectImageData);
+                const objContentType = objBlob.type;
+                const objExt = objContentType.split('/')[1] || 'png';
+                const objFileName = `${Date.now()}_${data.brand}_object.${objExt.replace('+', '_')}`;
+                objectImageUrl = await uploadImageViaAPI(objectImageData, objFileName, "brands");
+            }
+
+        const updateData: Record<string, any> = {
             updatedAt: Timestamp.now()
         };
+
+        // Only add fields that are not undefined
+        if (data.brand !== undefined) updateData.brand = data.brand;
+        if ((data as any).brandName !== undefined) updateData.brandName = (data as any).brandName || data.brand;
+        if (data.basePrompt !== undefined) updateData.basePrompt = data.basePrompt;
+        if (data.colorDirectiveTemplate !== undefined) updateData.colorDirectiveTemplate = data.colorDirectiveTemplate;
+        if (data.active !== undefined) updateData.active = data.active;
+        if (logoUrl !== undefined) updateData.logoPath = logoUrl;
+        if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+        if (promptBgImageUrl !== undefined) updateData.promptBgImage = promptBgImageUrl;
+        if (objectImageUrl !== undefined) updateData.objectImage = objectImageUrl;
+        if ((data as any).objectImagePrompt !== undefined) updateData.objectImagePrompt = (data as any).objectImagePrompt;
+        if (data.logoPrompt !== undefined) updateData.logoPrompt = data.logoPrompt;
         
         await updateDoc(docRef, updateData);
     } catch (error) {

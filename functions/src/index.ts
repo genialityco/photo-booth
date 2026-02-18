@@ -59,7 +59,7 @@ interface PromptDoc {
 
 const CACHE_DURATION_MS = 60 * 1000; // 60 segundos
 const promptCache = new Map<string, CachedPrompt>();
-const brandedPromptCache = new Map<string, { value: { basePrompt: string; colorDirectiveTemplate?: string; color?: string; logoPath?: string, logoPrompt?: string, promptBgImage?: string}; expiresAt: number }>();
+const brandedPromptCache = new Map<string, { value: { basePrompt: string; colorDirectiveTemplate?: string; color?: string; logoPath?: string, logoPrompt?: string, promptBgImage?: string, objectImage?: string, objectImagePrompt?: string}; expiresAt: number }>();
 
 // Función para limpiar cache expirado
 function cleanExpiredCache() {
@@ -74,7 +74,7 @@ function cleanExpiredCache() {
 // === Branded prompt loader with cache (60s) ===
 async function getBrandedPromptCached(
   brand?: string
-): Promise<{ basePrompt: string; colorDirectiveTemplate?: string; color?: string,  logoPath?: string, logoPrompt?: string, promptBgImage?: string}> {
+): Promise<{ basePrompt: string; colorDirectiveTemplate?: string; color?: string,  logoPath?: string, logoPrompt?: string, promptBgImage?: string, objectImage?: string, objectImagePrompt?: string}> {
   const key = `brand:${brand || "default"}`;
   const now = Date.now();
   const cached = brandedPromptCache.get(key);
@@ -96,7 +96,9 @@ async function getBrandedPromptCached(
             colorDirectiveTemplate: data.colorDirectiveTemplate,
             logoPath: data.logoPath,
             logoPrompt: data.logoPrompt,
-            promptBgImage: (data as any).promptBgImage
+            promptBgImage: (data as any).promptBgImage,
+            objectImage: (data as any).objectImage,
+            objectImagePrompt: (data as any).objectImagePrompt
           };
           brandedPromptCache.set(key, {
             value,
@@ -137,7 +139,7 @@ function sanitizeColor(color?: string): string | null {
 }
 
 // Construye el prompt dinámico usando basePrompt + colorDirectiveTemplate (si existe)
-async function buildPromptWithBrand(opts: { brand?: string; color?: string }): Promise<{logoPath: string | undefined, prompt: string, logoPrompt?: string, promptBgImage?: string}> {
+async function buildPromptWithBrand(opts: { brand?: string; color?: string }): Promise<{logoPath: string | undefined, prompt: string, logoPrompt?: string, promptBgImage?: string, objectImage?: string, objectImagePrompt?: string}> {
   const { brand, color } = opts || {};
   const branded = await getBrandedPromptCached(brand);
   const basePrompt = branded.basePrompt || DEFAULT_PROMPT;
@@ -147,9 +149,9 @@ async function buildPromptWithBrand(opts: { brand?: string; color?: string }): P
     const applied = c
       ? t.replace(/\${?color}?/gi, c).replace(/\{color\}/gi, c)
       : t;
-    return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, promptBgImage: branded.promptBgImage, prompt:basePrompt + "\n\n" + applied};
+    return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, promptBgImage: branded.promptBgImage, objectImage: branded.objectImage, objectImagePrompt: branded.objectImagePrompt, prompt:basePrompt + "\n\n" + applied};
   }
-  return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, promptBgImage: branded.promptBgImage, prompt:basePrompt};
+  return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, promptBgImage: branded.promptBgImage, objectImage: branded.objectImage, objectImagePrompt: branded.objectImagePrompt, prompt:basePrompt};
 }
 
 export const processGoatShotHttp = onRequest(
@@ -428,6 +430,8 @@ export const processImageTask = onDocumentCreated(
     let LOGO_PROMPT = DEFAULT_LOGO_PROMPT;
     let LOGO_URL = ""; // Cambiado el nombre de la variable para reflejar su contenido (URL)
     let PROMPT_BG_IMAGE_URL = ""; // Nueva variable para la imagen de fondo del prompt
+    let OBJECT_IMAGE_URL = ""; // Nueva variable para la imagen del objeto
+    let OBJECT_IMAGE_PROMPT = ""; // Nueva variable para el prompt del objeto
     if (data?.brand) {
       const promptData = await buildPromptWithBrand({
         brand: data.brand,
@@ -437,6 +441,8 @@ export const processImageTask = onDocumentCreated(
       LOGO_URL = promptData.logoPath || ""; // Asumimos que buildPromptWithBrand devuelve la URL en logoPath
       LOGO_PROMPT = promptData.logoPrompt || DEFAULT_LOGO_PROMPT;
       PROMPT_BG_IMAGE_URL = promptData.promptBgImage || "";
+      OBJECT_IMAGE_URL = (promptData as any).objectImage || "";
+      OBJECT_IMAGE_PROMPT = (promptData as any).objectImagePrompt || "";
     }
 
     if (!data?.inputPath) {
@@ -478,6 +484,18 @@ export const processImageTask = onDocumentCreated(
         }
       }
 
+      // 2c) Descargar imagen del objeto si existe
+      let base64ObjectImage: string | null = null;
+      let objectImageMime = "image/png";
+      
+      if (OBJECT_IMAGE_URL) {
+        const objData = await downloadAndConvertLogo(OBJECT_IMAGE_URL);
+        if (objData) {
+            base64ObjectImage = objData.base64;
+            objectImageMime = objData.mime;
+        }
+      }
+
       // 2b) Descargar imagen de fondo del prompt si existe
       let base64PromptBg: string | null = null;
       let promptBgMime = "image/png";
@@ -489,6 +507,9 @@ export const processImageTask = onDocumentCreated(
             promptBgMime = bgData.mime;
         }
       }
+
+      
+      
       
       // Actualizar debug info
       await docRef.update({
@@ -501,6 +522,9 @@ export const processImageTask = onDocumentCreated(
           logoUrl: LOGO_URL || null, // Cambiado a logoUrl
           hasPromptBgImage: !!base64PromptBg,
           promptBgImageUrl: PROMPT_BG_IMAGE_URL || null,
+          hasObjectImage: !!base64ObjectImage,
+          objectImageUrl: OBJECT_IMAGE_URL || null,
+          objectImagePrompt: OBJECT_IMAGE_PROMPT || null,
         },
       });
 
@@ -522,14 +546,14 @@ export const processImageTask = onDocumentCreated(
         },
       ];
 
-      // Agregar imagen de fondo del prompt si existe
-      if (base64PromptBg) {
+       // Agregar imagen del objeto si existe
+      if (base64ObjectImage && OBJECT_IMAGE_PROMPT) {
         parts.push(
-          { text: "Use this image as the background for the generated portrait. Integrate it EXACTLY seamlessly into the scene." },
+          { text: OBJECT_IMAGE_PROMPT },
           {
             inlineData: {
-              mimeType: promptBgMime,
-              data: base64PromptBg,
+              mimeType: objectImageMime,
+              data: base64ObjectImage,
             },
           }
         );
@@ -547,6 +571,21 @@ export const processImageTask = onDocumentCreated(
           }
         );
       }
+
+      // Agregar imagen de fondo del prompt si existe
+      if (base64PromptBg) {
+        parts.push(
+          { text: "Use this image as the background for the generated portrait. Integrate it EXACTLY seamlessly into the scene." },
+          {
+            inlineData: {
+              mimeType: promptBgMime,
+              data: base64PromptBg,
+            },
+          }
+        );
+      }
+
+     
       
       // ... (El resto del código para llamar a Gemini y guardar la salida sigue igual)
       // ... (Resto del código para la llamada a Gemini, verificación de errores y guardado de salida)

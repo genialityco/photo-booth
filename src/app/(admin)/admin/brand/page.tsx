@@ -208,6 +208,7 @@ export default function PhotoBoothPromptsPage() {
     { name: "basePrompt", label: "Prompt", type: "textarea", required: true, placeholder: "Ingresa el prompt" },
     { name: "logoPrompt", label: "Logo Prompt", type: "textarea", required: false, placeholder: "Ingresa el prompt" },
     { name: "colorDirectiveTemplate", label: "Color Template", type: "textarea", required: true, placeholder: "Ingresa el prompt de color" },
+    { name: "objectImagePrompt", label: "Object Image Prompt", type: "textarea", required: false, placeholder: "Prompt para la imagen del objeto" },
     { name: "active", label: "Active", type: "checkbox", required: true },
     {
       name: 'logo',
@@ -229,6 +230,14 @@ export default function PhotoBoothPromptsPage() {
     {
       name: 'promptBgImage',
       label: 'Fondo para Prompt',
+      type: 'image',
+      required: false,
+      accept: 'image/png,image/jpeg',
+      maxSize: 8
+    },
+    {
+      name: 'objectImage',
+      label: 'Imagen de Objeto',
       type: 'image',
       required: false,
       accept: 'image/png,image/jpeg',
