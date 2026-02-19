@@ -1,0 +1,80 @@
+/* eslint-disable @next/next/no-img-element */
+// app/components/ButtonPrimary.tsx
+"use client";
+
+import React from "react";
+
+type ButtonPrimaryProps = {
+  onClick?: () => void;
+  label?: string;
+  imageSrc?: string;
+  /** Ancho y alto del botón (px, rem, %, etc.). Ej: 192, "12rem", "50%" */
+  width?: number | string;
+  height?: number | string;
+  className?: string; // clases extra para el <button>
+  textClassName?: string; // clases extra para el <span> (texto)
+  disabled?: boolean;
+  ariaLabel?: string;
+};
+
+export default function ButtonPrimary({
+  onClick,
+  label = "EMPEZAR",
+  imageSrc = "/images/btn_principal.png",
+  width = 192,
+  height = 64,
+  className = "",
+  textClassName = "",
+  disabled = false,
+  ariaLabel,
+}: ButtonPrimaryProps) {
+  // Función para normalizar width/height a string CSS válido
+  const normalizeSize = (size: number | string): string => {
+    if (typeof size === "number") {
+      return `${size}px`;
+    }
+    return size;
+  };
+
+  const widthStyle = normalizeSize(width);
+  const heightStyle = normalizeSize(height);
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel || label}
+      className={[
+        // base layout
+        "mt-10 relative flex items-center justify-center select-none",
+        // visual
+        "outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+        // animación "presionar"
+        "transition-all duration-100 ease-out",
+        "hover:brightness-105",
+        
+        // disabled
+        "disabled:opacity-60 disabled:cursor-not-allowed",
+        className,
+      ].join(" ")}
+      style={{ width: widthStyle, height: heightStyle }}
+    >
+      <img
+        src={imageSrc}
+        alt={label}
+        className="absolute w-full h-full object-cover rounded-[14px]"
+        draggable={false}
+      />
+      <span
+        className={[
+          "relative z-10",
+          "font-azo text-white font-bold",
+          "text-xs sm:text-sm md:text-xl lg:text-lg",
+          textClassName,
+        ].join(" ")}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}

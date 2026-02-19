@@ -59,7 +59,7 @@ interface PromptDoc {
 
 const CACHE_DURATION_MS = 60 * 1000; // 60 segundos
 const promptCache = new Map<string, CachedPrompt>();
-const brandedPromptCache = new Map<string, { value: { basePrompt: string; colorDirectiveTemplate?: string; color?: string; logoPath?: string, logoPrompt?: string}; expiresAt: number }>();
+const brandedPromptCache = new Map<string, { value: { basePrompt: string; colorDirectiveTemplate?: string; color?: string; logoPath?: string, logoPrompt?: string, promptBgImage?: string, objectImage?: string, objectImagePrompt?: string}; expiresAt: number }>();
 
 // Función para limpiar cache expirado
 function cleanExpiredCache() {
@@ -74,7 +74,7 @@ function cleanExpiredCache() {
 // === Branded prompt loader with cache (60s) ===
 async function getBrandedPromptCached(
   brand?: string
-): Promise<{ basePrompt: string; colorDirectiveTemplate?: string; color?: string,  logoPath?: string, logoPrompt?: string}> {
+): Promise<{ basePrompt: string; colorDirectiveTemplate?: string; color?: string,  logoPath?: string, logoPrompt?: string, promptBgImage?: string, objectImage?: string, objectImagePrompt?: string}> {
   const key = `brand:${brand || "default"}`;
   const now = Date.now();
   const cached = brandedPromptCache.get(key);
@@ -95,7 +95,10 @@ async function getBrandedPromptCached(
             basePrompt: data.basePrompt,
             colorDirectiveTemplate: data.colorDirectiveTemplate,
             logoPath: data.logoPath,
-            logoPrompt: data.logoPrompt
+            logoPrompt: data.logoPrompt,
+            promptBgImage: (data as any).promptBgImage,
+            objectImage: (data as any).objectImage,
+            objectImagePrompt: (data as any).objectImagePrompt
           };
           brandedPromptCache.set(key, {
             value,
@@ -136,7 +139,7 @@ function sanitizeColor(color?: string): string | null {
 }
 
 // Construye el prompt dinámico usando basePrompt + colorDirectiveTemplate (si existe)
-async function buildPromptWithBrand(opts: { brand?: string; color?: string }): Promise<{logoPath: string | undefined, prompt: string, logoPrompt?: string}> {
+async function buildPromptWithBrand(opts: { brand?: string; color?: string }): Promise<{logoPath: string | undefined, prompt: string, logoPrompt?: string, promptBgImage?: string, objectImage?: string, objectImagePrompt?: string}> {
   const { brand, color } = opts || {};
   const branded = await getBrandedPromptCached(brand);
   const basePrompt = branded.basePrompt || DEFAULT_PROMPT;
@@ -146,9 +149,9 @@ async function buildPromptWithBrand(opts: { brand?: string; color?: string }): P
     const applied = c
       ? t.replace(/\${?color}?/gi, c).replace(/\{color\}/gi, c)
       : t;
-    return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, prompt:basePrompt + "\n\n" + applied};
+    return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, promptBgImage: branded.promptBgImage, objectImage: branded.objectImage, objectImagePrompt: branded.objectImagePrompt, prompt:basePrompt + "\n\n" + applied};
   }
-  return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, prompt:basePrompt};
+  return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, promptBgImage: branded.promptBgImage, objectImage: branded.objectImage, objectImagePrompt: branded.objectImagePrompt, prompt:basePrompt};
 }
 
 export const processGoatShotHttp = onRequest(
@@ -426,6 +429,9 @@ export const processImageTask = onDocumentCreated(
     let PROMPT = DEFAULT_PROMPT;
     let LOGO_PROMPT = DEFAULT_LOGO_PROMPT;
     let LOGO_URL = ""; // Cambiado el nombre de la variable para reflejar su contenido (URL)
+    let PROMPT_BG_IMAGE_URL = ""; // Nueva variable para la imagen de fondo del prompt
+    let OBJECT_IMAGE_URL = ""; // Nueva variable para la imagen del objeto
+    let OBJECT_IMAGE_PROMPT = ""; // Nueva variable para el prompt del objeto
     if (data?.brand) {
       const promptData = await buildPromptWithBrand({
         brand: data.brand,
@@ -434,7 +440,9 @@ export const processImageTask = onDocumentCreated(
       PROMPT = promptData.prompt;
       LOGO_URL = promptData.logoPath || ""; // Asumimos que buildPromptWithBrand devuelve la URL en logoPath
       LOGO_PROMPT = promptData.logoPrompt || DEFAULT_LOGO_PROMPT;
-    
+      PROMPT_BG_IMAGE_URL = promptData.promptBgImage || "";
+      OBJECT_IMAGE_URL = (promptData as any).objectImage || "";
+      OBJECT_IMAGE_PROMPT = (promptData as any).objectImagePrompt || "";
     }
 
     if (!data?.inputPath) {
@@ -475,6 +483,33 @@ export const processImageTask = onDocumentCreated(
             logoMime = logoData.mime;
         }
       }
+
+      // 2c) Descargar imagen del objeto si existe
+      let base64ObjectImage: string | null = null;
+      let objectImageMime = "image/png";
+      
+      if (OBJECT_IMAGE_URL) {
+        const objData = await downloadAndConvertLogo(OBJECT_IMAGE_URL);
+        if (objData) {
+            base64ObjectImage = objData.base64;
+            objectImageMime = objData.mime;
+        }
+      }
+
+      // 2b) Descargar imagen de fondo del prompt si existe
+      let base64PromptBg: string | null = null;
+      let promptBgMime = "image/png";
+      
+      if (PROMPT_BG_IMAGE_URL) {
+        const bgData = await downloadAndConvertLogo(PROMPT_BG_IMAGE_URL);
+        if (bgData) {
+            base64PromptBg = bgData.base64;
+            promptBgMime = bgData.mime;
+        }
+      }
+
+      
+      
       
       // Actualizar debug info
       await docRef.update({
@@ -485,6 +520,11 @@ export const processImageTask = onDocumentCreated(
           prompt: PROMPT,
           hasLogo: !!base64Logo,
           logoUrl: LOGO_URL || null, // Cambiado a logoUrl
+          hasPromptBgImage: !!base64PromptBg,
+          promptBgImageUrl: PROMPT_BG_IMAGE_URL || null,
+          hasObjectImage: !!base64ObjectImage,
+          objectImageUrl: OBJECT_IMAGE_URL || null,
+          objectImagePrompt: OBJECT_IMAGE_PROMPT || null,
         },
       });
 
@@ -506,6 +546,19 @@ export const processImageTask = onDocumentCreated(
         },
       ];
 
+       // Agregar imagen del objeto si existe
+      if (base64ObjectImage && OBJECT_IMAGE_PROMPT) {
+        parts.push(
+          { text: OBJECT_IMAGE_PROMPT },
+          {
+            inlineData: {
+              mimeType: objectImageMime,
+              data: base64ObjectImage,
+            },
+          }
+        );
+      }
+
       // Agregar logo si existe
       if (base64Logo) {
         parts.unshift(
@@ -518,6 +571,21 @@ export const processImageTask = onDocumentCreated(
           }
         );
       }
+
+      // Agregar imagen de fondo del prompt si existe
+      if (base64PromptBg) {
+        parts.push(
+          { text: "CRITICAL INSTRUCTION - BACKGROUND IMAGE: You MUST use the following image as the EXACT background for the generated portrait. This is NOT optional. The background image provided below must be preserved EXACTLY as shown - do not modify, reinterpret, or change it in any way. Place the person in front of this background, ensuring the background remains completely unchanged and clearly visible behind the subject. The background should fill the entire image space. Do not create a new background - use THIS specific image." },
+          {
+            inlineData: {
+              mimeType: promptBgMime,
+              data: base64PromptBg,
+            },
+          }
+        );
+      }
+
+     
       
       // ... (El resto del código para llamar a Gemini y guardar la salida sigue igual)
       // ... (Resto del código para la llamada a Gemini, verificación de errores y guardado de salida)
@@ -529,7 +597,7 @@ export const processImageTask = onDocumentCreated(
       ];
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image-preview",
+        model: "gemini-2.5-flash-image",
         contents: contents,
    
       });
@@ -638,6 +706,102 @@ export const processImageTask = onDocumentCreated(
         prompt: PROMPT,
         updatedAt: Date.now(),
         stackTrace: e?.stack?.substring(0, 500),
+      });
+    }
+  }
+);
+
+// ===== Cloud Function para subir imágenes de eventos =====
+export const uploadEventImage = onRequest(
+  { memory: "256MiB", timeoutSeconds: 60 },
+  async (req, res) => {
+    // Agregar headers CORS
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+
+    // Manejar preflight request
+    if (req.method === "OPTIONS") {
+      res.status(204).send("");
+      return;
+    }
+
+    // Solo permite POST
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    try {
+      const { imageData, fileName, eventSlug } = req.body;
+
+      // Validar campos requeridos
+      if (!imageData || !fileName || !eventSlug) {
+        res.status(400).json({
+          error: "Missing required fields: imageData, fileName, eventSlug",
+        });
+        return;
+      }
+
+      // Validar que imageData sea una base64 válida
+      if (typeof imageData !== "string") {
+        res.status(400).json({ error: "imageData must be a string" });
+        return;
+      }
+
+      // Convertir base64 a buffer
+      let buffer: Buffer;
+      try {
+        // Soporta data URLs like "data:image/png;base64,..."
+        const base64String = imageData.includes(",")
+          ? imageData.split(",")[1]
+          : imageData;
+        buffer = Buffer.from(base64String, "base64");
+      } catch (e) {
+        res.status(400).json({ error: "Invalid base64 format" });
+        return;
+      }
+
+      // Determinar content type
+      let contentType = "image/png";
+      if (fileName.includes(".jpg") || fileName.includes(".jpeg")) {
+        contentType = "image/jpeg";
+      } else if (fileName.includes(".webp")) {
+        contentType = "image/webp";
+      } else if (fileName.includes(".gif")) {
+        contentType = "image/gif";
+      }
+
+      // Crear referencia en Storage
+      const storage = getStorage();
+      const bucket = storage.bucket();
+      const filePath = `events/${eventSlug}/${Date.now()}_${fileName}`;
+      const file = bucket.file(filePath);
+
+      // Subir archivo
+      await file.save(buffer, {
+        metadata: {
+          contentType,
+          cacheControl: "public, max-age=31536000", // 1 año
+        },
+      });
+
+      // Hacer público
+      await file.makePublic();
+
+      // Obtener URL pública
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+      res.status(200).json({
+        success: true,
+        url: publicUrl,
+        filePath,
+      });
+    } catch (error) {
+      console.error("Error uploading event image:", error);
+      res.status(500).json({
+        error: "Failed to upload image",
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }

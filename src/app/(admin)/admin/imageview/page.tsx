@@ -2,8 +2,8 @@
 
 import React, { useState } from "react";
 
-import AdminList from "@/app/home/components/admin/AdminList";
-import ListParticipants from "@/app/home/components/admin/ListParticipants";
+import AdminList from "@/app/components/admin/AdminList";
+import ListParticipants from "@/app/components/admin/ListParticipants";
 
 export default function AdminPage() {
   const [view, setView] = useState<"tasks" | "participants">("tasks");

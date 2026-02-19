@@ -5,6 +5,12 @@ export const runtime = "nodejs";
 
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3001",
+  "http://192.168.40.9:3001", // Network access
+  // Allow any origin during development (remove in production)
+  "http://localhost",
 ];
 
 function getOrigin(req: NextRequest) {

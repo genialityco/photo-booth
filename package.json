@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node generate-firebase-creds.js && next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "@google/genai": "^1.21.0",
+    "@google-cloud/secret-manager": "^5.5.0",
+    "axios": "^1.12.2",
     "firebase": "^12.1.0",
     "firebase-admin": "^13.4.0",
     "firebase-functions": "^6.4.0",

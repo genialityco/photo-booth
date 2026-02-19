@@ -1,0 +1,13 @@
+import PhotoBoothWizard from "@/app/components/photo-booth/PhotoBoothWizard";
+import { Suspense } from "react";
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <PhotoBoothWizard
+        frameSrc="/images/marco.png"
+        mirror
+        boxSize="min(95vw, 95vh)"
+      />
+    </Suspense>
+  );
+}
