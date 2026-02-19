@@ -35,6 +35,7 @@ export default function EventForm({
     loadingMessage: event?.loadingMessage || "Generando imagen",
     showLogosInLoader: event?.showLogosInLoader !== false,
     enableFrame: event?.enableFrame !== false,
+    dataProcessingText: event?.dataProcessingText || "",
     prompts: event?.prompts || [],
     isActive: event?.isActive !== false,
   });
@@ -185,6 +186,23 @@ export default function EventForm({
               rows={3}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Tratamiento de Datos
+            </label>
+            <textarea
+              name="dataProcessingText"
+              value={formData.dataProcessingText || ""}
+              onChange={handleChange}
+              rows={5}
+              placeholder="Ingrese el texto sobre el tratamiento de datos personales..."
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Texto informativo sobre el tratamiento de datos personales para este evento
+            </p>
           </div>
 
           <div className="flex items-center">

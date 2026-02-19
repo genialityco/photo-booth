@@ -80,9 +80,13 @@ export default function EventBoothPage({
       {!boothStarted ? (
         <EventPhotoBoothLanding
           event={event}
-          onStart={(brand) => {
+          onStart={(brand, dataProcessingAccepted) => {
             // Guardar brand en sessionStorage para que PhotoBoothWizard lo use
             if (brand) sessionStorage.setItem("selectedBrand", brand);
+            // Guardar aceptación de tratamiento de datos
+            if (dataProcessingAccepted !== undefined) {
+              sessionStorage.setItem("dataProcessingAccepted", String(dataProcessingAccepted));
+            }
             setBoothStarted(true);
           }}
         />

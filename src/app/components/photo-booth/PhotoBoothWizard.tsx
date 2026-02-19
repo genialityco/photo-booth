@@ -266,6 +266,9 @@ export default function PhotoBoothWizard({
         null;
       const finalColor =
         color || sessionStorage.getItem("selectedColor") || null;
+      
+      // Leer aceptación de tratamiento de datos
+      const dataProcessingAccepted = sessionStorage.getItem("dataProcessingAccepted") === "true";
 
       // Resolver el brand field a partir del promptId (la Cloud Function busca por 'brand')
       let finalBrand = "default";
@@ -308,6 +311,7 @@ export default function PhotoBoothWizard({
         color: finalColor,
         prompt: finalBrand, // También enviar como 'prompt' para compatibilidad con Cloud Function
         promptId: promptId, // Guardar el ID también para referencia
+        dataProcessingAccepted: dataProcessingAccepted, // Guardar aceptación de tratamiento de datos
         taskId: newTaskId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

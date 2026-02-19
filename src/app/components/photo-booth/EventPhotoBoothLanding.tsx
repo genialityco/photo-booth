@@ -10,13 +10,14 @@ export default function EventPhotoBoothLanding({
   onStart,
 }: {
   event: EventProfile;
-  onStart?: (brand?: string) => void;
+  onStart?: (brand?: string, dataProcessingAccepted?: boolean) => void;
 }) {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [prompts, setPrompts] = useState<PhotoBoothPrompt[]>([]);
   const [loadingPrompts, setLoadingPrompts] = useState(true);
   const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
   const [imageErrorStates, setImageErrorStates] = useState<Record<string, boolean>>({});
+  const [dataProcessingAccepted, setDataProcessingAccepted] = useState(false);
 
   // Cargar los prompts completos usando los IDs del evento
   useEffect(() => {
@@ -62,7 +63,30 @@ export default function EventPhotoBoothLanding({
 
   const handleStart = () => {
     const brand = selectedBrand || (prompts.length > 0 ? prompts[0].id : "default");
-    onStart?.(brand);
+    onStart?.(brand, dataProcessingAccepted);
+  };
+
+  // Determinar si el botón debe estar habilitado
+  const isStartEnabled = !event.dataProcessingText || dataProcessingAccepted;
+
+  // Determinar el grid según la cantidad de brands
+  const getGridClass = () => {
+    const count = prompts.length;
+    if (count === 1) return "grid-cols-1 mx-auto";
+    if (count === 2) return "grid-cols-2 mx-auto";
+    if (count === 3) return "grid-cols-3 mx-auto";
+    if (count === 4) return "grid-cols-2 sm:grid-cols-4 mx-auto";
+    return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
+  };
+
+  // Determinar el tamaño de las cards según la cantidad
+  const getCardSizeClass = () => {
+    const count = prompts.length;
+    if (count === 1) return "w-74 h-74"; // Grande para 1 brand
+    if (count === 2) return "w-64 h-64"; // Mediano para 2 brands
+    if (count === 3) return "w-40 h-40"; // Mediano-pequeño para 3 brands
+    if (count === 4) return "w-36 h-36"; // Pequeño para 4 brands
+    return "w-32 h-32"; // Más pequeño para 5+ brands
   };
 
   return (
@@ -82,7 +106,7 @@ export default function EventPhotoBoothLanding({
         aria-hidden
       />
 
-      <div className="mx-auto flex min-h-[100svh] max-w-[980px] flex-col items-center px-4 sm:px-6 md:px-8">
+      <div className="mx-auto flex min-h-[100svh] max-w-[980px] flex-col items-center justify-center px-4 sm:px-6 md:px-8">
         {/* Top Logo */}
         <div  className={`
     relative z-5 flex-shrink-0
@@ -108,16 +132,16 @@ export default function EventPhotoBoothLanding({
         </h1> */}
 
         {/* Selection Panels - Centered and Scrollable */}
-        <div className="mt-8 sm:mt-12 w-full max-w-2xl flex-1 overflow-y-auto">
+        <div className="flex-1 w-full max-w-2xl flex items-center justify-center">
           {/* Brand Selection */}
-          <div className="mb-8">
+          <div className="w-full">
             <h2 className="text-center text-sm sm:text-base font-semibold text-white mb-4 drop-shadow">
               
             </h2>
             {loadingPrompts ? (
               <div className="text-center text-white">Cargando marcas...</div>
             ) : prompts.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 px-4">
+              <div className={`grid gap-3 px-4 ${getGridClass()}`}>
                 {prompts.map((prompt) => {
                   const imgSrc = prompt.imageUrl || prompt.logoPath;
                   const isLoading = imageLoadingStates[prompt.id];
@@ -126,14 +150,14 @@ export default function EventPhotoBoothLanding({
                   const displayName = prompt.brandName || prompt.brand || "Opción";
 
                   return (
-                    <div key={prompt.id} className="flex flex-col gap-2">
+                    <div key={prompt.id} className="flex flex-col gap-2 justify-center items-center">
 
 
                       {/* Brand Image Button */}
                       <button
                         onClick={() => setSelectedBrand(prompt.id)}
-                        className={`relative rounded-lg font-semibold transition-all overflow-hidden flex items-center justify-center aspect-square ${selectedBrand === prompt.id
-                            ? "ring-4 ring-yellow-400 scale-105"
+                        className={`relative rounded-lg font-semibold transition-all overflow-hidden flex items-center justify-center ${getCardSizeClass()} ${selectedBrand === prompt.id
+                            ? "ring-4 ring-blue-400 scale-105"
                             : "hover:scale-105 opacity-85 hover:opacity-100"
                           }`}
                       >
@@ -184,20 +208,47 @@ export default function EventPhotoBoothLanding({
         </div>
 
         {/* Start Button */}
-        <div className="mb-12 sm:mb-16 md:mb-20">
+        <div className="mb-12 sm:mb-16 md:mb-20 flex flex-col items-center gap-4 px-4">
+          {/* Data Processing Checkbox */}
+          {event.dataProcessingText && (
+            <div className="bg-white/90 backdrop-blur-sm rounded-lg p-4 max-w-md w-full shadow-lg">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="dataProcessing"
+                  checked={dataProcessingAccepted}
+                  onChange={(e) => setDataProcessingAccepted(e.target.checked)}
+                  className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer flex-shrink-0"
+                />
+                <label
+                  htmlFor="dataProcessing"
+                  className="text-sm text-gray-700 cursor-pointer select-none"
+                >
+                  {event.dataProcessingText}
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Start Button */}
           <button
             onClick={handleStart}
-            className="px-12 py-4 text-white font-semibold rounded-lg transition-all duration-200 active:scale-95 text-base sm:text-lg"
+            disabled={!isStartEnabled}
+            className={`px-12 py-4 text-white font-semibold rounded-lg transition-all duration-200 text-base sm:text-lg ${
+              isStartEnabled
+                ? "active:scale-95 cursor-pointer"
+                : "opacity-50 cursor-not-allowed"
+            }`}
             style={
               event.buttonImage
                 ? {
-                  backgroundImage: `url('${event.buttonImage}')`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }
+                    backgroundImage: `url('${event.buttonImage}')`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }
                 : {
-                  backgroundColor: "rgba(255, 255, 255, 0.3)",
-                }
+                    backgroundColor: "rgba(255, 255, 255, 0.3)",
+                  }
             }
           >
             {event.buttonImage && (
