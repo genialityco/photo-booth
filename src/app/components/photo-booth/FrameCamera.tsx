@@ -104,8 +104,8 @@ export default function FrameCamera({
           audio: false,
           video: {
             facingMode: "user",
-            width: { ideal: 320, max: 1920 },
-            height: { ideal: 240, max: 1080 },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
           },
         });
 
@@ -118,6 +118,16 @@ export default function FrameCamera({
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play().catch(() => {});
+          
+          // Log de la resolución real obtenida
+          const videoTrack = stream.getVideoTracks()[0];
+          const settings = videoTrack.getSettings();
+          console.log("Camera resolution:", {
+            width: settings.width,
+            height: settings.height,
+            aspectRatio: settings.aspectRatio,
+            deviceId: settings.deviceId
+          });
         }
         setError(null);
       } catch (e) {
