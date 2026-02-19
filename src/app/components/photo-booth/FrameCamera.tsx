@@ -114,7 +114,7 @@ export default function FrameCamera({
 
         const { width: resWidth, height: resHeight } = getResolutionDimensions(resolution);
 
-        const stream = await (
+        const stream = await ( 
           navigator.mediaDevices as MediaDevices
         ).getUserMedia({
           audio: false,
