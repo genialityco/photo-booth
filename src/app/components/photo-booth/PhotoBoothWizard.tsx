@@ -30,6 +30,8 @@ export default function PhotoBoothWizard({
   mirror = true,
   // Caja cuadrada responsiva: mínimo 320px, escala con viewport
   boxSize = "min(80vw, 80vh)",
+  width,
+  height,
   borderRadius = "4xl",
   eventData,
   onReset,
@@ -37,6 +39,8 @@ export default function PhotoBoothWizard({
   frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
+   width?: string;
+  height?: string;
   borderRadius?: "none" | "md" | "lg" | "xl" | "4xl";
   eventData?: EventProfile;
   onReset?: () => void;
@@ -420,15 +424,17 @@ export default function PhotoBoothWizard({
       </div>
 
       {/* CONTENT: Contenedor del contenido (capture, preview, result) */}
-      <div className="relative z-20 flex-1 flex items-center justify-center overflow-hidden px-3 sm:px-4">
+      <div className="relative z-20 flex-1 flex items-center justify-center overflow-hidden ">
         <div
-          className="flex items-center justify-center overflow-hidden"
-          style={{ width: boxSize, height: boxSize, maxHeight: "100%" }}
+          className="flex items-center justify-center overflow-auto md:overflow-hidden "
+          
         >
           {step === "capture" && (
             <CaptureStep
               mirror={mirror}
               boxSize={boxSize}
+               width = {width}
+              height = {height}
               borderRadius={borderRadius}
               onCaptured={handleCaptured}
               frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
@@ -441,6 +447,8 @@ export default function PhotoBoothWizard({
               framedShot={framedShot}
               rawShot={rawShot || undefined}
               boxSize={boxSize}
+               width = {width}
+              height = {height}
               borderRadius={borderRadius}
               onRetake={resetAll}
               onConfirm={confirmAndProcess}
@@ -458,12 +466,15 @@ export default function PhotoBoothWizard({
           )}
 
           {step === "result" && framedShot && aiUrl && (
-            <ResultStep
-              taskId={taskId!}
-              aiUrl={aiUrl}
-              onAgain={resetAll}
-              buttonImage={eventData?.buttonImage}
-            />
+            
+              <ResultStep
+                taskId={taskId!}
+                aiUrl={aiUrl}
+                onAgain={resetAll}
+                buttonImage={eventData?.buttonImage}
+              />
+
+           
           )}
         </div>
       </div>

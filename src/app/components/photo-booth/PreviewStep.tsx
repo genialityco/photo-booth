@@ -8,6 +8,8 @@ export default function PreviewStep({
   framedShot,
   rawShot,
   boxSize = "min(88vw, 60svh)",
+  width,
+  height,
   borderRadius = "xl",
   onRetake,
   onConfirm,
@@ -16,6 +18,8 @@ export default function PreviewStep({
   framedShot: string; // foto con marco (no se usa visualmente)
   rawShot?: string; // foto sin marco (para mostrar)
   boxSize?: string;
+  width?: string;
+  height?: string;
   borderRadius?: "none" | "md" | "lg" | "xl" | "4xl";
   buttonImage?: string;
   onRetake: () => void;
@@ -34,16 +38,20 @@ export default function PreviewStep({
   
   {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 overflow-hidden">
-        <div className={`flex-1 flex items-center justify-center overflow-hidden w-full ${borderRadiusClass}`}>
+      <div className={`w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2  ${borderRadiusClass}`}>
+        <div className={`flex-1 flex items-center justify-center overflow-visible md:overflow-hidden w-full ${borderRadiusClass}`}>
           <div
-            className={`relative overflow-hidden shadow-lg w-full flex-shrink-0`}
-            style={{ width: boxSize, height: boxSize, aspectRatio: "1" }}
+            className={`relative overflow-hidden shadow-lg w-full h-full flex-shrink-0`}
+            style={{ 
+              width: width || boxSize, 
+              height: height || boxSize, 
+              aspectRatio: "1" 
+            }}
           >
             <img
               src={displayImage}
               alt="Preview"
-              className="absolute inset-0 w-full h-full object-contain"
+              className="absolute inset-0 w-full h-full object-cover"
             />
           </div>
         </div>

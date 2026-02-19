@@ -19,6 +19,51 @@ export default function EventBoothPage({
   const [error, setError] = useState<string | null>(null);
   const [boothStarted, setBoothStarted] = useState(false);
   const [skipBrandSelection, setSkipBrandSelection] = useState(false);
+  const [boxSize, setBoxSize] = useState("min(80vw, 80vh)");
+  const [width, setWidth] = useState<string | undefined>(undefined);
+  const [height, setHeight] = useState<string | undefined>(undefined);
+
+  // Función para calcular el width según el tamaño de pantalla
+  const calculateWidth = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      return "100vw"; // Ancho casi completo en móvil
+    }
+    return "100vw"; // Usar boxSize en desktop
+  };
+
+  // Función para calcular el height según el tamaño de pantalla
+  const calculateHeight = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      return "55vh"; // Alto casi completo en móvil
+    }
+    return "55vh"; // Usar boxSize en desktop
+  };
+
+  // Función para calcular el boxSize según el tamaño de pantalla
+  const calculateBoxSize = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      return "min(100vw, 800px)";
+    }
+    return "min(80vw, 80vh)";
+  };
+  
+
+  useEffect(() => {
+    // Establecer valores iniciales
+    setBoxSize(calculateBoxSize());
+    setWidth(calculateWidth());
+    setHeight(calculateHeight());
+
+    // Actualizar valores cuando cambie el tamaño de la ventana
+    const handleResize = () => {
+      setBoxSize(calculateBoxSize());
+      setWidth(calculateWidth());
+      setHeight(calculateHeight());
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -93,8 +138,10 @@ export default function EventBoothPage({
       ) : (
         <PhotoBoothWizard
           mirror
-          boxSize="min(80vw, 80vh)"
+          boxSize={boxSize}
           eventData={event}
+          width={width}
+          height={height}
           onReset={
             skipBrandSelection
               ? undefined // Si solo hay una brand, no permitir volver a la selección

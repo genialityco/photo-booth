@@ -25,11 +25,15 @@ export default function FrameCamera({
   frameSrc = "", // "/congresoEdu/MARCO_CONGRESO-DE-EDUACION_FINAL.png",
   mirror = true,
   boxSize = "min(88vw, 60svh)",
+  width = "100vw",
+  height = "80vh",
   onReady,
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
+  width?: string;
+  height?: string;
   onReady?: (api: { getVideoEl: () => HTMLVideoElement | null }) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -142,7 +146,10 @@ export default function FrameCamera({
     <div className="w-full flex flex-col items-center justify-center gap-2">
       <div
         className={`relative overflow-hidden shadow-2xl`}
-        style={{ width: boxSize, height: boxSize }}
+        style={{ 
+          width: width || boxSize, 
+          height: height || boxSize 
+        }}
       >
         <video
           ref={videoRef}
