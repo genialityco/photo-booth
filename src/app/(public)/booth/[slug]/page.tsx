@@ -25,6 +25,9 @@ export default function EventBoothPage({
 
   // Función para calcular el width según el tamaño de pantalla
   const calculateWidth = () => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1080) {
+  return "80vw"; // Ancho casi completo en móvil
+}
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       return "100vw"; // Ancho casi completo en móvil
     }
@@ -33,6 +36,7 @@ export default function EventBoothPage({
 
   // Función para calcular el height según el tamaño de pantalla
   const calculateHeight = () => {
+
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       return "55vh"; // Alto casi completo en móvil
     }

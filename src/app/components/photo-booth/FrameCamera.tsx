@@ -179,7 +179,7 @@ export default function FrameCamera({
       >
         <video
           ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover lg:object-contain"
           style={{
             transform: mirror ? "scaleX(-1)" : "none"
           }}
