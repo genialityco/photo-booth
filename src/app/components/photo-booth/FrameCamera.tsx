@@ -37,8 +37,22 @@ export default function FrameCamera({
   onReady?: (api: { getVideoEl: () => HTMLVideoElement | null }) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [resolution, setResolution] = useState<"720p" | "1080p" | "4k">("1080p");
+  const [showResolutionMenu, setShowResolutionMenu] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Obtener dimensiones según la resolución seleccionada
+  const getResolutionDimensions = (res: "720p" | "1080p" | "4k") => {
+    switch (res) {
+      case "720p":
+        return { width: 1280, height: 720 };
+      case "1080p":
+        return { width: 1920, height: 1080 };
+      case "4k":
+        return { width: 3840, height: 2160 };
+    }
+  };
 
   // Polyfill sin `any`
   function ensureGetUserMedia(): boolean {
@@ -98,14 +112,16 @@ export default function FrameCamera({
           streamRef.current = null;
         }
 
+        const { width: resWidth, height: resHeight } = getResolutionDimensions(resolution);
+
         const stream = await (
           navigator.mediaDevices as MediaDevices
         ).getUserMedia({
           audio: false,
           video: {
             facingMode: "user",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
+            width: { ideal: resWidth },
+            height: { ideal: resHeight },
           },
         });
 
@@ -145,7 +161,7 @@ export default function FrameCamera({
         streamRef.current = null;
       }
     };
-  }, []);
+  }, [resolution]);
 
   useEffect(() => {
     onReady?.({ getVideoEl: () => videoRef.current });
@@ -171,6 +187,36 @@ export default function FrameCamera({
           autoPlay
           muted
         />
+
+        {/* Botón de resolución */}
+        <div className="absolute top-2 right-2 z-10">
+          <button
+            onClick={() => setShowResolutionMenu(!showResolutionMenu)}
+            className="bg-black/50 hover:bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm transition-colors"
+            aria-label="Cambiar resolución"
+          >
+            {resolution}
+          </button>
+          
+          {showResolutionMenu && (
+            <div className="absolute top-full right-0 mt-1 bg-black/80 backdrop-blur-sm rounded shadow-lg overflow-hidden">
+              {(["720p", "1080p", "4k"] as const).map((res) => (
+                <button
+                  key={res}
+                  onClick={() => {
+                    setResolution(res);
+                    setShowResolutionMenu(false);
+                  }}
+                  className={`block w-full text-left px-3 py-2 text-xs text-white hover:bg-white/20 transition-colors ${
+                    resolution === res ? "bg-white/10" : ""
+                  }`}
+                >
+                  {res}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* ─────────────────────────────────────────────────────────────────
           Marco DESACTIVADO por defecto.
