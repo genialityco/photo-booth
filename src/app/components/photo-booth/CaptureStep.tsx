@@ -11,6 +11,8 @@ export default function CaptureStep({
   frameSrc = null,
   mirror = true,
   boxSize = "min(88vw, 60svh)",
+  width ,
+  height,
   borderRadius = "xl",
   onCaptured,
   buttonImage,
@@ -18,6 +20,8 @@ export default function CaptureStep({
   frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
+  width?: string;
+  height?: string;
   borderRadius?: "none" | "md" | "lg" | "xl" | "4xl";
   buttonImage?: string;
   onCaptured: (payload: { framed: string; raw: string }) => void;
@@ -150,13 +154,9 @@ export default function CaptureStep({
       });
       console.log("Capture with frame:", { w, h });
     } else {
-      // --- Sin marco ---
-      const square = Math.min(
-        video.videoWidth || 1080,
-        video.videoHeight || 1080,
-      );
-      const targetW = square;
-      const targetH = square;
+      // --- Sin marco: usar dimensiones del video ---
+      const targetW = video.videoWidth || 1080;
+      const targetH = video.videoHeight || 1080;
 
       framed = captureWithFrame({
         video,
@@ -165,15 +165,13 @@ export default function CaptureStep({
         targetH,
         mirror,
       });
-      console.log("Capture without frame");
+      console.log("Capture without frame:", { targetW, targetH });
     }
 
-    // Raw siempre es sin marco
-    const square = Math.min(
-      video.videoWidth || 1080,
-      video.videoHeight || 1080,
-    );
-    const raw = captureRawSquare({ video, targetW: square, targetH: square, mirror });
+    // Raw: usar dimensiones reales del video (no forzar cuadrado)
+    const targetW = video.videoWidth || 1080;
+    const targetH = video.videoHeight || 1080;
+    const raw = captureRawSquare({ video, targetW, targetH, mirror });
 
     setFlash(true);
     setTimeout(() => setFlash(false), 120);
@@ -189,13 +187,14 @@ export default function CaptureStep({
   }[borderRadius];
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 overflow-hidden px-2 sm:px-3">
-      <div className={`flex-1 flex items-center justify-center w-full overflow-hidden ${borderRadiusClass}`}>
+    <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 overflow-hidden ">
+      <div className={`flex-1 flex items-center justify-center w-full overflow-visible md:overflow-hidden ${borderRadiusClass}`}>
         <FrameCamera
           frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
           mirror={mirror}
           boxSize={boxSize}
-      
+          width = {width}
+            height = {height}
           onReady={onReady}
         />
       </div>
@@ -214,8 +213,8 @@ export default function CaptureStep({
           onClick={startCapture}
           label={canShoot ? "TOMAR FOTO" : "Cargando cámara…"}
           imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-          width={620}
-          height={50}
+             width="clamp(310px, 100vw, 600px)"
+              height="clamp(40px, 8vh, 60px)"
           disabled={!canShoot}
           ariaLabel="Tomar foto"
         />

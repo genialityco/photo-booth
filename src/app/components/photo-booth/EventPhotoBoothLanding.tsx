@@ -18,6 +18,18 @@ export default function EventPhotoBoothLanding({
   const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
   const [imageErrorStates, setImageErrorStates] = useState<Record<string, boolean>>({});
   const [dataProcessingAccepted, setDataProcessingAccepted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detectar tamaño de pantalla
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Cargar los prompts completos usando los IDs del evento
   useEffect(() => {
@@ -79,9 +91,20 @@ export default function EventPhotoBoothLanding({
     return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
   };
 
-  // Determinar el tamaño de las cards según la cantidad
+  // Determinar el tamaño de las cards según la cantidad y el tamaño de pantalla
   const getCardSizeClass = () => {
     const count = prompts.length;
+    
+    // Tamaños para pantallas móviles (< 768px)
+    if (isMobile) {
+      if (count === 1) return "w-52 h-52"; // Grande para 1 brand en móvil
+      if (count === 2) return "w-38 h-38"; // Mediano para 2 brands en móvil
+      if (count === 3) return "w-32 h-32"; // Mediano-pequeño para 3 brands en móvil
+      if (count === 4) return "w-28 h-28"; // Pequeño para 4 brands en móvil
+      return "w-24 h-24"; // Más pequeño para 5+ brands en móvil
+    }
+    
+    // Tamaños para pantallas grandes (>= 768px)
     if (count === 1) return "w-74 h-74"; // Grande para 1 brand
     if (count === 2) return "w-64 h-64"; // Mediano para 2 brands
     if (count === 3) return "w-40 h-40"; // Mediano-pequeño para 3 brands
@@ -208,7 +231,7 @@ export default function EventPhotoBoothLanding({
         </div>
 
         {/* Start Button */}
-        <div className="mb-12 sm:mb-16 md:mb-20 flex flex-col items-center gap-4 px-4">
+        <div className="mb-5 sm:mb-16 md:mb-20 flex flex-col items-center gap-4 px-4">
           {/* Data Processing Checkbox */}
           {event.dataProcessingText && (
             <div className="bg-white/90 backdrop-blur-sm rounded-lg p-4 max-w-md w-full shadow-lg">
