@@ -17,6 +17,7 @@ export type PhotoBoothPrompt = {
     logoPath?: string;
     imageUrl?: string;
     imagePath?: string;
+    videoUrl?: string;
     logoPrompt?: string;
     basePrompt: string;
     colorDirectiveTemplate: string;
@@ -57,6 +58,7 @@ function mapDocToPrompt(d: DocumentSnapshot): PhotoBoothPrompt {
         logoPath: data.logoPath ?? "",
         imageUrl: data.imageUrl ?? "",
         imagePath: data.imagePath ?? "",
+        videoUrl: data.videoUrl ?? "",
         logoPrompt: data.logoPrompt ?? "",
         colorDirectiveTemplate: data.colorDirectiveTemplate ?? "",
         promptBgImage: data.promptBgImage ?? "",
@@ -190,6 +192,17 @@ export async function createPhotoBoothPrompt(
           const objFileName = `${Date.now()}_${data.brand}_object.${objExt.replace("+", "_")}`;
           objectImageUrl = await uploadImageViaAPI(objectImageData, objFileName, "brands");
       }
+
+      // handle video if provided
+      let videoUrl = "";
+      let videoData = (data as any).videoUrl;
+      if (videoData && typeof videoData === "string" && videoData.startsWith("data:")) {
+          const videoBlob = dataURLtoBlob(videoData);
+          const videoContentType = videoBlob.type;
+          const videoExt = videoContentType.split("/")[1] || "mp4";
+          const videoFileName = `${Date.now()}_${data.brand}_video.${videoExt}`;
+          videoUrl = await uploadImageViaAPI(videoData, videoFileName, "brands/videos");
+      }
   
       // 6. Crear documento en Firestore con logoUrl
       const promptData: Omit<PhotoBoothPrompt, "id"> = {
@@ -199,8 +212,9 @@ export async function createPhotoBoothPrompt(
         logoPrompt: data.logoPrompt,
         colorDirectiveTemplate: data.colorDirectiveTemplate,
         active: data.active,
-                logoPath: logoUrl, // <-- ahora guarda la URL
+                logoPath: logoUrl,
                 imageUrl: imageUrl,
+                videoUrl: videoUrl,
                 promptBgImage: promptBgImageUrl,
                 objectImage: objectImageUrl,
                 objectImagePrompt: (data as any).objectImagePrompt || "",
@@ -420,6 +434,17 @@ export async function updatePhotoBoothPrompt(
                 objectImageUrl = await uploadImageViaAPI(objectImageData, objFileName, "brands");
             }
 
+            // handle video upload if provided as data URL
+            let videoUrl = (data as any).videoUrl;
+            const videoData = (data as any).videoUrl;
+            if (videoData && typeof videoData === 'string' && videoData.startsWith('data:')) {
+                const videoBlob = dataURLtoBlob(videoData);
+                const videoContentType = videoBlob.type;
+                const videoExt = videoContentType.split('/')[1] || 'mp4';
+                const videoFileName = `${Date.now()}_${data.brand}_video.${videoExt}`;
+                videoUrl = await uploadImageViaAPI(videoData, videoFileName, "brands/videos");
+            }
+
         const updateData: Record<string, any> = {
             updatedAt: Timestamp.now()
         };
@@ -436,6 +461,7 @@ export async function updatePhotoBoothPrompt(
         if (objectImageUrl !== undefined) updateData.objectImage = objectImageUrl;
         if ((data as any).objectImagePrompt !== undefined) updateData.objectImagePrompt = (data as any).objectImagePrompt;
         if (data.logoPrompt !== undefined) updateData.logoPrompt = data.logoPrompt;
+        if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
         
         await updateDoc(docRef, updateData);
     } catch (error) {

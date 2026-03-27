@@ -36,6 +36,7 @@ export default function EventForm({
     showLogosInLoader: event?.showLogosInLoader !== false,
     enableFrame: event?.enableFrame !== false,
     dataProcessingText: event?.dataProcessingText || "",
+    generationType: event?.generationType || "IMAGE",
     prompts: event?.prompts || [],
     isActive: event?.isActive !== false,
   });
@@ -216,6 +217,24 @@ export default function EventForm({
             <label className="ml-2 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer">
               Evento Activo
             </label>
+          </div>
+
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Tipo de Generación
+            </label>
+            <select
+              name="generationType"
+              value={formData.generationType || "IMAGE"}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, generationType: e.target.value as "IMAGE" | "BGVIDEO" | "VIDEO" }))
+              }
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="IMAGE">IMAGE</option>
+              <option value="BGVIDEO">BGVIDEO</option>
+              <option value="VIDEO">VIDEO</option>
+            </select>
           </div>
         </div>
 

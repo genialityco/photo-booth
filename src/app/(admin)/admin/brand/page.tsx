@@ -242,6 +242,14 @@ export default function PhotoBoothPromptsPage() {
       required: false,
       accept: 'image/png,image/jpeg',
       maxSize: 8
+    },
+    {
+      name: 'videoUrl',
+      label: 'Video',
+      type: 'video',
+      required: false,
+      accept: 'video/mp4,video/webm,video/ogg',
+      maxSize: 50
     }
   ];
 

@@ -1,4 +1,4 @@
-// functions/src/index.ts
+﻿// functions/src/index.ts
 import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
@@ -402,6 +402,41 @@ async function downloadAndConvertLogo(
 
 // --- Función Principal Modificada ---
 
+/**
+ * Llama al endpoint de remove-background y devuelve el buffer PNG sin fondo
+ */
+
+/**
+ * Envia la imagen sin fondo, la URL del video del brand y la URL del marco (opcional)
+ * a la API externa de composicion y devuelve el video resultante como buffer
+ */
+async function composeVideoViaAPI(
+  noBgImageBuf: Buffer,
+  brandVideoUrl: string,
+  frameUrl?: string
+): Promise<Buffer> {
+  const FormData = (await import("form-data")).default;
+  const form = new FormData();
+
+  form.append("image", noBgImageBuf, { filename: "image.png", contentType: "image/png" });
+  form.append("video_url", brandVideoUrl);
+  if (frameUrl) {
+    form.append("frame_url", frameUrl);
+  }
+
+  const response = await axios.post(
+    "https://8e3f-170-78-40-95.ngrok-free.app/composite-video",
+    form,
+    {
+      headers: form.getHeaders(),
+      responseType: "arraybuffer",
+      timeout: 300000,
+    }
+  );
+
+  return Buffer.from(response.data as ArrayBuffer);
+}
+
 export const processImageTask = onDocumentCreated(
   {
     document: "imageTasks/{taskId}",
@@ -423,26 +458,57 @@ export const processImageTask = onDocumentCreated(
           inputPath?: string;
           brand?: string;
           color?: string;
+          eventId?: string;
         }
       | undefined;
 
     let PROMPT = DEFAULT_PROMPT;
     let LOGO_PROMPT = DEFAULT_LOGO_PROMPT;
-    let LOGO_URL = ""; // Cambiado el nombre de la variable para reflejar su contenido (URL)
-    let PROMPT_BG_IMAGE_URL = ""; // Nueva variable para la imagen de fondo del prompt
-    let OBJECT_IMAGE_URL = ""; // Nueva variable para la imagen del objeto
-    let OBJECT_IMAGE_PROMPT = ""; // Nueva variable para el prompt del objeto
+    let LOGO_URL = "";
+    let PROMPT_BG_IMAGE_URL = "";
+    let OBJECT_IMAGE_URL = "";
+    let OBJECT_IMAGE_PROMPT = "";
+    let GENERATION_TYPE = "IMAGE";
+    let BRAND_VIDEO_URL = "";
+
     if (data?.brand) {
       const promptData = await buildPromptWithBrand({
         brand: data.brand,
         color: data.color,
       });
       PROMPT = promptData.prompt;
-      LOGO_URL = promptData.logoPath || ""; // Asumimos que buildPromptWithBrand devuelve la URL en logoPath
+      LOGO_URL = promptData.logoPath || "";
       LOGO_PROMPT = promptData.logoPrompt || DEFAULT_LOGO_PROMPT;
       PROMPT_BG_IMAGE_URL = promptData.promptBgImage || "";
       OBJECT_IMAGE_URL = (promptData as any).objectImage || "";
       OBJECT_IMAGE_PROMPT = (promptData as any).objectImagePrompt || "";
+
+      // Leer videoUrl del brand directamente desde Firestore
+      try {
+        const brandSnap = await db.collection("photo_booth_prompts")
+          .where("brand", "==", data.brand)
+          .limit(1)
+          .get();
+        if (!brandSnap.empty) {
+          BRAND_VIDEO_URL = brandSnap.docs[0].data().videoUrl || "";
+        }
+      } catch (e) {
+        console.warn("Error reading brand videoUrl:", e);
+      }
+    }
+
+    // Leer generationType y frameImage del evento si se provee eventId
+    let FRAME_IMAGE_URL = "";
+    if (data?.eventId) {
+      try {
+        const eventSnap = await db.collection("events").doc(data.eventId).get();
+        if (eventSnap.exists) {
+          GENERATION_TYPE = eventSnap.data()?.generationType || "IMAGE";
+          FRAME_IMAGE_URL = eventSnap.data()?.frameImage || "";
+        }
+      } catch (e) {
+        console.warn("Error reading event data:", e);
+      }
     }
 
     if (!data?.inputPath) {
@@ -682,7 +748,60 @@ export const processImageTask = onDocumentCreated(
 
       console.log("Image saved successfully:", url);
 
-      // 6) Done
+      // 6) Si generationType es BGVIDEO, delegar composicion al servicio externo
+      if (GENERATION_TYPE === "BGVIDEO" && BRAND_VIDEO_URL) {
+        try {
+          await docRef.update({ status: "processing_video", updatedAt: Date.now() });
+
+          // 6a) Quitar fondo a la imagen generada
+         
+          // 6b) Enviar imagen sin fondo + video + marco a la API externa
+          console.log("Compositing via external API...");
+          const videoResultBuf = await composeVideoViaAPI(
+            outBuf,
+            BRAND_VIDEO_URL,
+            FRAME_IMAGE_URL || undefined
+          );
+
+          // 6c) Guardar el video resultante en Storage
+          const videoOutPath = `tasks/${taskId}/output_video.mp4`;
+          const videoToken = randomUUID();
+          await bucket.file(videoOutPath).save(videoResultBuf, {
+            contentType: "video/mp4",
+            resumable: false,
+            metadata: { metadata: { firebaseStorageDownloadTokens: videoToken } },
+          });
+
+          const videoUrl = `https://firebasestorage.googleapis.com/v0/b/${
+            bucket.name
+          }/o/${encodeURIComponent(videoOutPath)}?alt=media&token=${videoToken}`;
+
+          console.log("Video saved successfully:", videoUrl);
+
+          await docRef.update({
+            status: "done",
+            url,
+            videoUrl,
+            outputPath: outPath,
+            videoOutputPath: videoOutPath,
+            updatedAt: Date.now(),
+          });
+          return;
+        } catch (videoErr: any) {
+          console.error("Error processing BGVIDEO:", videoErr);
+          // Si falla el video, marcar done con solo la imagen
+          await docRef.update({
+            status: "done",
+            url,
+            outputPath: outPath,
+            videoError: videoErr?.message || "Error procesando video",
+            updatedAt: Date.now(),
+          });
+          return;
+        }
+      }
+
+      // 7) Done (flujo IMAGE normal)
       await docRef.update({
         status: "done",
         url,

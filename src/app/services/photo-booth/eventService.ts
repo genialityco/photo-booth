@@ -27,9 +27,10 @@ export type EventProfile = {
   loadingPageImage?: string;
   splashImage?: string;
   loadingMessage?: string;
-  showLogosInLoader?: boolean; // Controla si mostrar logos en LoaderStep
-  enableFrame?: boolean; // Controla si mostrar el marco en ResultStep
-  dataProcessingText?: string; // Texto de tratamiento de datos
+  showLogosInLoader?: boolean;
+  enableFrame?: boolean;
+  dataProcessingText?: string;
+  generationType?: "IMAGE" | "BGVIDEO" | "VIDEO";
   prompts: string[];
   isActive: boolean;
   createdAt?: Timestamp | Date | null;
@@ -102,6 +103,7 @@ export async function createEventProfile(
       showLogosInLoader: data.showLogosInLoader !== false,
       enableFrame: data.enableFrame !== false,
       dataProcessingText: data.dataProcessingText || "",
+      generationType: data.generationType || "IMAGE",
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -262,6 +264,7 @@ export async function updateEventProfile(
     if (data.showLogosInLoader !== undefined) docData.showLogosInLoader = data.showLogosInLoader;
     if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
     if (data.dataProcessingText !== undefined) docData.dataProcessingText = data.dataProcessingText;
+    if (data.generationType !== undefined) docData.generationType = data.generationType;
 
     // Process image fields
     const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage"];

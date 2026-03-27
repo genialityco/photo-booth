@@ -25,11 +25,13 @@ type TaskItem = {
   id: string;
   status?: "queued" | "processing" | "done" | "error";
   nombre: string;
-  inputPath?: string; // ahora apunta a la foto con marco (input.png)
-  framedPath?: string; // igual a inputPath
-  framedUrl?: string; // URL pública de la foto con marco
-  outputPath?: string; // output.png (IA)
-  url?: string; // URL pública de la IA
+  inputPath?: string;
+  framedPath?: string;
+  framedUrl?: string;
+  outputPath?: string;
+  url?: string;
+  videoUrl?: string;
+  videoOutputPath?: string;
   createdAt?: Timestamp | { seconds: number; nanoseconds: number } | null;
   updatedAt?: Timestamp | { seconds: number; nanoseconds: number } | null;
   finishedAt?: Timestamp | { seconds: number; nanoseconds: number } | null;
@@ -290,10 +292,40 @@ function AdminItemCard({ it }: { it: TaskItem }) {
           )}
         </div>
 
-        {/* IA */}
+        {/* IA o Video */}
         <div className="rounded-lg border border-neutral-200 p-3">
-          <h3 className="font-semibold mb-2">Imagen IA (Function)</h3>
-          {it.url ? (
+          <h3 className="font-semibold mb-2">{it.videoUrl ? "Video generado" : "Imagen IA (Function)"}</h3>
+          {it.videoUrl ? (
+            <>
+              <div className="aspect-square w-full overflow-hidden rounded-lg border border-neutral-200 bg-black">
+                <video
+                  src={it.videoUrl}
+                  controls
+                  loop
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <a
+                  href={it.videoUrl}
+                  target="_blank"
+                  className="px-3 py-2 rounded-lg bg-neutral-900 text-white text-sm font-semibold"
+                >
+                  Abrir
+                </a>
+                <a
+                  href={it.videoUrl}
+                  download={`video-${it.id}.mp4`}
+                  className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 text-sm font-semibold"
+                >
+                  Descargar
+                </a>
+                <code className="text-xs break-all">
+                  {it.videoOutputPath || "—"}
+                </code>
+              </div>
+            </>
+          ) : it.url ? (
             <>
               <div className="aspect-square w-full overflow-hidden rounded-lg border border-neutral-200 bg-white">
                 <img

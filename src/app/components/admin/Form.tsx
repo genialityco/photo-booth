@@ -6,10 +6,10 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'textarea' | 'number' | 'email' | 'checkbox' | 'image' | string;
+  type: 'text' | 'textarea' | 'number' | 'email' | 'checkbox' | 'image' | 'video' | string;
   required?: boolean;
   placeholder?: string;
-  accept?: string; // For image field, e.g., "image/*" or "image/png,image/jpeg"
+  accept?: string;
   maxSize?: number; // Max file size in MB
 }
 
@@ -37,7 +37,7 @@ export default function Form<T extends Record<string, any>>({
 
   // Memoize image fields to prevent recalculation
   const imageFields = useMemo(() => 
-    fields.filter(f => f.type === 'image'),
+    fields.filter(f => f.type === 'image' || f.type === 'video'),
     [fields]
   );
 
@@ -259,6 +259,36 @@ export default function Form<T extends Record<string, any>>({
                       crossOrigin="anonymous"
                     />
                   )}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(field.name)}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 z-10"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : field.type === 'video' ? (
+            <div className="space-y-2">
+              <input
+                ref={(el) => {
+                  fileInputRefs.current[field.name] = el;
+                }}
+                id={field.name}
+                name={field.name}
+                type="file"
+                accept={field.accept || 'video/*'}
+                onChange={(e) => handleImageChange(e, field.name, field.maxSize)}
+                className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+              />
+              {imagePreviews[field.name] && (
+                <div className="relative inline-block w-full">
+                  <video
+                    src={imagePreviews[field.name]}
+                    controls
+                    className="max-w-xs max-h-48 rounded-md border border-gray-300 w-full"
+                  />
                   <button
                     type="button"
                     onClick={() => handleRemoveImage(field.name)}

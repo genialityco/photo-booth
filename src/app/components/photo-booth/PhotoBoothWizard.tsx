@@ -48,6 +48,7 @@ export default function PhotoBoothWizard({
   const [framedShot, setFramedShot] = useState<string | null>(null);
   const [rawShot, setRawShot] = useState<string | null>(null);
   const [aiUrl, setAiUrl] = useState<string | null>(null);
+  const [aiVideoUrl, setAiVideoUrl] = useState<string | null>(null);
   const [framedUrl, setFramedUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [brand, setBrand] = useState<string | null>(null);
@@ -338,6 +339,7 @@ export default function PhotoBoothWizard({
             data.url,
           );
           setAiUrl(data.url as string);
+          if (data.videoUrl) setAiVideoUrl(data.videoUrl as string);
           setStep("result");
           try {
             await updateDoc(taskRef, { finishedAt: serverTimestamp() });
@@ -366,6 +368,7 @@ export default function PhotoBoothWizard({
     setFramedShot(null);
     setRawShot(null);
     setAiUrl(null);
+    setAiVideoUrl(null);
     setFramedUrl(null);
     setTaskId(null);
     setStep("capture");
@@ -461,6 +464,7 @@ export default function PhotoBoothWizard({
             <ResultStep
               taskId={taskId!}
               aiUrl={aiUrl}
+              videoUrl={aiVideoUrl ?? undefined}
               onAgain={resetAll}
               buttonImage={eventData?.buttonImage}
             />

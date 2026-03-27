@@ -10,6 +10,7 @@ import QrTag from "@/app/components/photo-booth/QrTag";
 type Props = {
   taskId: string;
   aiUrl: string;
+  videoUrl?: string;
   onAgain: () => void;
   footer?: React.ReactNode;
   buttonImage?: string;
@@ -18,6 +19,7 @@ type Props = {
 export default function ResultStep({
   taskId,
   aiUrl,
+  videoUrl,
   onAgain,
   buttonImage,
 }: Props) {
@@ -142,8 +144,18 @@ export default function ResultStep({
     return () => window.removeEventListener("resize", updateQrSize);
   }, []);
 
-  // === Descargar imagen compuesta con marco ===
+  // === Descargar imagen o video ===
   const handleDownload = async () => {
+    // Si hay video, descargarlo directamente
+    if (videoUrl) {
+      const a = document.createElement("a");
+      a.href = videoUrl;
+      a.download = `foto-ia-${taskId}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return;
+    }
     try {
       // Si enableFrame está desactivado o no hay frameSrc, descargar solo la imagen base
       if (!enableFrame || !frameSrc) {
@@ -239,22 +251,32 @@ export default function ResultStep({
         className="flex-1 w-full flex flex-col items-center  overflow-hidden"
        
       >
-        {/* Imagen IA con marco visible - BORDE REDONDEADO Y SOMBRA */}
+        {/* Imagen o Video IA con marco visible */}
         <div
-          className="relative overflow-hidden bg-black/5 aspect-square "
+          className="relative overflow-hidden bg-black/5 aspect-square"
           style={{ 
             width: SIZE_IMG,
             maxWidth: SIZE_IMG,
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3), 0 10px 20px rgba(0, 0, 0, 0.2)'
           }}
         >
-          {/* Imagen IA con marco */}
-          <img
-            src={framedImageUrl || aiUrl}
-            alt="Imagen generada por IA"
-            className="absolute  w-full h-full object-contain select-none rounded-2xl shadow-2xl "
-            draggable={false}
-          />
+          {videoUrl ? (
+            <video
+              src={videoUrl}
+              className="absolute w-full h-full object-contain rounded-2xl shadow-2xl"
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
+          ) : (
+            <img
+              src={framedImageUrl || aiUrl}
+              alt="Imagen generada por IA"
+              className="absolute w-full h-full object-contain select-none rounded-2xl shadow-2xl"
+              draggable={false}
+            />
+          )}
         </div>
 
         {/* QR - BORDE REDONDEADO Y SOMBRA */}
