@@ -16,11 +16,13 @@ import { db } from "@/firebaseConfig";
 const MESSAGE     = "Hola";
 const FONT_FAMILY = "Arial Black";
 const BG_COLOR    = 0x0a0a0a;
-const EMPTY_COLOR = 0x222222;
-const CELL_SIZE   = 0.3;
+const EMPTY_COLOR = 0x0a0a0a;
+const CELL_SIZE   = 0.4;
 const CELL_GAP    = 0.03;
-const FALL_FROM_Y = -12;  // caen desde abajo
-const GRAVITY     = 18;   // empuja hacia arriba
+const FALL_FROM_Y = 12;   // distancia desde donde caen (siempre positivo)
+const GRAVITY     = 18;   // magnitud de la aceleración
+// "up" = caen desde abajo hacia arriba | "down" = caen desde arriba hacia abajo
+const FALL_DIRECTION: "up" | "down" = "down";
 const BOUNCE      = 0.35;
 const FLOAT_AMP   = 0.04;
 const FLOAT_SPEED = 0.8;
@@ -79,7 +81,11 @@ function MosaicCanvas({ eventId }: { eventId: string }) {
     const COLS = Math.floor(frustW / step);
     const ROWS = Math.floor(frustH / step);
     const textCells = computeTextCells(MESSAGE, COLS, ROWS, 32)
-      .sort((a, b) => b.row - a.row || a.col - b.col); // de abajo hacia arriba
+      .sort((a, b) =>
+        FALL_DIRECTION === "up"
+          ? b.row - a.row || a.col - b.col   // de abajo hacia arriba
+          : a.row - b.row || a.col - b.col   // de arriba hacia abajo
+      );
 
     const toWorld = (col: number, row: number) => ({
       x: -frustW / 2 + col * step + step / 2,
@@ -129,7 +135,11 @@ function MosaicCanvas({ eventId }: { eventId: string }) {
       texture.colorSpace = THREE.SRGBColorSpace;
       const mat = tile.mesh.material as THREE.MeshBasicMaterial;
       mat.map = texture; mat.color.set(0xffffff); mat.needsUpdate = true;
-      tile.mesh.position.y = FALL_FROM_Y;
+      // "up": sale desde abajo (targetY - FALL_FROM_Y), sube hasta targetY
+      // "down": sale desde arriba (targetY + FALL_FROM_Y), baja hasta targetY
+      tile.mesh.position.y = FALL_DIRECTION === "up"
+        ? tile.targetY - FALL_FROM_Y
+        : tile.targetY + FALL_FROM_Y;
       tile.velY = 0; tile.landed = false;
     }
 
@@ -161,12 +171,16 @@ function MosaicCanvas({ eventId }: { eventId: string }) {
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
       const t = now / 1000;
-      let landed = 0;
+      let landedCount = 0;
       tiles.forEach((tile) => {
         if (!tile.landed) {
-          tile.velY += GRAVITY * dt;
+          // "up": aceleración positiva (sube), "down": negativa (baja)
+          tile.velY += (FALL_DIRECTION === "up" ? GRAVITY : -GRAVITY) * dt;
           tile.mesh.position.y += tile.velY * dt;
-          if (tile.mesh.position.y >= tile.targetY) {
+          const reachedTarget = FALL_DIRECTION === "up"
+            ? tile.mesh.position.y >= tile.targetY
+            : tile.mesh.position.y <= tile.targetY;
+          if (reachedTarget) {
             tile.mesh.position.y = tile.targetY;
             tile.velY = -tile.velY * BOUNCE;
             if (Math.abs(tile.velY) < 0.3) { tile.velY = 0; tile.landed = true; }
@@ -174,10 +188,10 @@ function MosaicCanvas({ eventId }: { eventId: string }) {
         } else {
           tile.mesh.position.y = tile.targetY + Math.sin(t * FLOAT_SPEED + tile.floatOffset) * FLOAT_AMP;
           tile.mesh.position.x = tile.targetX + Math.sin(t * FLOAT_SPEED * 0.7 + tile.floatOffsetX) * FLOAT_AMP * 0.5;
-          if (tile.itemId) landed++;
+          if (tile.itemId) landedCount++;
         }
       });
-      countDiv.textContent = `${landed} / ${tiles.length}`;
+      countDiv.textContent = `${landedCount} / ${tiles.length}`;
       renderer.render(scene, camera);
     }
     animate();
@@ -229,6 +243,7 @@ export default function MosaicPage() {
         <div className="flex flex-col gap-3 w-72">
           <label className="text-white/60 text-sm">Seleccionar evento</label>
           <select
+          style={{ background: "#0a0a0a" }}
             value={selectedEventId}
             onChange={(e) => setSelectedEventId(e.target.value)}
             className="px-4 py-3 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:border-white/50"
