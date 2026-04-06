@@ -195,7 +195,7 @@ export async function createPhotoBoothPrompt(
 
       // handle video if provided
       let videoUrl = "";
-      let videoData = (data as any).videoUrl;
+      const videoData = (data as any).videoUrl;
       if (videoData && typeof videoData === "string" && videoData.startsWith("data:")) {
           const videoBlob = dataURLtoBlob(videoData);
           const videoContentType = videoBlob.type;
