@@ -9,8 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@google/genai": "^1.21.0",
     "@google-cloud/secret-manager": "^5.5.0",
+    "@google/genai": "^1.21.0",
+    "@types/three": "^0.183.1",
     "axios": "^1.12.2",
     "firebase": "^12.1.0",
     "firebase-admin": "^13.4.0",
@@ -24,6 +25,7 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-icons": "^5.5.0",
+    "three": "^0.183.2",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
