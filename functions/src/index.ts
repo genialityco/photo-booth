@@ -425,7 +425,7 @@ async function composeVideoViaAPI(
   }
 
   const response = await axios.post(
-    "https://78c5-170-78-40-95.ngrok-free.app/composite-video",
+    "https://videobg.geniality.com.co/composite-video",
     form,
     {
       headers: form.getHeaders(),

@@ -14,7 +14,7 @@ import {
 import { db } from "@/firebaseConfig";
 
 // ── Configuración ──────────────────────────────────────────────────────────────
-const MESSAGE     = "Hola";
+const MESSAGE     = "NextGen Simplicity";
 const FONT_FAMILY = "Arial Black";
 const BG_COLOR    = 0x0a0a0a;
 const EMPTY_COLOR = 0x0a0a0a;
