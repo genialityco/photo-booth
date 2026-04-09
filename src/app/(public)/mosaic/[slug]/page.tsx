@@ -12,7 +12,6 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "@/firebaseConfig";
-
 // ── Configuración ──────────────────────────────────────────────────────────────
 const MESSAGE     = "NextGen Simplicity";
 const FONT_FAMILY = "Arial Black";
@@ -239,61 +238,36 @@ function MosaicCanvas({ eventId }: { eventId: string }) {
 }
 
 // ── Página principal ──────────────────────────────────────────────────────────
-export default function MosaicPage() {
-  const [events, setEvents] = useState<EventOption[]>([]);
-  const [selectedEventId, setSelectedEventId] = useState<string>("");
-  const [started, setStarted] = useState(false);
+export default function MosaicPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = React.use(params);
+  const [eventId, setEventId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!slug) { setEventId(""); setLoading(false); return; }
     getDocs(
-      query(collection(db, "events"), where("isActive", "==", true), orderBy("createdAt", "desc"))
+      query(collection(db, "events"), where("slug", "==", slug), where("isActive", "==", true))
     ).then((snap) => {
-      const list: EventOption[] = [];
-      snap.forEach((d) => list.push({ id: d.id, ...(d.data() as any) }));
-      setEvents(list);
+      setEventId(snap.empty ? "" : snap.docs[0].id);
+      setLoading(false);
     });
-  }, []);
+  }, [slug]);
 
-  if (!started) {
+  if (loading) {
     return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center gap-6"
-           style={{ background: "#0a0a0a" }}>
-        <h1 className="text-white text-3xl font-bold tracking-widest">MOSAICO</h1>
-        <div className="flex flex-col gap-3 w-72">
-          <label className="text-white/60 text-sm">Seleccionar evento</label>
-          <select
-          style={{ background: "#0a0a0a" }}
-            value={selectedEventId}
-            onChange={(e) => setSelectedEventId(e.target.value)}
-            className="px-4 py-3 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:border-white/50"
-          >
-            <option value="">Todos los eventos</option>
-            {events.map((ev) => (
-              <option key={ev.id} value={ev.id}>{ev.name}</option>
-            ))}
-          </select>
-          <button
-            onClick={() => setStarted(true)}
-            className="px-6 py-3 rounded-lg bg-white text-black font-bold hover:bg-white/90 transition-colors"
-          >
-            Iniciar
-          </button>
-        </div>
+      <div className="fixed inset-0 flex items-center justify-center" style={{ background: "#0a0a0a" }}>
+        <span className="text-white/40 text-sm">Cargando...</span>
       </div>
     );
   }
 
   return (
     <div className="fixed inset-0 overflow-hidden" style={{ background: "#0a0a0a" }}>
-      <MosaicCanvas key={selectedEventId} eventId={selectedEventId} />
-
-      {/* Botón para volver al selector */}
-      <button
-        onClick={() => setStarted(false)}
-        className="absolute top-3 left-3 z-10 px-3 py-1.5 rounded-lg bg-white/10 text-white/50 text-xs hover:bg-white/20 transition-colors"
-      >
-        ← Cambiar evento
-      </button>
+      <MosaicCanvas key={eventId ?? ""} eventId={eventId ?? ""} />
     </div>
   );
 }
