@@ -17,8 +17,8 @@ import { db } from "@/firebaseConfig";
 const MESSAGE     = "NextGen Simplicity";
 const FONT_FAMILY = "Arial Black";
 const BG_COLOR    = 0x0a0a0a;
-const EMPTY_COLOR = 0x0a0a0a;
-const CELL_SIZE   = 0.4;
+const EMPTY_COLOR = 0x0a0a1f;
+const CELL_SIZE   = 0.3;
 const CELL_GAP    = 0.03;
 const FALL_FROM_Y = 12;   // distancia desde donde caen (siempre positivo)
 const GRAVITY     = 18;   // magnitud de la aceleración
@@ -38,20 +38,36 @@ function computeTextCells(text: string, cols: number, rows: number, cellPx: numb
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext("2d")!;
   ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
-  let fs = h * 0.78;
-  ctx.font = `900 ${fs}px ${FONT_FAMILY}`;
-  while (ctx.measureText(text).width > w * 0.94 && fs > 8) {
-    fs -= 2; ctx.font = `900 ${fs}px ${FONT_FAMILY}`;
-  }
-  ctx.fillStyle = "#fff"; ctx.textBaseline = "middle"; ctx.textAlign = "center";
-  ctx.fillText(text, w / 2, h / 2);
+
+  const words = text.trim().split(/\s+/);
+  const lines = words.length > 1
+    ? [words.slice(0, Math.ceil(words.length / 2)).join(" "),
+       words.slice(Math.ceil(words.length / 2)).join(" ")]
+    : [text];
+
+  const lineCount = lines.length;
+  const lineH = h / lineCount;
+
+  lines.forEach((line, li) => {
+    // Ajustar tamaño de fuente para que cada línea ocupe ~90% del ancho
+    let fs = lineH * 0.78;
+    ctx.font = `900 ${fs}px ${FONT_FAMILY}`;
+    while (ctx.measureText(line).width > w * 0.94 && fs > 6) {
+      fs -= 1; ctx.font = `900 ${fs}px ${FONT_FAMILY}`;
+    }
+    ctx.fillStyle = "#fff";
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.fillText(line, w / 2, lineH * li + lineH / 2);
+  });
+
   const data = ctx.getImageData(0, 0, w, h).data;
   const result: { col: number; row: number }[] = [];
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       const px = Math.floor(c * cellPx + cellPx / 2);
       const py = Math.floor(r * cellPx + cellPx / 2);
-      if (data[(py * w + px) * 4] > 128) result.push({ col: c, row: r });
+      if (data[(py * w + px) * 4] > 80) result.push({ col: c, row: r });
     }
   return result;
 }
@@ -81,7 +97,9 @@ function MosaicCanvas({ eventId }: { eventId: string }) {
     const step = CELL_SIZE + CELL_GAP;
     const COLS = Math.floor(frustW / step);
     const ROWS = Math.floor(frustH / step);
-    const textCells = computeTextCells(MESSAGE, COLS, ROWS, 32)
+    // Mayor resolución del canvas offscreen = mejor detección de bordes
+    const CELL_PX = Math.max(16, Math.round(1200 / COLS));
+    const textCells = computeTextCells(MESSAGE, COLS, ROWS, CELL_PX)
       .sort((a, b) =>
         FALL_DIRECTION === "up"
           ? b.row - a.row || a.col - b.col   // de abajo hacia arriba
