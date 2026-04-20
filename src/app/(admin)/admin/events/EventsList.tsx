@@ -198,6 +198,14 @@ export default function EventsList() {
                 {/* Action Buttons */}
                 <div className="ml-4 flex gap-2 flex-shrink-0">
                   <button
+                    onClick={() => {
+                      window.location.href = `/admin/events/${event.id}/screen`;
+                    }}
+                    className="px-3 py-2 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 text-sm font-medium"
+                  >
+                    Pantalla
+                  </button>
+                  <button
                     onClick={() => handleEdit(event)}
                     className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium"
                   >

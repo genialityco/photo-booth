@@ -110,7 +110,7 @@ export default function CaptureStep({
 
   // 👇 Con marco: videoReady && frameReady && !!frameSize (o sin marco: solo videoReady)
   const canShoot = frameSrc
-    ? videoReady && frameReady && !!frameSize
+    ?  frameReady 
     : videoReady;
 
   const startCapture = () => {
@@ -189,7 +189,7 @@ export default function CaptureStep({
   }[borderRadius];
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 overflow-hidden px-2 sm:px-3">
+    <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 overflow-hidden  sm:px-3">
       <div className={`flex-1 flex items-center justify-center w-full overflow-hidden ${borderRadiusClass}`}>
         <FrameCamera
           frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>

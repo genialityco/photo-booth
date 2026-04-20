@@ -33,6 +33,12 @@ export type EventProfile = {
   generationType?: "IMAGE" | "BGVIDEO" | "VIDEO";
   prompts: string[];
   isActive: boolean;
+  screenConfig?: {
+    mosaicDuration: number;
+    mosaicAuto: boolean;
+    mosaicTriggerCount: number;
+    triggerMosaicAt?: number;
+  };
   createdAt?: Timestamp | Date | null;
   updatedAt?: Timestamp | Date | null;
 };
@@ -147,6 +153,10 @@ export async function createEventProfile(
     // Add optional text fields
     if (data.loadingMessage !== undefined) {
       docData.loadingMessage = data.loadingMessage;
+    }
+    
+    if (data.screenConfig !== undefined) {
+      docData.screenConfig = data.screenConfig;
     }
 
     const docRef = await addDoc(collection(db, COLLECTION), docData);
@@ -265,6 +275,7 @@ export async function updateEventProfile(
     if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
     if (data.dataProcessingText !== undefined) docData.dataProcessingText = data.dataProcessingText;
     if (data.generationType !== undefined) docData.generationType = data.generationType;
+    if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
 
     // Process image fields
     const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage"];

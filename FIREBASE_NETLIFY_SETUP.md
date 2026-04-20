@@ -55,3 +55,4 @@ Si ves el error "Could not load the default credentials":
 2. Revisa los logs del build:¿Se genera el archivo?
 3. Asegúrate que el file Base64 sea válido: `node generate-firebase-creds.js`
 4. Si nada funciona, sube `firebaseServiceAccount.json` manualmente
+MUST use the background image provided/include.

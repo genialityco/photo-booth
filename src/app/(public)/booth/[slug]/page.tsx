@@ -19,6 +19,19 @@ export default function EventBoothPage({
   const [error, setError] = useState<string | null>(null);
   const [boothStarted, setBoothStarted] = useState(false);
   const [skipBrandSelection, setSkipBrandSelection] = useState(false);
+  const [boxSize, setBoxSize] = useState("min(80vw, 80vh)");
+
+  useEffect(() => {
+    const handleResize = () => {
+      setBoxSize(window.innerWidth < 640 ? "100%" : "min(80vw, 80vh)");
+    };
+    
+    // Initial check
+    handleResize();
+    
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -93,7 +106,7 @@ export default function EventBoothPage({
       ) : (
         <PhotoBoothWizard
           mirror
-          boxSize="min(80vw, 80vh)"
+          boxSize={boxSize}
           eventData={event}
           onReset={
             skipBrandSelection
