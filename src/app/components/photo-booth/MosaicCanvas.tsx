@@ -12,7 +12,7 @@ const FONT_FAMILY = "CustomMosaicFont"; // Use a custom font name
 const FONT_URL    = "/font/Neue_Haas_Unica_W1G_Light.ttf"; // Path to your font file
 const BG_IMAGE    = "/images/FONDO-TEXTO-IMAGENES.png";
 const BG_COLOR    = 0x0a0a0a; // Fallback
-const EMPTY_COLOR = 0xcccccc;
+const EMPTY_COLOR = 0xffffff;
 const CELL_SIZE   = 0.1;
 const CELL_GAP    = 0.01; // Reducido el espacio del margen
 const FALL_FROM_Y = 12;   // distancia desde donde caen (siempre positivo)
@@ -26,7 +26,7 @@ const IMAGE_MULTIPLIER = 2; // Multiplica la cantidad de imágenes que se muestr
 
 type TaskItem = { id: string; url?: string; videoUrl?: string };
 
-function computeTextCells(text: string, cols: number, rows: number, cellPx: number) {
+function computeTextCells(text: string, cols: number, rows: number, cellPx: number, maxWidthRatio: number = 0.94) {
   const w = cols * cellPx, h = rows * cellPx;
   const canvas = document.createElement("canvas");
   canvas.width = w; canvas.height = h;
@@ -45,7 +45,7 @@ function computeTextCells(text: string, cols: number, rows: number, cellPx: numb
   lines.forEach((line, li) => {
     let fs = lineH * 0.78;
     ctx.font = `900 ${fs}px ${FONT_FAMILY}`;
-    while (ctx.measureText(line).width > w * 0.94 && fs > 6) {
+    while (ctx.measureText(line).width > w * maxWidthRatio && fs > 6) {
       fs -= 1; ctx.font = `900 ${fs}px ${FONT_FAMILY}`;
     }
     ctx.fillStyle = "#fff";
@@ -127,8 +127,9 @@ export default function MosaicCanvas({
 
     // Apply background image to mount point
     mount.style.backgroundImage = `url(${BG_IMAGE})`;
-    mount.style.backgroundSize = "cover";
+    mount.style.backgroundRepeat = "no-repeat";
     mount.style.backgroundPosition = "center";
+    mount.style.backgroundSize = "auto 100%";
     mount.style.backgroundColor = `#${BG_COLOR.toString(16).padStart(6, '0')}`;
 
     const scene = new THREE.Scene();
@@ -143,17 +144,37 @@ export default function MosaicCanvas({
     const COLS = Math.floor(frustW / step);
     const ROWS = Math.floor(frustH / step);
     const CELL_PX = Math.max(16, Math.round(1200 / COLS));
-    const textCells = computeTextCells(MESSAGE, COLS, ROWS, CELL_PX)
-      .sort((a, b) =>
-        FALL_DIRECTION === "up"
-          ? b.row - a.row || a.col - b.col
-          : a.row - b.row || a.col - b.col
-      );
 
-    const toWorld = (col: number, row: number) => ({
-      x: -frustW / 2 + col * step + step / 2,
-      y:  frustH / 2 - row * step - step / 2,
-    });
+    // Calculate maxWidthRatio based on background image aspect ratio if possible
+    // Default to a 16:9 or similar if image is not loaded, but let's dynamically load it
+    const initMosaic = (maxWidthRatio: number) => {
+      const textCells = computeTextCells(MESSAGE, COLS, ROWS, CELL_PX, maxWidthRatio)
+        .sort((a, b) =>
+          FALL_DIRECTION === "up"
+            ? b.row - a.row || a.col - b.col
+            : a.row - b.row || a.col - b.col
+        );
+
+      const toWorld = (col: number, row: number) => ({
+        x: -frustW / 2 + col * step + step / 2,
+        y:  frustH / 2 - row * step - step / 2,
+      });
+
+      const tiles: Tile[] = textCells.map(({ col, row }) => {
+        const { x, y } = toWorld(col, row);
+        const mesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(CELL_SIZE, CELL_SIZE),
+          new THREE.MeshBasicMaterial({ color: EMPTY_COLOR })
+        );
+        mesh.position.set(x, y, 0);
+        scene.add(mesh);
+        return { mesh, targetX: x, targetY: y, velY: 0, landed: true,
+                 floatOffset: Math.random() * Math.PI * 2,
+                 floatOffsetX: Math.random() * Math.PI * 2,
+                 itemId: null, videoEl: null };
+      });
+      return tiles;
+    };
 
     interface Tile {
       mesh: THREE.Mesh;
@@ -163,20 +184,23 @@ export default function MosaicCanvas({
       itemId: string | null; videoEl: HTMLVideoElement | null;
     }
 
-    const tiles: Tile[] = textCells.map(({ col, row }) => {
-      const { x, y } = toWorld(col, row);
-      const mesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(CELL_SIZE, CELL_SIZE),
-        new THREE.MeshBasicMaterial({ color: EMPTY_COLOR })
-      );
-      mesh.position.set(x, y, 0);
-      mesh.visible = false; // Oculto hasta tener la imagen cargada
-      scene.add(mesh);
-      return { mesh, targetX: x, targetY: y, velY: 0, landed: true,
-               floatOffset: Math.random() * Math.PI * 2,
-               floatOffsetX: Math.random() * Math.PI * 2,
-               itemId: null, videoEl: null };
-    });
+    let tiles: Tile[] = [];
+    let unsub: () => void = () => {};
+
+    const bgImg = new Image();
+    bgImg.src = BG_IMAGE;
+    bgImg.onload = () => {
+      const bgAspect = bgImg.width / bgImg.height;
+      const bgWidthPx = H * bgAspect;
+      // Make text occupy 94% of the background image width
+      const maxWidthRatio = (bgWidthPx / W) * 0.94;
+      tiles = initMosaic(maxWidthRatio);
+      startFirestoreListener();
+    };
+    bgImg.onerror = () => {
+      tiles = initMosaic(0.94); // fallback
+      startFirestoreListener();
+    };
 
     const textureCache = new Map<string, { tex: THREE.Texture, vid?: HTMLVideoElement }>();
 
@@ -190,9 +214,10 @@ export default function MosaicCanvas({
         if (isVideo) {
           const vid = document.createElement("video");
           vid.crossOrigin = "anonymous";
-          vid.src = src; vid.loop = true; vid.muted = true;
-          vid.playsInline = true; vid.autoplay = true;
+          vid.src = src; vid.loop = false; vid.muted = true;
+          vid.playsInline = true; vid.autoplay = false;
           vid.onloadeddata = () => {
+            vid.currentTime = 0.1; // Avanzamos ligeramente para evitar un frame negro al inicio
             const tex = new THREE.VideoTexture(vid);
             tex.colorSpace = THREE.SRGBColorSpace;
             const data = { tex, vid };
@@ -200,7 +225,7 @@ export default function MosaicCanvas({
             resolve(data);
           };
           vid.onerror = () => resolve(null);
-          vid.play().catch(() => {});
+          vid.load();
         } else {
           new THREE.TextureLoader().load(src, (tex) => {
             tex.colorSpace = THREE.SRGBColorSpace;
@@ -226,7 +251,6 @@ export default function MosaicCanvas({
       mat.map = textureData.tex; 
       mat.color.set(0xffffff); 
       mat.needsUpdate = true;
-      tile.mesh.visible = true; // Mostrar la pieza
 
       tile.mesh.position.y = FALL_DIRECTION === "up"
         ? tile.targetY - FALL_FROM_Y
@@ -234,52 +258,52 @@ export default function MosaicCanvas({
       tile.velY = 0; tile.landed = false;
     }
 
-    const constraints: Parameters<typeof query>[1][] = [
-      where("status", "==", "done"),
-      orderBy("finishedAt", "asc"),
-    ];
-    if (eventId) constraints.push(where("eventId", "==", eventId));
-    const q = query(collection(db, "imageTasks"), ...constraints);
-    
-    const unsub = onSnapshot(q, async (snap) => {
-      const items: TaskItem[] = [];
-      snap.forEach((d) => items.push({ id: d.id, ...(d.data() as any) }));
+    const startFirestoreListener = () => {
+      const constraints: Parameters<typeof query>[1][] = [
+        where("status", "==", "done"),
+        orderBy("finishedAt", "asc"),
+      ];
+      if (eventId) constraints.push(where("eventId", "==", eventId));
+      const q = query(collection(db, "imageTasks"), ...constraints);
       
-      // Primero cargamos todas las texturas de los items que acaban de llegar
-      const uniqueItems = Array.from(new Map(items.map(i => [(i.videoUrl || i.url), i])).values());
-      await Promise.all(uniqueItems.map(i => {
-        const src = i.videoUrl || i.url;
-        if (!src) return Promise.resolve(null);
-        return loadTexture(src, !!i.videoUrl);
-      }));
+      unsub = onSnapshot(q, async (snap) => {
+        const items: TaskItem[] = [];
+        snap.forEach((d) => items.push({ id: d.id, ...(d.data() as any) }));
+        
+        // Primero cargamos todas las texturas de los items que acaban de llegar
+        const uniqueItems = Array.from(new Map(items.map(i => [(i.videoUrl || i.url), i])).values());
+        await Promise.all(uniqueItems.map(i => {
+          const src = i.videoUrl || i.url;
+          if (!src) return Promise.resolve(null);
+          return loadTexture(src, !!i.videoUrl);
+        }));
 
-      // Multiplicar las imágenes
-      const multipliedItems: TaskItem[] = [];
-      if (items.length > 0) {
-        for (let m = 0; m < IMAGE_MULTIPLIER; m++) {
-          items.forEach(item => {
-            // Usamos un id modificado para las copias para que React/Three.js
-            // piensen que son items diferentes si es necesario en assignMedia
-            multipliedItems.push({
-              ...item,
-              id: m === 0 ? item.id : `${item.id}-copy-${m}`
+        // Multiplicar las imágenes
+        const multipliedItems: TaskItem[] = [];
+        if (items.length > 0) {
+          for (let m = 0; m < IMAGE_MULTIPLIER; m++) {
+            items.forEach(item => {
+              multipliedItems.push({
+                ...item,
+                id: m === 0 ? item.id : `${item.id}-copy-${m}`
+              });
             });
-          });
+          }
         }
-      }
 
-      multipliedItems.forEach((item, i) => { 
-        if (i < tiles.length) {
-          const src = item.videoUrl || item.url;
-          const texData = src ? textureCache.get(src) : null;
-          assignMedia(tiles[i], item, texData || null);
+        multipliedItems.forEach((item, i) => { 
+          if (i < tiles.length) {
+            const src = item.videoUrl || item.url;
+            const texData = src ? textureCache.get(src) : null;
+            assignMedia(tiles[i], item, texData || null);
+          }
+        });
+        
+        if (onReadyRef.current) {
+          onReadyRef.current();
         }
       });
-      
-      if (onReadyRef.current) {
-        onReadyRef.current();
-      }
-    });
+    };
 
     const countDiv = document.createElement("div");
     countDiv.style.cssText =

@@ -33,19 +33,37 @@ function DisplayContent({ eventId, screenConfig }: { eventId: string, screenConf
   const imagesSinceMosaicRef = useRef<number>(0);
   const lastTriggerAtRef = useRef<number>(0);
 
-  const handleMosaicReady = () => {
-    // Only transition to showing if we were in loading state
-    if (mode === "mosaic_loading") {
-      setMode("mosaic_showing");
-      const duration = (screenConfig?.mosaicDuration || 15) * 1000;
-      if (mosaicTimerRef.current) clearTimeout(mosaicTimerRef.current);
-      // Inicia el contador una vez cargado el mosaico
-      mosaicTimerRef.current = setTimeout(() => {
-        setMode("display");
-        imagesSinceMosaicRef.current = 0;
-      }, duration);
+  const modeRef = useRef(mode);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+
+  const isDisplayingImageRef = useRef(false);
+  const pendingMosaicRef = useRef(false);
+
+  const triggerMosaicShow = React.useCallback(() => {
+    setMode((prevMode) => {
+      if (prevMode === "mosaic_loading") {
+        const duration = (screenConfig?.mosaicDuration || 15) * 1000;
+        if (mosaicTimerRef.current) clearTimeout(mosaicTimerRef.current);
+        mosaicTimerRef.current = setTimeout(() => {
+          setMode("display");
+          imagesSinceMosaicRef.current = 0;
+          setCurrent(null);
+          setVisible(false);
+        }, duration);
+        return "mosaic_showing";
+      }
+      return prevMode;
+    });
+    pendingMosaicRef.current = false;
+  }, [screenConfig?.mosaicDuration]);
+
+  const handleMosaicReady = React.useCallback(() => {
+    if (isDisplayingImageRef.current) {
+      pendingMosaicRef.current = true;
+    } else {
+      triggerMosaicShow();
     }
-  };
+  }, [triggerMosaicShow]);
 
   // Manual Trigger via Firestore
   useEffect(() => {
@@ -76,24 +94,31 @@ function DisplayContent({ eventId, screenConfig }: { eventId: string, screenConf
       if (item.id === lastIdRef.current) return;
       lastIdRef.current = item.id;
       
+      if (modeRef.current === "mosaic_showing") return; // Si ya está mostrando el mosaico, ignorar
+
+      isDisplayingImageRef.current = true;
+      
       // Auto trigger logic
       imagesSinceMosaicRef.current += 1;
       const autoEnabled = screenConfig?.mosaicAuto;
-      const triggerCount = screenConfig?.mosaicTriggerCount || 10;
+      const triggerCount = Number(screenConfig?.mosaicTriggerCount) || 10;
       
-      if (autoEnabled && imagesSinceMosaicRef.current >= triggerCount && mode === "display") {
-        // Start loading mosaic, but continue to show this image normally
+      if (autoEnabled && imagesSinceMosaicRef.current >= triggerCount && modeRef.current === "display") {
         setMode("mosaic_loading");
       }
-
-      if (mode === "mosaic_showing") return; // Si ya está mostrando el mosaico, ignorar
 
       if (timerRef.current) clearTimeout(timerRef.current);
       setVisible(false);
       setTimeout(() => { setCurrent(item); setVisible(true); }, 300);
       timerRef.current = setTimeout(() => {
         setVisible(false);
-        setTimeout(() => setCurrent(null), 300);
+        setTimeout(() => {
+          setCurrent(null);
+          isDisplayingImageRef.current = false;
+          if (pendingMosaicRef.current) {
+            triggerMosaicShow();
+          }
+        }, 300);
       }, DISPLAY_DURATION_MS + 300);
     });
 
@@ -101,7 +126,7 @@ function DisplayContent({ eventId, screenConfig }: { eventId: string, screenConf
       unsub();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [eventId, mode, screenConfig?.mosaicAuto, screenConfig?.mosaicTriggerCount]);
+  }, [eventId, screenConfig?.mosaicAuto, screenConfig?.mosaicTriggerCount, triggerMosaicShow]);
 
   const isVideo = !!current?.videoUrl;
   const mediaSrc = current?.videoUrl || current?.url;
