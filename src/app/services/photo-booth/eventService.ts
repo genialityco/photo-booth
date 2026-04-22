@@ -37,6 +37,8 @@ export type EventProfile = {
     mosaicDuration: number;
     mosaicAuto: boolean;
     mosaicTriggerCount: number;
+    mosaicImageMultiplier?: number;
+    mosaicAnimation?: "fall" | "scale-up";
     triggerMosaicAt?: number;
   };
   createdAt?: Timestamp | Date | null;

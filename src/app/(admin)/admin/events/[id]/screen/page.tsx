@@ -30,6 +30,8 @@ export default function ScreenSettingsPage({
   const [mosaicDuration, setMosaicDuration] = useState(15);
   const [mosaicAuto, setMosaicAuto] = useState(false);
   const [mosaicTriggerCount, setMosaicTriggerCount] = useState(10);
+  const [mosaicImageMultiplier, setMosaicImageMultiplier] = useState(1);
+  const [mosaicAnimation, setMosaicAnimation] = useState<"fall" | "scale-up">("fall");
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -42,6 +44,8 @@ export default function ScreenSettingsPage({
             setMosaicDuration(data.screenConfig.mosaicDuration || 15);
             setMosaicAuto(data.screenConfig.mosaicAuto || false);
             setMosaicTriggerCount(data.screenConfig.mosaicTriggerCount || 10);
+            setMosaicImageMultiplier(data.screenConfig.mosaicImageMultiplier || 1);
+            setMosaicAnimation(data.screenConfig.mosaicAnimation || "fall");
           }
         }
       } catch (error) {
@@ -76,6 +80,8 @@ export default function ScreenSettingsPage({
           mosaicDuration,
           mosaicAuto,
           mosaicTriggerCount,
+          mosaicImageMultiplier,
+          mosaicAnimation,
         },
       });
       alert("Configuración guardada correctamente");
@@ -96,6 +102,8 @@ export default function ScreenSettingsPage({
           mosaicDuration,
           mosaicAuto,
           mosaicTriggerCount,
+          mosaicImageMultiplier,
+          mosaicAnimation,
           triggerMosaicAt: Date.now(),
         },
       });
@@ -174,6 +182,36 @@ export default function ScreenSettingsPage({
             value={mosaicTriggerCount}
             onChange={(e) => setMosaicTriggerCount(Number(e.target.value))}
           />
+        </div>
+
+        <div className="flex flex-col mt-4">
+          <label className="font-medium text-gray-700 mb-1">
+            Multiplicador de imágenes
+          </label>
+          <p className="text-gray-500 text-xs mb-2">
+            Cantidad de veces que se repetirá cada foto en el mosaico.
+          </p>
+          <input
+            type="number"
+            min="1"
+            className="border border-gray-300 rounded-lg p-2"
+            value={mosaicImageMultiplier}
+            onChange={(e) => setMosaicImageMultiplier(Number(e.target.value))}
+          />
+        </div>
+
+        <div className="flex flex-col mt-4">
+          <label className="font-medium text-gray-700 mb-1">
+            Tipo de animación del mosaico
+          </label>
+          <select
+            className="border border-gray-300 rounded-lg p-2 bg-white"
+            value={mosaicAnimation}
+            onChange={(e) => setMosaicAnimation(e.target.value as "fall" | "scale-up")}
+          >
+            <option value="fall">Caída desde arriba</option>
+            <option value="scale-up">Aparecer desde el fondo</option>
+          </select>
         </div>
 
         <div className="pt-4 flex gap-4">

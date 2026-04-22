@@ -30,8 +30,8 @@ function DisplayContent({ eventId, screenConfig }: { eventId: string, screenConf
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastIdRef = useRef<string | null>(null);
   const mosaicTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const imagesSinceMosaicRef = useRef<number>(0);
   const lastTriggerAtRef = useRef<number>(0);
+  const isInitialConfigRef = useRef<boolean>(true);
 
   const modeRef = useRef(mode);
   useEffect(() => { modeRef.current = mode; }, [mode]);
@@ -46,7 +46,6 @@ function DisplayContent({ eventId, screenConfig }: { eventId: string, screenConf
         if (mosaicTimerRef.current) clearTimeout(mosaicTimerRef.current);
         mosaicTimerRef.current = setTimeout(() => {
           setMode("display");
-          imagesSinceMosaicRef.current = 0;
           setCurrent(null);
           setVisible(false);
         }, duration);
@@ -70,18 +69,26 @@ function DisplayContent({ eventId, screenConfig }: { eventId: string, screenConf
     if (!screenConfig) return;
     const triggerAt = screenConfig.triggerMosaicAt;
     
+    if (isInitialConfigRef.current) {
+      isInitialConfigRef.current = false;
+      lastTriggerAtRef.current = triggerAt || 0;
+      return;
+    }
+    
     if (triggerAt && triggerAt > lastTriggerAtRef.current) {
       lastTriggerAtRef.current = triggerAt;
       setMode("mosaic_loading");
     }
   }, [screenConfig?.triggerMosaicAt]);
 
+  const isInitialSnapshotRef = useRef<boolean>(true);
+
   // Image listener
   useEffect(() => {
+    isInitialSnapshotRef.current = true;
     const constraints: Parameters<typeof query>[1][] = [
       where("status", "==", "done"),
       orderBy("finishedAt", "desc"),
-      limit(1),
     ];
     if (eventId) constraints.push(where("eventId", "==", eventId));
 
@@ -91,6 +98,11 @@ function DisplayContent({ eventId, screenConfig }: { eventId: string, screenConf
       if (snap.empty) return;
       const docSnap = snap.docs[0];
       const item: DisplayItem = { id: docSnap.id, ...(docSnap.data() as any) };
+      const totalImages = snap.size;
+      
+      const isInitial = isInitialSnapshotRef.current;
+      isInitialSnapshotRef.current = false;
+
       if (item.id === lastIdRef.current) return;
       lastIdRef.current = item.id;
       
@@ -98,13 +110,23 @@ function DisplayContent({ eventId, screenConfig }: { eventId: string, screenConf
 
       isDisplayingImageRef.current = true;
       
-      // Auto trigger logic
-      imagesSinceMosaicRef.current += 1;
+      // Auto trigger logic based on total image count
       const autoEnabled = screenConfig?.mosaicAuto;
       const triggerCount = Number(screenConfig?.mosaicTriggerCount) || 10;
       
-      if (autoEnabled && imagesSinceMosaicRef.current >= triggerCount && modeRef.current === "display") {
+      console.log(`[Mosaic Trigger Check] Image received: ${item.id}`);
+      console.log(`- isInitial: ${isInitial}`);
+      console.log(`- totalImages: ${totalImages}`);
+      console.log(`- autoEnabled: ${autoEnabled}`);
+      console.log(`- triggerCount: ${triggerCount}`);
+      console.log(`- modeRef.current: ${modeRef.current}`);
+      console.log(`- Math: ${totalImages} % ${triggerCount} = ${totalImages % triggerCount}`);
+
+      if (!isInitial && autoEnabled && triggerCount > 0 && totalImages % triggerCount === 0 && modeRef.current === "display") {
+        console.log(`[Mosaic Trigger] CONDITION MET! Launching mosaic_loading`);
         setMode("mosaic_loading");
+      } else {
+        console.log(`[Mosaic Trigger] Condition not met.`);
       }
 
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -144,7 +166,9 @@ function DisplayContent({ eventId, screenConfig }: { eventId: string, screenConf
           <MosaicCanvas 
             eventId={eventId} 
             isShowing={mode === "mosaic_showing"} 
-            onReady={handleMosaicReady} 
+            onReady={handleMosaicReady}
+            imageMultiplier={screenConfig?.mosaicImageMultiplier || 1}
+            animationType={screenConfig?.mosaicAnimation || "fall"}
           />
         </div>
       )}

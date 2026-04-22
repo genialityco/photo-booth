@@ -21,7 +21,6 @@ const FALL_DIRECTION: "up" | "down" = "down";
 const BOUNCE      = 0.35;
 const FLOAT_AMP   = 0.04;
 const FLOAT_SPEED = 0.8;
-const IMAGE_MULTIPLIER = 2; // Multiplica la cantidad de imágenes que se muestran repetidas
 // ──────────────────────────────────────────────────────────────────────────────
 
 type TaskItem = { id: string; url?: string; videoUrl?: string };
@@ -75,11 +74,15 @@ function computeTextCells(text: string, cols: number, rows: number, cellPx: numb
 export default function MosaicCanvas({ 
   eventId, 
   isShowing = true,
-  onReady
+  onReady,
+  imageMultiplier = 1,
+  animationType = "fall"
 }: { 
   eventId: string,
   isShowing?: boolean,
-  onReady?: () => void
+  onReady?: () => void,
+  imageMultiplier?: number,
+  animationType?: "fall" | "scale-up"
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [fontLoaded, setFontLoaded] = useState(false);
@@ -168,7 +171,7 @@ export default function MosaicCanvas({
         );
         mesh.position.set(x, y, 0);
         scene.add(mesh);
-        return { mesh, targetX: x, targetY: y, velY: 0, landed: true,
+        return { mesh, targetX: x, targetY: y, velY: 0, velZ: 0, landed: true,
                  floatOffset: Math.random() * Math.PI * 2,
                  floatOffsetX: Math.random() * Math.PI * 2,
                  itemId: null, videoEl: null };
@@ -179,9 +182,10 @@ export default function MosaicCanvas({
     interface Tile {
       mesh: THREE.Mesh;
       targetX: number; targetY: number;
-      velY: number; landed: boolean;
+      velY: number; velZ: number; landed: boolean;
       floatOffset: number; floatOffsetX: number;
       itemId: string | null; videoEl: HTMLVideoElement | null;
+      scaleDelay?: number; scaleTimer?: number;
     }
 
     let tiles: Tile[] = [];
@@ -243,19 +247,39 @@ export default function MosaicCanvas({
       // Note: we don't pause shared videos here to avoid stopping for all tiles
       tile.videoEl = null; 
       
-      if (!textureData) return;
-      
-      tile.videoEl = textureData.vid || null;
-
       const mat = tile.mesh.material as THREE.MeshBasicMaterial;
-      mat.map = textureData.tex; 
-      mat.color.set(0xffffff); 
+      
+      if (!textureData) {
+        // Fallback or empty state if texture fails to load
+        mat.map = null;
+        mat.color.setHex(EMPTY_COLOR);
+      } else {
+        tile.videoEl = textureData.vid || null;
+        mat.map = textureData.tex; 
+        mat.color.setHex(0xffffff); 
+      }
+      
       mat.needsUpdate = true;
 
-      tile.mesh.position.y = FALL_DIRECTION === "up"
-        ? tile.targetY - FALL_FROM_Y
-        : tile.targetY + FALL_FROM_Y;
-      tile.velY = 0; tile.landed = false;
+      if (animationType === "fall") {
+        // Always reset position to start the falling animation for newly assigned items
+        tile.mesh.position.y = FALL_DIRECTION === "up"
+          ? tile.targetY - FALL_FROM_Y
+          : tile.targetY + FALL_FROM_Y;
+        tile.mesh.position.z = 0;
+        tile.mesh.scale.set(1, 1, 1);
+        tile.velY = 0; 
+      } else if (animationType === "scale-up") {
+        // Start far back in Z and small
+        tile.mesh.position.y = tile.targetY;
+        tile.mesh.position.z = -50; 
+        tile.mesh.scale.set(0.01, 0.01, 0.01);
+        tile.velZ = 0;
+        tile.scaleDelay = Math.random() * 2; // Random delay between 0 and 2 seconds
+        tile.scaleTimer = 0;
+      }
+      
+      tile.landed = false;
     }
 
     const startFirestoreListener = () => {
@@ -281,17 +305,32 @@ export default function MosaicCanvas({
         // Multiplicar las imágenes
         const multipliedItems: TaskItem[] = [];
         if (items.length > 0) {
-          for (let m = 0; m < IMAGE_MULTIPLIER; m++) {
+          for (let m = 0; m < imageMultiplier; m++) {
             items.forEach(item => {
               multipliedItems.push({
                 ...item,
+                // Assign a unique id for copies to guarantee the component registers them as new items
                 id: m === 0 ? item.id : `${item.id}-copy-${m}`
               });
             });
           }
         }
 
-        multipliedItems.forEach((item, i) => { 
+        // Si tenemos más celdas (tiles) que imágenes multiplicadas, rellenamos con imágenes repetidas al azar
+        // para asegurar que todo el texto del mosaico se llene por completo.
+        const itemsToDisplay = [...multipliedItems];
+        if (itemsToDisplay.length > 0 && itemsToDisplay.length < tiles.length) {
+          let fillerIndex = itemsToDisplay.length;
+          while (itemsToDisplay.length < tiles.length) {
+            const randomSourceItem = multipliedItems[Math.floor(Math.random() * multipliedItems.length)];
+            itemsToDisplay.push({
+              ...randomSourceItem,
+              id: `${randomSourceItem.id}-filler-${fillerIndex++}`
+            });
+          }
+        }
+
+        itemsToDisplay.forEach((item, i) => { 
           if (i < tiles.length) {
             const src = item.videoUrl || item.url;
             const texData = src ? textureCache.get(src) : null;
@@ -328,15 +367,33 @@ export default function MosaicCanvas({
       let landedCount = 0;
       tiles.forEach((tile) => {
         if (!tile.landed) {
-          tile.velY += (FALL_DIRECTION === "up" ? GRAVITY : -GRAVITY) * dt;
-          tile.mesh.position.y += tile.velY * dt;
-          const reachedTarget = FALL_DIRECTION === "up"
-            ? tile.mesh.position.y >= tile.targetY
-            : tile.mesh.position.y <= tile.targetY;
-          if (reachedTarget) {
-            tile.mesh.position.y = tile.targetY;
-            tile.velY = -tile.velY * BOUNCE;
-            if (Math.abs(tile.velY) < 0.3) { tile.velY = 0; tile.landed = true; }
+          if (animationType === "fall") {
+            tile.velY += (FALL_DIRECTION === "up" ? GRAVITY : -GRAVITY) * dt;
+            tile.mesh.position.y += tile.velY * dt;
+            const reachedTarget = FALL_DIRECTION === "up"
+              ? tile.mesh.position.y >= tile.targetY
+              : tile.mesh.position.y <= tile.targetY;
+            if (reachedTarget) {
+              tile.mesh.position.y = tile.targetY;
+              tile.velY = -tile.velY * BOUNCE;
+              if (Math.abs(tile.velY) < 0.3) { tile.velY = 0; tile.landed = true; }
+            }
+          } else if (animationType === "scale-up") {
+            tile.scaleTimer = (tile.scaleTimer || 0) + dt;
+            if (tile.scaleTimer > (tile.scaleDelay || 0)) {
+              // Ease towards z = 0 and scale = 1
+              tile.mesh.position.z += (0 - tile.mesh.position.z) * dt * 5;
+              const targetScale = 1;
+              tile.mesh.scale.x += (targetScale - tile.mesh.scale.x) * dt * 5;
+              tile.mesh.scale.y += (targetScale - tile.mesh.scale.y) * dt * 5;
+              tile.mesh.scale.z += (targetScale - tile.mesh.scale.z) * dt * 5;
+
+              if (Math.abs(tile.mesh.position.z) < 0.1 && Math.abs(tile.mesh.scale.x - 1) < 0.01) {
+                tile.mesh.position.z = 0;
+                tile.mesh.scale.set(1, 1, 1);
+                tile.landed = true;
+              }
+            }
           }
         } else {
           tile.mesh.position.y = tile.targetY + Math.sin(t * FLOAT_SPEED + tile.floatOffset) * FLOAT_AMP;
