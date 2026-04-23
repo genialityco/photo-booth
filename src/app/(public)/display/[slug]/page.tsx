@@ -182,7 +182,7 @@ function DisplayContent({ eventId, screenConfig }: { eventId: string, screenConf
         <video
           src={SCREENSAVER_VIDEO}
           autoPlay loop muted playsInline
-          className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-500 ${
+          className={`absolute inset-0 w-full h-full object-fill transition-opacity duration-500 ${
             !current || !visible ? "opacity-100" : "opacity-0"
           }`}
         />
@@ -191,10 +191,10 @@ function DisplayContent({ eventId, screenConfig }: { eventId: string, screenConf
         }`}>
           {mediaSrc && (isVideo ? (
             <video key={mediaSrc} src={mediaSrc} autoPlay loop muted playsInline
-              className="w-full h-full object-contain" />
+              className="absolute inset-0 w-full h-full object-fill" />
           ) : (
             <img key={mediaSrc} src={mediaSrc} alt="resultado"
-              className="w-full h-full object-contain" />
+              className="absolute inset-0 w-full h-full object-fill" />
           ))}
         </div>
       </div>

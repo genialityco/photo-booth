@@ -13,7 +13,7 @@ const FONT_URL    = "/font/Neue_Haas_Unica_W1G_Light.ttf"; // Path to your font 
 const BG_IMAGE    = "/images/FONDO-TEXTO-IMAGENES.png";
 const BG_COLOR    = 0x0a0a0a; // Fallback
 const EMPTY_COLOR = 0xffffff;
-const CELL_SIZE   = 0.1;
+const CELL_SIZE   = 0.15;
 const CELL_GAP    = 0.01; // Reducido el espacio del margen
 const FALL_FROM_Y = 12;   // distancia desde donde caen (siempre positivo)
 const GRAVITY     = 18;   // magnitud de la aceleración
@@ -132,7 +132,7 @@ export default function MosaicCanvas({
     mount.style.backgroundImage = `url(${BG_IMAGE})`;
     mount.style.backgroundRepeat = "no-repeat";
     mount.style.backgroundPosition = "center";
-    mount.style.backgroundSize = "auto 100%";
+    mount.style.backgroundSize = "100% 100%";
     mount.style.backgroundColor = `#${BG_COLOR.toString(16).padStart(6, '0')}`;
 
     const scene = new THREE.Scene();
@@ -158,9 +158,12 @@ export default function MosaicCanvas({
             : a.row - b.row || a.col - b.col
         );
 
+      const yOffset = -0.6; // Ajuste para mover el mosaico hacia abajo (en unidades del mundo THREE)
+      const yScaleFactor = 0.85; // Aplanado: comprime el espacio vertical de la grilla
+
       const toWorld = (col: number, row: number) => ({
         x: -frustW / 2 + col * step + step / 2,
-        y:  frustH / 2 - row * step - step / 2,
+        y:  ((frustH / 2 - row * step - step / 2) * yScaleFactor) + yOffset,
       });
 
       const tiles: Tile[] = textCells.map(({ col, row }) => {
@@ -194,15 +197,14 @@ export default function MosaicCanvas({
     const bgImg = new Image();
     bgImg.src = BG_IMAGE;
     bgImg.onload = () => {
-      const bgAspect = bgImg.width / bgImg.height;
-      const bgWidthPx = H * bgAspect;
-      // Make text occupy 94% of the background image width
-      const maxWidthRatio = (bgWidthPx / W) * 0.94;
+      // Ajustamos el factor de proporción (maxWidthRatio) basándonos en si la pantalla es más ancha de lo normal.
+      // Hacemos que ocupe siempre casi todo el espacio lateral.
+      const maxWidthRatio = 0.98; // Ensanchado para aprovechar más la pantalla
       tiles = initMosaic(maxWidthRatio);
       startFirestoreListener();
     };
     bgImg.onerror = () => {
-      tiles = initMosaic(0.94); // fallback
+      tiles = initMosaic(0.98); // fallback ensanchado
       startFirestoreListener();
     };
 
