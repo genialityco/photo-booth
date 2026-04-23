@@ -34,16 +34,19 @@ export default function PreviewStep({
   
   {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-1  p-2   ">
-        <div className={` flex items-center justify-center rounded-2xl overflow-hidden w-full ${borderRadiusClass}`}>
+      <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 overflow-hidden">
+        <div className={`flex-1 flex items-center justify-center w-full overflow-hidden ${borderRadiusClass}`}>
           <div
-            className={`relative  shadow-lg w-full `}
-            style={{ width: boxSize, height: boxSize}}
+            className={`relative shadow-lg w-full h-full aspect-square max-w-full max-h-full`}
+            style={{ 
+              maxWidth: boxSize, 
+              maxHeight: boxSize 
+            }}
           >
             <img
               src={displayImage}
               alt="Preview"
-              className="absolute inset-0 h-full"
+              className="absolute inset-0 w-full h-full object-cover"
             />
           </div>
         </div>

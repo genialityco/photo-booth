@@ -423,10 +423,10 @@ export default function PhotoBoothWizard({
       </div>
 
       {/* CONTENT: Contenedor del contenido (capture, preview, result) */}
-      <div className="relative z-20 flex-1 flex items-center justify-center overflow-hidden px-0 sm:px-4">
+      <div className="relative z-20 flex-1 flex items-center justify-center overflow-hidden px-0 sm:px-4 w-full">
         <div
-          className="flex items-center justify-center overflow-hidden w-full h-full sm:w-auto sm:h-auto"
-          style={{ width: boxSize, height: boxSize, maxHeight: "100%" }}
+          className="flex flex-col items-center justify-center overflow-hidden w-full h-full sm:w-auto sm:h-auto"
+          style={{ width: "100%", maxWidth: boxSize, maxHeight: "100%" }}
         >
           {step === "capture" && (
             <CaptureStep

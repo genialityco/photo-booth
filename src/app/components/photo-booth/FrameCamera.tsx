@@ -90,8 +90,8 @@ export default function FrameCamera({
           audio: false,
           video: {
             facingMode: "user",
-            // Reducir resolución inicial - muchos móviles fallan con HD
-            width: { ideal: 1920 },
+            // Reducir resolución inicial - muchos móviles fallan con resoluciones forzadas, ideal 1080
+            width: { ideal: 1080 },
             height: { ideal: 1080 },
           },
         };
@@ -175,10 +175,13 @@ export default function FrameCamera({
   }, [onReady]);
 
   return (
-    <div className="w-full flex flex-col items-center justify-center gap-2">
+    <div className="w-full h-full flex flex-col items-center justify-center gap-2">
       <div
-        className={`relative overflow-hidden shadow-2xl`}
-        style={{ width: boxSize, height: boxSize }}
+        className={`relative overflow-hidden shadow-2xl w-full h-full aspect-square max-w-full max-h-full`}
+        style={{ 
+          maxWidth: boxSize, 
+          maxHeight: boxSize 
+        }}
       >
         <video
           ref={videoRef}
