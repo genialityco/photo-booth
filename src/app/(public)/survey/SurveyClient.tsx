@@ -18,7 +18,7 @@ export default function SurveyClient() {
 
   const src = sp.get("src");
   const qrId = sp.get("qrId");
-  const kind = (sp.get("kind") as "raw" | "framed") || undefined;
+  const kind = (sp.get("kind") as "raw" | "framed" | "video") || undefined;
   const filenameFromQS = sp.get("filename") || undefined;
   const frameUrlFromQS = sp.get("frameUrl") || undefined;
   const [photo, setPhoto] = useState<string>("");
@@ -43,6 +43,7 @@ export default function SurveyClient() {
 
   const suggestedName = useMemo(() => {
     if (filenameFromQS) return filenameFromQS;
+    if (kind === "video") return `video-${new Date().toISOString().replace(/[:.]/g, "-")}.mp4`;
     const base = kind === "framed" ? "foto-con-marco" : "foto-sin-marco";
     const t = new Date().toISOString().replace(/[:.]/g, "-");
     return `${base}-${t}.png`;
@@ -170,6 +171,11 @@ useEffect(() => {
             // json inválido → ignorar silenciosamente
           }
         }
+      }
+
+      // Si es un video, no intentar componer marco
+      if (kind === "video") {
+        frameToUse = undefined;
       }
 
       // Si hay frame → componer imagen con marco
@@ -368,21 +374,25 @@ useEffect(() => {
           {/* Vista previa opcional (déjala comentada si quieres SOLO el botón) */}
 
           {canDownload && (
-            <div className="mt-4 w-full bg-white/5 rounded-xl p-3 border border-white/10 relative aspect-square overflow-hidden">
-              {/* Imagen base */}
-              <img
-                src={photo}
-                alt="Tu imagen"
-                className="absolute inset-0 w-full h-full object-contain rounded-lg select-none"
-                draggable={false}
-              />
-              {/* Marco superpuesto */}
-              {/* <img
-                src=""
-                alt="Marco decorativo"
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-                draggable={false}
-              /> */}
+            <div className="mt-4 w-full bg-white/5 rounded-xl p-3 border border-white/10 relative aspect-square overflow-hidden flex items-center justify-center">
+              {/* Imagen o video base */}
+              {kind === "video" || (downloadHref && downloadHref.includes(".mp4")) ? (
+                <video
+                  src={photo}
+                  className="absolute inset-0 w-full h-full object-contain rounded-lg"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                />
+              ) : (
+                <img
+                  src={photo}
+                  alt="Tu imagen"
+                  className="absolute inset-0 w-full h-full object-contain rounded-lg select-none"
+                  draggable={false}
+                />
+              )}
             </div>
           )}
         </div>

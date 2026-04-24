@@ -32,17 +32,24 @@ export default function ResultStep({
 
   const surveyAI = useMemo(() => {
     const url = new URL(`${origin}/survey`);
-    url.searchParams.set("src", aiUrl);
-    url.searchParams.set("kind", "raw");
-    url.searchParams.set("filename", `foto-ia-${taskId}.png`);
     
-    // Agregar frameUrl solo si enableFrame está activado y hay frameImage
-    if (enableFrame && frameSrc) {
-      url.searchParams.set("frameUrl", frameSrc);
+    if (videoUrl) {
+      url.searchParams.set("src", videoUrl);
+      url.searchParams.set("kind", "video");
+      url.searchParams.set("filename", `video-ia-${taskId}.mp4`);
+    } else {
+      url.searchParams.set("src", aiUrl);
+      url.searchParams.set("kind", "raw");
+      url.searchParams.set("filename", `foto-ia-${taskId}.png`);
+      
+      // Agregar frameUrl solo si enableFrame está activado y hay frameImage
+      if (enableFrame && frameSrc) {
+        url.searchParams.set("frameUrl", frameSrc);
+      }
     }
     
     return url.toString();
-  }, [origin, aiUrl, taskId, enableFrame, frameSrc]);
+  }, [origin, aiUrl, videoUrl, taskId, enableFrame, frameSrc]);
 
   const SIZE_IMG = "clamp(300px, min(70vw, 60svh), 700px)";
 
@@ -148,12 +155,28 @@ export default function ResultStep({
   const handleDownload = async () => {
     // Si hay video, descargarlo directamente
     if (videoUrl) {
-      const a = document.createElement("a");
-      a.href = videoUrl;
-      a.download = `foto-ia-${taskId}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      try {
+        const response = await fetch(videoUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `video-ia-${taskId}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error("Error al descargar el video:", err);
+        // Fallback
+        const a = document.createElement("a");
+        a.href = videoUrl;
+        a.download = `video-ia-${taskId}.mp4`;
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
       return;
     }
     try {
