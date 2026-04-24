@@ -155,28 +155,14 @@ export default function ResultStep({
   const handleDownload = async () => {
     // Si hay video, descargarlo directamente
     if (videoUrl) {
-      try {
-        const response = await fetch(videoUrl);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `video-ia-${taskId}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-      } catch (err) {
-        console.error("Error al descargar el video:", err);
-        // Fallback
-        const a = document.createElement("a");
-        a.href = videoUrl;
-        a.download = `video-ia-${taskId}.mp4`;
-        a.target = "_blank";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      }
+      // Usar proxy para forzar "Content-Disposition: attachment" en iOS/Safari
+      const downloadApiUrl = `/api/storage/download?url=${encodeURIComponent(videoUrl)}&filename=${encodeURIComponent(`video-ia-${taskId}.mp4`)}`;
+      const a = document.createElement("a");
+      a.href = downloadApiUrl;
+      a.download = `video-ia-${taskId}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
       return;
     }
     try {

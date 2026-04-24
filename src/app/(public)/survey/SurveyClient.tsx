@@ -182,16 +182,20 @@ useEffect(() => {
       // Si NO hay frame → usamos la foto original directamente
       let finalUrl: string;
       let isFramed = false;
+      const fName = filenameFromQS || (kind === "video" ? suggestedName : suggestedName);
 
       if (frameToUse) {
         finalUrl = await composeFramed(photo, frameToUse);
         isFramed = true;
+      } else if (kind === "video" || photo.includes(".mp4")) {
+        // Usar proxy para forzar la descarga como archivo (attachment) en lugar de abrir reproductor en iOS
+        finalUrl = `/api/storage/download?url=${encodeURIComponent(photo)}&filename=${encodeURIComponent(fName)}`;
       } else {
         finalUrl = photo; // ← sin marco, usamos la original
       }
 
       if (!active) {
-        URL.revokeObjectURL(finalUrl);
+        if (isFramed) URL.revokeObjectURL(finalUrl);
         return;
       }
 
@@ -199,11 +203,13 @@ useEffect(() => {
       setDownloadName(
         isFramed
           ? filenameFromQS || `foto-con-marco-${new Date().toISOString().replace(/[:.]/g, "-")}.png`
-          : filenameFromQS || suggestedName
+          : fName
       );
       setSaved(true);
 
-      revokeRef.current = () => URL.revokeObjectURL(finalUrl);
+      revokeRef.current = () => {
+        if (isFramed) URL.revokeObjectURL(finalUrl);
+      };
     } catch (e: any) {
       console.error(e);
       setErr(e.message || "No se pudo preparar la imagen.");
@@ -376,7 +382,7 @@ useEffect(() => {
           {canDownload && (
             <div className="mt-4 w-full bg-white/5 rounded-xl p-3 border border-white/10 relative aspect-square overflow-hidden flex items-center justify-center">
               {/* Imagen o video base */}
-              {kind === "video" || (downloadHref && downloadHref.includes(".mp4")) ? (
+              {kind === "video" || photo.includes(".mp4") ? (
                 <video
                   src={photo}
                   className="absolute inset-0 w-full h-full object-contain rounded-lg"
