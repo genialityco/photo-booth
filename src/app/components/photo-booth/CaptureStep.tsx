@@ -212,11 +212,11 @@ export default function CaptureStep({
       <div className="flex-shrink-0">
         <ButtonPrimary
           onClick={startCapture}
-          label={canShoot ? "TOMAR FOTO" : "Cargando cámara…"}
+          label={"TOMAR FOTO"}
           imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
           width={620}
           height={50}
-          disabled={!canShoot}
+          //disabled={!canShoot}
           ariaLabel="Tomar foto"
         />
       </div>

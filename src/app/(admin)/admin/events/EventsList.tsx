@@ -47,6 +47,33 @@ export default function EventsList() {
     }
   };
 
+  const [deletingImagesId, setDeletingImagesId] = useState<string | null>(null);
+
+  const handleDeleteImages = async (id: string) => {
+    if (
+      confirm(
+        "¿Estás seguro de que deseas ELIMINAR TODAS LAS IMÁGENES asociadas a este evento? Esta acción no se puede deshacer."
+      )
+    ) {
+      try {
+        setDeletingImagesId(id);
+        const res = await fetch(`/api/events/${id}/images`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          throw new Error("Error al eliminar las imágenes del evento");
+        }
+        const data = await res.json();
+        alert(`Éxito: ${data.message || "Imágenes eliminadas."}`);
+      } catch (error) {
+        console.error("Error deleting event images:", error);
+        alert("Error al eliminar las imágenes del evento");
+      } finally {
+        setDeletingImagesId(null);
+      }
+    }
+  };
+
   const handleEdit = (event: EventProfile) => {
     setEditingEvent(event);
     setShowForm(true);
@@ -196,27 +223,38 @@ export default function EventsList() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="ml-4 flex gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => {
-                      window.location.href = `/admin/events/${event.id}/screen`;
-                    }}
-                    className="px-3 py-2 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 text-sm font-medium"
-                  >
-                    Pantalla
-                  </button>
-                  <button
-                    onClick={() => handleEdit(event)}
-                    className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => handleDelete(event.id)}
-                    className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium"
-                  >
-                    Eliminar
-                  </button>
+                <div className="ml-4 flex flex-col gap-2 flex-shrink-0">
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => {
+                        window.location.href = `/admin/events/${event.id}/screen`;
+                      }}
+                      className="px-3 py-2 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 text-sm font-medium"
+                    >
+                      Pantalla
+                    </button>
+                    <button
+                      onClick={() => handleEdit(event)}
+                      className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(event.id)}
+                      className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => handleDeleteImages(event.id)}
+                      disabled={deletingImagesId === event.id}
+                      className="px-3 py-2 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 text-sm font-medium disabled:opacity-50"
+                    >
+                      {deletingImagesId === event.id ? "Borrando..." : "Borrar Imágenes"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
