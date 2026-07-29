@@ -110,11 +110,17 @@ export default function CaptureStep({
 
   // 👇 Con marco: videoReady && frameReady && !!frameSize (o sin marco: solo videoReady)
   const canShoot = frameSrc
-    ?  frameReady 
+    ?  frameReady
     : videoReady;
 
-  const startCapture = () => {
-    if (!canShoot) return;
+  // Mantiene el valor más reciente de canShoot sin depender de closures viejas,
+  // necesario para el reintento de startCapture cuando la cámara aún está iniciando.
+  const canShootRef = useRef(canShoot);
+  useEffect(() => {
+    canShootRef.current = canShoot;
+  }, [canShoot]);
+
+  const beginCountdown = () => {
     setCountdown(3);
     const tick = () =>
       setCountdown((c) => {
@@ -129,6 +135,23 @@ export default function CaptureStep({
     setTimeout(tick, 1000);
     setTimeout(tick, 2000);
     setTimeout(tick, 3000);
+  };
+
+  // Cuando el evento tiene una sola brand, la app salta la pantalla de selección
+  // y llega directo a Capture, por lo que el usuario puede tocar "TOMAR FOTO"
+  // antes de que la cámara termine de inicializar (canShoot aún en false).
+  // En vez de ignorar el click, esperamos un poco a que la cámara esté lista.
+  const startCapture = (attempt = 0) => {
+    if (!canShootRef.current) {
+      if (attempt >= 50) {
+        console.warn("La cámara no estuvo lista a tiempo; se continúa igual.");
+        beginCountdown();
+        return;
+      }
+      setTimeout(() => startCapture(attempt + 1), 100);
+      return;
+    }
+    beginCountdown();
   };
 
   const doCapture = async () => {
@@ -211,7 +234,7 @@ export default function CaptureStep({
 
       <div className="flex-shrink-0">
         <ButtonPrimary
-          onClick={startCapture}
+          onClick={() => startCapture()}
           label={"TOMAR FOTO"}
           imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
           width={620}
