@@ -136,7 +136,7 @@ export default function EventPhotoBoothLanding({
           {/* Brand Selection */}
           <div className="w-full">
             <h2 className="text-center text-sm sm:text-base font-semibold text-white mb-4 drop-shadow">
-              
+
             </h2>
             {loadingPrompts ? (
               <div className="text-center text-white">Cargando marcas...</div>

@@ -6,13 +6,15 @@ import React, { useEffect, useState, useCallback } from "react";
 type ScreenSaverProps = {
   splashImage?: string;
   inactivityTimeout?: number; // en milisegundos
+  startActive?: boolean; // mostrar el splash apenas se monta el componente
 };
 
 export default function ScreenSaver({
   splashImage,
   inactivityTimeout = 15000, // 15 segundos por defecto
+  startActive = false,
 }: ScreenSaverProps) {
-  const [isActive, setIsActive] = useState(false);
+  const [isActive, setIsActive] = useState(startActive && !!splashImage);
   const [isExiting, setIsExiting] = useState(false);
 
   const handleActivity = useCallback(() => {

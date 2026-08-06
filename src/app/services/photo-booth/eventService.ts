@@ -26,8 +26,13 @@ export type EventProfile = {
   buttonImage?: string;
   loadingPageImage?: string;
   splashImage?: string;
+  spinnerImage?: string;
   loadingMessage?: string;
+  loadingMessageColor?: string;
+  loadingMessageSize?: number;
   showLogosInLoader?: boolean;
+  showSplashOnStart?: boolean;
+  splashInactivityTimeout?: number;
   enableFrame?: boolean;
   dataProcessingText?: string;
   generationType?: "IMAGE" | "BGVIDEO" | "VIDEO";
@@ -109,15 +114,25 @@ export async function createEventProfile(
       prompts: Array.isArray(data.prompts) ? data.prompts : [],
       isActive: data.isActive !== false,
       showLogosInLoader: data.showLogosInLoader !== false,
+      showSplashOnStart: data.showSplashOnStart === true,
+      splashInactivityTimeout:
+        typeof data.splashInactivityTimeout === "number"
+          ? data.splashInactivityTimeout
+          : 150,
       enableFrame: data.enableFrame !== false,
       dataProcessingText: data.dataProcessingText || "",
       generationType: data.generationType || "IMAGE",
+      loadingMessageColor: data.loadingMessageColor || "#ffffff",
+      loadingMessageSize:
+        typeof data.loadingMessageSize === "number"
+          ? data.loadingMessageSize
+          : 32,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
 
     // Image fields to process
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage", "spinnerImage"];
 
     for (const field of imageFields) {
       const fileData = data[field];
@@ -273,14 +288,18 @@ export async function updateEventProfile(
     }
     if (data.isActive !== undefined) docData.isActive = data.isActive;
     if (data.loadingMessage !== undefined) docData.loadingMessage = data.loadingMessage;
+    if (data.loadingMessageColor !== undefined) docData.loadingMessageColor = data.loadingMessageColor;
+    if (data.loadingMessageSize !== undefined) docData.loadingMessageSize = data.loadingMessageSize;
     if (data.showLogosInLoader !== undefined) docData.showLogosInLoader = data.showLogosInLoader;
+    if (data.showSplashOnStart !== undefined) docData.showSplashOnStart = data.showSplashOnStart;
+    if (data.splashInactivityTimeout !== undefined) docData.splashInactivityTimeout = data.splashInactivityTimeout;
     if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
     if (data.dataProcessingText !== undefined) docData.dataProcessingText = data.dataProcessingText;
     if (data.generationType !== undefined) docData.generationType = data.generationType;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
 
     // Process image fields
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage", "spinnerImage"];
     for (const field of imageFields) {
       const fileData = data[field];
       if (!fileData) continue;

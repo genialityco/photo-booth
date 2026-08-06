@@ -6,6 +6,7 @@ import type { EventProfile } from "@/app/services/photo-booth/eventService";
 
 export default function LoaderStep() {
   const [dots, setDots] = useState("");
+  const [progress, setProgress] = useState(0);
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [event, setEvent] = useState<EventProfile | null>(null);
 
@@ -17,6 +18,20 @@ export default function LoaderStep() {
       () => setDots((p) => (p.length < 3 ? p + "." : "")),
       500
     );
+    return () => clearInterval(id);
+  }, []);
+
+  // Progreso simulado: sube gradualmente hasta 95% mientras se genera la imagen.
+  // Gemini no reporta progreso real; al terminar, el wizard cambia de paso y
+  // este componente se desmonta.
+  useEffect(() => {
+    const id = setInterval(() => {
+      setProgress((p) => {
+        if (p >= 95) return 95;
+        const step = p < 60 ? 3 : p < 85 ? 2 : 1;
+        return Math.min(95, p + step);
+      });
+    }, 500);
     return () => clearInterval(id);
   }, []);
 
@@ -49,7 +64,16 @@ export default function LoaderStep() {
 
   // Usar mensaje personalizado del evento si existe, si no "Generando imagen"
   const loadingMessage = event?.loadingMessage || "Generando imagen";
-  
+
+  // Estilo del mensaje configurable desde el admin
+  const messageColor = event?.loadingMessageColor || undefined;
+  const messageSize = event?.loadingMessageSize
+    ? `${event.loadingMessageSize}px`
+    : undefined;
+
+  // Imagen del spinner (opcional). Si no hay, sólo se muestra el mensaje.
+  const spinnerImage = event?.spinnerImage || null;
+
   // Controlar si mostrar logos basado en la configuración del evento
   const showLogos = event?.showLogosInLoader !== false && style !== null;
   
@@ -72,14 +96,35 @@ export default function LoaderStep() {
       <div className="absolute inset-0 bg-black/45" />
 
       {/* Contenido central */}
-      <div className="relative z-20 flex flex-col items-center justify-center px-3 sm:px-6">
+      <div className="relative z-20 flex flex-col items-center justify-center gap-6 px-3 sm:px-6">
+        {/* Spinner (imagen configurable, proporcional y girando) */}
+        {spinnerImage && (
+          <img
+            src={spinnerImage}
+            alt="Cargando"
+            className="w-24 h-24 sm:w-28 sm:h-28 object-contain animate-spin select-none"
+            style={{ animationDuration: "1.2s" }}
+            draggable={false}
+          />
+        )}
+
         <h1
           className="text-center text-2xl sm:text-3xl md:text-4xl font-semibold drop-shadow-lg tracking-tight"
           role="status"
           aria-live="polite"
+          style={{ color: messageColor, fontSize: messageSize }}
         >
           {loadingMessage}{dots}
         </h1>
+
+        {/* Contador de progreso simulado */}
+        <div
+          className="text-xl sm:text-2xl font-bold tabular-nums drop-shadow-lg"
+          style={{ color: messageColor }}
+          aria-hidden
+        >
+          {progress}%
+        </div>
       </div>
     </div>
   );

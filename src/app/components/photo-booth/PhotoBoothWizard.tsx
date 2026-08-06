@@ -5,6 +5,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import CaptureStep from "@/app/components/photo-booth/CaptureStep";
 import PreviewStep from "@/app/components/photo-booth/PreviewStep";
+import EventPhotoBoothLanding from "@/app/components/photo-booth/EventPhotoBoothLanding";
 import LoaderStep from "@/app/components/photo-booth/LoaderStep";
 import ResultStep from "@/app/components/photo-booth/ResultStep";
 import { getStyleProfileById } from "@/app/services/admin/styleService";
@@ -43,7 +44,7 @@ export default function PhotoBoothWizard({
 }) {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<
-    "capture" | "preview" | "loading" | "result"
+    "capture" | "preview" | "filter" | "loading" | "result"
   >("capture");
   const [framedShot, setFramedShot] = useState<string | null>(null);
   const [rawShot, setRawShot] = useState<string | null>(null);
@@ -51,7 +52,8 @@ export default function PhotoBoothWizard({
   const [aiVideoUrl, setAiVideoUrl] = useState<string | null>(null);
   const [framedUrl, setFramedUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
-  const [brand, setBrand] = useState<string | null>(null);
+  // El filtro (brand) ahora se elige en el paso "filter", después del preview.
+  // Aquí sólo persistimos el color, que puede venir por sessionStorage/searchParams.
   const [color, setColor] = useState<string | null>(null);
   const unsubRef = useRef<() => void | undefined>(undefined);
   const [style, setStyle] = useState<StyleProfile | null>(null);
@@ -59,15 +61,9 @@ export default function PhotoBoothWizard({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // 1) Primero intentar leer desde sessionStorage (establecido por EventPhotoBoothLanding)
+    // 1) Primero intentar leer desde sessionStorage
     try {
-      const storedBrand = sessionStorage.getItem("selectedBrand");
       const storedColor = sessionStorage.getItem("selectedColor");
-
-      if (storedBrand) {
-        setBrand(storedBrand);
-      }
-
       if (storedColor) {
         setColor(storedColor);
       }
@@ -75,29 +71,12 @@ export default function PhotoBoothWizard({
       // Silently continue
     }
 
-    // 2) Si no están en sessionStorage, intentar desde searchParams
-    if (searchParams) {
-      const brandParam = searchParams.get("brand");
-      const colorParam = searchParams.get("color");
-
-      if (brandParam && !sessionStorage.getItem("selectedBrand")) {
-        setBrand(brandParam);
-      }
-      if (colorParam && !sessionStorage.getItem("selectedColor")) {
-        setColor(colorParam);
-      }
-    } else {
-      // Fallback: leer directamente del window.location
-      const params = new URLSearchParams(window.location.search);
-      const brandParam = params.get("brand");
-      const colorParam = params.get("color");
-
-      if (brandParam && !sessionStorage.getItem("selectedBrand")) {
-        setBrand(brandParam);
-      }
-      if (colorParam && !sessionStorage.getItem("selectedColor")) {
-        setColor(colorParam);
-      }
+    // 2) Si no está en sessionStorage, intentar desde searchParams / URL
+    const colorParam = searchParams
+      ? searchParams.get("color")
+      : new URLSearchParams(window.location.search).get("color");
+    if (colorParam && !sessionStorage.getItem("selectedColor")) {
+      setColor(colorParam);
     }
 
     return () => {
@@ -221,7 +200,13 @@ export default function PhotoBoothWizard({
     setStep("preview");
   };
 
-  const confirmAndProcess = async () => {
+  // Tras confirmar el preview se muestra la ventana de selección de filtro
+  // (la misma pantalla con los cards + botón Comenzar + tratamiento de datos).
+  const handlePreviewConfirm = () => {
+    setStep("filter");
+  };
+
+  const confirmAndProcess = async (brandId: string | null) => {
     if (!framedShot) return;
     setStep("loading");
     try {
@@ -259,10 +244,9 @@ export default function PhotoBoothWizard({
       // 2) Crear doc en Firestore - El trigger processImageTask lo procesará
       const taskRef = doc(collection(db, "imageTasks"), newTaskId);
 
-      // Usar el brand/color del estado si existen, si no del sessionStorage
+      // Usar el filtro elegido en el paso de selección (o el único del evento)
       const promptId =
-        brand ||
-        sessionStorage.getItem("selectedBrand") ||
+        brandId ||
         eventData?.prompts?.[0] ||
         null;
       const finalColor =
@@ -446,9 +430,28 @@ export default function PhotoBoothWizard({
               boxSize={boxSize}
               borderRadius={borderRadius}
               onRetake={resetAll}
-              onConfirm={confirmAndProcess}
+              onConfirm={handlePreviewConfirm}
               buttonImage={eventData?.buttonImage}
             />
+          )}
+
+          {step === "filter" && eventData && (
+            <div className="fixed inset-0 z-50">
+              <EventPhotoBoothLanding
+                event={eventData}
+                onStart={(brand, dataProcessingAccepted) => {
+                  if (dataProcessingAccepted !== undefined) {
+                    try {
+                      sessionStorage.setItem(
+                        "dataProcessingAccepted",
+                        String(dataProcessingAccepted),
+                      );
+                    } catch {}
+                  }
+                  confirmAndProcess(brand ?? null);
+                }}
+              />
+            </div>
           )}
 
           {step === "loading" && (

@@ -32,8 +32,13 @@ export default function EventForm({
     buttonImage: event?.buttonImage || "",
     loadingPageImage: event?.loadingPageImage || "",
     splashImage: event?.splashImage || "",
+    spinnerImage: event?.spinnerImage || "",
     loadingMessage: event?.loadingMessage || "Generando imagen",
+    loadingMessageColor: event?.loadingMessageColor || "#ffffff",
+    loadingMessageSize: event?.loadingMessageSize ?? 32,
     showLogosInLoader: event?.showLogosInLoader !== false,
+    showSplashOnStart: event?.showSplashOnStart === true,
+    splashInactivityTimeout: event?.splashInactivityTimeout ?? 150,
     enableFrame: event?.enableFrame !== false,
     dataProcessingText: event?.dataProcessingText || "",
     generationType: event?.generationType || "IMAGE",
@@ -66,7 +71,14 @@ export default function EventForm({
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+      [name]:
+        type === "checkbox"
+          ? (e.target as HTMLInputElement).checked
+          : type === "number"
+            ? value === ""
+              ? undefined
+              : Number(value)
+            : value,
     }));
   };
 
@@ -284,6 +296,49 @@ export default function EventForm({
             onChange={(value) => handleImageChange("splashImage", value)}
           />
 
+          <ImageUploadField
+            label="Imagen del Spinner (Loading)"
+            value={formData.spinnerImage || ""}
+            onChange={(value) => handleImageChange("spinnerImage", value)}
+          />
+
+          {/* Splash Configuration */}
+          <div className="bg-purple-50 rounded-lg p-4 border border-purple-200 space-y-3">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="showSplashOnStart"
+                name="showSplashOnStart"
+                checked={formData.showSplashOnStart === true}
+                onChange={handleChange}
+                className="h-4 w-4 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="showSplashOnStart"
+                className="ml-2 text-sm font-medium text-gray-700"
+              >
+                Mostrar splash al iniciar el evento
+              </label>
+            </div>
+            <div>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                Segundos de inactividad para volver a mostrar el splash
+              </label>
+              <input
+                type="number"
+                min={0}
+                name="splashInactivityTimeout"
+                value={formData.splashInactivityTimeout ?? 150}
+                onChange={handleChange}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
+              />
+              <p className="text-xs text-gray-600 mt-1">
+                Tras este tiempo sin actividad, el splash (imagen de inicio) vuelve a aparecer.
+                Requiere una &quot;Imagen Splash&quot; configurada.
+              </p>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Mensaje de Pantalla de Carga
@@ -299,6 +354,43 @@ export default function EventForm({
             <p className="text-xs text-gray-500 mt-1">
               Si no se especifica, mostrará &quot;Generando imagen&quot;
             </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                  Color del mensaje
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    name="loadingMessageColor"
+                    value={formData.loadingMessageColor || "#ffffff"}
+                    onChange={handleChange}
+                    className="h-10 w-14 border border-gray-300 rounded-lg cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    name="loadingMessageColor"
+                    value={formData.loadingMessageColor || "#ffffff"}
+                    onChange={handleChange}
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                  Tamaño del mensaje (px)
+                </label>
+                <input
+                  type="number"
+                  min={8}
+                  name="loadingMessageSize"
+                  value={formData.loadingMessageSize ?? 32}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
+                />
+              </div>
+            </div>
           </div>
 
           {/* LoaderStep Configuration */}

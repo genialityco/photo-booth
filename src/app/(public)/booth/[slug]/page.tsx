@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { getEventProfileBySlug, EventProfile } from "@/app/services/photo-booth/eventService";
-import EventPhotoBoothLanding from "@/app/components/photo-booth/EventPhotoBoothLanding";
 import PhotoBoothWizard from "@/app/components/photo-booth/PhotoBoothWizard";
 import LoadingScreen from "@/app/components/common/LoadingScreen";
 import ScreenSaver from "@/app/components/common/ScreenSaver";
@@ -17,8 +16,6 @@ export default function EventBoothPage({
   const [event, setEvent] = useState<EventProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [boothStarted, setBoothStarted] = useState(false);
-  const [skipBrandSelection, setSkipBrandSelection] = useState(false);
   const [boxSize, setBoxSize] = useState("min(80vw, 80vh)");
 
   useEffect(() => {
@@ -45,14 +42,6 @@ export default function EventBoothPage({
         setEvent(eventData);
         // Store event config in sessionStorage for PhotoBoothWizard to access
         sessionStorage.setItem("currentEvent", JSON.stringify(eventData));
-
-        // Si el evento tiene solo una brand, saltar la selección
-        if (eventData.prompts && eventData.prompts.length === 1) {
-          setSkipBrandSelection(true);
-          // Guardar la única brand en sessionStorage
-          sessionStorage.setItem("selectedBrand", eventData.prompts[0]);
-          setBoothStarted(true);
-        }
       } catch (err) {
         console.error("Error loading event:", err);
         setError("Error cargando el evento");
@@ -82,39 +71,21 @@ export default function EventBoothPage({
   }
 
   return (
-    <div
-      className={`antialiased min-h-screen relative ${
-        !boothStarted ? "overflow-hidden" : "overflow-auto"
-      }`}
-    >
-      {/* ScreenSaver - se activa después de 15 segundos de inactividad */}
-      <ScreenSaver splashImage={event.splashImage} inactivityTimeout={150000} />
+    <div className="antialiased min-h-screen relative overflow-auto">
+      {/* ScreenSaver - splash al inicio (opcional) y reaparición por inactividad */}
+      <ScreenSaver
+        splashImage={event.splashImage}
+        inactivityTimeout={(event.splashInactivityTimeout ?? 150) * 1000}
+        startActive={event.showSplashOnStart === true}
+      />
 
-      {!boothStarted ? (
-        <EventPhotoBoothLanding
-          event={event}
-          onStart={(brand, dataProcessingAccepted) => {
-            // Guardar brand en sessionStorage para que PhotoBoothWizard lo use
-            if (brand) sessionStorage.setItem("selectedBrand", brand);
-            // Guardar aceptación de tratamiento de datos
-            if (dataProcessingAccepted !== undefined) {
-              sessionStorage.setItem("dataProcessingAccepted", String(dataProcessingAccepted));
-            }
-            setBoothStarted(true);
-          }}
-        />
-      ) : (
-        <PhotoBoothWizard
-          mirror
-          boxSize={boxSize}
-          eventData={event}
-          onReset={
-            skipBrandSelection
-              ? undefined // Si solo hay una brand, no permitir volver a la selección
-              : () => setBoothStarted(false) // Si hay múltiples brands, permitir volver
-          }
-        />
-      )}
+      {/* El evento arranca directo en la cámara. La selección de filtro
+          (cards + botón Comenzar) se muestra dentro del wizard, tras el preview. */}
+      <PhotoBoothWizard
+        mirror
+        boxSize={boxSize}
+        eventData={event}
+      />
     </div>
   );
 }
