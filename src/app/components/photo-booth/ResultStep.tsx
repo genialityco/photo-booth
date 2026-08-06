@@ -6,6 +6,7 @@ import type { StyleProfile } from "@/app/services/admin/styleService";
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import QrTag from "@/app/components/photo-booth/QrTag";
+import { composeFramedCanvas, composeFramedImageDataUrl } from "@/app/components/photo-booth/composeFramedImage";
 
 type Props = {
   taskId: string;
@@ -53,16 +54,6 @@ export default function ResultStep({
 
   const SIZE_IMG = "clamp(300px, min(70vw, 60svh), 700px)";
 
-  // === Helper para cargar imágenes con soporte CORS ===
-  const loadImage = (src: string): Promise<HTMLImageElement> =>
-    new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous"; // permite dibujar imágenes remotas
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = src;
-    });
-
   // === Componer imagen con marco (para preview en pantalla) ===
   const [framedImageUrl, setFramedImageUrl] = useState<string>("");
 
@@ -77,33 +68,7 @@ export default function ResultStep({
           return;
         }
 
-        const [baseImg, frameImg] = await Promise.all([
-          loadImage(aiUrl),
-          loadImage(frameSrc),
-        ]);
-
-        const size = 1024;
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d")!;
-        canvas.width = size;
-        canvas.height = size;
-        ctx.clearRect(0, 0, size, size);
-
-        // Dibuja imagen base (cover)
-        const iw = baseImg.naturalWidth || baseImg.width;
-        const ih = baseImg.naturalHeight || baseImg.height;
-        const scale = Math.max(size / iw, size / ih);
-        const dw = iw * scale;
-        const dh = ih * scale;
-        const dx = (size - dw) / 2;
-        const dy = (size - dh) / 2;
-        ctx.drawImage(baseImg, dx, dy, dw, dh);
-
-        // Dibuja marco encima
-        ctx.drawImage(frameImg, 0, 0, size, size);
-
-        // Exportar como dataURL
-        const dataUrl = canvas.toDataURL("image/png");
+        const dataUrl = await composeFramedImageDataUrl({ aiUrl, frameSrc, enableFrame });
         setFramedImageUrl(dataUrl);
       } catch (err) {
         console.error("Error composing frame:", err);
@@ -166,69 +131,7 @@ export default function ResultStep({
       return;
     }
     try {
-      // Si enableFrame está desactivado o no hay frameSrc, descargar solo la imagen base
-      if (!enableFrame || !frameSrc) {
-        const baseImg = await loadImage(aiUrl);
-        const size = 1024;
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d")!;
-        canvas.width = size;
-        canvas.height = size;
-
-        // Dibuja la imagen base "centrada y ajustada"
-        const iw = baseImg.naturalWidth || baseImg.width;
-        const ih = baseImg.naturalHeight || baseImg.height;
-        const scale = Math.max(size / iw, size / ih);
-        const dw = iw * scale;
-        const dh = ih * scale;
-        const dx = (size - dw) / 2;
-        const dy = (size - dh) / 2;
-
-        ctx.drawImage(baseImg, dx, dy, dw, dh);
-
-        // Exportar como blob
-        const blob = await new Promise<Blob | null>((resolve) =>
-          canvas.toBlob(resolve, "image/png"),
-        );
-        if (!blob) throw new Error("No se pudo generar la imagen final");
-
-        // Descargar
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `foto-ia-${taskId}.png`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-        return;
-      }
-
-      // Descargar con marco
-      const [baseImg, frameImg] = await Promise.all([
-        loadImage(aiUrl),
-        loadImage(frameSrc),
-      ]);
-
-      const size = 1024;
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d")!;
-      canvas.width = size;
-      canvas.height = size;
-
-      // Dibuja la imagen base "centrada y ajustada"
-      const iw = baseImg.naturalWidth || baseImg.width;
-      const ih = baseImg.naturalHeight || baseImg.height;
-      const scale = Math.max(size / iw, size / ih);
-      const dw = iw * scale;
-      const dh = ih * scale;
-      const dx = (size - dw) / 2;
-      const dy = (size - dh) / 2;
-
-      ctx.drawImage(baseImg, dx, dy, dw, dh);
-      
-      // Dibuja el marco encima
-      ctx.drawImage(frameImg, 0, 0, size, size);
+      const canvas = await composeFramedCanvas({ aiUrl, frameSrc, enableFrame });
 
       // Exportar como blob
       const blob = await new Promise<Blob | null>((resolve) =>

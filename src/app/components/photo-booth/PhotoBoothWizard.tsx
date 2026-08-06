@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState } from "react";
 import CaptureStep from "@/app/components/photo-booth/CaptureStep";
 import PreviewStep from "@/app/components/photo-booth/PreviewStep";
 import LoaderStep from "@/app/components/photo-booth/LoaderStep";
+import RevealStep from "@/app/components/photo-booth/RevealStep";
 import ResultStep from "@/app/components/photo-booth/ResultStep";
 import { getStyleProfileById } from "@/app/services/admin/styleService";
 import type { StyleProfile } from "@/app/services/admin/styleService";
@@ -43,7 +44,7 @@ export default function PhotoBoothWizard({
 }) {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<
-    "capture" | "preview" | "loading" | "result"
+    "capture" | "preview" | "loading" | "reveal" | "result"
   >("capture");
   const [framedShot, setFramedShot] = useState<string | null>(null);
   const [rawShot, setRawShot] = useState<string | null>(null);
@@ -340,7 +341,7 @@ export default function PhotoBoothWizard({
           );
           setAiUrl(data.url as string);
           if (data.videoUrl) setAiVideoUrl(data.videoUrl as string);
-          setStep("result");
+          setStep("reveal");
           try {
             await updateDoc(taskRef, { finishedAt: serverTimestamp() });
           } catch {}
@@ -458,6 +459,17 @@ export default function PhotoBoothWizard({
               </div>
               
             </>
+          )}
+
+          {step === "reveal" && framedShot && aiUrl && (
+            <RevealStep
+              aiUrl={aiUrl}
+              videoUrl={aiVideoUrl ?? undefined}
+              frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
+              enableFrame={eventData?.enableFrame ?? style?.enableFrame ?? true}
+              revealColorHint={color}
+              onRevealed={() => setStep("result")}
+            />
           )}
 
           {step === "result" && framedShot && aiUrl && (
