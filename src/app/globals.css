@@ -1,5 +1,56 @@
 @import "tailwindcss";
 
+/* Azo Sans: los archivos ya vivían en /public/font, pero nunca se declaró el
+   @font-face, así que la clase `font-azo` usada en ButtonPrimary/ButtonDanger
+   no tenía efecto. Se registra acá por peso, para que font-thin/light/normal/
+   medium/bold/black elijan automáticamente el archivo correcto. */
+@font-face {
+  font-family: "Azo Sans";
+  src: url("/font/fonnts.com-Azo_Sans_Thin.otf") format("opentype");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Azo Sans";
+  src: url("/font/fonnts.com-Azo_Sans_Light.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Azo Sans";
+  src: url("/font/fonnts.com-Azo_Sans_Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Azo Sans";
+  src: url("/font/fonnts.com-Azo_Sans_Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Azo Sans";
+  src: url("/font/fonnts.com-Azo_Sans_Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Azo Sans";
+  src: url("/font/fonnts.com-Azo_Sans_Black.otf") format("opentype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-azo: "Azo Sans", sans-serif;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -50,4 +101,16 @@ body {
   .animate-float,
   .animate-glowSway,
   .animate-fadeIn { animation: none !important; }
+}
+
+/* Cursor por gestos de mano (HandCursorOverlay): cambio de color sutil en
+   vez de un recuadro, para no tapar el contenido del botón. */
+.hand-cursor-hover {
+  filter: brightness(1.18) saturate(1.15);
+  transition: filter 150ms ease;
+}
+
+.hand-cursor--pinching .hand-cursor-dot {
+  background-color: rgba(34, 197, 94, 0.55);
+  border-color: rgb(34, 197, 94);
 }

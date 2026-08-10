@@ -7,6 +7,7 @@ import {
   updateEventProfile,
 } from "@/app/services/photo-booth/eventService";
 import { getActivePhotoBoothPrompts, type PhotoBoothPrompt } from "@/app/services/photo-booth/brandService";
+import { BUTTON_CLICK_EFFECT_OPTIONS } from "@/app/components/common/click-effects";
 import ImageUploadField from "./ImageUploadField";
 
 export default function EventForm({
@@ -37,6 +38,11 @@ export default function EventForm({
     enableFrame: event?.enableFrame !== false,
     dataProcessingText: event?.dataProcessingText || "",
     generationType: event?.generationType || "IMAGE",
+    buttonClickEffect: event?.buttonClickEffect || "NONE",
+    handCursorEnabled: event?.handCursorEnabled === true,
+    revealEffect: event?.revealEffect || "HAND_WIPE",
+    showSplashScreen: event?.showSplashScreen === true,
+    captureBeforeFilter: event?.captureBeforeFilter === true,
     prompts: event?.prompts || [],
     isActive: event?.isActive !== false,
   });
@@ -236,6 +242,32 @@ export default function EventForm({
               <option value="VIDEO">VIDEO</option>
             </select>
           </div>
+
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Efecto al Tocar Botones
+            </label>
+            <select
+              name="buttonClickEffect"
+              value={formData.buttonClickEffect || "NONE"}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  buttonClickEffect: e.target.value as "NONE" | "CONFETTI" | "PAINT_SPLASH",
+                }))
+              }
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {BUTTON_CLICK_EFFECT_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Animación que se dispara al tocar los botones (tomar foto, repetir, confirmar, etc.) en este evento.
+            </p>
+          </div>
         </div>
 
         {/* Images */}
@@ -355,6 +387,120 @@ export default function EventForm({
             </div>
             <p className="text-xs text-gray-600">
               Si está activado, se mostrará el marco de foto sobre la imagen generada en la pantalla de resultados.
+            </p>
+          </div>
+
+          {/* Hand Cursor Configuration */}
+          <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+            <div className="flex items-center mb-3">
+              <input
+                type="checkbox"
+                id="handCursorEnabled"
+                name="handCursorEnabled"
+                checked={formData.handCursorEnabled === true}
+                onChange={(e) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    handCursorEnabled: e.target.checked,
+                  }));
+                }}
+                className="h-4 w-4 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="handCursorEnabled"
+                className="ml-2 text-sm font-medium text-gray-700"
+              >
+                Controlar la app con un cursor de mano (sin tocar la pantalla)
+              </label>
+            </div>
+            <p className="text-xs text-gray-600">
+              Si está activado, se usa una cámara en segundo plano para detectar la mano y mover un cursor en pantalla;
+              juntar el pulgar y el índice (pellizco) simula un click. Útil para kioscos sin contacto.
+            </p>
+          </div>
+
+          {/* Reveal Effect Configuration */}
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Efecto de Revelado de la Foto
+            </label>
+            <select
+              name="revealEffect"
+              value={formData.revealEffect || "HAND_WIPE"}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  revealEffect: e.target.value as "NONE" | "HAND_WIPE" | "ROLLER",
+                }))
+              }
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="NONE">Sin efecto (pasa directo al resultado)</option>
+              <option value="HAND_WIPE">Borrar el velo con la mano</option>
+              <option value="ROLLER">Rodillo de pintura (puño cerrado)</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Cómo se revela la foto generada antes de mostrar el resultado final. &quot;Rodillo&quot; requiere cerrar
+              el puño (como agarrando el rodillo) para pintar y descubrir la imagen.
+            </p>
+          </div>
+
+          {/* Splash Screen Configuration */}
+          <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+            <div className="flex items-center mb-3">
+              <input
+                type="checkbox"
+                id="showSplashScreen"
+                name="showSplashScreen"
+                checked={formData.showSplashScreen === true}
+                onChange={(e) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    showSplashScreen: e.target.checked,
+                  }));
+                }}
+                className="h-4 w-4 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="showSplashScreen"
+                className="ml-2 text-sm font-medium text-gray-700"
+              >
+                Mostrar pantalla de splash inicial con botón &quot;Comenzar&quot;
+              </label>
+            </div>
+            <p className="text-xs text-gray-600">
+              Si está activado, antes de la selección de marca/foto se muestra una pantalla con la &quot;Imagen Splash
+              (Pantalla de Inicio)&quot; de arriba y un botón para arrancar el evento.
+            </p>
+          </div>
+
+          {/* Flow Order Configuration */}
+          <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+            <div className="flex items-center mb-3">
+              <input
+                type="checkbox"
+                id="captureBeforeFilter"
+                name="captureBeforeFilter"
+                checked={formData.captureBeforeFilter === true}
+                onChange={(e) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    captureBeforeFilter: e.target.checked,
+                  }));
+                }}
+                className="h-4 w-4 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="captureBeforeFilter"
+                className="ml-2 text-sm font-medium text-gray-700"
+              >
+                Tomar la foto primero, elegir filtro/marca después
+              </label>
+            </div>
+            <p className="text-xs text-gray-600">
+              Por defecto se elige primero el filtro/marca y después se toma la foto. Si está activado, se invierte: se
+              toma la foto, se confirma, y recién ahí aparece la selección de filtro/marca (con el tratamiento de
+              datos si aplica), antes de generar el resultado.
             </p>
           </div>
         </div>

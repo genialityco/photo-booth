@@ -31,6 +31,30 @@ export type EventProfile = {
   enableFrame?: boolean;
   dataProcessingText?: string;
   generationType?: "IMAGE" | "BGVIDEO" | "VIDEO";
+  /** Animación al hacer click en los botones del wizard (ej. confeti). */
+  buttonClickEffect?: "NONE" | "CONFETTI" | "PAINT_SPLASH";
+  /** Controlar la app con un cursor manejado por gestos de mano (pellizco = click). */
+  handCursorEnabled?: boolean;
+  /**
+   * Efecto para revelar la foto generada: sin efecto (pasa directo al
+   * resultado), borrar el velo con la mano, o pintar con un rodillo 3D
+   * (puño cerrado = agarrar el rodillo). Por compatibilidad, los eventos
+   * sin este campo se comportan como "HAND_WIPE" (comportamiento original).
+   */
+  revealEffect?: "NONE" | "HAND_WIPE" | "ROLLER";
+  /**
+   * Pantalla inicial con imagen (splashImage) + botón "Comenzar" antes del
+   * resto del flujo. Por compatibilidad, los eventos sin este campo NO la
+   * muestran (comportamiento original).
+   */
+  showSplashScreen?: boolean;
+  /**
+   * Si está activado, se toma la foto primero y la selección de filtro/marca
+   * aparece después (entre el preview confirmado y la generación). Por
+   * compatibilidad, los eventos sin este campo mantienen el orden original
+   * (filtro primero, luego captura).
+   */
+  captureBeforeFilter?: boolean;
   prompts: string[];
   isActive: boolean;
   screenConfig?: {
@@ -112,6 +136,11 @@ export async function createEventProfile(
       enableFrame: data.enableFrame !== false,
       dataProcessingText: data.dataProcessingText || "",
       generationType: data.generationType || "IMAGE",
+      buttonClickEffect: data.buttonClickEffect || "NONE",
+      handCursorEnabled: data.handCursorEnabled === true,
+      revealEffect: data.revealEffect || "HAND_WIPE",
+      showSplashScreen: data.showSplashScreen === true,
+      captureBeforeFilter: data.captureBeforeFilter === true,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -277,6 +306,11 @@ export async function updateEventProfile(
     if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
     if (data.dataProcessingText !== undefined) docData.dataProcessingText = data.dataProcessingText;
     if (data.generationType !== undefined) docData.generationType = data.generationType;
+    if (data.buttonClickEffect !== undefined) docData.buttonClickEffect = data.buttonClickEffect;
+    if (data.handCursorEnabled !== undefined) docData.handCursorEnabled = data.handCursorEnabled;
+    if (data.revealEffect !== undefined) docData.revealEffect = data.revealEffect;
+    if (data.showSplashScreen !== undefined) docData.showSplashScreen = data.showSplashScreen;
+    if (data.captureBeforeFilter !== undefined) docData.captureBeforeFilter = data.captureBeforeFilter;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
 
     // Process image fields

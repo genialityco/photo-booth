@@ -5,6 +5,7 @@ import React, { useMemo, useEffect, useState } from "react";
 import type { StyleProfile } from "@/app/services/admin/styleService";
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
+import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import QrTag from "@/app/components/photo-booth/QrTag";
 import { composeFramedCanvas, composeFramedImageDataUrl } from "@/app/components/photo-booth/composeFramedImage";
 
@@ -15,6 +16,7 @@ type Props = {
   onAgain: () => void;
   footer?: React.ReactNode;
   buttonImage?: string;
+  buttonClickEffect?: ButtonClickEffectId;
 };
 
 export default function ResultStep({
@@ -23,6 +25,7 @@ export default function ResultStep({
   videoUrl,
   onAgain,
   buttonImage,
+  buttonClickEffect,
 }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const [style, setStyle] = useState<StyleProfile | null>(null);
@@ -154,56 +157,69 @@ export default function ResultStep({
     }
   };
 
+  // Cuánto sobresale el QR por debajo del borde de la imagen (mitad de su
+  // propia altura, ya que queda centrado justo sobre ese borde) + un margen
+  // para que los botones nunca lo toquen.
+  const qrOverhang = qrSize * 0.5 + 28;
+
   return (
     <div
-      className="w-full h-full flex flex-col items-center justify-center px-3 sm:px-4  overflow-hidden"
+      className="w-full h-full flex flex-col items-center justify-center px-3 sm:px-4 overflow-hidden"
     >
       {/* Contenido principal */}
-      <main
-        className="flex-1 w-full flex flex-col items-center  overflow-hidden"
-       
-      >
-        {/* Imagen o Video IA con marco visible */}
+      <main className="flex-1 w-full flex flex-col items-center justify-between overflow-hidden py-2 sm:py-4">
+        {/* Imagen + QR: el QR se ancla al borde inferior de la imagen, mitad
+            adentro (sobre la foto) y mitad afuera (por debajo). */}
         <div
-          className="relative overflow-hidden bg-black/5 aspect-square"
-          style={{ 
-            width: SIZE_IMG,
-            maxWidth: SIZE_IMG,
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3), 0 10px 20px rgba(0, 0, 0, 0.2)'
-          }}
+          className="relative flex-shrink-0"
+          style={{ width: SIZE_IMG, maxWidth: SIZE_IMG }}
         >
-          {videoUrl ? (
-            <video
-              src={videoUrl}
-              className="absolute w-full h-full object-contain rounded-2xl shadow-2xl"
-              autoPlay
-              loop
-              muted
-              playsInline
-            />
-          ) : (
-            <img
-              src={framedImageUrl || aiUrl}
-              alt="Imagen generada por IA"
-              className="absolute w-full h-full object-contain select-none rounded-2xl shadow-2xl"
-              draggable={false}
-            />
-          )}
+          {/* Imagen o Video IA con marco visible */}
+          <div
+            className="relative overflow-hidden bg-black/5 aspect-square"
+            style={{
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3), 0 10px 20px rgba(0, 0, 0, 0.2)'
+            }}
+          >
+            {videoUrl ? (
+              <video
+                src={videoUrl}
+                className="absolute w-full h-full object-contain rounded-2xl shadow-2xl"
+                autoPlay
+                loop
+                muted
+                playsInline
+              />
+            ) : (
+              <img
+                src={framedImageUrl || aiUrl}
+                alt="Imagen generada por IA"
+                className="absolute w-full h-full object-contain select-none rounded-2xl shadow-2xl"
+                draggable={false}
+              />
+            )}
+          </div>
+
+          {/* QR - centrado horizontalmente, mitad sobre el borde inferior de la imagen */}
+          <div
+            className="absolute z-10 flex items-center justify-center bg-white rounded-xl shadow-xl"
+            style={{
+              top: "100%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.25), 0 5px 10px rgba(0, 0, 0, 0.15)',
+              padding: `clamp(12px, ${qrSize * 0.12}px, 28px)`
+            }}
+          >
+            <QrTag value={surveyAI} size={qrSize} />
+          </div>
         </div>
 
-        {/* QR - BORDE REDONDEADO Y SOMBRA */}
-        <div 
-          className="absolute flex items-center justify-center z-10 flex-shrink-0 bottom-[10%] bg-white rounded-xl shadow-xl"
-          style={{
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.25), 0 5px 10px rgba(0, 0, 0, 0.15)',
-            padding: `clamp(12px, ${qrSize * 0.12}px, 28px)`
-          }}
+        {/* Botones: en flujo normal, siempre debajo del QR (nunca sobre la imagen) */}
+        <div
+          className="flex-shrink-0 w-full flex flex-row items-center justify-center gap-2 sm:gap-3 overflow-x-auto whitespace-nowrap"
+          style={{ marginTop: qrOverhang }}
         >
-          <QrTag value={surveyAI} size={qrSize} />
-        </div>
-
-        {/* Botones */}
-        <div className="flex flex-row items-center justify-center gap-1 sm:gap-2 overflow-x-auto whitespace-nowrap w-full flex-shrink-0 absolute bottom-0">
           <ButtonPrimary
             onClick={onAgain}
             label="NUEVA FOTO"
@@ -211,6 +227,7 @@ export default function ResultStep({
              width="clamp(120px, 40vw, 310px)"
               height="clamp(40px, 8vh, 60px)"
             className="min-w-[130px]"
+            clickEffect={buttonClickEffect}
           />
           <ButtonPrimary
             onClick={handleDownload}
@@ -219,6 +236,7 @@ export default function ResultStep({
              width="clamp(120px, 40vw, 310px)"
               height="clamp(40px, 8vh, 60px)"
             className="min-w-[130px]"
+            clickEffect={buttonClickEffect}
           />
         </div>
       </main>

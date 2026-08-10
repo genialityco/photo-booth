@@ -2,11 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import { getEventProfileBySlug, EventProfile } from "@/app/services/photo-booth/eventService";
+import SplashScreen from "@/app/components/photo-booth/SplashScreen";
 import EventPhotoBoothLanding from "@/app/components/photo-booth/EventPhotoBoothLanding";
 import PhotoBoothWizard from "@/app/components/photo-booth/PhotoBoothWizard";
 import LoadingScreen from "@/app/components/common/LoadingScreen";
 import ScreenSaver from "@/app/components/common/ScreenSaver";
+import HandCursorOverlay from "@/app/components/common/hand-cursor/HandCursorOverlay";
 
 export default function EventBoothPage({
   params,
@@ -17,7 +20,7 @@ export default function EventBoothPage({
   const [event, setEvent] = useState<EventProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [boothStarted, setBoothStarted] = useState(false);
+  const [phase, setPhase] = useState<"splash" | "landing" | "wizard">("landing");
   const [skipBrandSelection, setSkipBrandSelection] = useState(false);
   const [boxSize, setBoxSize] = useState("min(80vw, 80vh)");
 
@@ -46,13 +49,18 @@ export default function EventBoothPage({
         // Store event config in sessionStorage for PhotoBoothWizard to access
         sessionStorage.setItem("currentEvent", JSON.stringify(eventData));
 
-        // Si el evento tiene solo una brand, saltar la selección
-        if (eventData.prompts && eventData.prompts.length === 1) {
+        // Si el evento tiene solo una brand, o si captura primero está
+        // activado (la selección de filtro pasa a vivir dentro del wizard,
+        // después de la foto), saltar la pantalla de selección de marca.
+        const singleBrand = !!eventData.prompts && eventData.prompts.length === 1;
+        if (singleBrand) {
           setSkipBrandSelection(true);
           // Guardar la única brand en sessionStorage
           sessionStorage.setItem("selectedBrand", eventData.prompts[0]);
-          setBoothStarted(true);
         }
+        const skipLanding = singleBrand || eventData.captureBeforeFilter === true;
+
+        setPhase(eventData.showSplashScreen ? "splash" : skipLanding ? "wizard" : "landing");
       } catch (err) {
         console.error("Error loading event:", err);
         setError("Error cargando el evento");
@@ -81,40 +89,94 @@ export default function EventBoothPage({
     );
   }
 
+  // "Volver a la selección" solo tiene sentido si hay una fase "landing" a la
+  // que volver: no aplica con una sola brand, ni con captura primero (ahí la
+  // selección de filtro vive dentro del wizard, no como fase de esta página).
+  const canReturnToLanding = !skipBrandSelection && event.captureBeforeFilter !== true;
+
   return (
     <div
       className={`antialiased min-h-screen relative ${
-        !boothStarted ? "overflow-hidden" : "overflow-auto"
+        phase !== "wizard" ? "overflow-hidden" : "overflow-auto"
       }`}
     >
       {/* ScreenSaver - se activa después de 15 segundos de inactividad */}
       <ScreenSaver splashImage={event.splashImage} inactivityTimeout={150000} />
 
-      {!boothStarted ? (
-        <EventPhotoBoothLanding
-          event={event}
-          onStart={(brand, dataProcessingAccepted) => {
-            // Guardar brand en sessionStorage para que PhotoBoothWizard lo use
-            if (brand) sessionStorage.setItem("selectedBrand", brand);
-            // Guardar aceptación de tratamiento de datos
-            if (dataProcessingAccepted !== undefined) {
-              sessionStorage.setItem("dataProcessingAccepted", String(dataProcessingAccepted));
-            }
-            setBoothStarted(true);
-          }}
-        />
-      ) : (
-        <PhotoBoothWizard
-          mirror
-          boxSize={boxSize}
-          eventData={event}
-          onReset={
-            skipBrandSelection
-              ? undefined // Si solo hay una brand, no permitir volver a la selección
-              : () => setBoothStarted(false) // Si hay múltiples brands, permitir volver
-          }
-        />
-      )}
+      {/* Cursor por gestos de mano - activo en toda la app si el evento lo habilita */}
+      <HandCursorOverlay enabled={event.handCursorEnabled === true} />
+
+      {/* Fondo persistente: evita que se vea un flash sin fondo durante las
+          transiciones entre fases (todas usan su propio fondo "fixed", que se
+          desmonta/monta con el AnimatePresence). */}
+      <div
+        className="fixed inset-0 -z-20 bg-cover bg-center"
+        style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')` }}
+        aria-hidden
+      />
+
+      <AnimatePresence mode="wait" initial={false}>
+        {phase === "splash" && (
+          <motion.div
+            key="splash"
+            className="w-full h-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <SplashScreen
+              event={event}
+              onStart={() => {
+                const skipLanding = skipBrandSelection || event.captureBeforeFilter === true;
+                setPhase(skipLanding ? "wizard" : "landing");
+              }}
+            />
+          </motion.div>
+        )}
+
+        {phase === "landing" && (
+          <motion.div
+            key="landing"
+            className="w-full h-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <EventPhotoBoothLanding
+              event={event}
+              onStart={(brand, dataProcessingAccepted) => {
+                // Guardar brand en sessionStorage para que PhotoBoothWizard lo use
+                if (brand) sessionStorage.setItem("selectedBrand", brand);
+                // Guardar aceptación de tratamiento de datos
+                if (dataProcessingAccepted !== undefined) {
+                  sessionStorage.setItem("dataProcessingAccepted", String(dataProcessingAccepted));
+                }
+                setPhase("wizard");
+              }}
+            />
+          </motion.div>
+        )}
+
+        {phase === "wizard" && (
+          <motion.div
+            key="wizard"
+            className="w-full h-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <PhotoBoothWizard
+              mirror
+              boxSize={boxSize}
+              eventData={event}
+              onReset={canReturnToLanding ? () => setPhase("landing") : undefined}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -2,7 +2,8 @@
 // app/components/ButtonPrimary.tsx
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
+import { runButtonClickEffect, type ButtonClickEffectId } from "@/app/components/common/click-effects";
 
 type ButtonPrimaryProps = {
   onClick?: () => void;
@@ -15,6 +16,8 @@ type ButtonPrimaryProps = {
   textClassName?: string; // clases extra para el <span> (texto)
   disabled?: boolean;
   ariaLabel?: string;
+  /** Animación disparada al hacer click (configurable por evento). Default "NONE". */
+  clickEffect?: ButtonClickEffectId;
 };
 
 export default function ButtonPrimary({
@@ -27,7 +30,16 @@ export default function ButtonPrimary({
   textClassName = "",
   disabled = false,
   ariaLabel,
+  clickEffect = "NONE",
 }: ButtonPrimaryProps) {
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  const handleClick = () => {
+    if (buttonRef.current) {
+      runButtonClickEffect(clickEffect, { target: buttonRef.current });
+    }
+    onClick?.();
+  };
   // Función para normalizar width/height a string CSS válido
   const normalizeSize = (size: number | string): string => {
     if (typeof size === "number") {
@@ -41,7 +53,8 @@ export default function ButtonPrimary({
 
   return (
     <button
-      onClick={onClick}
+      ref={buttonRef}
+      onClick={handleClick}
       disabled={disabled}
       aria-label={ariaLabel || label}
       className={[

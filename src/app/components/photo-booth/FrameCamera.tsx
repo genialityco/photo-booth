@@ -111,13 +111,18 @@ export default function FrameCamera({
           
           // Esperar a que el video esté listo
           await new Promise<void>((resolve) => {
-            if (videoRef.current) {
-              videoRef.current.onloadedmetadata = () => {
-                resolve();
-              };
-            } else {
+            const el = videoRef.current;
+            if (!el) {
               resolve();
+              return;
             }
+            if (el.readyState >= 1 /* HAVE_METADATA */) {
+              resolve();
+              return;
+            }
+            // addEventListener (no `.onloadedmetadata =`) para no pisar el
+            // handler que CaptureStep registra para saber cuándo puede disparar.
+            el.addEventListener("loadedmetadata", () => resolve(), { once: true });
           });
 
           // Intentar reproducir

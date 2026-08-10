@@ -3,10 +3,13 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import EventPhotoBoothLanding from "@/app/components/photo-booth/EventPhotoBoothLanding";
 import CaptureStep from "@/app/components/photo-booth/CaptureStep";
 import PreviewStep from "@/app/components/photo-booth/PreviewStep";
 import LoaderStep from "@/app/components/photo-booth/LoaderStep";
 import RevealStep from "@/app/components/photo-booth/RevealStep";
+import RollerRevealStep from "@/app/components/photo-booth/reveal/RollerRevealStep";
 import ResultStep from "@/app/components/photo-booth/ResultStep";
 import { getStyleProfileById } from "@/app/services/admin/styleService";
 import type { StyleProfile } from "@/app/services/admin/styleService";
@@ -44,7 +47,7 @@ export default function PhotoBoothWizard({
 }) {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<
-    "capture" | "preview" | "loading" | "reveal" | "result"
+    "capture" | "preview" | "filter" | "loading" | "reveal" | "result"
   >("capture");
   const [framedShot, setFramedShot] = useState<string | null>(null);
   const [rawShot, setRawShot] = useState<string | null>(null);
@@ -222,6 +225,31 @@ export default function PhotoBoothWizard({
     setStep("preview");
   };
 
+  // Si el evento tiene "captura primero" activado y hay más de una marca
+  // para elegir, la selección de filtro se muestra recién después de
+  // confirmar el preview (en vez de antes de la captura).
+  const needsFilterStep =
+    eventData?.captureBeforeFilter === true && (eventData?.prompts?.length ?? 0) > 1;
+
+  const handlePreviewConfirm = () => {
+    if (needsFilterStep) {
+      setStep("filter");
+    } else {
+      void confirmAndProcess();
+    }
+  };
+
+  const handleFilterSelected = (selectedBrand?: string, dataProcessingAccepted?: boolean) => {
+    if (selectedBrand) {
+      setBrand(selectedBrand);
+      sessionStorage.setItem("selectedBrand", selectedBrand);
+    }
+    if (dataProcessingAccepted !== undefined) {
+      sessionStorage.setItem("dataProcessingAccepted", String(dataProcessingAccepted));
+    }
+    void confirmAndProcess();
+  };
+
   const confirmAndProcess = async () => {
     if (!framedShot) return;
     setStep("loading");
@@ -341,7 +369,10 @@ export default function PhotoBoothWizard({
           );
           setAiUrl(data.url as string);
           if (data.videoUrl) setAiVideoUrl(data.videoUrl as string);
-          setStep("reveal");
+          // Por compatibilidad, eventos sin revealEffect configurado usan el
+          // efecto original (borrar el velo con la mano).
+          const revealEffect = eventData?.revealEffect ?? "HAND_WIPE";
+          setStep(revealEffect === "NONE" ? "result" : "reveal");
           try {
             await updateDoc(taskRef, { finishedAt: serverTimestamp() });
           } catch {}
@@ -375,6 +406,13 @@ export default function PhotoBoothWizard({
     setStep("capture");
   };
 
+  const stepVariants = {
+    initial: { opacity: 0, y: 16, scale: 0.98 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: { opacity: 0, y: -16, scale: 0.98 },
+  };
+  const stepTransition = { duration: 0.35, ease: [0.4, 0, 0.2, 1] as const };
+
   const bgUrl = style
     ? step === "capture"
       ? style.bgCapture || style.bgLanding
@@ -387,6 +425,20 @@ export default function PhotoBoothWizard({
 
   return (
     <div className="mt-10 relative h-screen w-screen overflow-hidden flex flex-col">
+      {/* Paso "filter" (captura primero): pantalla completa propia (fondo,
+          logos, grilla de marcas y consentimiento), igual que la landing
+          normal pero mostrada después del preview en vez de antes de la
+          captura. Cubre todo el wizard mientras está activa. */}
+      {step === "filter" && eventData && (
+        <div className="fixed inset-0 z-40">
+          <EventPhotoBoothLanding
+            event={eventData}
+            onStart={handleFilterSelected}
+            buttonLabel="Generar la magia"
+          />
+        </div>
+      )}
+
       {/* Fondo full-screen */}
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
@@ -429,58 +481,121 @@ export default function PhotoBoothWizard({
           className="flex flex-col items-center justify-center overflow-hidden w-full h-full sm:w-auto sm:h-auto"
           style={{ width: "100%", maxWidth: boxSize, maxHeight: "100%" }}
         >
-          {step === "capture" && (
-            <CaptureStep
-              mirror={mirror}
-              boxSize={boxSize}
-              borderRadius={borderRadius}
-              onCaptured={handleCaptured}
-              frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
-              buttonImage={eventData?.buttonImage}
-            />
-          )}
+          <AnimatePresence mode="wait" initial={false}>
+            {step === "capture" && (
+              <motion.div
+                key="capture"
+                className="relative w-full h-full flex items-center justify-center"
+                variants={stepVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={stepTransition}
+              >
+                <CaptureStep
+                  mirror={mirror}
+                  boxSize={boxSize}
+                  borderRadius={borderRadius}
+                  onCaptured={handleCaptured}
+                  frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
+                  buttonImage={eventData?.buttonImage}
+                  buttonClickEffect={eventData?.buttonClickEffect}
+                />
+              </motion.div>
+            )}
 
-          {step === "preview" && framedShot && (
-            <PreviewStep
-              framedShot={framedShot}
-              rawShot={rawShot || undefined}
-              boxSize={boxSize}
-              borderRadius={borderRadius}
-              onRetake={resetAll}
-              onConfirm={confirmAndProcess}
-              buttonImage={eventData?.buttonImage}
-            />
-          )}
+            {step === "preview" && framedShot && (
+              <motion.div
+                key="preview"
+                className="relative w-full h-full flex items-center justify-center"
+                variants={stepVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={stepTransition}
+              >
+                <PreviewStep
+                  framedShot={framedShot}
+                  rawShot={rawShot || undefined}
+                  boxSize={boxSize}
+                  borderRadius={borderRadius}
+                  onRetake={resetAll}
+                  onConfirm={handlePreviewConfirm}
+                  buttonImage={eventData?.buttonImage}
+                  buttonClickEffect={eventData?.buttonClickEffect}
+                />
+              </motion.div>
+            )}
 
-          {step === "loading" && (
-            <>
-              <div className="absolute inset-0 z-50">
-                <LoaderStep />
-              </div>
-              
-            </>
-          )}
+            {step === "loading" && (
+              <motion.div
+                key="loading"
+                className="relative w-full h-full"
+                variants={stepVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={stepTransition}
+              >
+                <div className="absolute inset-0 z-50">
+                  <LoaderStep />
+                </div>
+              </motion.div>
+            )}
 
-          {step === "reveal" && framedShot && aiUrl && (
-            <RevealStep
-              aiUrl={aiUrl}
-              videoUrl={aiVideoUrl ?? undefined}
-              frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
-              enableFrame={eventData?.enableFrame ?? style?.enableFrame ?? true}
-              revealColorHint={color}
-              onRevealed={() => setStep("result")}
-            />
-          )}
+            {step === "reveal" && framedShot && aiUrl && (
+              <motion.div
+                key="reveal"
+                className="relative w-full h-full flex items-center justify-center"
+                variants={stepVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={stepTransition}
+              >
+                {eventData?.revealEffect === "ROLLER" ? (
+                  <RollerRevealStep
+                    aiUrl={aiUrl}
+                    videoUrl={aiVideoUrl ?? undefined}
+                    frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
+                    enableFrame={eventData?.enableFrame ?? style?.enableFrame ?? true}
+                    revealColorHint={color}
+                    onRevealed={() => setStep("result")}
+                  />
+                ) : (
+                  <RevealStep
+                    aiUrl={aiUrl}
+                    videoUrl={aiVideoUrl ?? undefined}
+                    frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
+                    enableFrame={eventData?.enableFrame ?? style?.enableFrame ?? true}
+                    revealColorHint={color}
+                    onRevealed={() => setStep("result")}
+                  />
+                )}
+              </motion.div>
+            )}
 
-          {step === "result" && framedShot && aiUrl && (
-            <ResultStep
-              taskId={taskId!}
-              aiUrl={aiUrl}
-              videoUrl={aiVideoUrl ?? undefined}
-              onAgain={resetAll}
-              buttonImage={eventData?.buttonImage}
-            />
-          )}
+            {step === "result" && framedShot && aiUrl && (
+              <motion.div
+                key="result"
+                className="relative w-full h-full flex items-center justify-center"
+                variants={stepVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={stepTransition}
+              >
+                <ResultStep
+                  taskId={taskId!}
+                  aiUrl={aiUrl}
+                  videoUrl={aiVideoUrl ?? undefined}
+                  onAgain={resetAll}
+                  buttonImage={eventData?.buttonImage}
+                  buttonClickEffect={eventData?.buttonClickEffect}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

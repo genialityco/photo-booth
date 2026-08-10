@@ -1,16 +1,22 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { EventProfile } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptsByIds, type PhotoBoothPrompt } from "@/app/services/photo-booth/brandService";
+import { runButtonClickEffect } from "@/app/components/common/click-effects";
 
 export default function EventPhotoBoothLanding({
   event,
   onStart,
+  buttonLabel = "Comenzar",
 }: {
   event: EventProfile;
   onStart?: (brand?: string, dataProcessingAccepted?: boolean) => void;
+  /** Texto del botón principal. Por defecto "Comenzar"; se puede cambiar,
+   * ej. cuando esta pantalla se usa después de tomar la foto (captura
+   * primero) y el botón dispara la generación en vez de arrancar el flujo. */
+  buttonLabel?: string;
 }) {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [prompts, setPrompts] = useState<PhotoBoothPrompt[]>([]);
@@ -61,7 +67,12 @@ export default function EventPhotoBoothLanding({
     setImageErrorStates(prev => ({ ...prev, [promptId]: true }));
   };
 
+  const startButtonRef = useRef<HTMLButtonElement | null>(null);
+
   const handleStart = () => {
+    if (startButtonRef.current) {
+      runButtonClickEffect(event.buttonClickEffect, { target: startButtonRef.current });
+    }
     const brand = selectedBrand || (prompts.length > 0 ? prompts[0].id : "default");
     onStart?.(brand, dataProcessingAccepted);
   };
@@ -232,6 +243,7 @@ export default function EventPhotoBoothLanding({
 
           {/* Start Button */}
           <button
+            ref={startButtonRef}
             onClick={handleStart}
             disabled={!isStartEnabled}
             className={`px-12 py-4 text-white font-semibold rounded-lg transition-all duration-200 text-base sm:text-lg ${
@@ -252,9 +264,9 @@ export default function EventPhotoBoothLanding({
             }
           >
             {event.buttonImage && (
-              <span className="block drop-shadow-lg font-bold">Comenzar</span>
+              <span className="block drop-shadow-lg font-bold">{buttonLabel}</span>
             )}
-            {!event.buttonImage && "Comenzar"}
+            {!event.buttonImage && buttonLabel}
           </button>
         </div>
 

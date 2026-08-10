@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import FrameCamera from "./FrameCamera";
 import captureWithFrame from "./captureWithFrame";
 import captureRawSquare from "./captureRawSquare";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
+import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 
 export default function CaptureStep({
   // 👇 sin marco por defecto
@@ -14,12 +16,14 @@ export default function CaptureStep({
   borderRadius = "xl",
   onCaptured,
   buttonImage,
+  buttonClickEffect,
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
   boxSize?: string;
   borderRadius?: "none" | "md" | "lg" | "xl" | "4xl";
   buttonImage?: string;
+  buttonClickEffect?: ButtonClickEffectId;
   onCaptured: (payload: { framed: string; raw: string }) => void;
 }) {
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -47,7 +51,7 @@ export default function CaptureStep({
     if (v) {
       const mark = () => setVideoReady(true);
       if (v.readyState >= 2 /* HAVE_CURRENT_DATA */) mark();
-      else v.onloadedmetadata = mark;
+      else v.addEventListener("loadedmetadata", mark, { once: true });
     }
   };
 
@@ -223,11 +227,38 @@ export default function CaptureStep({
         />
       </div>
 
-      {countdown !== null && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-7xl font-bold drop-shadow-lg">{countdown}</div>
-        </div>
-      )}
+      <AnimatePresence>
+        {countdown !== null && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            {/* Halo pulsante detrás del número */}
+            <motion.div
+              key={`glow-${countdown}`}
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 0.55, scale: 1.3 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.9, ease: "easeOut" }}
+              className="absolute rounded-full blur-2xl bg-white/70"
+              style={{ width: "40vmin", height: "40vmin" }}
+            />
+            <motion.div
+              key={countdown}
+              initial={{ scale: 0.3, opacity: 0, rotate: -8 }}
+              animate={{ scale: 1, opacity: 1, rotate: 0 }}
+              exit={{ scale: 1.5, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 18 }}
+              className="font-azo font-black text-white leading-none select-none"
+              style={{
+                fontSize: "clamp(6rem, 24vw, 15rem)",
+                textShadow:
+                  "0 0 40px rgba(255,255,255,0.65), 0 8px 24px rgba(0,0,0,0.55)",
+                WebkitTextStroke: "2px rgba(0,0,0,0.15)",
+              }}
+            >
+              {countdown}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       {flash && (
         <div className="absolute inset-0 bg-white/80 animate-pulse pointer-events-none" />
       )}
@@ -241,6 +272,7 @@ export default function CaptureStep({
           height={50}
           //disabled={!canShoot}
           ariaLabel="Tomar foto"
+          clickEffect={buttonClickEffect}
         />
       </div>
     </div>

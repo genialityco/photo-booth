@@ -3,6 +3,7 @@
 
 import React from "react";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
+import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 
 export default function PreviewStep({
   framedShot,
@@ -12,12 +13,14 @@ export default function PreviewStep({
   onRetake,
   onConfirm,
   buttonImage,
+  buttonClickEffect,
 }: {
   framedShot: string; // foto con marco (no se usa visualmente)
   rawShot?: string; // foto sin marco (para mostrar)
   boxSize?: string;
   borderRadius?: "none" | "md" | "lg" | "xl" | "4xl";
   buttonImage?: string;
+  buttonClickEffect?: ButtonClickEffectId;
   onRetake: () => void;
   onConfirm?: () => void; // confirmará y pasará al loader
 }) {
@@ -59,6 +62,7 @@ export default function PreviewStep({
             width="clamp(120px, 40vw, 310px)"
             height="clamp(40px, 8vh, 60px)"
             className="flex-1 max-w-[310px]"
+            clickEffect={buttonClickEffect}
           />
           {onConfirm && (
             <ButtonPrimary
@@ -68,6 +72,7 @@ export default function PreviewStep({
               width="clamp(120px, 40vw, 310px)"
               height="clamp(40px, 8vh, 60px)"
               className="flex-1 max-w-[310px]"
+              clickEffect={buttonClickEffect}
             />
           )}
         </div>
