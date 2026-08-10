@@ -10,6 +10,7 @@ import PreviewStep from "@/app/components/photo-booth/PreviewStep";
 import LoaderStep from "@/app/components/photo-booth/LoaderStep";
 import RevealStep from "@/app/components/photo-booth/RevealStep";
 import RollerRevealStep from "@/app/components/photo-booth/reveal/RollerRevealStep";
+import { ROLLER_MODEL_PATH } from "@/app/components/photo-booth/reveal/RollerCursor";
 import ResultStep from "@/app/components/photo-booth/ResultStep";
 import { getStyleProfileById } from "@/app/services/admin/styleService";
 import type { StyleProfile } from "@/app/services/admin/styleService";
@@ -218,6 +219,22 @@ export default function PhotoBoothWizard({
     };
     loadStyle();
   }, []);
+
+  // Precarga el modelo 3D del rodillo lo antes posible (apenas se sabe que el
+  // evento usa este efecto), así llega descargado/en caché del navegador
+  // mucho antes de que termine la generación y se necesite en RevealStep.
+  useEffect(() => {
+    if (eventData?.revealEffect !== "ROLLER") return;
+    if (typeof document === "undefined") return;
+    if (document.querySelector(`link[href="${ROLLER_MODEL_PATH}"]`)) return;
+
+    const link = document.createElement("link");
+    link.rel = "prefetch";
+    link.as = "fetch";
+    link.href = ROLLER_MODEL_PATH;
+    link.crossOrigin = "anonymous";
+    document.head.appendChild(link);
+  }, [eventData?.revealEffect]);
 
   const handleCaptured = (payload: { framed: string; raw: string }) => {
     setFramedShot(payload.framed);

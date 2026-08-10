@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
-const MODEL_PATH = "/models/rodillo/Paint_Roller.glb";
+export const ROLLER_MODEL_PATH = "/models/rodillo/Paint_Roller.glb";
 
 /** Tamaño del cursor 3D en pantalla (px). Se ancla al punto de agarre (mango
  * abajo), así que el rodillo (arriba) queda a esta distancia por encima. */
@@ -76,7 +76,7 @@ const RollerCursor = React.forwardRef<RollerCursorHandle>(function RollerCursor(
     scene.add(group);
 
     new GLTFLoader().load(
-      MODEL_PATH,
+      ROLLER_MODEL_PATH,
       (gltf) => {
         if (disposed) return;
 
