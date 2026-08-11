@@ -138,20 +138,69 @@ function sanitizeColor(color?: string): string | null {
   return trimmed;
 }
 
+// === Parámetros de personalización de imagen ("Dale tu toque") ===
+// Independientes del brand: si vienen en el task doc, se agregan al prompt
+// final como un bloque de instrucciones adicional, sin necesidad de
+// configurar nada por marca en photo_booth_prompts.
+function sanitizeHexColor(color?: string): string | null {
+  if (!color) return null;
+  const trimmed = color.trim().slice(0, 20);
+  if (!/^#[0-9a-f]{3,8}$/i.test(trimmed)) return null;
+  return trimmed;
+}
+
+const TEXTURE_LABELS: Record<string, string> = {
+  liso: "lisa y pulida, sin relieve",
+  rugoso: "rugosa, con una textura granulada bien visible",
+  craquelado: "craquelada, con finas grietas tipo cerámica envejecida",
+};
+
+function sanitizeTexture(texture?: string): string | null {
+  if (!texture) return null;
+  const key = texture.trim().toLowerCase();
+  return TEXTURE_LABELS[key] ? key : null;
+}
+
+function sanitizeIntensity(intensity?: number): number | null {
+  if (typeof intensity !== "number" || !Number.isFinite(intensity)) return null;
+  return Math.max(0, Math.min(100, Math.round(intensity)));
+}
+
 // Construye el prompt dinámico usando basePrompt + colorDirectiveTemplate (si existe)
-async function buildPromptWithBrand(opts: { brand?: string; color?: string }): Promise<{logoPath: string | undefined, prompt: string, logoPrompt?: string, promptBgImage?: string, objectImage?: string, objectImagePrompt?: string}> {
-  const { brand, color } = opts || {};
+// + los ajustes de personalización opcionales (paletteColor/texture/intensity).
+async function buildPromptWithBrand(opts: {
+  brand?: string;
+  color?: string;
+  paletteColor?: string;
+  texture?: string;
+  intensity?: number;
+}): Promise<{logoPath: string | undefined, prompt: string, logoPrompt?: string, promptBgImage?: string, objectImage?: string, objectImagePrompt?: string}> {
+  const { brand, color, paletteColor, texture, intensity } = opts || {};
   const branded = await getBrandedPromptCached(brand);
   const basePrompt = branded.basePrompt || DEFAULT_PROMPT;
   const t = branded.colorDirectiveTemplate;
   const c = sanitizeColor(color);
+
+  let prompt = basePrompt;
   if (typeof t === "string" && t.trim() && c) {
-    const applied = c
-      ? t.replace(/\${?color}?/gi, c).replace(/\{color\}/gi, c)
-      : t;
-    return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, promptBgImage: branded.promptBgImage, objectImage: branded.objectImage, objectImagePrompt: branded.objectImagePrompt, prompt:basePrompt + "\n\n" + applied};
+    const applied = t.replace(/\${?color}?/gi, c).replace(/\{color\}/gi, c);
+    prompt = basePrompt + "\n\n" + applied;
   }
-  return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, promptBgImage: branded.promptBgImage, objectImage: branded.objectImage, objectImagePrompt: branded.objectImagePrompt, prompt:basePrompt};
+
+  const hex = sanitizeHexColor(paletteColor);
+  const textureKey = sanitizeTexture(texture);
+  const intensityPct = sanitizeIntensity(intensity);
+  if (hex || textureKey || intensityPct !== null) {
+    const lines: string[] = ["Ajustes de personalización solicitados por la persona:"];
+    if (hex) lines.push(`- Paleta de color dominante: ${hex} (código hexadecimal).`);
+    if (textureKey) lines.push(`- Textura/acabado de la superficie: ${TEXTURE_LABELS[textureKey]}.`);
+    if (intensityPct !== null) {
+      lines.push(`- Intensidad del efecto: ${intensityPct}% (100% = lo más marcado posible, 0% = muy sutil).`);
+    }
+    prompt = prompt + "\n\n" + lines.join("\n");
+  }
+
+  return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, promptBgImage: branded.promptBgImage, objectImage: branded.objectImage, objectImagePrompt: branded.objectImagePrompt, prompt};
 }
 
 export const processGoatShotHttp = onRequest(
@@ -459,6 +508,11 @@ export const processImageTask = onDocumentCreated(
           brand?: string;
           color?: string;
           eventId?: string;
+          // Ajustes opcionales de la pantalla "Dale tu toque" (paso de
+          // personalización, habilitado por evento).
+          paletteColor?: string;
+          texture?: string;
+          intensity?: number;
         }
       | undefined;
 
@@ -475,6 +529,9 @@ export const processImageTask = onDocumentCreated(
       const promptData = await buildPromptWithBrand({
         brand: data.brand,
         color: data.color,
+        paletteColor: data.paletteColor,
+        texture: data.texture,
+        intensity: data.intensity,
       });
       PROMPT = promptData.prompt;
       LOGO_URL = promptData.logoPath || "";

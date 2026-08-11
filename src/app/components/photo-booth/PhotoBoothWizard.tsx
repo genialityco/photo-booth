@@ -12,6 +12,7 @@ import RevealStep from "@/app/components/photo-booth/RevealStep";
 import RollerRevealStep from "@/app/components/photo-booth/reveal/RollerRevealStep";
 import { ROLLER_MODEL_PATH } from "@/app/components/photo-booth/reveal/RollerCursor";
 import ResultStep from "@/app/components/photo-booth/ResultStep";
+import ImageCustomizeStep, { type ImageCustomization } from "@/app/components/photo-booth/ImageCustomizeStep";
 import { getStyleProfileById } from "@/app/services/admin/styleService";
 import type { StyleProfile } from "@/app/services/admin/styleService";
 import {
@@ -48,7 +49,7 @@ export default function PhotoBoothWizard({
 }) {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<
-    "capture" | "preview" | "filter" | "loading" | "reveal" | "result"
+    "capture" | "preview" | "filter" | "customize" | "loading" | "reveal" | "result"
   >("capture");
   const [framedShot, setFramedShot] = useState<string | null>(null);
   const [rawShot, setRawShot] = useState<string | null>(null);
@@ -58,6 +59,7 @@ export default function PhotoBoothWizard({
   const [taskId, setTaskId] = useState<string | null>(null);
   const [brand, setBrand] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
+  const [customization, setCustomization] = useState<ImageCustomization | null>(null);
   const unsubRef = useRef<() => void | undefined>(undefined);
   const [style, setStyle] = useState<StyleProfile | null>(null);
 
@@ -248,12 +250,26 @@ export default function PhotoBoothWizard({
   // confirmar el preview (en vez de antes de la captura).
   const needsFilterStep =
     eventData?.captureBeforeFilter === true && (eventData?.prompts?.length ?? 0) > 1;
+  // Pantalla opcional "Dale tu toque" (paleta/textura/intensidad), habilitada
+  // por evento. Se muestra después del filtro (si aplica) y justo antes de
+  // generar, para que sus valores viajen en el mismo doc de imageTasks.
+  const needsCustomizeStep = eventData?.imageCustomizationEnabled === true;
+
+  // Continúa hacia el siguiente paso pendiente antes de generar (personalizar
+  // si está habilitado; si no, genera directo).
+  const proceedAfterFilterOrPreview = () => {
+    if (needsCustomizeStep) {
+      setStep("customize");
+    } else {
+      void confirmAndProcess();
+    }
+  };
 
   const handlePreviewConfirm = () => {
     if (needsFilterStep) {
       setStep("filter");
     } else {
-      void confirmAndProcess();
+      proceedAfterFilterOrPreview();
     }
   };
 
@@ -265,11 +281,20 @@ export default function PhotoBoothWizard({
     if (dataProcessingAccepted !== undefined) {
       sessionStorage.setItem("dataProcessingAccepted", String(dataProcessingAccepted));
     }
-    void confirmAndProcess();
+    proceedAfterFilterOrPreview();
   };
 
-  const confirmAndProcess = async () => {
+  const handleCustomizeConfirmed = (value: ImageCustomization) => {
+    setCustomization(value);
+    void confirmAndProcess(value);
+  };
+
+  const confirmAndProcess = async (customizationOverride?: ImageCustomization) => {
     if (!framedShot) return;
+    // El estado `customization` puede no haberse actualizado todavía cuando
+    // se llama justo después de setCustomization (batching de React), así
+    // que se acepta el valor fresco como override.
+    const finalCustomization = customizationOverride ?? customization;
     setStep("loading");
     try {
       const newTaskId = `t_${Math.random()
@@ -360,6 +385,11 @@ export default function PhotoBoothWizard({
         prompt: finalBrand, // También enviar como 'prompt' para compatibilidad con Cloud Function
         promptId: promptId, // Guardar el ID también para referencia
         dataProcessingAccepted: dataProcessingAccepted, // Guardar aceptación de tratamiento de datos
+        // Ajustes opcionales de "Dale tu toque" (paleta/textura/intensidad),
+        // aplicados al prompt de IA en la Cloud Function.
+        paletteColor: finalCustomization?.paletteColor ?? null,
+        texture: finalCustomization?.texture ?? null,
+        intensity: finalCustomization?.intensity ?? null,
         taskId: newTaskId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -421,6 +451,7 @@ export default function PhotoBoothWizard({
     setAiVideoUrl(null);
     setFramedUrl(null);
     setTaskId(null);
+    setCustomization(null);
     setStep("capture");
   };
 
@@ -542,6 +573,25 @@ export default function PhotoBoothWizard({
                   onConfirm={handlePreviewConfirm}
                   buttonImage={eventData?.buttonImage}
                   buttonClickEffect={eventData?.buttonClickEffect}
+                />
+              </motion.div>
+            )}
+
+            {step === "customize" && framedShot && (
+              <motion.div
+                key="customize"
+                className="relative w-full h-full flex items-center justify-center"
+                variants={stepVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={stepTransition}
+              >
+                <ImageCustomizeStep
+                  previewSrc={rawShot || framedShot}
+                  buttonImage={eventData?.buttonImage}
+                  buttonClickEffect={eventData?.buttonClickEffect}
+                  onConfirm={handleCustomizeConfirmed}
                 />
               </motion.div>
             )}

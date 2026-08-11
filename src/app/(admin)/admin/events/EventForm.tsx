@@ -9,6 +9,7 @@ import {
 import { getActivePhotoBoothPrompts, type PhotoBoothPrompt } from "@/app/services/photo-booth/brandService";
 import { BUTTON_CLICK_EFFECT_OPTIONS } from "@/app/components/common/click-effects";
 import ImageUploadField from "./ImageUploadField";
+import VideoUploadField from "./VideoUploadField";
 
 export default function EventForm({
   event,
@@ -33,6 +34,7 @@ export default function EventForm({
     buttonImage: event?.buttonImage || "",
     loadingPageImage: event?.loadingPageImage || "",
     splashImage: event?.splashImage || "",
+    screenSaverVideoUrl: event?.screenSaverVideoUrl || "",
     loadingMessage: event?.loadingMessage || "Generando imagen",
     showLogosInLoader: event?.showLogosInLoader !== false,
     enableFrame: event?.enableFrame !== false,
@@ -44,6 +46,7 @@ export default function EventForm({
     showSplashScreen: event?.showSplashScreen === true,
     captureBeforeFilter: event?.captureBeforeFilter === true,
     captureViewStyle: event?.captureViewStyle || "CLASSIC",
+    imageCustomizationEnabled: event?.imageCustomizationEnabled === true,
     prompts: event?.prompts || [],
     isActive: event?.isActive !== false,
   });
@@ -316,6 +319,18 @@ export default function EventForm({
             value={formData.splashImage || ""}
             onChange={(value) => handleImageChange("splashImage", value)}
           />
+          <p className="text-xs text-gray-500 -mt-2">
+            También se usa como fondo de la pantalla de inactividad (screensaver) si no hay video configurado abajo.
+          </p>
+
+          <VideoUploadField
+            label="Video Splash - Pantalla de Inactividad (loop, opcional)"
+            value={formData.screenSaverVideoUrl || ""}
+            onChange={(value) => handleImageChange("screenSaverVideoUrl", value)}
+          />
+          <p className="text-xs text-gray-500 -mt-2">
+            Si se sube un video, la pantalla de inactividad lo reproduce en loop en vez de la imagen splash de arriba.
+          </p>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -529,6 +544,36 @@ export default function EventForm({
             <p className="text-xs text-gray-500 mt-1">
               &quot;Visor con guía&quot; agrega una grilla de tercios, esquinas de encuadre y una silueta de rostro
               sobre la vista de la cámara, para ayudar a ubicarse antes de la foto.
+            </p>
+          </div>
+
+          {/* Image Customization Configuration */}
+          <div className="bg-pink-50 rounded-lg p-4 border border-pink-200">
+            <div className="flex items-center mb-3">
+              <input
+                type="checkbox"
+                id="imageCustomizationEnabled"
+                name="imageCustomizationEnabled"
+                checked={formData.imageCustomizationEnabled === true}
+                onChange={(e) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    imageCustomizationEnabled: e.target.checked,
+                  }));
+                }}
+                className="h-4 w-4 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="imageCustomizationEnabled"
+                className="ml-2 text-sm font-medium text-gray-700"
+              >
+                Habilitar pantalla &quot;Dale tu toque&quot; (paleta, textura e intensidad)
+              </label>
+            </div>
+            <p className="text-xs text-gray-600">
+              Si está activado, después de confirmar la foto (y antes de generar) aparece una pantalla para elegir un
+              color de paleta, una textura y una intensidad. Esas elecciones se guardan en la tarea y se agregan al
+              prompt de IA.
             </p>
           </div>
         </div>

@@ -5,13 +5,17 @@ import React, { useEffect, useState, useCallback } from "react";
 
 type ScreenSaverProps = {
   splashImage?: string;
+  /** Video en loop; si está presente, tiene prioridad sobre splashImage. */
+  videoUrl?: string;
   inactivityTimeout?: number; // en milisegundos
 };
 
 export default function ScreenSaver({
   splashImage,
+  videoUrl,
   inactivityTimeout = 15000, // 15 segundos por defecto
 }: ScreenSaverProps) {
+  const media = videoUrl || splashImage;
   const [isActive, setIsActive] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 
@@ -28,7 +32,7 @@ export default function ScreenSaver({
   }, [isActive, isExiting]);
 
   useEffect(() => {
-    if (!splashImage) return;
+    if (!media) return;
 
     // Eventos que indican actividad del usuario
     const events = [
@@ -71,9 +75,9 @@ export default function ScreenSaver({
         window.removeEventListener(event, handleUserActivity);
       });
     };
-  }, [splashImage, inactivityTimeout, isActive, handleActivity]);
+  }, [media, inactivityTimeout, isActive, handleActivity]);
 
-  if (!splashImage || !isActive) return null;
+  if (!media || !isActive) return null;
 
   return (
     <div
@@ -82,13 +86,24 @@ export default function ScreenSaver({
       }`}
       onClick={handleActivity}
     >
-      <img
-        src={splashImage}
-        alt="Screen Saver"
-        className="w-full h-full object-cover select-none"
-        draggable={false}
-      />
-      
+      {videoUrl ? (
+        <video
+          src={videoUrl}
+          className="w-full h-full object-cover select-none"
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+      ) : (
+        <img
+          src={splashImage}
+          alt="Screen Saver"
+          className="w-full h-full object-cover select-none"
+          draggable={false}
+        />
+      )}
+
       {/* Indicador de "Toca para continuar" */}
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white text-center animate-pulse">
         <p className="text-lg sm:text-xl font-semibold drop-shadow-lg">

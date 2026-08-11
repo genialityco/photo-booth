@@ -64,6 +64,19 @@ export type EventProfile = {
    * sobre la vista de la cámara.
    */
   captureViewStyle?: "CLASSIC" | "VIEWFINDER";
+  /**
+   * Video en loop para la pantalla de inactividad (ScreenSaver), como
+   * alternativa a splashImage. Si está presente, tiene prioridad sobre
+   * splashImage en esa pantalla.
+   */
+  screenSaverVideoUrl?: string;
+  /**
+   * Habilita la pantalla opcional "Dale tu toque" (paleta de color, textura
+   * e intensidad) entre el preview confirmado y la generación. Los valores
+   * elegidos se guardan en el doc de imageTasks y se aplican al prompt de
+   * IA. Por compatibilidad, los eventos sin este campo no la muestran.
+   */
+  imageCustomizationEnabled?: boolean;
   prompts: string[];
   isActive: boolean;
   screenConfig?: {
@@ -151,12 +164,15 @@ export async function createEventProfile(
       showSplashScreen: data.showSplashScreen === true,
       captureBeforeFilter: data.captureBeforeFilter === true,
       captureViewStyle: data.captureViewStyle || "CLASSIC",
+      imageCustomizationEnabled: data.imageCustomizationEnabled === true,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
 
     // Image fields to process
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage"];
+    // "imageFields": el mismo mecanismo genérico (por content-type) también
+    // sirve para subir el video del screensaver.
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage", "screenSaverVideoUrl"];
 
     for (const field of imageFields) {
       const fileData = data[field];
@@ -322,10 +338,13 @@ export async function updateEventProfile(
     if (data.showSplashScreen !== undefined) docData.showSplashScreen = data.showSplashScreen;
     if (data.captureBeforeFilter !== undefined) docData.captureBeforeFilter = data.captureBeforeFilter;
     if (data.captureViewStyle !== undefined) docData.captureViewStyle = data.captureViewStyle;
+    if (data.imageCustomizationEnabled !== undefined) docData.imageCustomizationEnabled = data.imageCustomizationEnabled;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
 
     // Process image fields
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage"];
+    // "imageFields": el mismo mecanismo genérico (por content-type) también
+    // sirve para subir el video del screensaver.
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage", "screenSaverVideoUrl"];
     for (const field of imageFields) {
       const fileData = data[field];
       if (!fileData) continue;
