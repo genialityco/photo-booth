@@ -387,7 +387,7 @@ export default function PhotoBoothWizard({
         dataProcessingAccepted: dataProcessingAccepted, // Guardar aceptación de tratamiento de datos
         // Ajustes opcionales de "Dale tu toque" (paleta/textura/intensidad),
         // aplicados al prompt de IA en la Cloud Function.
-        paletteColor: finalCustomization?.paletteColor ?? null,
+        palette: finalCustomization?.palette ?? null,
         texture: finalCustomization?.texture ?? null,
         intensity: finalCustomization?.intensity ?? null,
         taskId: newTaskId,

@@ -5,9 +5,16 @@ import React, { useState } from "react";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 
-// Debe coincidir con TEXTURE_LABELS en functions/src/index.ts (mismos
-// "value" de textura, para que el backend reconozca la elección).
-const PALETTE = ["#ef4444", "#22d3ee", "#ec4899", "#4ade80", "#a78bfa"];
+// Cada opción es una PALETA de varios colores (no un color plano). Debe
+// coincidir con TEXTURE_LABELS en functions/src/index.ts (mismos "value" de
+// textura, para que el backend reconozca la elección).
+const PALETTES: string[][] = [
+  ["#ef4444", "#f97316", "#facc15"], // cálida
+  ["#22d3ee", "#3b82f6", "#6366f1"], // fría
+  ["#ec4899", "#f472b6", "#fb7185"], // rosa
+  ["#4ade80", "#22c55e", "#16a34a"], // verde
+  ["#a78bfa", "#8b5cf6", "#7c3aed"], // morada
+];
 const TEXTURES: { value: string; label: string }[] = [
   { value: "liso", label: "Liso" },
   { value: "rugoso", label: "Rugoso" },
@@ -15,10 +22,21 @@ const TEXTURES: { value: string; label: string }[] = [
 ];
 
 export type ImageCustomization = {
-  paletteColor: string;
+  /** Combinación de colores de la paleta elegida (varios hex, no uno solo). */
+  palette: string[];
   texture: string;
   intensity: number;
 };
+
+/** Franjas diagonales con bordes duros (sin difuminar) para que cada color
+ * de la paleta se vea distinto, en vez de un degradado mezclado. */
+function paletteStripesBackground(colors: string[]): string {
+  const step = 100 / colors.length;
+  const stops = colors
+    .map((c, i) => `${c} ${i * step}%, ${c} ${(i + 1) * step}%`)
+    .join(", ");
+  return `linear-gradient(135deg, ${stops})`;
+}
 
 export default function ImageCustomizeStep({
   previewSrc,
@@ -31,12 +49,12 @@ export default function ImageCustomizeStep({
   buttonClickEffect?: ButtonClickEffectId;
   onConfirm: (value: ImageCustomization) => void;
 }) {
-  const [paletteColor, setPaletteColor] = useState(PALETTE[0]);
+  const [paletteIndex, setPaletteIndex] = useState(0);
   const [texture, setTexture] = useState(TEXTURES[0].value);
   const [intensity, setIntensity] = useState(50);
 
   const handleConfirm = () => {
-    onConfirm({ paletteColor, texture, intensity });
+    onConfirm({ palette: PALETTES[paletteIndex], texture, intensity });
   };
 
   return (
@@ -65,16 +83,19 @@ export default function ImageCustomizeStep({
           PALETA
         </p>
         <div className="flex gap-4">
-          {PALETTE.map((c) => (
+          {PALETTES.map((colors, i) => (
             <button
-              key={c}
+              key={colors.join(",")}
               type="button"
-              onClick={() => setPaletteColor(c)}
-              aria-label={`Color ${c}`}
+              onClick={() => setPaletteIndex(i)}
+              aria-label={`Paleta ${colors.join(", ")}`}
               className={`flex-1 aspect-square rounded-2xl transition-transform ${
-                paletteColor === c ? "ring-4 ring-white scale-110" : "opacity-90 hover:opacity-100"
+                paletteIndex === i ? "ring-4 ring-white scale-110" : "opacity-90 hover:opacity-100"
               }`}
-              style={{ backgroundColor: c, maxWidth: "clamp(44px, 9vw, 84px)" }}
+              style={{
+                background: paletteStripesBackground(colors),
+                maxWidth: "clamp(44px, 11vw, 180px)",
+              }}
             />
           ))}
         </div>

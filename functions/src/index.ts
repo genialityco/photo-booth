@@ -149,6 +149,16 @@ function sanitizeHexColor(color?: string): string | null {
   return trimmed;
 }
 
+// Paleta = varios colores (no uno solo). Filtra/limita a valores hex válidos.
+function sanitizeHexPalette(colors?: string[]): string[] | null {
+  if (!Array.isArray(colors)) return null;
+  const clean = colors
+    .map((c) => sanitizeHexColor(c))
+    .filter((c): c is string => !!c)
+    .slice(0, 8);
+  return clean.length > 0 ? clean : null;
+}
+
 const TEXTURE_LABELS: Record<string, string> = {
   liso: "lisa y pulida, sin relieve",
   rugoso: "rugosa, con una textura granulada bien visible",
@@ -167,15 +177,15 @@ function sanitizeIntensity(intensity?: number): number | null {
 }
 
 // Construye el prompt dinámico usando basePrompt + colorDirectiveTemplate (si existe)
-// + los ajustes de personalización opcionales (paletteColor/texture/intensity).
+// + los ajustes de personalización opcionales (palette/texture/intensity).
 async function buildPromptWithBrand(opts: {
   brand?: string;
   color?: string;
-  paletteColor?: string;
+  palette?: string[];
   texture?: string;
   intensity?: number;
 }): Promise<{logoPath: string | undefined, prompt: string, logoPrompt?: string, promptBgImage?: string, objectImage?: string, objectImagePrompt?: string}> {
-  const { brand, color, paletteColor, texture, intensity } = opts || {};
+  const { brand, color, palette, texture, intensity } = opts || {};
   const branded = await getBrandedPromptCached(brand);
   const basePrompt = branded.basePrompt || DEFAULT_PROMPT;
   const t = branded.colorDirectiveTemplate;
@@ -187,12 +197,16 @@ async function buildPromptWithBrand(opts: {
     prompt = basePrompt + "\n\n" + applied;
   }
 
-  const hex = sanitizeHexColor(paletteColor);
+  const hexPalette = sanitizeHexPalette(palette);
   const textureKey = sanitizeTexture(texture);
   const intensityPct = sanitizeIntensity(intensity);
-  if (hex || textureKey || intensityPct !== null) {
+  if (hexPalette || textureKey || intensityPct !== null) {
     const lines: string[] = ["Ajustes de personalización solicitados por la persona:"];
-    if (hex) lines.push(`- Paleta de color dominante: ${hex} (código hexadecimal).`);
+    if (hexPalette) {
+      lines.push(
+        `- Paleta de colores: usa esta combinación como colores dominantes del resultado: ${hexPalette.join(", ")} (códigos hexadecimales).`,
+      );
+    }
     if (textureKey) lines.push(`- Textura/acabado de la superficie: ${TEXTURE_LABELS[textureKey]}.`);
     if (intensityPct !== null) {
       lines.push(`- Intensidad del efecto: ${intensityPct}% (100% = lo más marcado posible, 0% = muy sutil).`);
@@ -510,7 +524,7 @@ export const processImageTask = onDocumentCreated(
           eventId?: string;
           // Ajustes opcionales de la pantalla "Dale tu toque" (paso de
           // personalización, habilitado por evento).
-          paletteColor?: string;
+          palette?: string[];
           texture?: string;
           intensity?: number;
         }
@@ -529,7 +543,7 @@ export const processImageTask = onDocumentCreated(
       const promptData = await buildPromptWithBrand({
         brand: data.brand,
         color: data.color,
-        paletteColor: data.paletteColor,
+        palette: data.palette,
         texture: data.texture,
         intensity: data.intensity,
       });
