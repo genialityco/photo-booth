@@ -7,6 +7,7 @@ import captureWithFrame from "./captureWithFrame";
 import captureRawSquare from "./captureRawSquare";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
+import CaptureViewfinderOverlay from "@/app/components/photo-booth/CaptureViewfinderOverlay";
 
 export default function CaptureStep({
   // 👇 sin marco por defecto
@@ -17,6 +18,7 @@ export default function CaptureStep({
   onCaptured,
   buttonImage,
   buttonClickEffect,
+  viewStyle = "CLASSIC",
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
@@ -24,6 +26,9 @@ export default function CaptureStep({
   borderRadius?: "none" | "md" | "lg" | "xl" | "4xl";
   buttonImage?: string;
   buttonClickEffect?: ButtonClickEffectId;
+  /** Estilo visual de la vista de captura. "CLASSIC" (default) es el actual;
+   * "VIEWFINDER" agrega la guía de encuadre tipo visor de cámara. */
+  viewStyle?: "CLASSIC" | "VIEWFINDER";
   onCaptured: (payload: { framed: string; raw: string }) => void;
 }) {
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -217,14 +222,15 @@ export default function CaptureStep({
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 overflow-hidden  sm:px-3">
-      <div className={`flex-1 flex items-center justify-center w-full overflow-hidden ${borderRadiusClass}`}>
+      <div className={`relative flex-1 flex items-center justify-center w-full overflow-hidden ${borderRadiusClass}`}>
         <FrameCamera
           frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
           mirror={mirror}
           boxSize={boxSize}
-      
+
           onReady={onReady}
         />
+        {viewStyle === "VIEWFINDER" && <CaptureViewfinderOverlay />}
       </div>
 
       <AnimatePresence>

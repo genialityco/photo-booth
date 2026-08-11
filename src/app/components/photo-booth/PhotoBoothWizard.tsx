@@ -224,7 +224,8 @@ export default function PhotoBoothWizard({
   // evento usa este efecto), así llega descargado/en caché del navegador
   // mucho antes de que termine la generación y se necesite en RevealStep.
   useEffect(() => {
-    if (eventData?.revealEffect !== "ROLLER") return;
+    const usesRoller = eventData?.revealEffect === "ROLLER" || eventData?.revealEffect === "ROLLER_COLOR";
+    if (!usesRoller) return;
     if (typeof document === "undefined") return;
     if (document.querySelector(`link[href="${ROLLER_MODEL_PATH}"]`)) return;
 
@@ -517,6 +518,7 @@ export default function PhotoBoothWizard({
                   frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
                   buttonImage={eventData?.buttonImage}
                   buttonClickEffect={eventData?.buttonClickEffect}
+                  viewStyle={eventData?.captureViewStyle}
                 />
               </motion.div>
             )}
@@ -570,13 +572,14 @@ export default function PhotoBoothWizard({
                 exit="exit"
                 transition={stepTransition}
               >
-                {eventData?.revealEffect === "ROLLER" ? (
+                {eventData?.revealEffect === "ROLLER" || eventData?.revealEffect === "ROLLER_COLOR" ? (
                   <RollerRevealStep
                     aiUrl={aiUrl}
                     videoUrl={aiVideoUrl ?? undefined}
                     frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
                     enableFrame={eventData?.enableFrame ?? style?.enableFrame ?? true}
                     revealColorHint={color}
+                    veilMode={eventData?.revealEffect === "ROLLER_COLOR" ? "GRAYSCALE_PHOTO" : "SOLID"}
                     onRevealed={() => setStep("result")}
                   />
                 ) : (

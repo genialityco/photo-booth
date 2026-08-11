@@ -44,6 +44,7 @@ export default function RollerRevealStep({
   frameSrc = null,
   enableFrame = true,
   revealColorHint = null,
+  veilMode = "SOLID",
   onRevealed,
 }: {
   aiUrl: string;
@@ -51,6 +52,10 @@ export default function RollerRevealStep({
   frameSrc?: string | null;
   enableFrame?: boolean;
   revealColorHint?: string | null;
+  /** "SOLID" (default): velo de color plano, revela la foto de un tirón.
+   * "GRAYSCALE_PHOTO": la foto arranca en blanco y negro y el rodillo va
+   * pintando el color encima. */
+  veilMode?: "SOLID" | "GRAYSCALE_PHOTO";
   onRevealed: () => void;
 }) {
   const {
@@ -60,7 +65,7 @@ export default function RollerRevealStep({
     prefersReducedMotion,
     completeReveal,
     eraseWithPath,
-  } = useRevealVeil({ aiUrl, videoUrl, frameSrc, enableFrame, revealColorHint, onRevealed });
+  } = useRevealVeil({ aiUrl, videoUrl, frameSrc, enableFrame, revealColorHint, veilMode, onRevealed });
 
   const selfViewRef = useRef<HTMLVideoElement | null>(null);
   const rollerCursorRef = useRef<RollerCursorHandle | null>(null);
@@ -209,7 +214,9 @@ export default function RollerRevealStep({
       >
         {handTrackingError
           ? "Toca y desliza la pantalla para pintar con el rodillo"
-          : "Pasa el rodillo sobre la foto para descubrirla"}
+          : veilMode === "GRAYSCALE_PHOTO"
+            ? "Pasa el rodillo sobre la foto para pintarla de color"
+            : "Pasa el rodillo sobre la foto para descubrirla"}
       </p>
 
       <div

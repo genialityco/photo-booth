@@ -36,6 +36,7 @@ export function useRevealVeil({
   frameSrc = null,
   enableFrame = true,
   revealColorHint = null,
+  veilMode = "SOLID",
   onRevealed,
 }: {
   aiUrl: string;
@@ -43,6 +44,10 @@ export function useRevealVeil({
   frameSrc?: string | null;
   enableFrame?: boolean;
   revealColorHint?: string | null;
+  /** "SOLID" (default): velo de color plano. "GRAYSCALE_PHOTO": el velo es
+   * una copia en blanco y negro de la propia foto/video, así al borrarlo
+   * aparece el color de abajo en vez de descubrir una imagen distinta. */
+  veilMode?: "SOLID" | "GRAYSCALE_PHOTO";
   onRevealed: () => void;
 }) {
   const photoCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -151,16 +156,32 @@ export function useRevealVeil({
     };
   }, [aiUrl, videoUrl, frameSrc, enableFrame]);
 
-  // === Pinta el velo sólido inicial ===
+  // === Pinta el velo inicial: color sólido, o (GRAYSCALE_PHOTO) una copia en
+  // blanco y negro de la propia foto — se pinta una sola vez, como snapshot,
+  // igual que el velo sólido: no se vuelve a redibujar después (si no, cada
+  // repintado borraría el progreso ya revelado por la persona). ===
   useEffect(() => {
     const veil = veilCanvasRef.current;
     if (!veil) return;
     const ctx = veil.getContext("2d")!;
+
+    if (veilMode === "GRAYSCALE_PHOTO") {
+      if (!photoReady) return; // esperar a que haya algo que copiar
+      const photoCanvas = photoCanvasRef.current;
+      if (!photoCanvas) return;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+      ctx.filter = "grayscale(1)";
+      ctx.drawImage(photoCanvas, 0, 0);
+      ctx.filter = "none";
+      return;
+    }
+
     ctx.globalCompositeOperation = "source-over";
     ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
     ctx.fillStyle = resolvedVeilColor;
     ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-  }, [resolvedVeilColor]);
+  }, [resolvedVeilColor, veilMode, photoReady]);
 
   // === Borra una forma arbitraria del velo (destination-out) ===
   const eraseWithPath = useCallback((draw: (ctx: CanvasRenderingContext2D) => void) => {

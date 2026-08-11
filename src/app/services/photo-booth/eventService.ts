@@ -37,11 +37,13 @@ export type EventProfile = {
   handCursorEnabled?: boolean;
   /**
    * Efecto para revelar la foto generada: sin efecto (pasa directo al
-   * resultado), borrar el velo con la mano, o pintar con un rodillo 3D
-   * (puño cerrado = agarrar el rodillo). Por compatibilidad, los eventos
-   * sin este campo se comportan como "HAND_WIPE" (comportamiento original).
+   * resultado), borrar el velo con la mano, pintar con un rodillo 3D
+   * (descubre la foto de un velo sólido), o el mismo rodillo pero arrancando
+   * la foto en blanco y negro y pintando el color al pasarlo. Por
+   * compatibilidad, los eventos sin este campo se comportan como
+   * "HAND_WIPE" (comportamiento original).
    */
-  revealEffect?: "NONE" | "HAND_WIPE" | "ROLLER";
+  revealEffect?: "NONE" | "HAND_WIPE" | "ROLLER" | "ROLLER_COLOR";
   /**
    * Pantalla inicial con imagen (splashImage) + botón "Comenzar" antes del
    * resto del flujo. Por compatibilidad, los eventos sin este campo NO la
@@ -55,6 +57,13 @@ export type EventProfile = {
    * (filtro primero, luego captura).
    */
   captureBeforeFilter?: boolean;
+  /**
+   * Estilo visual de la pantalla de captura. "CLASSIC" (o sin este campo) es
+   * el comportamiento original. "VIEWFINDER" agrega una guía tipo visor de
+   * cámara (grilla, esquinas, silueta de rostro y textos de instrucción)
+   * sobre la vista de la cámara.
+   */
+  captureViewStyle?: "CLASSIC" | "VIEWFINDER";
   prompts: string[];
   isActive: boolean;
   screenConfig?: {
@@ -141,6 +150,7 @@ export async function createEventProfile(
       revealEffect: data.revealEffect || "HAND_WIPE",
       showSplashScreen: data.showSplashScreen === true,
       captureBeforeFilter: data.captureBeforeFilter === true,
+      captureViewStyle: data.captureViewStyle || "CLASSIC",
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -311,6 +321,7 @@ export async function updateEventProfile(
     if (data.revealEffect !== undefined) docData.revealEffect = data.revealEffect;
     if (data.showSplashScreen !== undefined) docData.showSplashScreen = data.showSplashScreen;
     if (data.captureBeforeFilter !== undefined) docData.captureBeforeFilter = data.captureBeforeFilter;
+    if (data.captureViewStyle !== undefined) docData.captureViewStyle = data.captureViewStyle;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
 
     // Process image fields

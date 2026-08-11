@@ -43,6 +43,7 @@ export default function EventForm({
     revealEffect: event?.revealEffect || "HAND_WIPE",
     showSplashScreen: event?.showSplashScreen === true,
     captureBeforeFilter: event?.captureBeforeFilter === true,
+    captureViewStyle: event?.captureViewStyle || "CLASSIC",
     prompts: event?.prompts || [],
     isActive: event?.isActive !== false,
   });
@@ -430,18 +431,20 @@ export default function EventForm({
               onChange={(e) =>
                 setFormData((prev) => ({
                   ...prev,
-                  revealEffect: e.target.value as "NONE" | "HAND_WIPE" | "ROLLER",
+                  revealEffect: e.target.value as "NONE" | "HAND_WIPE" | "ROLLER" | "ROLLER_COLOR",
                 }))
               }
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="NONE">Sin efecto (pasa directo al resultado)</option>
               <option value="HAND_WIPE">Borrar el velo con la mano</option>
-              <option value="ROLLER">Rodillo de pintura (puño cerrado)</option>
+              <option value="ROLLER">Rodillo de pintura (descubre la foto)</option>
+              <option value="ROLLER_COLOR">Rodillo: blanco y negro a color</option>
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              Cómo se revela la foto generada antes de mostrar el resultado final. &quot;Rodillo&quot; requiere cerrar
-              el puño (como agarrando el rodillo) para pintar y descubrir la imagen.
+              Cómo se revela la foto generada antes de mostrar el resultado final. Con &quot;Rodillo&quot; basta con
+              pasar la mano (o el dedo, si no hay cámara) sobre la foto. &quot;Blanco y negro a color&quot; usa el mismo
+              rodillo pero arranca la foto en blanco y negro y va pintando el color al pasarlo.
             </p>
           </div>
 
@@ -501,6 +504,31 @@ export default function EventForm({
               Por defecto se elige primero el filtro/marca y después se toma la foto. Si está activado, se invierte: se
               toma la foto, se confirma, y recién ahí aparece la selección de filtro/marca (con el tratamiento de
               datos si aplica), antes de generar el resultado.
+            </p>
+          </div>
+
+          {/* Capture View Style Configuration */}
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Estilo de la Pantalla de Captura
+            </label>
+            <select
+              name="captureViewStyle"
+              value={formData.captureViewStyle || "CLASSIC"}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  captureViewStyle: e.target.value as "CLASSIC" | "VIEWFINDER",
+                }))
+              }
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="CLASSIC">Clásica (actual)</option>
+              <option value="VIEWFINDER">Visor con guía (grilla, esquinas y silueta de rostro)</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              &quot;Visor con guía&quot; agrega una grilla de tercios, esquinas de encuadre y una silueta de rostro
+              sobre la vista de la cámara, para ayudar a ubicarse antes de la foto.
             </p>
           </div>
         </div>
