@@ -10,6 +10,7 @@ import PhotoBoothWizard from "@/app/components/photo-booth/PhotoBoothWizard";
 import LoadingScreen from "@/app/components/common/LoadingScreen";
 import ScreenSaver from "@/app/components/common/ScreenSaver";
 import HandCursorOverlay from "@/app/components/common/hand-cursor/HandCursorOverlay";
+import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
 
 export default function EventBoothPage({
   params,
@@ -118,6 +119,10 @@ export default function EventBoothPage({
         style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')` }}
         aria-hidden
       />
+
+      {/* Animación de fondo opcional (ej. esferas de colores), configurable
+          por evento — sin animación por defecto. */}
+      <BackgroundAnimation type={event.backgroundAnimation} />
 
       <AnimatePresence mode="wait" initial={false}>
         {phase === "splash" && (

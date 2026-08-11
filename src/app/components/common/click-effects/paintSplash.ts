@@ -11,18 +11,18 @@ const PAINT_COLORS = [
   "#ec4899",
 ];
 
-const CANVAS_SIZE = 260;
-const FADE_MS = 550;
+const CANVAS_SIZE = 520;
+const FADE_MS = 600;
 
-/** Dibuja gotas pequeñas salpicadas alrededor del centro, cada una de un color distinto. */
+/** Dibuja gotas salpicadas en un radio amplio alrededor del centro, cada una de un color distinto. */
 function drawDroplets(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
-  const count = 12 + Math.floor(Math.random() * 8);
+  const count = 22 + Math.floor(Math.random() * 12);
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const dist = CANVAS_SIZE * 0.1 + Math.random() * CANVAS_SIZE * 0.36;
+    const dist = CANVAS_SIZE * 0.06 + Math.random() * CANVAS_SIZE * 0.46;
     const x = cx + Math.cos(angle) * dist;
     const y = cy + Math.sin(angle) * dist;
-    const r = 3 + Math.random() * 11;
+    const r = 3 + Math.random() * 15;
     ctx.fillStyle = PAINT_COLORS[Math.floor(Math.random() * PAINT_COLORS.length)];
     ctx.globalAlpha = 0.6 + Math.random() * 0.35;
     ctx.beginPath();

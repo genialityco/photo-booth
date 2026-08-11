@@ -114,3 +114,23 @@ body {
   background-color: rgba(34, 197, 94, 0.55);
   border-color: rgb(34, 197, 94);
 }
+
+/* Animación de fondo "esferas de colores" (BackgroundAnimation). Recorre
+   buena parte de la pantalla en un lazo orgánico (no una línea recta),
+   infinita y lenta. */
+@keyframes orbFloat {
+  0% { transform: translate(0, 0) scale(1); }
+  20% { transform: translate(32vw, -22vh) scale(1.12); }
+  40% { transform: translate(18vw, 28vh) scale(0.92); }
+  60% { transform: translate(-28vw, 20vh) scale(1.08); }
+  80% { transform: translate(-22vw, -26vh) scale(0.95); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+.bg-orb-float {
+  animation-name: orbFloat;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-orb-float { animation: none !important; }
+}

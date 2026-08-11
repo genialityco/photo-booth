@@ -77,6 +77,12 @@ export type EventProfile = {
    * IA. Por compatibilidad, los eventos sin este campo no la muestran.
    */
   imageCustomizationEnabled?: boolean;
+  /**
+   * Animación de fondo detrás de toda la app (landing, wizard, resultado).
+   * "NONE" (o sin este campo, comportamiento original) = sin animación.
+   * "FLOATING_ORBS" = esferas de colores flotando lentamente de fondo.
+   */
+  backgroundAnimation?: "NONE" | "FLOATING_ORBS";
   prompts: string[];
   isActive: boolean;
   screenConfig?: {
@@ -165,6 +171,7 @@ export async function createEventProfile(
       captureBeforeFilter: data.captureBeforeFilter === true,
       captureViewStyle: data.captureViewStyle || "CLASSIC",
       imageCustomizationEnabled: data.imageCustomizationEnabled === true,
+      backgroundAnimation: data.backgroundAnimation || "NONE",
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -339,6 +346,7 @@ export async function updateEventProfile(
     if (data.captureBeforeFilter !== undefined) docData.captureBeforeFilter = data.captureBeforeFilter;
     if (data.captureViewStyle !== undefined) docData.captureViewStyle = data.captureViewStyle;
     if (data.imageCustomizationEnabled !== undefined) docData.imageCustomizationEnabled = data.imageCustomizationEnabled;
+    if (data.backgroundAnimation !== undefined) docData.backgroundAnimation = data.backgroundAnimation;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
 
     // Process image fields

@@ -47,6 +47,7 @@ export default function EventForm({
     captureBeforeFilter: event?.captureBeforeFilter === true,
     captureViewStyle: event?.captureViewStyle || "CLASSIC",
     imageCustomizationEnabled: event?.imageCustomizationEnabled === true,
+    backgroundAnimation: event?.backgroundAnimation || "NONE",
     prompts: event?.prompts || [],
     isActive: event?.isActive !== false,
   });
@@ -574,6 +575,31 @@ export default function EventForm({
               Si está activado, después de confirmar la foto (y antes de generar) aparece una pantalla para elegir un
               color de paleta, una textura y una intensidad. Esas elecciones se guardan en la tarea y se agregan al
               prompt de IA.
+            </p>
+          </div>
+
+          {/* Background Animation Configuration */}
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Animación de Fondo
+            </label>
+            <select
+              name="backgroundAnimation"
+              value={formData.backgroundAnimation || "NONE"}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  backgroundAnimation: e.target.value as "NONE" | "FLOATING_ORBS",
+                }))
+              }
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="NONE">Sin animación (actual)</option>
+              <option value="FLOATING_ORBS">Esferas de colores flotando</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Se muestra detrás de toda la app (selección de marca, cámara, resultado). &quot;Esferas de colores&quot;
+              agrega formas difuminadas de colores derivando lentamente de fondo.
             </p>
           </div>
         </div>

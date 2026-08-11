@@ -171,9 +171,18 @@ export function useRevealVeil({
       if (!photoCanvas) return;
       ctx.globalCompositeOperation = "source-over";
       ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-      ctx.filter = "grayscale(1)";
+      // grayscale + un poco menos de contraste/brillo levantado: la foto se
+      // ve "lavada"/desteñida, para que el color se note mucho más al pintar.
+      ctx.filter = "grayscale(1) contrast(0.8) brightness(1.12)";
       ctx.drawImage(photoCanvas, 0, 0);
       ctx.filter = "none";
+      // Velo blanco semitransparente encima: sigue siendo 100% opaco en
+      // conjunto (no deja pasar el color de abajo), pero visualmente aclara
+      // y desatura aún más el blanco y negro — efecto "transparencia/neblina".
+      ctx.globalAlpha = 0.32;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+      ctx.globalAlpha = 1;
       return;
     }
 
