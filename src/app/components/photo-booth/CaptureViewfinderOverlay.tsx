@@ -4,9 +4,10 @@ import React from "react";
 
 /**
  * Guía visual tipo "visor de cámara" sobre la vista de captura: grilla de
- * tercios, esquinas de encuadre, silueta de rostro y textos de instrucción.
- * Puramente decorativo (pointer-events-none) — no interfiere con el click
- * del botón de captura ni con la cámara.
+ * tercios, silueta de rostro y textos de instrucción. Puramente decorativo
+ * (pointer-events-none) — no interfiere con el click del botón de captura
+ * ni con la cámara. Vive dentro del cuadro nítido de `FrameCamera` (que ya
+ * dibuja las esquinas de encuadre como guía base siempre presente).
  */
 export default function CaptureViewfinderOverlay() {
   return (
@@ -18,12 +19,6 @@ export default function CaptureViewfinderOverlay() {
         <div className="absolute top-1/3 left-0 right-0 h-px bg-white/15" />
         <div className="absolute top-2/3 left-0 right-0 h-px bg-white/15" />
       </div>
-
-      {/* Esquinas de encuadre */}
-      <span className="absolute top-4 left-4 w-7 h-7 border-t-2 border-l-2 border-white/70 rounded-tl-md" />
-      <span className="absolute top-4 right-4 w-7 h-7 border-t-2 border-r-2 border-white/70 rounded-tr-md" />
-      <span className="absolute bottom-4 left-4 w-7 h-7 border-b-2 border-l-2 border-white/70 rounded-bl-md" />
-      <span className="absolute bottom-4 right-4 w-7 h-7 border-b-2 border-r-2 border-white/70 rounded-br-md" />
 
       {/* Silueta de rostro (relleno ilustrativo) */}
       <svg

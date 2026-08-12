@@ -45,6 +45,7 @@ export default function RollerRevealStep({
   enableFrame = true,
   revealColorHint = null,
   veilMode = "SOLID",
+  handTrackingEnabled = false,
   onRevealed,
 }: {
   aiUrl: string;
@@ -56,6 +57,8 @@ export default function RollerRevealStep({
    * "GRAYSCALE_PHOTO": la foto arranca en blanco y negro y el rodillo va
    * pintando el color encima. */
   veilMode?: "SOLID" | "GRAYSCALE_PHOTO";
+  /** Activa la cámara para mover el rodillo con la mano. Si es false, solo se usa el fallback táctil. */
+  handTrackingEnabled?: boolean;
   onRevealed: () => void;
 }) {
   const {
@@ -97,14 +100,19 @@ export default function RollerRevealStep({
   );
 
   // === Reserva el tracking de mano compartido (misma cámara que el cursor
-  // global si ya está corriendo; si no, arranca una sola para esta pantalla) ===
+  // global si ya está corriendo; si no, arranca una sola para esta pantalla).
+  // Solo si el evento lo habilita explícitamente (handRevealEnabled): en el
+  // celular personal del asistente la cámara frontal no ve una mano estable
+  // y el "cursor" termina parpadeando y saltando de posición. ===
   useEffect(() => {
+    if (!handTrackingEnabled) return;
     return acquireHandTracking();
-  }, []);
+  }, [handTrackingEnabled]);
 
   // === Estado del tracking compartido: listo/error, y conecta el self-view
   // a la MISMA MediaStream (sin pedir una segunda cámara) ===
   useEffect(() => {
+    if (!handTrackingEnabled) return;
     const unsubscribe = subscribeHandTrackingStatus((status) => {
       if (status === "ready") {
         setHandTrackingReady(true);
@@ -119,7 +127,7 @@ export default function RollerRevealStep({
       }
     });
     return unsubscribe;
-  }, []);
+  }, [handTrackingEnabled]);
 
   // === Frames del tracking compartido: mueve el rodillo 3D (el mango queda
   // anclado a la mano) y pinta usando la posición y el tamaño REALES del
@@ -212,7 +220,7 @@ export default function RollerRevealStep({
         role="status"
         aria-live="polite"
       >
-        {handTrackingError
+        {!handTrackingEnabled || handTrackingError
           ? "Toca y desliza la pantalla para pintar con el rodillo"
           : veilMode === "GRAYSCALE_PHOTO"
             ? "Pasa el rodillo sobre la foto para pintarla de color"
@@ -250,18 +258,20 @@ export default function RollerRevealStep({
       </div>
 
       {/* Self-view: misma cámara del tracking compartido, solo para ubicar la mano */}
-      <div className="absolute bottom-5 right-5 z-20 w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-white/60 shadow-xl">
-        <video
-          ref={selfViewRef}
-          muted
-          playsInline
-          autoPlay
-          className="w-full h-full object-cover"
-          style={{ transform: "scaleX(-1)" }}
-        />
-      </div>
+      {handTrackingEnabled && (
+        <div className="absolute bottom-5 right-5 z-20 w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-white/60 shadow-xl">
+          <video
+            ref={selfViewRef}
+            muted
+            playsInline
+            autoPlay
+            className="w-full h-full object-cover"
+            style={{ transform: "scaleX(-1)" }}
+          />
+        </div>
+      )}
 
-      <RollerCursor ref={rollerCursorRef} />
+      {handTrackingEnabled && <RollerCursor ref={rollerCursorRef} />}
 
       <button
         type="button"

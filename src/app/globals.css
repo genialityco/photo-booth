@@ -52,24 +52,13 @@
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-:root {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
@@ -91,16 +80,22 @@ body {
     from { opacity: 0; transform: translateY(-6px) }
     to { opacity: 1; transform: translateY(0) }
   }
+  @keyframes shutterPulse {
+    0% { transform: scale(1); opacity: 0.5; }
+    100% { transform: scale(1.45); opacity: 0; }
+  }
 
   .animate-float { animation: float 4s ease-in-out infinite; }
   .animate-glowSway { animation: glowSway 4s ease-in-out infinite; }
   .animate-fadeIn { animation: fadeIn .8s ease-out both; }
+  .animate-shutterPulse { animation: shutterPulse 2s ease-out infinite; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-float,
   .animate-glowSway,
-  .animate-fadeIn { animation: none !important; }
+  .animate-fadeIn,
+  .animate-shutterPulse { animation: none !important; }
 }
 
 /* Cursor por gestos de mano (HandCursorOverlay): cambio de color sutil en

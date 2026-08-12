@@ -77,16 +77,28 @@ export default function ImageUploadField({
               alt="Preview"
               className="max-h-48 mx-auto rounded"
             />
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClear();
-              }}
-              className="mt-2 w-full px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
-            >
-              Cambiar Imagen
-            </button>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRef.current?.click();
+                }}
+                className="flex-1 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+              >
+                Cambiar Imagen
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClear();
+                }}
+                className="flex-1 px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
+              >
+                Quitar Imagen
+              </button>
+            </div>
           </div>
         ) : (
           <div className="text-center py-6">

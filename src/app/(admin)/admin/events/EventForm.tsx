@@ -1,6 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, type ReactNode } from "react";
+import {
+  FaInfoCircle,
+  FaImage,
+  FaCamera,
+  FaHandPaper,
+  FaDesktop,
+  FaRobot,
+  FaChevronDown,
+} from "react-icons/fa";
+import type { IconType } from "react-icons";
 import {
   EventProfile,
   createEventProfile,
@@ -10,6 +20,109 @@ import { getActivePhotoBoothPrompts, type PhotoBoothPrompt } from "@/app/service
 import { BUTTON_CLICK_EFFECT_OPTIONS } from "@/app/components/common/click-effects";
 import ImageUploadField from "./ImageUploadField";
 import VideoUploadField from "./VideoUploadField";
+
+/** Sección colapsable: agrupa campos relacionados bajo un título con ícono. */
+function AccordionSection({
+  title,
+  icon: Icon,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  icon: IconType;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 text-left transition-colors"
+        aria-expanded={open}
+      >
+        <span className="flex items-center gap-2.5 min-w-0">
+          <Icon className="w-4 h-4 text-gray-500 shrink-0" />
+          <span className="text-sm sm:text-base font-semibold text-gray-800">{title}</span>
+        </span>
+        <FaChevronDown
+          className={`w-3 h-3 text-gray-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="px-4 py-4 sm:px-5 sm:py-5 space-y-4 border-t border-gray-200 bg-white">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Checkbox + label + descripción, con estilo consistente para todos los toggles del form. */
+function ToggleField({
+  id,
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+        checked ? "border-blue-200 bg-blue-50/50" : "border-gray-200 hover:border-gray-300"
+      }`}
+    >
+      <input
+        type="checkbox"
+        id={id}
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+      />
+      <span>
+        <span className="block text-sm font-medium text-gray-800">{label}</span>
+        {description && <span className="block text-xs text-gray-500 mt-0.5">{description}</span>}
+      </span>
+    </label>
+  );
+}
+
+/** Label + <select> + texto de ayuda opcional, con estilo consistente. */
+function SelectField({
+  label,
+  value,
+  onChange,
+  helperText,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  helperText?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      >
+        {children}
+      </select>
+      {helperText && <p className="text-xs text-gray-500 mt-1">{helperText}</p>}
+    </div>
+  );
+}
 
 export default function EventForm({
   event,
@@ -42,6 +155,7 @@ export default function EventForm({
     generationType: event?.generationType || "IMAGE",
     buttonClickEffect: event?.buttonClickEffect || "NONE",
     handCursorEnabled: event?.handCursorEnabled === true,
+    handRevealEnabled: event?.handRevealEnabled === true,
     revealEffect: event?.revealEffect || "HAND_WIPE",
     showSplashScreen: event?.showSplashScreen === true,
     captureBeforeFilter: event?.captureBeforeFilter === true,
@@ -79,6 +193,10 @@ export default function EventForm({
       ...prev,
       [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
     }));
+  };
+
+  const setField = <K extends keyof EventProfile>(field: K, value: EventProfile[K]) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleImageChange = (field: string, value: string) => {
@@ -148,14 +266,9 @@ export default function EventForm({
         </button>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white rounded-lg shadow-md p-4 sm:p-5 md:p-6 space-y-4 sm:space-y-6"
-      >
-        {/* Basic Info */}
-        <div className="space-y-4">
-          <h2 className="text-base sm:text-lg font-semibold">Información Básica</h2>
-
+      <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+        {/* Información Básica */}
+        <AccordionSection title="Información Básica" icon={FaInfoCircle} defaultOpen>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
@@ -217,68 +330,26 @@ export default function EventForm({
             </p>
           </div>
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              name="isActive"
-              checked={formData.isActive !== false}
-              onChange={handleChange}
-              className="h-4 w-4 border-gray-300 rounded cursor-pointer"
-            />
-            <label className="ml-2 text-xs sm:text-sm font-medium text-gray-700 cursor-pointer">
-              Evento Activo
-            </label>
-          </div>
+          <ToggleField
+            id="isActive"
+            label="Evento Activo"
+            checked={formData.isActive !== false}
+            onChange={(checked) => setField("isActive", checked)}
+          />
 
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Tipo de Generación
-            </label>
-            <select
-              name="generationType"
-              value={formData.generationType || "IMAGE"}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, generationType: e.target.value as "IMAGE" | "BGVIDEO" | "VIDEO" }))
-              }
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="IMAGE">IMAGE</option>
-              <option value="BGVIDEO">BGVIDEO</option>
-              <option value="VIDEO">VIDEO</option>
-            </select>
-          </div>
+          <SelectField
+            label="Tipo de Generación"
+            value={formData.generationType || "IMAGE"}
+            onChange={(v) => setField("generationType", v as "IMAGE" | "BGVIDEO" | "VIDEO")}
+          >
+            <option value="IMAGE">IMAGE</option>
+            <option value="BGVIDEO">BGVIDEO</option>
+            <option value="VIDEO">VIDEO</option>
+          </SelectField>
+        </AccordionSection>
 
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Efecto al Tocar Botones
-            </label>
-            <select
-              name="buttonClickEffect"
-              value={formData.buttonClickEffect || "NONE"}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  buttonClickEffect: e.target.value as "NONE" | "CONFETTI" | "PAINT_SPLASH",
-                }))
-              }
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {BUTTON_CLICK_EFFECT_OPTIONS.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Animación que se dispara al tocar los botones (tomar foto, repetir, confirmar, etc.) en este evento.
-            </p>
-          </div>
-        </div>
-
-        {/* Images */}
-        <div className="space-y-4 border-t pt-4 sm:pt-6">
-          <h2 className="text-base sm:text-lg font-semibold">Imágenes</h2>
-
+        {/* Imágenes y Marca */}
+        <AccordionSection title="Imágenes y Marca" icon={FaImage}>
           <ImageUploadField
             label="Imagen de Fondo"
             value={formData.bgImage || ""}
@@ -303,35 +374,103 @@ export default function EventForm({
             onChange={(value) => handleImageChange("frameImage", value)}
           />
 
+          <ToggleField
+            id="enableFrame"
+            label="Habilitar marco en resultados"
+            description="Si está activado, se mostrará el marco de foto de arriba sobre la imagen generada en la pantalla de resultados."
+            checked={formData.enableFrame !== false}
+            onChange={(checked) => setField("enableFrame", checked)}
+          />
+
           <ImageUploadField
             label="Imagen de Botones"
             value={formData.buttonImage || ""}
             onChange={(value) => handleImageChange("buttonImage", value)}
           />
+        </AccordionSection>
 
+        {/* Flujo de Captura */}
+        <AccordionSection title="Flujo de Captura" icon={FaCamera}>
+          <ToggleField
+            id="captureBeforeFilter"
+            label="Tomar la foto primero, elegir filtro/marca después"
+            description="Por defecto se elige primero el filtro/marca y después se toma la foto. Si está activado, se invierte: se toma la foto, se confirma, y recién ahí aparece la selección de filtro/marca (con el tratamiento de datos si aplica), antes de generar el resultado."
+            checked={formData.captureBeforeFilter === true}
+            onChange={(checked) => setField("captureBeforeFilter", checked)}
+          />
+
+          <SelectField
+            label="Estilo de la Pantalla de Captura"
+            value={formData.captureViewStyle || "CLASSIC"}
+            onChange={(v) => setField("captureViewStyle", v as "CLASSIC" | "VIEWFINDER")}
+            helperText='"Visor con guía" agrega una grilla de tercios, esquinas de encuadre y una silueta de rostro sobre la vista de la cámara, para ayudar a ubicarse antes de la foto.'
+          >
+            <option value="CLASSIC">Clásica (actual)</option>
+            <option value="VIEWFINDER">Visor con guía (grilla, esquinas y silueta de rostro)</option>
+          </SelectField>
+
+          <ToggleField
+            id="imageCustomizationEnabled"
+            label='Habilitar pantalla "Dale tu toque" (paleta, textura e intensidad)'
+            description="Si está activado, después de confirmar la foto (y antes de generar) aparece una pantalla para elegir un color de paleta, una textura y una intensidad. Esas elecciones se guardan en la tarea y se agregan al prompt de IA."
+            checked={formData.imageCustomizationEnabled === true}
+            onChange={(checked) => setField("imageCustomizationEnabled", checked)}
+          />
+
+          <SelectField
+            label="Efecto al Tocar Botones"
+            value={formData.buttonClickEffect || "NONE"}
+            onChange={(v) => setField("buttonClickEffect", v as "NONE" | "CONFETTI" | "PAINT_SPLASH")}
+            helperText="Animación que se dispara al tocar los botones (tomar foto, repetir, confirmar, etc.) en este evento."
+          >
+            {BUTTON_CLICK_EFFECT_OPTIONS.map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.label}
+              </option>
+            ))}
+          </SelectField>
+        </AccordionSection>
+
+        {/* Revelado de la Foto */}
+        <AccordionSection title="Revelado de la Foto" icon={FaHandPaper}>
+          <SelectField
+            label="Efecto de Revelado de la Foto"
+            value={formData.revealEffect || "HAND_WIPE"}
+            onChange={(v) =>
+              setField("revealEffect", v as "NONE" | "HAND_WIPE" | "ROLLER" | "ROLLER_COLOR")
+            }
+            helperText='Cómo se revela la foto generada antes de mostrar el resultado final. Con "Rodillo" basta con pasar la mano (o el dedo, si no hay cámara) sobre la foto. "Blanco y negro a color" usa el mismo rodillo pero arranca la foto en blanco y negro y va pintando el color al pasarlo.'
+          >
+            <option value="NONE">Sin efecto (pasa directo al resultado)</option>
+            <option value="HAND_WIPE">Borrar el velo con la mano</option>
+            <option value="ROLLER">Rodillo de pintura (descubre la foto)</option>
+            <option value="ROLLER_COLOR">Rodillo: blanco y negro a color</option>
+          </SelectField>
+
+          <ToggleField
+            id="handCursorEnabled"
+            label="Controlar la app con un cursor de mano (sin tocar la pantalla)"
+            description="Si está activado, se usa una cámara en segundo plano para detectar la mano y mover un cursor en pantalla; juntar el pulgar y el índice (pellizco) simula un click. Útil para kioscos sin contacto."
+            checked={formData.handCursorEnabled === true}
+            onChange={(checked) => setField("handCursorEnabled", checked)}
+          />
+
+          <ToggleField
+            id="handRevealEnabled"
+            label='Usar la cámara para revelar la foto con la mano (efectos "Borrar el velo" / rodillo)'
+            description="Independiente del cursor de arriba. Si está desactivado, revelar la foto se hace solo tocando/arrastrando la pantalla — recomendado si los asistentes abren el booth desde su propio celular, ya que activar la cámara ahí no encuentra una mano estable y aparece un punto flotante parpadeando. Actívalo solo para kioscos fijos con cámara apuntando a las manos."
+            checked={formData.handRevealEnabled === true}
+            onChange={(checked) => setField("handRevealEnabled", checked)}
+          />
+        </AccordionSection>
+
+        {/* Pantallas: Carga / Splash / Fondo */}
+        <AccordionSection title="Pantallas (Carga / Splash / Fondo)" icon={FaDesktop}>
           <ImageUploadField
             label="Imagen de Pantalla de Carga (Loading Page)"
             value={formData.loadingPageImage || ""}
             onChange={(value) => handleImageChange("loadingPageImage", value)}
           />
-
-          <ImageUploadField
-            label="Imagen Splash (Pantalla de Inicio)"
-            value={formData.splashImage || ""}
-            onChange={(value) => handleImageChange("splashImage", value)}
-          />
-          <p className="text-xs text-gray-500 -mt-2">
-            También se usa como fondo de la pantalla de inactividad (screensaver) si no hay video configurado abajo.
-          </p>
-
-          <VideoUploadField
-            label="Video Splash - Pantalla de Inactividad (loop, opcional)"
-            value={formData.screenSaverVideoUrl || ""}
-            onChange={(value) => handleImageChange("screenSaverVideoUrl", value)}
-          />
-          <p className="text-xs text-gray-500 -mt-2">
-            Si se sube un video, la pantalla de inactividad lo reproduce en loop en vez de la imagen splash de arriba.
-          </p>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -350,268 +489,61 @@ export default function EventForm({
             </p>
           </div>
 
-          {/* LoaderStep Configuration */}
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <div className="flex items-center mb-3">
-              <input
-                type="checkbox"
-                id="showLogosInLoader"
-                name="showLogosInLoader"
-                checked={formData.showLogosInLoader !== false}
-                onChange={(e) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    showLogosInLoader: e.target.checked,
-                  }));
-                }}
-                className="h-4 w-4 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="showLogosInLoader"
-                className="ml-2 text-sm font-medium text-gray-700"
-              >
-                Mostrar logos en pantalla de carga (LoaderStep)
-              </label>
-            </div>
-            <p className="text-xs text-gray-600">
-              Si está activado, se mostrarán los logos superior e inferior en la pantalla de carga.
-              Si está desactivado, solo se mostrará el mensaje de carga.
-            </p>
-          </div>
+          <ToggleField
+            id="showLogosInLoader"
+            label="Mostrar logos en pantalla de carga"
+            description="Si está activado, se mostrarán los logos superior e inferior en la pantalla de carga. Si está desactivado, solo se mostrará el mensaje de carga."
+            checked={formData.showLogosInLoader !== false}
+            onChange={(checked) => setField("showLogosInLoader", checked)}
+          />
 
-          {/* Frame Configuration */}
-          <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-            <div className="flex items-center mb-3">
-              <input
-                type="checkbox"
-                id="enableFrame"
-                name="enableFrame"
-                checked={formData.enableFrame !== false}
-                onChange={(e) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    enableFrame: e.target.checked,
-                  }));
-                }}
-                className="h-4 w-4 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="enableFrame"
-                className="ml-2 text-sm font-medium text-gray-700"
-              >
-                Habilitar marco en resultados
-              </label>
-            </div>
-            <p className="text-xs text-gray-600">
-              Si está activado, se mostrará el marco de foto sobre la imagen generada en la pantalla de resultados.
-            </p>
-          </div>
+          <ImageUploadField
+            label="Imagen o GIF Splash"
+            value={formData.splashImage || ""}
+            onChange={(value) => handleImageChange("splashImage", value)}
+          />
+          <p className="text-xs text-gray-500 -mt-2">
+            Se usa como fondo tanto en la pantalla de splash inicial (si está activada abajo) como en la pantalla de
+            inactividad (screensaver), si no hay video configurado más abajo. Ninguna de las dos agrega texto ni
+            botón encima — si querés un aviso tipo &quot;toca para continuar&quot;, incluilo en el diseño de la
+            imagen/gif/video.
+          </p>
 
-          {/* Hand Cursor Configuration */}
-          <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-            <div className="flex items-center mb-3">
-              <input
-                type="checkbox"
-                id="handCursorEnabled"
-                name="handCursorEnabled"
-                checked={formData.handCursorEnabled === true}
-                onChange={(e) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    handCursorEnabled: e.target.checked,
-                  }));
-                }}
-                className="h-4 w-4 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="handCursorEnabled"
-                className="ml-2 text-sm font-medium text-gray-700"
-              >
-                Controlar la app con un cursor de mano (sin tocar la pantalla)
-              </label>
-            </div>
-            <p className="text-xs text-gray-600">
-              Si está activado, se usa una cámara en segundo plano para detectar la mano y mover un cursor en pantalla;
-              juntar el pulgar y el índice (pellizco) simula un click. Útil para kioscos sin contacto.
-            </p>
-          </div>
+          <ToggleField
+            id="showSplashScreen"
+            label="Mostrar pantalla de splash inicial"
+            description="Si está activado, antes de la selección de marca/foto se muestra a pantalla completa la imagen, gif o video splash de abajo; tocar en cualquier parte de la pantalla arranca el evento."
+            checked={formData.showSplashScreen === true}
+            onChange={(checked) => setField("showSplashScreen", checked)}
+          />
 
-          {/* Reveal Effect Configuration */}
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Efecto de Revelado de la Foto
-            </label>
-            <select
-              name="revealEffect"
-              value={formData.revealEffect || "HAND_WIPE"}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  revealEffect: e.target.value as "NONE" | "HAND_WIPE" | "ROLLER" | "ROLLER_COLOR",
-                }))
-              }
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="NONE">Sin efecto (pasa directo al resultado)</option>
-              <option value="HAND_WIPE">Borrar el velo con la mano</option>
-              <option value="ROLLER">Rodillo de pintura (descubre la foto)</option>
-              <option value="ROLLER_COLOR">Rodillo: blanco y negro a color</option>
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Cómo se revela la foto generada antes de mostrar el resultado final. Con &quot;Rodillo&quot; basta con
-              pasar la mano (o el dedo, si no hay cámara) sobre la foto. &quot;Blanco y negro a color&quot; usa el mismo
-              rodillo pero arranca la foto en blanco y negro y va pintando el color al pasarlo.
-            </p>
-          </div>
+          <VideoUploadField
+            label="Video Splash / Salvapantallas (loop, opcional)"
+            value={formData.screenSaverVideoUrl || ""}
+            onChange={(value) => handleImageChange("screenSaverVideoUrl", value)}
+          />
+          <p className="text-xs text-gray-500 -mt-2">
+            Si se sube un video, tiene prioridad sobre la imagen/gif de arriba y se reproduce en loop tanto en la
+            splash inicial como en la pantalla de inactividad.
+          </p>
 
-          {/* Splash Screen Configuration */}
-          <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-            <div className="flex items-center mb-3">
-              <input
-                type="checkbox"
-                id="showSplashScreen"
-                name="showSplashScreen"
-                checked={formData.showSplashScreen === true}
-                onChange={(e) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    showSplashScreen: e.target.checked,
-                  }));
-                }}
-                className="h-4 w-4 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="showSplashScreen"
-                className="ml-2 text-sm font-medium text-gray-700"
-              >
-                Mostrar pantalla de splash inicial con botón &quot;Comenzar&quot;
-              </label>
-            </div>
-            <p className="text-xs text-gray-600">
-              Si está activado, antes de la selección de marca/foto se muestra una pantalla con la &quot;Imagen Splash
-              (Pantalla de Inicio)&quot; de arriba y un botón para arrancar el evento.
-            </p>
-          </div>
-
-          {/* Flow Order Configuration */}
-          <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-            <div className="flex items-center mb-3">
-              <input
-                type="checkbox"
-                id="captureBeforeFilter"
-                name="captureBeforeFilter"
-                checked={formData.captureBeforeFilter === true}
-                onChange={(e) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    captureBeforeFilter: e.target.checked,
-                  }));
-                }}
-                className="h-4 w-4 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="captureBeforeFilter"
-                className="ml-2 text-sm font-medium text-gray-700"
-              >
-                Tomar la foto primero, elegir filtro/marca después
-              </label>
-            </div>
-            <p className="text-xs text-gray-600">
-              Por defecto se elige primero el filtro/marca y después se toma la foto. Si está activado, se invierte: se
-              toma la foto, se confirma, y recién ahí aparece la selección de filtro/marca (con el tratamiento de
-              datos si aplica), antes de generar el resultado.
-            </p>
-          </div>
-
-          {/* Capture View Style Configuration */}
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Estilo de la Pantalla de Captura
-            </label>
-            <select
-              name="captureViewStyle"
-              value={formData.captureViewStyle || "CLASSIC"}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  captureViewStyle: e.target.value as "CLASSIC" | "VIEWFINDER",
-                }))
-              }
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="CLASSIC">Clásica (actual)</option>
-              <option value="VIEWFINDER">Visor con guía (grilla, esquinas y silueta de rostro)</option>
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              &quot;Visor con guía&quot; agrega una grilla de tercios, esquinas de encuadre y una silueta de rostro
-              sobre la vista de la cámara, para ayudar a ubicarse antes de la foto.
-            </p>
-          </div>
-
-          {/* Image Customization Configuration */}
-          <div className="bg-pink-50 rounded-lg p-4 border border-pink-200">
-            <div className="flex items-center mb-3">
-              <input
-                type="checkbox"
-                id="imageCustomizationEnabled"
-                name="imageCustomizationEnabled"
-                checked={formData.imageCustomizationEnabled === true}
-                onChange={(e) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    imageCustomizationEnabled: e.target.checked,
-                  }));
-                }}
-                className="h-4 w-4 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="imageCustomizationEnabled"
-                className="ml-2 text-sm font-medium text-gray-700"
-              >
-                Habilitar pantalla &quot;Dale tu toque&quot; (paleta, textura e intensidad)
-              </label>
-            </div>
-            <p className="text-xs text-gray-600">
-              Si está activado, después de confirmar la foto (y antes de generar) aparece una pantalla para elegir un
-              color de paleta, una textura y una intensidad. Esas elecciones se guardan en la tarea y se agregan al
-              prompt de IA.
-            </p>
-          </div>
-
-          {/* Background Animation Configuration */}
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Animación de Fondo
-            </label>
-            <select
-              name="backgroundAnimation"
-              value={formData.backgroundAnimation || "NONE"}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  backgroundAnimation: e.target.value as "NONE" | "FLOATING_ORBS",
-                }))
-              }
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="NONE">Sin animación (actual)</option>
-              <option value="FLOATING_ORBS">Esferas de colores flotando</option>
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Se muestra detrás de toda la app (selección de marca, cámara, resultado). &quot;Esferas de colores&quot;
-              agrega formas difuminadas de colores derivando lentamente de fondo.
-            </p>
-          </div>
-        </div>
+          <SelectField
+            label="Animación de Fondo"
+            value={formData.backgroundAnimation || "NONE"}
+            onChange={(v) => setField("backgroundAnimation", v as "NONE" | "FLOATING_ORBS")}
+            helperText='Se muestra detrás de toda la app (selección de marca, cámara, resultado). "Esferas de colores" agrega formas difuminadas de colores derivando lentamente de fondo.'
+          >
+            <option value="NONE">Sin animación (actual)</option>
+            <option value="FLOATING_ORBS">Esferas de colores flotando</option>
+          </SelectField>
+        </AccordionSection>
 
         {/* Prompts */}
-        <div className="space-y-4 border-t pt-6">
-          <h2 className="text-lg font-semibold">Prompts</h2>
-
+        <AccordionSection title="Prompts (Marca IA)" icon={FaRobot}>
           {loadingPrompts ? (
-            <p className="text-gray-600">Cargando prompts disponibles...</p>
+            <p className="text-gray-600 text-sm">Cargando prompts disponibles...</p>
           ) : availablePrompts.length === 0 ? (
-            <p className="text-gray-600">No hay prompts disponibles</p>
+            <p className="text-gray-600 text-sm">No hay prompts disponibles</p>
           ) : (
             <>
               <div>
@@ -671,10 +603,10 @@ export default function EventForm({
               )}
             </>
           )}
-        </div>
+        </AccordionSection>
 
         {/* Form Actions */}
-        <div className="flex gap-3 border-t pt-6">
+        <div className="flex gap-3 bg-white rounded-lg shadow-md p-4 sm:p-5 sticky bottom-0">
           <button
             type="submit"
             disabled={loading}

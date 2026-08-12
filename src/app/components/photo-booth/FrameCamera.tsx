@@ -18,16 +18,38 @@ type NavigatorWithLegacy = Navigator & {
   };
 };
 
+/**
+ * Alto reservado arriba para el header (logos a los lados) y abajo para la
+ * barra del disparador. Son valores fijos: el header SIEMPRE mide esto (no
+ * hay ambigüedad ahí). El cuadro de cámara arranca justo debajo del header
+ * y mide `CAPTURE_SQUARE_SIZE` — en pantallas angostas (retrato) el ancho
+ * manda: min(100vw, ...) = 100vw, y las reservas de arriba/abajo no achican
+ * el cuadro (solo importan en pantallas anchas donde la altura manda). Por
+ * eso la barra inferior NO usa una altura fija: arranca en
+ * `CAPTURE_SQUARE_BOTTOM` (donde realmente termina el cuadro) y se centra
+ * en lo que quede hasta el borde real de la pantalla — así nunca queda
+ * "perdida" lejos de la cámara en dispositivos donde el cuadro no llega a
+ * ocupar toda la altura disponible (ej. un iPad).
+ */
+export const CAPTURE_HEADER_RESERVE = "7rem";
+const CAPTURE_FOOTER_RESERVE = "9rem";
+export const CAPTURE_SQUARE_SIZE = `min(100vw, calc(100dvh - ${CAPTURE_HEADER_RESERVE} - ${CAPTURE_FOOTER_RESERVE}))`;
+export const CAPTURE_SQUARE_BOTTOM = `calc(${CAPTURE_HEADER_RESERVE} + ${CAPTURE_SQUARE_SIZE})`;
+
 export default function FrameCamera({
   frameSrc = null,
   mirror = true,
-  boxSize = "min(88vw, 60svh)",
+  backgroundSrc,
   onReady,
+  children,
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
-  boxSize?: string;
+  /** Fondo detrás del cuadro nítido (la imagen/fondo configurado del evento), en vez de un blur genérico. */
+  backgroundSrc?: string;
   onReady?: (api: { getVideoEl: () => HTMLVideoElement | null }) => void;
+  /** Overlay opcional (ej. guía de encuadre) renderizado DENTRO del cuadro nítido, en el mismo tamaño/posición. */
+  children?: React.ReactNode;
 }) {
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -104,11 +126,11 @@ export default function FrameCamera({
         }
 
         streamRef.current = stream;
-        
+
         // CAMBIO CLAVE: Asignar srcObject ANTES de play()
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          
+
           // Esperar a que el video esté listo
           await new Promise<void>((resolve) => {
             const el = videoRef.current;
@@ -133,13 +155,13 @@ export default function FrameCamera({
             // En algunos móviles, el play() puede fallar pero el video funciona igual
           }
         }
-        
+
         setError(null);
       } catch (e) {
         console.error("Error detallado:", e);
-        
+
         let msg = "No se pudo acceder a la cámara.";
-        
+
         if (e instanceof Error) {
           // Mensajes más específicos según el error
           if (e.name === "NotAllowedError" || e.name === "PermissionDeniedError") {
@@ -156,7 +178,7 @@ export default function FrameCamera({
             msg = e.message || msg;
           }
         }
-        
+
         setError(msg);
       }
     };
@@ -179,32 +201,53 @@ export default function FrameCamera({
     onReady?.({ getVideoEl: () => videoRef.current });
   }, [onReady]);
 
+  const mirrorTransform = mirror ? "scaleX(-1)" : "none";
+
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+    <div className="relative w-full h-full overflow-hidden bg-black">
+      {/* Fondo: la imagen de fondo configurada del evento (la misma que se
+          usa en el resto del wizard), para que se sienta a pantalla
+          completa y con la marca del evento en vez de un blur genérico. */}
+      {backgroundSrc && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={backgroundSrc}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover select-none"
+          draggable={false}
+          aria-hidden
+        />
+      )}
+
+      {/* Cuadro nítido: esto es exactamente lo que se captura (ver
+          captureWithFrame/captureRawSquare, que recortan el cuadrado
+          central del video nativo sin importar cómo se ve en pantalla).
+          Anclado justo debajo del header (no centrado verticalmente) para
+          que la cámara ocupe todo el espacio disponible entre el header y
+          la barra inferior, en vez de dejar relleno difuminado repartido. */}
       <div
-        className={`relative overflow-hidden shadow-2xl w-full h-full aspect-square max-w-full max-h-full`}
-        style={{ 
-          maxWidth: boxSize, 
-          maxHeight: boxSize 
-        }}
+        className="absolute left-1/2 -translate-x-1/2 aspect-square shadow-[0_0_40px_rgba(0,0,0,0.5)]"
+        style={{ top: CAPTURE_HEADER_RESERVE, width: CAPTURE_SQUARE_SIZE, maxWidth: CAPTURE_SQUARE_SIZE }}
       >
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            transform: mirror ? "scaleX(-1)" : "none"
-          }}
+          style={{ transform: mirrorTransform }}
           playsInline
           autoPlay
           muted
         />
 
-        {/* ─────────────────────────────────────────────────────────────────
-          Marco DESACTIVADO por defecto.
-          Para ACTIVAR el marco, descomenta este bloque y pasa un string válido
-          en `frameSrc` (ej: "/images/marco.png"). NO pases "".
-          ───────────────────────────────────────────────────────────────── */}
+        {/* Esquinas de encuadre: guía base, siempre presente, marca
+            exactamente el área que se captura. */}
+        <span className="absolute top-4 left-4 w-7 h-7 border-t-2 border-l-2 border-white/70 rounded-tl-md pointer-events-none" />
+        <span className="absolute top-4 right-4 w-7 h-7 border-t-2 border-r-2 border-white/70 rounded-tr-md pointer-events-none" />
+        <span className="absolute bottom-4 left-4 w-7 h-7 border-b-2 border-l-2 border-white/70 rounded-bl-md pointer-events-none" />
+        <span className="absolute bottom-4 right-4 w-7 h-7 border-b-2 border-r-2 border-white/70 rounded-br-md pointer-events-none" />
 
+        {/* Marco DESACTIVADO por defecto.
+          Para ACTIVAR el marco, descomenta este bloque y pasa un string válido
+          en `frameSrc` (ej: "/images/marco.png"). NO pases "". */}
         {/* {frameSrc && (
           <img
             src={frameSrc}
@@ -213,10 +256,14 @@ export default function FrameCamera({
             draggable={false}
           />
         )} */}
+
+        {children}
       </div>
 
       {error && (
-        <p className="text-red-500 text-sm text-center px-3">{error}</p>
+        <p className="absolute inset-x-4 bottom-24 text-center text-red-400 text-sm bg-black/60 rounded-lg px-3 py-2">
+          {error}
+        </p>
       )}
     </div>
   );

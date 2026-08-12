@@ -3,7 +3,10 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { EventProfile } from "@/app/services/photo-booth/eventService";
-import { getPhotoBoothPromptsByIds, type PhotoBoothPrompt } from "@/app/services/photo-booth/brandService";
+import {
+  getPhotoBoothPromptsByIds,
+  type PhotoBoothPrompt,
+} from "@/app/services/photo-booth/brandService";
 import { runButtonClickEffect } from "@/app/components/common/click-effects";
 
 export default function EventPhotoBoothLanding({
@@ -21,8 +24,12 @@ export default function EventPhotoBoothLanding({
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [prompts, setPrompts] = useState<PhotoBoothPrompt[]>([]);
   const [loadingPrompts, setLoadingPrompts] = useState(true);
-  const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
-  const [imageErrorStates, setImageErrorStates] = useState<Record<string, boolean>>({});
+  const [imageLoadingStates, setImageLoadingStates] = useState<
+    Record<string, boolean>
+  >({});
+  const [imageErrorStates, setImageErrorStates] = useState<
+    Record<string, boolean>
+  >({});
   const [dataProcessingAccepted, setDataProcessingAccepted] = useState(false);
 
   // Cargar los prompts completos usando los IDs del evento
@@ -41,7 +48,7 @@ export default function EventPhotoBoothLanding({
 
           // Inicializar estados de carga para cada imagen
           const initialLoadingStates: Record<string, boolean> = {};
-          loadedPrompts.forEach(prompt => {
+          loadedPrompts.forEach((prompt) => {
             if (prompt.imageUrl || prompt.logoPath) {
               initialLoadingStates[prompt.id] = true;
             }
@@ -59,21 +66,24 @@ export default function EventPhotoBoothLanding({
   }, [event.prompts]);
 
   const handleImageLoad = (promptId: string) => {
-    setImageLoadingStates(prev => ({ ...prev, [promptId]: false }));
+    setImageLoadingStates((prev) => ({ ...prev, [promptId]: false }));
   };
 
   const handleImageError = (promptId: string) => {
-    setImageLoadingStates(prev => ({ ...prev, [promptId]: false }));
-    setImageErrorStates(prev => ({ ...prev, [promptId]: true }));
+    setImageLoadingStates((prev) => ({ ...prev, [promptId]: false }));
+    setImageErrorStates((prev) => ({ ...prev, [promptId]: true }));
   };
 
   const startButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const handleStart = () => {
     if (startButtonRef.current) {
-      runButtonClickEffect(event.buttonClickEffect, { target: startButtonRef.current });
+      runButtonClickEffect(event.buttonClickEffect, {
+        target: startButtonRef.current,
+      });
     }
-    const brand = selectedBrand || (prompts.length > 0 ? prompts[0].id : "default");
+    const brand =
+      selectedBrand || (prompts.length > 0 ? prompts[0].id : "default");
     onStart?.(brand, dataProcessingAccepted);
   };
 
@@ -119,12 +129,14 @@ export default function EventPhotoBoothLanding({
 
       <div className="mx-auto flex min-h-[100svh] max-w-[980px] flex-col items-center justify-center px-4 sm:px-6 md:px-8">
         {/* Top Logo */}
-        <div  className={`
+        <div
+          className={`
     relative z-5 flex-shrink-0
     flex justify-center items-center
     pt-[max(1.5rem,env(safe-area-inset-top))]
     pb-2 sm:pb-3 md:pb-4
-  `}>
+  `}
+        >
           <div className="w-[70vw] max-w-[380px]">
             {event.logoTop && (
               <img
@@ -146,9 +158,7 @@ export default function EventPhotoBoothLanding({
         <div className="flex-1 w-full max-w-2xl flex items-center justify-center">
           {/* Brand Selection */}
           <div className="w-full">
-            <h2 className="text-center text-sm sm:text-base font-semibold text-white mb-4 drop-shadow">
-              
-            </h2>
+            <h2 className="text-center text-sm sm:text-base font-semibold text-white mb-4 drop-shadow"></h2>
             {loadingPrompts ? (
               <div className="text-center text-white">Cargando marcas...</div>
             ) : prompts.length > 0 ? (
@@ -158,19 +168,22 @@ export default function EventPhotoBoothLanding({
                   const isLoading = imageLoadingStates[prompt.id];
                   const hasError = imageErrorStates[prompt.id];
                   const showDefaultImage = !imgSrc || hasError;
-                  const displayName = prompt.brandName || prompt.brand || "Opción";
+                  const displayName =
+                    prompt.brandName || prompt.brand || "Opción";
 
                   return (
-                    <div key={prompt.id} className="flex flex-col gap-2 justify-center items-center">
-
-
+                    <div
+                      key={prompt.id}
+                      className="flex flex-col gap-2 justify-center items-center"
+                    >
                       {/* Brand Image Button */}
                       <button
                         onClick={() => setSelectedBrand(prompt.id)}
-                        className={`relative rounded-lg font-semibold transition-all overflow-hidden flex items-center justify-center ${getCardSizeClass()} ${selectedBrand === prompt.id
+                        className={`relative rounded-lg font-semibold transition-all overflow-hidden flex items-center justify-center ${getCardSizeClass()} ${
+                          selectedBrand === prompt.id
                             ? "ring-4 ring-blue-400 scale-105"
                             : "hover:scale-105 opacity-85 hover:opacity-100"
-                          }`}
+                        }`}
                       >
                         {/* Loading Spinner */}
                         {isLoading && imgSrc && (
@@ -191,8 +204,9 @@ export default function EventPhotoBoothLanding({
                           <img
                             src={imgSrc}
                             alt={prompt.brand || "Opción"}
-                            className={`w-full h-full object-cover transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'
-                              }`}
+                            className={`w-full h-full object-cover transition-opacity duration-300 ${
+                              isLoading ? "opacity-0" : "opacity-100"
+                            }`}
                             onLoad={() => handleImageLoad(prompt.id)}
                             onError={() => handleImageError(prompt.id)}
                           />
@@ -200,8 +214,11 @@ export default function EventPhotoBoothLanding({
 
                         {/* Vista por defecto */}
                         {showDefaultImage && !isLoading && (
-                          <div className={`${event.buttonImage ? "bg-black/40" : "bg-white/20"
-                            } w-full h-full flex items-center justify-center`}>
+                          <div
+                            className={`${
+                              event.buttonImage ? "bg-black/40" : "bg-white/20"
+                            } w-full h-full flex items-center justify-center`}
+                          >
                             <span className="text-white text-xs text-center px-2 font-semibold drop-shadow">
                               {displayName}
                             </span>
@@ -213,7 +230,9 @@ export default function EventPhotoBoothLanding({
                 })}
               </div>
             ) : (
-              <div className="text-center text-white">No hay marcas disponibles</div>
+              <div className="text-center text-white">
+                No hay marcas disponibles
+              </div>
             )}
           </div>
         </div>
@@ -264,7 +283,9 @@ export default function EventPhotoBoothLanding({
             }
           >
             {event.buttonImage && (
-              <span className="block drop-shadow-lg font-bold">{buttonLabel}</span>
+              <span className="block drop-shadow-lg font-bold">
+                {buttonLabel}
+              </span>
             )}
             {!event.buttonImage && buttonLabel}
           </button>

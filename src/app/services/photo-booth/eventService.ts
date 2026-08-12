@@ -36,6 +36,16 @@ export type EventProfile = {
   /** Controlar la app con un cursor manejado por gestos de mano (pellizco = click). */
   handCursorEnabled?: boolean;
   /**
+   * Usar la cámara para detectar la mano durante el paso de revelado
+   * (borrar el velo con la mano / mover el rodillo). Independiente de
+   * `handCursorEnabled` (ese es el cursor global de navegación). Por
+   * compatibilidad, los eventos sin este campo NO activan la cámara ahí y
+   * usan solo el fallback táctil (tocar/arrastrar la pantalla) — importante
+   * porque el paso de revelado suele abrirse también desde el celular
+   * personal del asistente, no solo desde un kiosco fijo.
+   */
+  handRevealEnabled?: boolean;
+  /**
    * Efecto para revelar la foto generada: sin efecto (pasa directo al
    * resultado), borrar el velo con la mano, pintar con un rodillo 3D
    * (descubre la foto de un velo sólido), o el mismo rodillo pero arrancando
@@ -166,6 +176,7 @@ export async function createEventProfile(
       generationType: data.generationType || "IMAGE",
       buttonClickEffect: data.buttonClickEffect || "NONE",
       handCursorEnabled: data.handCursorEnabled === true,
+      handRevealEnabled: data.handRevealEnabled === true,
       revealEffect: data.revealEffect || "HAND_WIPE",
       showSplashScreen: data.showSplashScreen === true,
       captureBeforeFilter: data.captureBeforeFilter === true,
@@ -341,6 +352,7 @@ export async function updateEventProfile(
     if (data.generationType !== undefined) docData.generationType = data.generationType;
     if (data.buttonClickEffect !== undefined) docData.buttonClickEffect = data.buttonClickEffect;
     if (data.handCursorEnabled !== undefined) docData.handCursorEnabled = data.handCursorEnabled;
+    if (data.handRevealEnabled !== undefined) docData.handRevealEnabled = data.handRevealEnabled;
     if (data.revealEffect !== undefined) docData.revealEffect = data.revealEffect;
     if (data.showSplashScreen !== undefined) docData.showSplashScreen = data.showSplashScreen;
     if (data.captureBeforeFilter !== undefined) docData.captureBeforeFilter = data.captureBeforeFilter;

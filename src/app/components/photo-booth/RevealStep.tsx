@@ -15,6 +15,7 @@ export default function RevealStep({
   frameSrc = null,
   enableFrame = true,
   revealColorHint = null,
+  handTrackingEnabled = false,
   onRevealed,
 }: {
   aiUrl: string;
@@ -22,6 +23,8 @@ export default function RevealStep({
   frameSrc?: string | null;
   enableFrame?: boolean;
   revealColorHint?: string | null;
+  /** Activa la cámara para revelar la foto con la mano. Si es false, solo se usa el fallback táctil. */
+  handTrackingEnabled?: boolean;
   onRevealed: () => void;
 }) {
   const {
@@ -45,14 +48,19 @@ export default function RevealStep({
   const SIZE_IMG = "clamp(300px, min(70vw, 60svh), 700px)";
 
   // === Reserva el tracking de mano compartido (misma cámara que el cursor
-  // global si ya está corriendo; si no, arranca una sola para esta pantalla) ===
+  // global si ya está corriendo; si no, arranca una sola para esta pantalla).
+  // Solo si el evento lo habilita explícitamente (handRevealEnabled): en el
+  // celular personal del asistente la cámara frontal no ve una mano estable
+  // y el "cursor" termina parpadeando y saltando de posición. ===
   useEffect(() => {
+    if (!handTrackingEnabled) return;
     return acquireHandTracking();
-  }, []);
+  }, [handTrackingEnabled]);
 
   // === Estado del tracking compartido: listo/error, y conecta el self-view
   // a la MISMA MediaStream (sin pedir una segunda cámara) ===
   useEffect(() => {
+    if (!handTrackingEnabled) return;
     const unsubscribe = subscribeHandTrackingStatus((status) => {
       if (status === "ready") {
         setHandTrackingReady(true);
@@ -67,7 +75,7 @@ export default function RevealStep({
       }
     });
     return unsubscribe;
-  }, []);
+  }, [handTrackingEnabled]);
 
   // === Frames del tracking compartido → borra el velo en el punto exacto
   // donde se ve el cursor de mano (misma fuente que HandCursorOverlay) ===
@@ -134,7 +142,7 @@ export default function RevealStep({
         role="status"
         aria-live="polite"
       >
-        {handTrackingError
+        {!handTrackingEnabled || handTrackingError
           ? "Toca y desliza la pantalla para revelar tu foto"
           : "Mueve tu mano frente a la cámara para revelar tu foto"}
       </p>
@@ -170,16 +178,18 @@ export default function RevealStep({
       </div>
 
       {/* Self-view: misma cámara del tracking compartido, solo para ubicar la mano */}
-      <div className="absolute bottom-5 right-5 z-20 w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-white/60 shadow-xl">
-        <video
-          ref={selfViewRef}
-          muted
-          playsInline
-          autoPlay
-          className="w-full h-full object-cover"
-          style={{ transform: "scaleX(-1)" }}
-        />
-      </div>
+      {handTrackingEnabled && (
+        <div className="absolute bottom-5 right-5 z-20 w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-white/60 shadow-xl">
+          <video
+            ref={selfViewRef}
+            muted
+            playsInline
+            autoPlay
+            className="w-full h-full object-cover"
+            style={{ transform: "scaleX(-1)" }}
+          />
+        </div>
+      )}
 
       <button
         type="button"

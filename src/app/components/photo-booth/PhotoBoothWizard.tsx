@@ -488,6 +488,26 @@ export default function PhotoBoothWizard({
         </div>
       )}
 
+      {/* Paso "capture": cámara a pantalla completa. Se renderiza fuera del
+          AnimatePresence animado de abajo a propósito — un motion.div con
+          transform activo (lo que usan las demás transiciones de paso)
+          crea un "containing block" para posición fixed, y CaptureStep
+          necesita que su `fixed inset-0` interno apunte al viewport real,
+          no al box de contenido acotado por `boxSize`. */}
+      {step === "capture" && (
+        <CaptureStep
+          mirror={mirror}
+          onCaptured={handleCaptured}
+          frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
+          buttonImage={eventData?.buttonImage}
+          buttonClickEffect={eventData?.buttonClickEffect}
+          viewStyle={eventData?.captureViewStyle}
+          logoLeftSrc={style ? style.logoCaptureTop || style.logoLandingTop : "/genilaty_smart_led_logo.png"}
+          logoRightSrc={style ? style.logoCaptureBottom || style.logoLandingBottom : "genilaty_smart_led_logo.png"}
+          backgroundSrc={bgUrl}
+        />
+      )}
+
       {/* Fondo full-screen */}
       <div
         className="fixed inset-0 -z-10 bg-cover bg-center"
@@ -495,34 +515,30 @@ export default function PhotoBoothWizard({
         aria-hidden
       />
 
-      {/* HEADER: Logo superior — fijo, siempre visible */}
-      <div
-        className={`
-    relative z-5 flex-shrink-0
-    flex justify-center items-center
-    pt-[max(1.5rem,env(safe-area-inset-top))]
-    
-  `}
-      >
-        <div className="w-[70vw] max-w-[380px]">
-          <img
-            src={
-              style
-                ? step === "capture"
-                  ? style.logoCaptureTop || style.logoLandingTop
-                  : step === "loading"
+      {/* HEADER: Logo superior — fijo, siempre visible. En "capture" no se
+          renderiza: los logos viven dentro de CaptureStep, abajo a los
+          costados del disparador, para dejar toda la parte de arriba
+          despejada para la cámara. */}
+      {step !== "capture" && (
+        <div className="relative z-5 flex-shrink-0 flex justify-center items-center pt-[max(1.5rem,env(safe-area-inset-top))]">
+          <div className="w-[70vw] max-w-[380px]">
+            <img
+              src={
+                style
+                  ? step === "loading"
                     ? style.logoLoadingTop || style.logoLandingTop
                     : step === "result"
                       ? style.logoResultsTop || style.logoLandingTop
                       : style.logoLandingTop
-                : "/genilaty_smart_led_logo.png"
-            }
-            alt="Logo"
-            className="w-full select-none"
-            draggable={false}
-          />
+                  : "/genilaty_smart_led_logo.png"
+              }
+              alt="Logo"
+              className="w-full select-none"
+              draggable={false}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* CONTENT: Contenedor del contenido (capture, preview, result) */}
       <div className="relative z-20 flex-1 flex items-center justify-center overflow-hidden px-0 sm:px-4 w-full">
@@ -531,29 +547,6 @@ export default function PhotoBoothWizard({
           style={{ width: "100%", maxWidth: boxSize, maxHeight: "100%" }}
         >
           <AnimatePresence mode="wait" initial={false}>
-            {step === "capture" && (
-              <motion.div
-                key="capture"
-                className="relative w-full h-full flex items-center justify-center"
-                variants={stepVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={stepTransition}
-              >
-                <CaptureStep
-                  mirror={mirror}
-                  boxSize={boxSize}
-                  borderRadius={borderRadius}
-                  onCaptured={handleCaptured}
-                  frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
-                  buttonImage={eventData?.buttonImage}
-                  buttonClickEffect={eventData?.buttonClickEffect}
-                  viewStyle={eventData?.captureViewStyle}
-                />
-              </motion.div>
-            )}
-
             {step === "preview" && framedShot && (
               <motion.div
                 key="preview"
@@ -630,6 +623,7 @@ export default function PhotoBoothWizard({
                     enableFrame={eventData?.enableFrame ?? style?.enableFrame ?? true}
                     revealColorHint={color}
                     veilMode={eventData?.revealEffect === "ROLLER_COLOR" ? "GRAYSCALE_PHOTO" : "SOLID"}
+                    handTrackingEnabled={eventData?.handRevealEnabled === true}
                     onRevealed={() => setStep("result")}
                   />
                 ) : (
@@ -639,6 +633,7 @@ export default function PhotoBoothWizard({
                     frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
                     enableFrame={eventData?.enableFrame ?? style?.enableFrame ?? true}
                     revealColorHint={color}
+                    handTrackingEnabled={eventData?.handRevealEnabled === true}
                     onRevealed={() => setStep("result")}
                   />
                 )}
@@ -669,35 +664,29 @@ export default function PhotoBoothWizard({
         </div>
       </div>
 
-      {/* FOOTER: Logo inferior — fijo, siempre visible */}
-      <div
-        className="
-          relative z-5 flex-shrink-0
-          flex justify-center items-center
-          pb-[max(env(safe-area-inset-bottom),2rem)]
-           
-          pointer-events-none
-        "
-      >
-        <div className="w-[70vw] max-w-[550px]">
-          <img
-            src={
-              style
-                ? step === "capture"
-                  ? style.logoCaptureBottom || style.logoLandingBottom
-                  : step === "loading"
+      {/* FOOTER: Logo inferior — fijo, siempre visible. En "capture" no se
+          renderiza: el logo va dentro de CaptureStep, al costado del
+          disparador. */}
+      {step !== "capture" && (
+        <div className="relative z-5 flex-shrink-0 flex justify-center items-center pb-[max(env(safe-area-inset-bottom),2rem)] pointer-events-none">
+          <div className="w-[70vw] max-w-[550px]">
+            <img
+              src={
+                style
+                  ? step === "loading"
                     ? style.logoLoadingBottom || style.logoLandingBottom
                     : step === "result"
                       ? style.logoResultsBottom || style.logoLandingBottom
                       : style.logoLandingBottom
-                : "genilaty_smart_led_logo.png"
-            }
-            alt="Logos Footer"
-            className="w-full select-none"
-            draggable={false}
-          />
+                  : "genilaty_smart_led_logo.png"
+              }
+              alt="Logos Footer"
+              className="w-full select-none"
+              draggable={false}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -2,33 +2,50 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import FrameCamera from "./FrameCamera";
+import { FaSyncAlt, FaBolt } from "react-icons/fa";
+import FrameCamera, { CAPTURE_HEADER_RESERVE, CAPTURE_SQUARE_BOTTOM } from "./FrameCamera";
 import captureWithFrame from "./captureWithFrame";
 import captureRawSquare from "./captureRawSquare";
-import ButtonPrimary from "@/app/components/common/ButtonPrimary";
+import ShutterButton from "@/app/components/common/ShutterButton";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import CaptureViewfinderOverlay from "@/app/components/photo-booth/CaptureViewfinderOverlay";
+
+/** Ícono circular puramente decorativo (tipo flash/flip de una cámara real) — sin función, no interactivo. */
+function DecorativeCameraButton({ icon: Icon }: { icon: React.ComponentType<{ className?: string }> }) {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/35 backdrop-blur-sm border border-white/30"
+    >
+      <Icon className="w-[45%] h-[45%] text-white/85" />
+    </div>
+  );
+}
 
 export default function CaptureStep({
   // 👇 sin marco por defecto
   frameSrc = null,
   mirror = true,
-  boxSize = "min(88vw, 60svh)",
-  borderRadius = "xl",
   onCaptured,
   buttonImage,
   buttonClickEffect,
   viewStyle = "CLASSIC",
+  logoLeftSrc,
+  logoRightSrc,
+  backgroundSrc,
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
-  boxSize?: string;
-  borderRadius?: "none" | "md" | "lg" | "xl" | "4xl";
   buttonImage?: string;
   buttonClickEffect?: ButtonClickEffectId;
   /** Estilo visual de la vista de captura. "CLASSIC" (default) es el actual;
    * "VIEWFINDER" agrega la guía de encuadre tipo visor de cámara. */
   viewStyle?: "CLASSIC" | "VIEWFINDER";
+  /** Logos chicos en la fila inferior, a los costados del disparador. */
+  logoLeftSrc?: string;
+  logoRightSrc?: string;
+  /** Fondo detrás del cuadro de cámara (la imagen de fondo configurada del evento). */
+  backgroundSrc?: string;
   onCaptured: (payload: { framed: string; raw: string }) => void;
 }) {
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -147,7 +164,7 @@ export default function CaptureStep({
   };
 
   // Cuando el evento tiene una sola brand, la app salta la pantalla de selección
-  // y llega directo a Capture, por lo que el usuario puede tocar "TOMAR FOTO"
+  // y llega directo a Capture, por lo que el usuario puede tocar el disparador
   // antes de que la cámara termine de inicializar (canShoot aún en false).
   // En vez de ignorar el click, esperamos un poco a que la cámara esté lista.
   const startCapture = (attempt = 0) => {
@@ -212,25 +229,48 @@ export default function CaptureStep({
 
     onCaptured({ framed, raw });
   };
-  const borderRadiusClass = {
-    none: "",
-    md: "rounded-md",
-    lg: "rounded-lg",
-    xl: "rounded-2xl",
-    "4xl": "rounded-4xl"
-  }[borderRadius];
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 overflow-hidden  sm:px-3">
-      <div className={`relative flex-1 flex items-center justify-center w-full overflow-hidden ${borderRadiusClass}`}>
-        <FrameCamera
-          frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
-          mirror={mirror}
-          boxSize={boxSize}
-
-          onReady={onReady}
-        />
+    <div className="fixed inset-0 z-30 overflow-hidden">
+      <FrameCamera
+        frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
+        mirror={mirror}
+        backgroundSrc={backgroundSrc}
+        onReady={onReady}
+      >
         {viewStyle === "VIEWFINDER" && <CaptureViewfinderOverlay />}
+      </FrameCamera>
+
+      {/* Header: los dos logos del evento, a los costados, con buen tamaño.
+          Banda de alto fijo (misma reserva que usa FrameCamera para saber
+          dónde arranca el cuadro de cámara) — acá sí conviene fijo, porque
+          a diferencia de la barra inferior no depende de cuánto sobre. */}
+      <div
+        className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 sm:px-10 pt-[env(safe-area-inset-top)] pointer-events-none"
+        style={{ height: CAPTURE_HEADER_RESERVE }}
+      >
+        {logoLeftSrc ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={logoLeftSrc}
+            alt=""
+            className="h-[clamp(2.5rem,50%,4rem)] w-auto max-w-[35vw] object-contain select-none"
+            draggable={false}
+          />
+        ) : (
+          <span />
+        )}
+        {logoRightSrc ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={logoRightSrc}
+            alt=""
+            className="h-[clamp(2.5rem,50%,4rem)] w-auto max-w-[35vw] object-contain select-none"
+            draggable={false}
+          />
+        ) : (
+          <span />
+        )}
       </div>
 
       <AnimatePresence>
@@ -269,17 +309,34 @@ export default function CaptureStep({
         <div className="absolute inset-0 bg-white/80 animate-pulse pointer-events-none" />
       )}
 
-      <div className="flex-shrink-0">
-        <ButtonPrimary
-          onClick={() => startCapture()}
-          label={"TOMAR FOTO"}
-          imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-          width={620}
-          height={50}
-          //disabled={!canShoot}
-          ariaLabel="Tomar foto"
-          clickEffect={buttonClickEffect}
-        />
+      {/* Fila inferior: botón decorativo — disparador — botón decorativo.
+          Arranca justo donde termina el cuadro de cámara (CAPTURE_SQUARE_BOTTOM,
+          misma cuenta que usa FrameCamera) y se centra verticalmente en lo
+          que sobre hasta el borde real de la pantalla — así queda "pegada"
+          a la cámara en vez de perdida en un espacio de relleno grande en
+          pantallas donde el cuadro no llega a ocupar todo el alto (ej. un
+          iPad). El grid de 3 columnas mantiene el disparador perfectamente
+          centrado. Los botones de los costados son solo decorativos (tipo
+          flip/flash de una cámara real) — no tienen ninguna función. */}
+      <div
+        className="absolute left-0 right-0 bottom-0 z-20 flex items-center justify-center pb-[env(safe-area-inset-bottom)] px-6 sm:px-10"
+        style={{ top: CAPTURE_SQUARE_BOTTOM }}
+      >
+        <div className="grid grid-cols-3 items-center w-full h-full py-2">
+          <div className="flex justify-start items-center h-full">
+            <DecorativeCameraButton icon={FaSyncAlt} />
+          </div>
+          <div className="flex justify-center items-center h-full">
+            <ShutterButton
+              onClick={() => startCapture()}
+              imageSrc={buttonImage}
+              clickEffect={buttonClickEffect}
+            />
+          </div>
+          <div className="flex justify-end items-center h-full">
+            <DecorativeCameraButton icon={FaBolt} />
+          </div>
+        </div>
       </div>
     </div>
   );

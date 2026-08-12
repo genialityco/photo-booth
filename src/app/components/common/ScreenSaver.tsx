@@ -1,7 +1,7 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import MediaTapScreen from "@/app/components/common/MediaTapScreen";
 
 type ScreenSaverProps = {
   splashImage?: string;
@@ -81,35 +81,11 @@ export default function ScreenSaver({
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] bg-black flex items-center justify-center cursor-pointer transition-transform duration-500 ease-in-out ${
+      className={`fixed inset-0 z-[9999] bg-black transition-transform duration-500 ease-in-out ${
         isExiting ? "translate-x-full" : "translate-x-0"
       }`}
-      onClick={handleActivity}
     >
-      {videoUrl ? (
-        <video
-          src={videoUrl}
-          className="w-full h-full object-cover select-none"
-          autoPlay
-          loop
-          muted
-          playsInline
-        />
-      ) : (
-        <img
-          src={splashImage}
-          alt="Screen Saver"
-          className="w-full h-full object-cover select-none"
-          draggable={false}
-        />
-      )}
-
-      {/* Indicador de "Toca para continuar" */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white text-center animate-pulse">
-        <p className="text-lg sm:text-xl font-semibold drop-shadow-lg">
-          Toca la pantalla para continuar
-        </p>
-      </div>
+      <MediaTapScreen imageUrl={splashImage} videoUrl={videoUrl} onTap={handleActivity} />
     </div>
   );
 }
