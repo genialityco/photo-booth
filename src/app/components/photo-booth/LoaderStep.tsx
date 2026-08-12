@@ -40,12 +40,21 @@ export default function LoaderStep() {
     }
   }, []);
 
-  // Priorizar loadingPageImage del evento, si no usar bgLoading, bgLanding, etc
-  const bgUrl = event?.loadingPageImage 
+  // Fondo de pantalla completa: loadingPageImage > bgLoading/bgLanding del estilo.
+  // El GIF/WEBM (loadingMediaUrl) ya NO es el fondo — se muestra chico, arriba
+  // del mensaje (ver más abajo).
+  const bgUrl = event?.loadingPageImage
     ? event.loadingPageImage
-    : style 
-    ? style.bgLoading || style.bgLanding || "/Lenovo/app-avatars-01.png" 
+    : style
+    ? style.bgLoading || style.bgLanding || "/Lenovo/app-avatars-01.png"
     : "/Lenovo/app-avatars-01.png";
+
+  const loadingMediaUrl = event?.loadingMediaUrl || null;
+  // Un <img>/CSS background no puede reproducir video: si el archivo es un
+  // WEBM hay que mostrarlo con <video>.
+  const isLoadingMediaVideo =
+    !!loadingMediaUrl &&
+    (loadingMediaUrl.startsWith("data:video/") || /\.webm(\?.*)?$/i.test(loadingMediaUrl));
 
   // Usar mensaje personalizado del evento si existe, si no "Generando imagen"
   const loadingMessage = event?.loadingMessage || "Generando imagen";
@@ -72,7 +81,26 @@ export default function LoaderStep() {
       <div className="absolute inset-0 bg-black/45" />
 
       {/* Contenido central */}
-      <div className="relative z-20 flex flex-col items-center justify-center px-3 sm:px-6">
+      <div className="relative z-20 flex flex-col items-center justify-center gap-4 px-3 sm:px-6">
+        {loadingMediaUrl && (
+          isLoadingMediaVideo ? (
+            <video
+              src={loadingMediaUrl}
+              className="w-3/4 max-w-[550px] h-auto rounded-xl shadow-2xl"
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
+          ) : (
+            <img
+              src={loadingMediaUrl}
+              alt=""
+              className="w-3/4 max-w-[550px] h-auto rounded-xl shadow-2xl"
+              aria-hidden
+            />
+          )
+        )}
         <h1
           className="text-center text-2xl sm:text-3xl md:text-4xl font-semibold drop-shadow-lg tracking-tight"
           role="status"

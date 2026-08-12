@@ -25,6 +25,8 @@ export type EventProfile = {
   frameImage?: string;
   buttonImage?: string;
   loadingPageImage?: string;
+  /** GIF o WEBM opcional para la pantalla de carga; si está presente, tiene prioridad sobre loadingPageImage. */
+  loadingMediaUrl?: string;
   splashImage?: string;
   loadingMessage?: string;
   showLogosInLoader?: boolean;
@@ -179,7 +181,7 @@ export async function createEventProfile(
     // Image fields to process
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage", "screenSaverVideoUrl"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl"];
 
     for (const field of imageFields) {
       const fileData = data[field];
@@ -352,7 +354,7 @@ export async function updateEventProfile(
     // Process image fields
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "splashImage", "screenSaverVideoUrl"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl"];
     for (const field of imageFields) {
       const fileData = data[field];
       if (!fileData) continue;

@@ -10,6 +10,7 @@ import { getActivePhotoBoothPrompts, type PhotoBoothPrompt } from "@/app/service
 import { BUTTON_CLICK_EFFECT_OPTIONS } from "@/app/components/common/click-effects";
 import ImageUploadField from "./ImageUploadField";
 import VideoUploadField from "./VideoUploadField";
+import LoadingMediaUploadField from "./LoadingMediaUploadField";
 
 export default function EventForm({
   event,
@@ -33,6 +34,7 @@ export default function EventForm({
     frameImage: event?.frameImage || "",
     buttonImage: event?.buttonImage || "",
     loadingPageImage: event?.loadingPageImage || "",
+    loadingMediaUrl: event?.loadingMediaUrl || "",
     splashImage: event?.splashImage || "",
     screenSaverVideoUrl: event?.screenSaverVideoUrl || "",
     loadingMessage: event?.loadingMessage || "Generando imagen",
@@ -314,6 +316,16 @@ export default function EventForm({
             value={formData.loadingPageImage || ""}
             onChange={(value) => handleImageChange("loadingPageImage", value)}
           />
+
+          <LoadingMediaUploadField
+            label="GIF o WEBM de Pantalla de Carga (opcional)"
+            value={formData.loadingMediaUrl || ""}
+            onChange={(value) => handleImageChange("loadingMediaUrl", value)}
+          />
+          <p className="text-xs text-gray-500 -mt-2">
+            Si se sube un GIF o WEBM, se usa en la pantalla de carga en vez de la imagen de arriba. Si no hay ninguno,
+            se usa la imagen normalmente.
+          </p>
 
           <ImageUploadField
             label="Imagen Splash (Pantalla de Inicio)"
