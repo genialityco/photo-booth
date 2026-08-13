@@ -1,7 +1,7 @@
 export default function LoadingScreen({ message = "Cargando..." }: { message?: string }) {
   return (
     <div 
-      className="flex items-center justify-center min-h-screen w-full bg-cover bg-center"
+      className="flex items-center justify-center h-full w-full bg-cover bg-center"
       style={{ backgroundImage: "url('\Colombia4.0\fondoCel.png')" }}
     >
       <div className="text-white text-center">

@@ -79,7 +79,7 @@ export default function EventBoothPage({
 
   if (error || !event) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-black">
+      <div className="flex items-center justify-center h-full w-full bg-black">
         <div className="text-white text-center">
           <p className="text-xl">{error || "Evento no encontrado"}</p>
           <Link href="/" className="mt-4 inline-block px-6 py-2 bg-white/20 hover:bg-white/30 rounded-lg">
@@ -96,11 +96,7 @@ export default function EventBoothPage({
   const canReturnToLanding = !skipBrandSelection && event.captureBeforeFilter !== true;
 
   return (
-    <div
-      className={`antialiased min-h-screen relative ${
-        phase !== "wizard" ? "overflow-hidden" : "overflow-auto"
-      }`}
-    >
+    <div className="antialiased h-full w-full relative overflow-hidden">
       {/* ScreenSaver - se activa después de 15 segundos de inactividad */}
       <ScreenSaver
         splashImage={event.splashImage}

@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React from "react";
+import React, { useCallback } from "react";
 
 /**
  * Pantalla a pantalla completa con imagen, gif o video de fondo; tocar en
@@ -33,6 +33,24 @@ export default function MediaTapScreen({
 }) {
   const hasMedia = !!(videoUrl || imageUrl);
 
+  // Algunos navegadores (sobre todo iOS/Android más viejos, o WebViews de
+  // hardware de kiosco) evalúan si pueden autoreproducir en base al atributo
+  // `muted` presente apenas se crea el <video> — pero React setea `muted`
+  // como propiedad de JS un instante después de montar el nodo, no como
+  // atributo HTML, así que a veces esa primera evaluación llega "sin mute" y
+  // el navegador bloquea el autoplay antes de que React lo alcance a mutear.
+  // Forzarlo acá, en el momento exacto en que el nodo se crea (ref callback,
+  // no useEffect), y reintentar play() explícitamente cubre esos casos —
+  // .play() ya en curso por el atributo `autoPlay` simplemente no hace nada.
+  const autoplayVideoRef = useCallback((video: HTMLVideoElement | null) => {
+    if (!video) return;
+    video.muted = true;
+    video.play().catch(() => {
+      // Autoplay bloqueado igual (política del navegador): queda pausado en
+      // el primer frame: el tap en pantalla (onTap) ya cubre seguir de largo.
+    });
+  }, []);
+
   return (
     <div
       onClick={onTap}
@@ -45,12 +63,14 @@ export default function MediaTapScreen({
       {hasMedia &&
         (videoUrl ? (
           <video
+            ref={autoplayVideoRef}
             src={videoUrl}
             className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl brightness-75 select-none"
             autoPlay
             loop
             muted
             playsInline
+            preload="auto"
             aria-hidden
           />
         ) : (
@@ -66,12 +86,14 @@ export default function MediaTapScreen({
       {/* Contenido real: se ve completo, nunca se recorta. */}
       {videoUrl ? (
         <video
+          ref={autoplayVideoRef}
           src={videoUrl}
           className="relative w-full h-full object-contain select-none"
           autoPlay
           loop
           muted
           playsInline
+          preload="auto"
         />
       ) : (
         <img

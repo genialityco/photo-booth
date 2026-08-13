@@ -106,7 +106,7 @@ export default function EventPhotoBoothLanding({
 
   return (
     <div
-      className="mt-10 relative min-h-[100svh] w-full overflow-hidden"
+      className="relative min-h-[100svh] w-full overflow-hidden"
       style={{
         paddingTop: "max(12px, env(safe-area-inset-top))",
         paddingBottom: "max(12px, env(safe-area-inset-bottom))",

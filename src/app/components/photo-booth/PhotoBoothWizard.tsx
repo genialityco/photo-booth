@@ -473,7 +473,7 @@ export default function PhotoBoothWizard({
     : "/Lenovo/app-avatars-01.png";
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden flex flex-col">
+    <div className="relative h-full w-full overflow-hidden flex flex-col">
       {/* Paso "filter" (captura primero): pantalla completa propia (fondo,
           logos, grilla de marcas y consentimiento), igual que la landing
           normal pero mostrada después del preview en vez de antes de la
