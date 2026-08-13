@@ -9,6 +9,7 @@ import {
   FaDesktop,
   FaRobot,
   FaChevronDown,
+  FaCheckCircle,
 } from "react-icons/fa";
 import type { IconType } from "react-icons";
 import {
@@ -134,6 +135,12 @@ export default function EventForm({
   onSave: () => void;
 }) {
   const [loading, setLoading] = useState(false);
+  // Id del evento que se está editando — empieza en el prop, pero después de
+  // crear uno nuevo se actualiza acá mismo (sin depender de que el padre
+  // vuelva a renderizar con otro `event`), así los guardados siguientes usan
+  // updateEventProfile en vez de crear un evento duplicado.
+  const [currentEventId, setCurrentEventId] = useState<string | null>(event?.id ?? null);
+  const [showSaved, setShowSaved] = useState(false);
   const [availablePrompts, setAvailablePrompts] = useState<PhotoBoothPrompt[]>([]);
   const [loadingPrompts, setLoadingPrompts] = useState(true);
   const [formData, setFormData] = useState<Partial<EventProfile>>({
@@ -149,6 +156,9 @@ export default function EventForm({
     splashImage: event?.splashImage || "",
     screenSaverVideoUrl: event?.screenSaverVideoUrl || "",
     loadingMessage: event?.loadingMessage || "Generando imagen",
+    loadingSubtitle: event?.loadingSubtitle || "",
+    loadingTitleColor: event?.loadingTitleColor || "#ef4444",
+    loadingSubtitleColor: event?.loadingSubtitleColor || "#1a1a1a",
     showLogosInLoader: event?.showLogosInLoader !== false,
     enableFrame: event?.enableFrame !== false,
     dataProcessingText: event?.dataProcessingText || "",
@@ -236,14 +246,19 @@ export default function EventForm({
         prompts: selectedPromptIds,
       };
 
-      if (event?.id) {
-        await updateEventProfile(event.id, eventData);
+      if (currentEventId) {
+        await updateEventProfile(currentEventId, eventData);
       } else {
-        await createEventProfile(eventData);
+        const newId = await createEventProfile(eventData);
+        setCurrentEventId(newId);
       }
 
+      // Refresca la lista en segundo plano (para que quede al día cuando el
+      // usuario vuelva), pero ya NO cierra el formulario — se queda en
+      // "Editar" y solo avisa que guardó.
       onSave();
-      onClose();
+      setShowSaved(true);
+      window.setTimeout(() => setShowSaved(false), 3000);
     } catch (error) {
       console.error("Error saving event:", error);
       alert("Error al guardar el evento");
@@ -254,9 +269,21 @@ export default function EventForm({
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Aviso de guardado — fijo arriba a la derecha, no depende de scroll */}
+      {showSaved && (
+        <div
+          className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg animate-fadeIn"
+          role="status"
+          aria-live="polite"
+        >
+          <FaCheckCircle className="w-4 h-4 flex-shrink-0" aria-hidden />
+          <span className="text-sm font-medium">Evento guardado correctamente</span>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <h1 className="text-xl sm:text-2xl font-bold">
-          {event ? "Editar Evento" : "Crear Evento"}
+          {currentEventId ? "Editar Evento" : "Crear Evento"}
         </h1>
         <button
           onClick={onClose}
@@ -487,12 +514,57 @@ export default function EventForm({
             <p className="text-xs text-gray-500 mt-1">
               Si no se especifica, mostrará &quot;Generando imagen&quot;
             </p>
+            <div className="flex items-center gap-3 mt-2">
+              <label htmlFor="loadingTitleColor" className="text-sm text-gray-700">
+                Color del texto
+              </label>
+              <input
+                type="color"
+                id="loadingTitleColor"
+                name="loadingTitleColor"
+                value={formData.loadingTitleColor || "#ef4444"}
+                onChange={handleChange}
+                className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+              />
+              <span className="text-xs text-gray-500">{formData.loadingTitleColor || "#ef4444"}</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Subtítulo de Pantalla de Carga
+            </label>
+            <input
+              type="text"
+              name="loadingSubtitle"
+              value={formData.loadingSubtitle || ""}
+              onChange={handleChange}
+              placeholder="Ej: Estamos mezclando los colores..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Texto más chico debajo del mensaje principal. Si no se especifica, mostrará &quot;Estamos creando tu imagen&quot;
+            </p>
+            <div className="flex items-center gap-3 mt-2">
+              <label htmlFor="loadingSubtitleColor" className="text-sm text-gray-700">
+                Color del texto
+              </label>
+              <input
+                type="color"
+                id="loadingSubtitleColor"
+                name="loadingSubtitleColor"
+                value={formData.loadingSubtitleColor || "#1a1a1a"}
+                onChange={handleChange}
+                className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+              />
+              <span className="text-xs text-gray-500">{formData.loadingSubtitleColor || "#1a1a1a"}</span>
+            </div>
           </div>
 
           <ToggleField
             id="showLogosInLoader"
             label="Mostrar logos en pantalla de carga"
-            description="Si está activado, se mostrarán los logos superior e inferior en la pantalla de carga. Si está desactivado, solo se mostrará el mensaje de carga."
+            description="Si está activado, se muestran los dos logos juntos arriba en la pantalla de carga. Si está desactivado, no se muestra ningún logo ahí."
             checked={formData.showLogosInLoader !== false}
             onChange={(checked) => setField("showLogosInLoader", checked)}
           />

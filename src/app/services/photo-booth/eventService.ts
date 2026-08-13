@@ -27,6 +27,13 @@ export type EventProfile = {
   loadingPageImage?: string;
   splashImage?: string;
   loadingMessage?: string;
+  /** Subtítulo opcional bajo el mensaje principal de la pantalla de carga
+   * (ej. "Tito está mezclando los colores..."). */
+  loadingSubtitle?: string;
+  /** Color (hex) del título de la pantalla de carga. Default "#ef4444" (rojo). */
+  loadingTitleColor?: string;
+  /** Color (hex) del subtítulo de la pantalla de carga. Default "#1a1a1a". */
+  loadingSubtitleColor?: string;
   showLogosInLoader?: boolean;
   enableFrame?: boolean;
   dataProcessingText?: string;
@@ -229,7 +236,19 @@ export async function createEventProfile(
     if (data.loadingMessage !== undefined) {
       docData.loadingMessage = data.loadingMessage;
     }
-    
+
+    if (data.loadingSubtitle !== undefined) {
+      docData.loadingSubtitle = data.loadingSubtitle;
+    }
+
+    if (data.loadingTitleColor !== undefined) {
+      docData.loadingTitleColor = data.loadingTitleColor;
+    }
+
+    if (data.loadingSubtitleColor !== undefined) {
+      docData.loadingSubtitleColor = data.loadingSubtitleColor;
+    }
+
     if (data.screenConfig !== undefined) {
       docData.screenConfig = data.screenConfig;
     }
@@ -346,6 +365,9 @@ export async function updateEventProfile(
     }
     if (data.isActive !== undefined) docData.isActive = data.isActive;
     if (data.loadingMessage !== undefined) docData.loadingMessage = data.loadingMessage;
+    if (data.loadingSubtitle !== undefined) docData.loadingSubtitle = data.loadingSubtitle;
+    if (data.loadingTitleColor !== undefined) docData.loadingTitleColor = data.loadingTitleColor;
+    if (data.loadingSubtitleColor !== undefined) docData.loadingSubtitleColor = data.loadingSubtitleColor;
     if (data.showLogosInLoader !== undefined) docData.showLogosInLoader = data.showLogosInLoader;
     if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
     if (data.dataProcessingText !== undefined) docData.dataProcessingText = data.dataProcessingText;

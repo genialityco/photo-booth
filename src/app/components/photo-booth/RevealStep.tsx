@@ -137,44 +137,47 @@ export default function RevealStep({
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center px-3 sm:px-4 overflow-hidden">
-      <p
-        className="absolute top-[6%] z-20 text-center text-white text-sm sm:text-base font-medium drop-shadow-lg px-6 animate-fadeIn"
-        role="status"
-        aria-live="polite"
-      >
-        {!handTrackingEnabled || handTrackingError
-          ? "Toca y desliza la pantalla para revelar tu foto"
-          : "Mueve tu mano frente a la cámara para revelar tu foto"}
-      </p>
+      <div className="absolute top-[5%] z-20 bg-black/40 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg shadow-black/20 animate-fadeIn">
+        <p
+          className="text-center text-white font-semibold drop-shadow-sm"
+          style={{ fontSize: "clamp(0.95rem, 2.6vmin, 1.25rem)" }}
+          role="status"
+          aria-live="polite"
+        >
+          {!handTrackingEnabled || handTrackingError
+            ? "Toca y desliza la pantalla para revelar tu foto"
+            : "Mueve tu mano frente a la cámara para revelar tu foto"}
+        </p>
+      </div>
 
+      {/* Marco/mat + sombra en capas, igual que la foto en PreviewStep — le da
+          profundidad en vez de quedar pegada al fondo. */}
       <div
-        className="relative overflow-hidden bg-black/5 aspect-square rounded-2xl shadow-2xl"
-        style={{
-          width: SIZE_IMG,
-          maxWidth: SIZE_IMG,
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.3), 0 10px 20px rgba(0, 0, 0, 0.2)",
-        }}
+        className="relative p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 aspect-square rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]"
+        style={{ width: SIZE_IMG, maxWidth: SIZE_IMG }}
       >
-        <canvas
-          ref={photoCanvasRef}
-          width={CANVAS_SIZE}
-          height={CANVAS_SIZE}
-          className="absolute inset-0 w-full h-full object-contain"
-        />
-        <canvas
-          ref={veilCanvasRef}
-          width={CANVAS_SIZE}
-          height={CANVAS_SIZE}
-          className="absolute inset-0 w-full h-full object-contain touch-none select-none cursor-pointer"
-          style={{
-            opacity: revealing ? 0 : 1,
-            transition: prefersReducedMotion ? "none" : `opacity ${FADE_OUT_MS}ms ease-out`,
-          }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
-        />
+        <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/5">
+          <canvas
+            ref={photoCanvasRef}
+            width={CANVAS_SIZE}
+            height={CANVAS_SIZE}
+            className="absolute inset-0 w-full h-full object-contain"
+          />
+          <canvas
+            ref={veilCanvasRef}
+            width={CANVAS_SIZE}
+            height={CANVAS_SIZE}
+            className="absolute inset-0 w-full h-full object-contain touch-none select-none cursor-pointer"
+            style={{
+              opacity: revealing ? 0 : 1,
+              transition: prefersReducedMotion ? "none" : `opacity ${FADE_OUT_MS}ms ease-out`,
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
+          />
+        </div>
       </div>
 
       {/* Self-view: misma cámara del tracking compartido, solo para ubicar la mano */}
@@ -194,7 +197,8 @@ export default function RevealStep({
       <button
         type="button"
         onClick={completeReveal}
-        className="absolute bottom-5 left-5 z-20 text-xs sm:text-sm text-white/70 hover:text-white underline underline-offset-2"
+        className="absolute bottom-5 left-5 z-20 bg-black/35 hover:bg-black/50 active:scale-95 backdrop-blur-sm transition-all rounded-full px-4 py-2 text-white/90 hover:text-white font-semibold shadow-lg shadow-black/20"
+        style={{ fontSize: "clamp(0.8rem, 2vmin, 0.95rem)" }}
       >
         Saltar
       </button>

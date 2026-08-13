@@ -467,13 +467,13 @@ export default function PhotoBoothWizard({
       ? style.bgCapture || style.bgLanding
       : step === "loading"
         ? style.bgLoading || style.bgLanding
-        : step === "result"
+        : step === "result" || step === "reveal"
           ? style.bgResults || style.bgLanding
           : style.bgLanding
     : "/Lenovo/app-avatars-01.png";
 
   return (
-    <div className="mt-10 relative h-screen w-screen overflow-hidden flex flex-col">
+    <div className="relative h-screen w-screen overflow-hidden flex flex-col">
       {/* Paso "filter" (captura primero): pantalla completa propia (fondo,
           logos, grilla de marcas y consentimiento), igual que la landing
           normal pero mostrada después del preview en vez de antes de la
@@ -518,16 +518,18 @@ export default function PhotoBoothWizard({
       {/* HEADER: Logo superior — fijo, siempre visible. En "capture" no se
           renderiza: los logos viven dentro de CaptureStep, abajo a los
           costados del disparador, para dejar toda la parte de arriba
-          despejada para la cámara. */}
-      {step !== "capture" && (
+          despejada para la cámara. En "customize" tampoco: los dos logos
+          (arriba y abajo) se muestran juntos arriba dentro de
+          ImageCustomizeStep, para liberar espacio vertical y evitar scroll. */}
+      {step !== "capture" && step !== "customize" && (
         <div className="relative z-5 flex-shrink-0 flex justify-center items-center pt-[max(1.5rem,env(safe-area-inset-top))]">
-          <div className="w-[70vw] max-w-[380px]">
+          <div className="w-[50vw] max-w-[260px]">
             <img
               src={
                 style
                   ? step === "loading"
                     ? style.logoLoadingTop || style.logoLandingTop
-                    : step === "result"
+                    : step === "result" || step === "reveal"
                       ? style.logoResultsTop || style.logoLandingTop
                       : style.logoLandingTop
                   : "/genilaty_smart_led_logo.png"
@@ -542,8 +544,18 @@ export default function PhotoBoothWizard({
 
       {/* CONTENT: Contenedor del contenido (capture, preview, result) */}
       <div className="relative z-20 flex-1 flex items-center justify-center overflow-hidden px-0 sm:px-4 w-full">
+        {/* w-full h-full (sin variante sm:auto): un hijo con altura en % (h-full,
+            flex-1, etc. — como usan PreviewStep/ResultStep/ImageCustomizeStep
+            para centrarse o hacer scroll interno) necesita que ESTE contenedor
+            tenga una altura definida. "sm:h-auto" (shrink-to-content en
+            pantallas >=640px) rompe eso: la altura pasa a depender del
+            contenido, que a su vez depende de esta altura — termina en un
+            tamaño ambiguo que o bien colapsa o bien se desborda y lo recorta
+            el overflow-hidden + justify-center de acá abajo (tapando mitad
+            arriba, mitad abajo). Cada paso ya centra su propio contenido
+            internamente, así que h-full fijo no cambia cómo se ve. */}
         <div
-          className="flex flex-col items-center justify-center overflow-hidden w-full h-full sm:w-auto sm:h-auto"
+          className="flex flex-col items-center justify-center overflow-hidden w-full h-full"
           style={{ width: "100%", maxWidth: boxSize, maxHeight: "100%" }}
         >
           <AnimatePresence mode="wait" initial={false}>
@@ -584,6 +596,8 @@ export default function PhotoBoothWizard({
                   previewSrc={rawShot || framedShot}
                   buttonImage={eventData?.buttonImage}
                   buttonClickEffect={eventData?.buttonClickEffect}
+                  logoLeftSrc={style?.logoLandingTop}
+                  logoRightSrc={style?.logoLandingBottom}
                   onConfirm={handleCustomizeConfirmed}
                 />
               </motion.div>
@@ -666,16 +680,16 @@ export default function PhotoBoothWizard({
 
       {/* FOOTER: Logo inferior — fijo, siempre visible. En "capture" no se
           renderiza: el logo va dentro de CaptureStep, al costado del
-          disparador. */}
-      {step !== "capture" && (
+          disparador. En "customize" tampoco: ver nota del HEADER arriba. */}
+      {step !== "capture" && step !== "customize" && (
         <div className="relative z-5 flex-shrink-0 flex justify-center items-center pb-[max(env(safe-area-inset-bottom),2rem)] pointer-events-none">
-          <div className="w-[70vw] max-w-[550px]">
+          <div className="w-[50vw] max-w-[380px]">
             <img
               src={
                 style
                   ? step === "loading"
                     ? style.logoLoadingBottom || style.logoLandingBottom
-                    : step === "result"
+                    : step === "result" || step === "reveal"
                       ? style.logoResultsBottom || style.logoLandingBottom
                       : style.logoLandingBottom
                   : "genilaty_smart_led_logo.png"

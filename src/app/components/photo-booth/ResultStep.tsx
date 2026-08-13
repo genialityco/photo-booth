@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useMemo, useEffect, useState } from "react";
+import { FaQrcode } from "react-icons/fa";
 import type { StyleProfile } from "@/app/services/admin/styleService";
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
@@ -31,6 +32,7 @@ export default function ResultStep({
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [event, setEvent] = useState<EventProfile | null>(null);
   const [qrSize, setQrSize] = useState(500);
+  const [showQr, setShowQr] = useState(false);
   const enableFrame = event?.enableFrame ?? style?.enableFrame ?? true;
   const frameSrc = event?.frameImage ?? null;
 
@@ -105,12 +107,16 @@ export default function ResultStep({
     }
   }, []);
 
-  // Calcular tamaño del QR responsivo
+  // Calcular tamaño del QR responsivo. Ahora el QR ocupa la misma caja
+  // grande que la foto (hasta 700px, ver SIZE_IMG), así que le damos más
+  // espacio del que tenía cuando era un sello chico superpuesto — pero
+  // limitado también por el alto de pantalla, para no desbordar la caja en
+  // pantallas bajas y anchas.
   useEffect(() => {
     const updateQrSize = () => {
       const vw = window.innerWidth;
-      // QR size: 100px en móvil, hasta 200px en desktop
-      const size = Math.min(Math.max(180, vw * 0.12), 220);
+      const vh = window.innerHeight;
+      const size = Math.min(Math.max(280, vw * 0.38), vh * 0.36, 480);
       setQrSize(size);
     };
 
@@ -157,34 +163,32 @@ export default function ResultStep({
     }
   };
 
-  // Cuánto sobresale el QR por debajo del borde de la imagen (mitad de su
-  // propia altura, ya que queda centrado justo sobre ese borde) + un margen
-  // para que los botones nunca lo toquen.
-  const qrOverhang = qrSize * 0.5 + 28;
-
   return (
     <div
       className="w-full h-full flex flex-col items-center justify-center px-3 sm:px-4 overflow-hidden"
     >
-      {/* Contenido principal */}
-      <main className="flex-1 w-full flex flex-col items-center justify-between overflow-hidden py-2 sm:py-4">
-        {/* Imagen + QR: el QR se ancla al borde inferior de la imagen, mitad
-            adentro (sobre la foto) y mitad afuera (por debajo). */}
+      {/* Contenido principal — scroll de emergencia si no alcanza el alto
+          (foto + botón QR + QR abierto + botones, todo junto, en una
+          pantalla baja). */}
+      <main className="flex-1 min-h-0 w-full flex flex-col items-center justify-center gap-3 sm:gap-4 overflow-y-auto py-2 sm:py-4">
+        {/* Imagen/Video IA — o el QR, cuando está activo, en el mismo
+            espacio (mismo tamaño de caja, sin salto de layout). Mat + sombra
+            en capas, mismo tratamiento que el resto del wizard. */}
         <div
-          className="relative flex-shrink-0"
+          className="relative flex-shrink-0 p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]"
           style={{ width: SIZE_IMG, maxWidth: SIZE_IMG }}
         >
-          {/* Imagen o Video IA con marco visible */}
           <div
-            className="relative overflow-hidden bg-black/5 aspect-square"
-            style={{
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3), 0 10px 20px rgba(0, 0, 0, 0.2)'
-            }}
+            className={`relative w-full h-full overflow-hidden rounded-xl aspect-square flex items-center justify-center transition-colors ${
+              showQr ? "bg-white" : "bg-black/5"
+            }`}
           >
-            {videoUrl ? (
+            {showQr ? (
+              <QrTag value={surveyAI} size={qrSize} label="Escanea para descargar tu foto en tu celular" />
+            ) : videoUrl ? (
               <video
                 src={videoUrl}
-                className="absolute w-full h-full object-contain rounded-2xl shadow-2xl"
+                className="absolute inset-0 w-full h-full object-contain"
                 autoPlay
                 loop
                 muted
@@ -194,38 +198,32 @@ export default function ResultStep({
               <img
                 src={framedImageUrl || aiUrl}
                 alt="Imagen generada por IA"
-                className="absolute w-full h-full object-contain select-none rounded-2xl shadow-2xl"
+                className="absolute inset-0 w-full h-full object-contain select-none"
                 draggable={false}
               />
             )}
           </div>
-
-          {/* QR - centrado horizontalmente, mitad sobre el borde inferior de la imagen */}
-          <div
-            className="absolute z-10 flex items-center justify-center bg-white rounded-xl shadow-xl"
-            style={{
-              top: "100%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.25), 0 5px 10px rgba(0, 0, 0, 0.15)',
-              padding: `clamp(12px, ${qrSize * 0.12}px, 28px)`
-            }}
-          >
-            <QrTag value={surveyAI} size={qrSize} />
-          </div>
         </div>
 
-        {/* Botones: en flujo normal, siempre debajo del QR (nunca sobre la imagen) */}
-        <div
-          className="flex-shrink-0 w-full flex flex-row items-center justify-center gap-2 sm:gap-3 overflow-x-auto whitespace-nowrap"
-          style={{ marginTop: qrOverhang }}
+        {/* Botón para alternar entre la foto y el QR en la misma caja. */}
+        <button
+          type="button"
+          onClick={() => setShowQr((v) => !v)}
+          className="flex-shrink-0 inline-flex items-center gap-2 bg-white/90 hover:bg-white active:scale-95 transition-all rounded-full px-5 py-2.5 shadow-lg font-semibold text-black"
+          style={{ fontSize: "clamp(0.85rem, 2vmin, 1.05rem)" }}
         >
+          <FaQrcode className="w-4 h-4" aria-hidden />
+          {showQr ? "Ver foto" : "Mostrar QR"}
+        </button>
+
+        {/* Botones: nueva foto / descargar */}
+        <div className="flex-shrink-0 w-full flex flex-row items-center justify-center gap-2 sm:gap-3 overflow-x-auto whitespace-nowrap">
           <ButtonPrimary
             onClick={onAgain}
             label="NUEVA FOTO"
             imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-             width="clamp(120px, 40vw, 310px)"
-              height="clamp(40px, 8vh, 60px)"
+            width="clamp(120px, 40vw, 310px)"
+            height="clamp(40px, 8vh, 60px)"
             className="min-w-[130px]"
             clickEffect={buttonClickEffect}
           />
@@ -233,8 +231,8 @@ export default function ResultStep({
             onClick={handleDownload}
             label="DESCARGAR"
             imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-             width="clamp(120px, 40vw, 310px)"
-              height="clamp(40px, 8vh, 60px)"
+            width="clamp(120px, 40vw, 310px)"
+            height="clamp(40px, 8vh, 60px)"
             className="min-w-[130px]"
             clickEffect={buttonClickEffect}
           />

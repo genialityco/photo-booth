@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 
@@ -26,7 +26,7 @@ export default function PreviewStep({
 }) {
   // Mostrar la foto sin marco (rawShot si está disponible, sino framedShot)
   const displayImage = rawShot || framedShot;
-  
+
   const borderRadiusClass = {
     none: "",
     md: "rounded-md",
@@ -34,23 +34,52 @@ export default function PreviewStep({
     xl: "rounded-xl",
     "4xl": "rounded-4xl"
   }[borderRadius];
-  
+
+  // La foto capturada siempre es cuadrada. `w-full aspect-square` (sin
+  // h-full) ya cubre la mayoría de pantallas: el alto queda en "auto" y se
+  // deriva del ancho vía aspect-ratio. Pero cuando el contenedor es más
+  // ancho que alto (celular en horizontal, donde el wizard pasa
+  // boxSize="100%" sin límite de vh), ese alto derivado se recorta con
+  // max-height y el ancho no se vuelve a ajustar — CSS no resuelve ese caso
+  // de forma simétrica. Medimos el contenedor real y forzamos un cuadrado
+  // exacto en píxeles cuando hace falta; el contenedor no depende del
+  // tamaño de esta caja, así que no hay loop de resize.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [squareSize, setSquareSize] = useState<number | null>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 0 && height > 0) setSquareSize(Math.min(width, height));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-1 sm:gap-2 p-2 overflow-hidden">
-        <div className={`flex-1 flex items-center justify-center w-full overflow-hidden ${borderRadiusClass}`}>
+        <div
+          ref={containerRef}
+          className={`flex-1 flex items-center justify-center w-full overflow-hidden ${borderRadiusClass}`}
+        >
           <div
-            className={`relative shadow-lg w-full h-full aspect-square max-w-full max-h-full`}
-            style={{ 
-              maxWidth: boxSize, 
-              maxHeight: boxSize 
-            }}
+            className={`relative w-full aspect-square max-w-full max-h-full p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)] ${borderRadiusClass}`}
+            style={
+              squareSize
+                ? { width: squareSize, height: squareSize }
+                : { maxWidth: boxSize, maxHeight: boxSize }
+            }
           >
-            <img
-              src={displayImage}
-              alt="Preview"
-              className="absolute inset-0 w-full h-full object-cover"
-            />
+            <div className={`relative w-full h-full overflow-hidden ${borderRadiusClass}`}>
+              <img
+                src={displayImage}
+                alt="Preview"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            </div>
           </div>
         </div>
 
