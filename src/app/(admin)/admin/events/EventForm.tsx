@@ -21,7 +21,6 @@ import { getActivePhotoBoothPrompts, type PhotoBoothPrompt } from "@/app/service
 import { BUTTON_CLICK_EFFECT_OPTIONS } from "@/app/components/common/click-effects";
 import ImageUploadField from "./ImageUploadField";
 import VideoUploadField from "./VideoUploadField";
-import LoadingMediaUploadField from "./LoadingMediaUploadField";
 
 /** Sección colapsable: agrupa campos relacionados bajo un título con ícono. */
 function AccordionSection({
@@ -501,37 +500,6 @@ export default function EventForm({
             onChange={(value) => handleImageChange("loadingPageImage", value)}
           />
 
-<<<<<<< HEAD
-=======
-          <LoadingMediaUploadField
-            label="GIF o WEBM de Pantalla de Carga (opcional)"
-            value={formData.loadingMediaUrl || ""}
-            onChange={(value) => handleImageChange("loadingMediaUrl", value)}
-          />
-          <p className="text-xs text-gray-500 -mt-2">
-            Si se sube un GIF o WEBM, se usa en la pantalla de carga en vez de la imagen de arriba. Si no hay ninguno,
-            se usa la imagen normalmente.
-          </p>
-
-          <ImageUploadField
-            label="Imagen Splash (Pantalla de Inicio)"
-            value={formData.splashImage || ""}
-            onChange={(value) => handleImageChange("splashImage", value)}
-          />
-          <p className="text-xs text-gray-500 -mt-2">
-            También se usa como fondo de la pantalla de inactividad (screensaver) si no hay video configurado abajo.
-          </p>
-
-          <VideoUploadField
-            label="Video Splash - Pantalla de Inactividad (loop, opcional)"
-            value={formData.screenSaverVideoUrl || ""}
-            onChange={(value) => handleImageChange("screenSaverVideoUrl", value)}
-          />
-          <p className="text-xs text-gray-500 -mt-2">
-            Si se sube un video, la pantalla de inactividad lo reproduce en loop en vez de la imagen splash de arriba.
-          </p>
-
->>>>>>> e116a3fd62bcb6d28564b1a0c4cb11aff675ae9a
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Mensaje de Pantalla de Carga
