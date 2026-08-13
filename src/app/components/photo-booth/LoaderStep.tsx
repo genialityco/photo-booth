@@ -65,6 +65,7 @@ export default function LoaderStep() {
     }
   }, []);
 
+<<<<<<< HEAD
   useEffect(() => {
     const start = Date.now();
     const tick = () => {
@@ -81,15 +82,31 @@ export default function LoaderStep() {
   }, []);
 
   // Priorizar loadingPageImage del evento, si no usar bgLoading, bgLanding, etc
+=======
+  // Fondo de pantalla completa: loadingPageImage > bgLoading/bgLanding del estilo.
+  // El GIF/WEBM (loadingMediaUrl) ya NO es el fondo — se muestra chico, arriba
+  // del mensaje (ver más abajo).
+>>>>>>> e116a3fd62bcb6d28564b1a0c4cb11aff675ae9a
   const bgUrl = event?.loadingPageImage
     ? event.loadingPageImage
     : style
     ? style.bgLoading || style.bgLanding || "/Lenovo/app-avatars-01.png"
     : "/Lenovo/app-avatars-01.png";
 
+<<<<<<< HEAD
   // Título y subtítulo personalizables por evento (subtítulo con default
   // genérico, igual que el título, para que siempre se vea algo aunque el
   // evento no lo haya configurado todavía).
+=======
+  const loadingMediaUrl = event?.loadingMediaUrl || null;
+  // Un <img>/CSS background no puede reproducir video: si el archivo es un
+  // WEBM hay que mostrarlo con <video>.
+  const isLoadingMediaVideo =
+    !!loadingMediaUrl &&
+    (loadingMediaUrl.startsWith("data:video/") || /\.webm(\?.*)?$/i.test(loadingMediaUrl));
+
+  // Usar mensaje personalizado del evento si existe, si no "Generando imagen"
+>>>>>>> e116a3fd62bcb6d28564b1a0c4cb11aff675ae9a
   const loadingMessage = event?.loadingMessage || "Generando imagen";
   const loadingSubtitle = event?.loadingSubtitle || "Estamos creando tu imagen";
   const loadingTitleColor = event?.loadingTitleColor || "#ef4444";
@@ -149,6 +166,7 @@ export default function LoaderStep() {
       )}
 
       {/* Contenido central */}
+<<<<<<< HEAD
       <div className="relative z-20 flex-1 min-h-0 w-full flex flex-col items-center justify-center gap-5 px-6">
         {/* Anillo de progreso (simulado — el backend no reporta % real).
             El viewBox usa unidades fijas (ringSize) solo para la matemática
@@ -157,6 +175,32 @@ export default function LoaderStep() {
         <div
           className="relative"
           style={{ width: "clamp(125px, 16vmin, 185px)", height: "clamp(125px, 16vmin, 185px)" }}
+=======
+      <div className="relative z-20 flex flex-col items-center justify-center gap-4 px-3 sm:px-6">
+        {loadingMediaUrl && (
+          isLoadingMediaVideo ? (
+            <video
+              src={loadingMediaUrl}
+              className="w-3/4 max-w-[550px] h-auto rounded-xl shadow-2xl"
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
+          ) : (
+            <img
+              src={loadingMediaUrl}
+              alt=""
+              className="w-3/4 max-w-[550px] h-auto rounded-xl shadow-2xl"
+              aria-hidden
+            />
+          )
+        )}
+        <h1
+          className="text-center text-2xl sm:text-3xl md:text-4xl font-semibold drop-shadow-lg tracking-tight"
+          role="status"
+          aria-live="polite"
+>>>>>>> e116a3fd62bcb6d28564b1a0c4cb11aff675ae9a
         >
           <svg
             viewBox={`0 0 ${ringSize} ${ringSize}`}
