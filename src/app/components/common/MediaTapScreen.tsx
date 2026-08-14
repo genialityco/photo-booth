@@ -45,10 +45,32 @@ export default function MediaTapScreen({
   const autoplayVideoRef = useCallback((video: HTMLVideoElement | null) => {
     if (!video) return;
     video.muted = true;
-    video.play().catch(() => {
-      // Autoplay bloqueado igual (política del navegador): queda pausado en
-      // el primer frame: el tap en pantalla (onTap) ya cubre seguir de largo.
-    });
+
+    // En mobile, el primer .play() a veces se dispara antes de que el
+    // navegador tenga metadata/datos suficientes para decodificar (sobre
+    // todo con red lenta), y ahí la promesa se rechaza sin reintentarse
+    // sola. Se reintenta al cargar metadata, al quedar listo para
+    // reproducir, y al volver la pestaña a primer plano.
+    const tryPlay = () => {
+      video.play().catch(() => {
+        // Autoplay bloqueado igual (política del navegador — p. ej. Modo de
+        // Bajo Consumo de iOS bloquea el autoplay de video aunque esté
+        // muted, sin alternativa por JS): queda pausado en el primer frame.
+        // El botón nativo de "play" que iOS dibuja encima se oculta por CSS
+        // (ver .media-tap-video en globals.css); el tap en pantalla (onTap)
+        // ya cubre seguir de largo.
+      });
+    };
+    tryPlay();
+    video.addEventListener("loadedmetadata", tryPlay);
+    video.addEventListener("canplay", tryPlay);
+    document.addEventListener("visibilitychange", tryPlay);
+
+    return () => {
+      video.removeEventListener("loadedmetadata", tryPlay);
+      video.removeEventListener("canplay", tryPlay);
+      document.removeEventListener("visibilitychange", tryPlay);
+    };
   }, []);
 
   return (
@@ -65,7 +87,7 @@ export default function MediaTapScreen({
           <video
             ref={autoplayVideoRef}
             src={videoUrl}
-            className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl brightness-75 select-none"
+            className="media-tap-video absolute inset-0 w-full h-full object-cover scale-110 blur-2xl brightness-75 select-none"
             autoPlay
             loop
             muted
@@ -88,7 +110,7 @@ export default function MediaTapScreen({
         <video
           ref={autoplayVideoRef}
           src={videoUrl}
-          className="relative w-full h-full object-contain select-none"
+          className="media-tap-video relative w-full h-full object-contain select-none"
           autoPlay
           loop
           muted

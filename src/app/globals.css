@@ -129,3 +129,14 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .bg-orb-float { animation: none !important; }
 }
+
+/* Videos a pantalla completa de MediaTapScreen (SplashScreen/ScreenSaver):
+   cuando el autoplay muted no arranca en iOS (p. ej. Modo de Bajo Consumo,
+   que lo bloquea sin alternativa por JS), WebKit dibuja su propio botón de
+   "play" circular encima del <video> aunque no tenga `controls`. Se oculta
+   para no romper el diseño a pantalla completa; el tap en pantalla (onTap)
+   ya cubre continuar. */
+.media-tap-video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none;
+}
