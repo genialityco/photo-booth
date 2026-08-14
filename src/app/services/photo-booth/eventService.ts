@@ -90,6 +90,29 @@ export type EventProfile = {
    */
   screenSaverVideoUrl?: string;
   /**
+   * Contenido configurable de la pantalla de splash inicial (independiente
+   * de `splashImage`/`screenSaverVideoUrl`, que son solo del ScreenSaver).
+   * El fondo y el logo superior de esta pantalla reutilizan `bgImage` y
+   * `logoTop`. Todos estos campos son opcionales: sin configurar, el
+   * componente aplica los valores por defecto de la campaña de referencia
+   * ("Tu rostro, tu arte").
+   */
+  splashTitle?: string;
+  splashTitleColor?: string;
+  splashSubtitle?: string;
+  splashSubtitleColor?: string;
+  /** Imagen de la tarjeta central (mascota/logo secundario); sin ella, la tarjeta no se muestra. */
+  splashCardImage?: string;
+  splashWord1?: string;
+  splashWord1Color?: string;
+  splashWord2?: string;
+  splashWord2Color?: string;
+  splashLoaderColorFrom?: string;
+  splashLoaderColorTo?: string;
+  splashButtonText?: string;
+  splashButtonColorFrom?: string;
+  splashButtonColorTo?: string;
+  /**
    * Habilita la pantalla opcional "Dale tu toque" (paleta de color, textura
    * e intensidad) entre el preview confirmado y la generación. Los valores
    * elegidos se guardan en el doc de imageTasks y se aplican al prompt de
@@ -199,7 +222,7 @@ export async function createEventProfile(
     // Image fields to process
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage"];
 
     for (const field of imageFields) {
       const fileData = data[field];
@@ -225,7 +248,7 @@ export async function createEventProfile(
       const contentType = blob.type || "image/png";
       const extension = contentType.split("/")[1] || "png";
       const fileName = `${field}.${extension.replace("+", "_")}`;
-      
+
       const url = await uploadImageViaAPI(
         normalized,
         fileName,
@@ -250,6 +273,20 @@ export async function createEventProfile(
     if (data.loadingSubtitleColor !== undefined) {
       docData.loadingSubtitleColor = data.loadingSubtitleColor;
     }
+
+    if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
+    if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;
+    if (data.splashSubtitle !== undefined) docData.splashSubtitle = data.splashSubtitle;
+    if (data.splashSubtitleColor !== undefined) docData.splashSubtitleColor = data.splashSubtitleColor;
+    if (data.splashWord1 !== undefined) docData.splashWord1 = data.splashWord1;
+    if (data.splashWord1Color !== undefined) docData.splashWord1Color = data.splashWord1Color;
+    if (data.splashWord2 !== undefined) docData.splashWord2 = data.splashWord2;
+    if (data.splashWord2Color !== undefined) docData.splashWord2Color = data.splashWord2Color;
+    if (data.splashLoaderColorFrom !== undefined) docData.splashLoaderColorFrom = data.splashLoaderColorFrom;
+    if (data.splashLoaderColorTo !== undefined) docData.splashLoaderColorTo = data.splashLoaderColorTo;
+    if (data.splashButtonText !== undefined) docData.splashButtonText = data.splashButtonText;
+    if (data.splashButtonColorFrom !== undefined) docData.splashButtonColorFrom = data.splashButtonColorFrom;
+    if (data.splashButtonColorTo !== undefined) docData.splashButtonColorTo = data.splashButtonColorTo;
 
     if (data.screenConfig !== undefined) {
       docData.screenConfig = data.screenConfig;
@@ -384,11 +421,24 @@ export async function updateEventProfile(
     if (data.imageCustomizationEnabled !== undefined) docData.imageCustomizationEnabled = data.imageCustomizationEnabled;
     if (data.backgroundAnimation !== undefined) docData.backgroundAnimation = data.backgroundAnimation;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
+    if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
+    if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;
+    if (data.splashSubtitle !== undefined) docData.splashSubtitle = data.splashSubtitle;
+    if (data.splashSubtitleColor !== undefined) docData.splashSubtitleColor = data.splashSubtitleColor;
+    if (data.splashWord1 !== undefined) docData.splashWord1 = data.splashWord1;
+    if (data.splashWord1Color !== undefined) docData.splashWord1Color = data.splashWord1Color;
+    if (data.splashWord2 !== undefined) docData.splashWord2 = data.splashWord2;
+    if (data.splashWord2Color !== undefined) docData.splashWord2Color = data.splashWord2Color;
+    if (data.splashLoaderColorFrom !== undefined) docData.splashLoaderColorFrom = data.splashLoaderColorFrom;
+    if (data.splashLoaderColorTo !== undefined) docData.splashLoaderColorTo = data.splashLoaderColorTo;
+    if (data.splashButtonText !== undefined) docData.splashButtonText = data.splashButtonText;
+    if (data.splashButtonColorFrom !== undefined) docData.splashButtonColorFrom = data.splashButtonColorFrom;
+    if (data.splashButtonColorTo !== undefined) docData.splashButtonColorTo = data.splashButtonColorTo;
 
     // Process image fields
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage"];
     for (const field of imageFields) {
       const fileData = data[field];
       if (!fileData) continue;
