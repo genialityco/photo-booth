@@ -102,6 +102,13 @@ export type EventProfile = {
    * "FLOATING_ORBS" = esferas de colores flotando lentamente de fondo.
    */
   backgroundAnimation?: "NONE" | "FLOATING_ORBS";
+  /**
+   * Tiempo máximo (segundos) que se le da a la persona para "pintar"/revelar
+   * la foto (borrar el velo con la mano o el rodillo) antes de avanzar
+   * automáticamente al resultado. Por compatibilidad, los eventos sin este
+   * campo usan 28 segundos (comportamiento original).
+   */
+  paintTimeSeconds?: number;
   prompts: string[];
   isActive: boolean;
   screenConfig?: {
@@ -255,6 +262,10 @@ export async function createEventProfile(
       docData.screenConfig = data.screenConfig;
     }
 
+    if (data.paintTimeSeconds !== undefined) {
+      docData.paintTimeSeconds = data.paintTimeSeconds;
+    }
+
     const docRef = await addDoc(collection(db, COLLECTION), docData);
     return docRef.id;
   } catch (error) {
@@ -384,6 +395,7 @@ export async function updateEventProfile(
     if (data.imageCustomizationEnabled !== undefined) docData.imageCustomizationEnabled = data.imageCustomizationEnabled;
     if (data.backgroundAnimation !== undefined) docData.backgroundAnimation = data.backgroundAnimation;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
+    if (data.paintTimeSeconds !== undefined) docData.paintTimeSeconds = data.paintTimeSeconds;
 
     // Process image fields
     // "imageFields": el mismo mecanismo genérico (por content-type) también

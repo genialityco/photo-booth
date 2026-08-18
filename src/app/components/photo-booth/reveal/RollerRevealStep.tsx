@@ -2,26 +2,51 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import {
-  acquireHandTracking,
-  getHandTrackingStream,
-  subscribeHandFrame,
-  subscribeHandTrackingStatus,
-} from "@/app/components/common/hand-cursor/handTrackingStore";
+  acquireRollerDetection,
+  getRollerDetectionStream,
+  subscribeRollerFrame,
+  subscribeRollerDetectionStatus,
+} from "@/app/components/photo-booth/reveal/rollerDetectionStore";
 import { CANVAS_SIZE, FADE_OUT_MS, type Point, useRevealVeil } from "@/app/components/photo-booth/reveal/useRevealVeil";
 import RollerCursor, {
-  ROLLER_HEAD_CENTER_Y_RATIO,
   ROLLER_HEAD_WIDTH_RATIO,
-  ROLLER_OFFSET_Y,
   ROLLER_VIEW_SIZE,
   type RollerCursorHandle,
 } from "@/app/components/photo-booth/reveal/RollerCursor";
 
 // Franja horizontal que deja el cabezal del rodillo al pasar (el rodillo
 // tiene orientación fija, así que la franja también es siempre horizontal).
-const ROLLER_STROKE_THICKNESS_RATIO = 0.35; // relativo al ancho del cabezal
-// Corrección fina (px) del punto de pintura respecto al cálculo geométrico:
-// negativo = sube el punto (más cerca del cabezal visible).
-const PAINT_POINT_Y_CORRECTION_PX = -50;
+// Constantes portadas 1:1 de la app de referencia
+// (C:\Users\sagp7\Documents\trainrodillo\webapp_demo.html), salvo
+// MIN_STROKE_LENGTH que se reescala porque allá el canvas es 500 y acá
+// CANVAS_SIZE=1024 (90/500 ≈ misma proporción).
+const ROLLER_STROKE_THICKNESS_RATIO = 0.28; // relativo al largo del trazo (0.35 * 0.8: campo pintado en Y reducido 20%)
+// Largo mínimo de trazo (unidades de canvas) para detecciones muy
+// pequeñas/lejanas, para que la franja no quede imperceptible.
+const MIN_STROKE_LENGTH = 184;
+// La inferencia ONNX corre mucho más lento que la pantalla (WASM de un solo
+// hilo: ~1 detección/seg), así que mover el cursor solo cuando llega un
+// frame nuevo se ve "a tirones". En cambio se guarda la última posición
+// detectada como objetivo y se interpola hacia ella en cada
+// requestAnimationFrame (60fps) — el cursor y el trazo quedan suaves aunque
+// la detección en sí sea lenta. Fracción recorrida hacia el objetivo por
+// frame (más alto = alcanza el objetivo más rápido pero más "tirones").
+const EASE_FACTOR = 0.45;
+// Distancia mínima (unidades de canvas) para pintar un nuevo trazo mientras
+// se converge hacia el objetivo — evita re-pintar cientos de veces por
+// segundo sobre el mismo punto.
+const MIN_PAINT_MOVE = 0.6;
+// === Seguimiento ("coasting") cuando se pierde la detección real ===
+// Si el modelo deja de detectar el rodillo (se tapó, salió de cuadro, bajó
+// la confianza), en vez de congelar el cursor y hacerlo desaparecer de
+// golpe, se lo sigue moviendo "solo" usando la última velocidad conocida
+// (con caída exponencial, para que frene en vez de "volar" para siempre).
+// Eso evita el corte brusco y mejora la sensación de continuidad al pintar.
+const COAST_DURATION_MS = 900; // cuánto tiempo sigue moviéndose solo antes de recién ahí desaparecer
+const VELOCITY_SMOOTHING = 0.3; // 0-1, peso de la velocidad instantánea nueva sobre el promedio (EMA)
+const VELOCITY_DECAY_PER_SEC = 0.15; // fracción de velocidad que queda después de 1s "volando solo"
+
+type DetectionTarget = { x: number; y: number; widthPx: number };
 
 function stampRollerAt(ctx: CanvasRenderingContext2D, center: Point, length: number, thickness: number) {
   ctx.save();
@@ -45,7 +70,7 @@ export default function RollerRevealStep({
   enableFrame = true,
   revealColorHint = null,
   veilMode = "SOLID",
-  handTrackingEnabled = false,
+  paintTimeSeconds,
   onRevealed,
 }: {
   aiUrl: string;
@@ -57,8 +82,8 @@ export default function RollerRevealStep({
    * "GRAYSCALE_PHOTO": la foto arranca en blanco y negro y el rodillo va
    * pintando el color encima. */
   veilMode?: "SOLID" | "GRAYSCALE_PHOTO";
-  /** Activa la cámara para mover el rodillo con la mano. Si es false, solo se usa el fallback táctil. */
-  handTrackingEnabled?: boolean;
+  /** Tiempo máximo (segundos) para pintar/revelar antes de avanzar solo. Sin definir = default de useRevealVeil (28s). */
+  paintTimeSeconds?: number;
   onRevealed: () => void;
 }) {
   const {
@@ -68,16 +93,35 @@ export default function RollerRevealStep({
     prefersReducedMotion,
     completeReveal,
     eraseWithPath,
-  } = useRevealVeil({ aiUrl, videoUrl, frameSrc, enableFrame, revealColorHint, veilMode, onRevealed });
+  } = useRevealVeil({
+    aiUrl,
+    videoUrl,
+    frameSrc,
+    enableFrame,
+    revealColorHint,
+    veilMode,
+    onRevealed,
+    ...(paintTimeSeconds !== undefined ? { safetyTimeoutMs: paintTimeSeconds * 1000 } : {}),
+  });
 
   const selfViewRef = useRef<HTMLVideoElement | null>(null);
   const rollerCursorRef = useRef<RollerCursorHandle | null>(null);
   const lastPaintPointRef = useRef<Point | null>(null); // coordenadas locales del canvas
   const lastPointerPointRef = useRef<Point | null>(null);
   const pointerActiveRef = useRef(false);
+  // Última detección real (objetivo) y posición ya suavizada del cursor —
+  // ver EASE_FACTOR arriba.
+  const targetRef = useRef<DetectionTarget | null>(null);
+  const easedPosRef = useRef<{ x: number; y: number } | null>(null);
+  // Estado del "seguimiento" cuando se pierde la detección — ver COAST_DURATION_MS arriba.
+  const velocityRef = useRef({ vx: 0, vy: 0 }); // px de pantalla por ms, ya suavizada (EMA)
+  const lastTickPosRef = useRef<{ x: number; y: number } | null>(null);
+  const lastTickTimeRef = useRef<number | null>(null);
+  const lastWidthPxRef = useRef(0); // último ancho real detectado, se reutiliza mientras "vuela solo"
+  const coastStartedAtRef = useRef<number | null>(null);
 
-  const [handTrackingReady, setHandTrackingReady] = useState(false);
-  const [handTrackingError, setHandTrackingError] = useState(false);
+  const [rollerDetectionReady, setRollerDetectionReady] = useState(false);
+  const [rollerDetectionError, setRollerDetectionError] = useState(false);
 
   const SIZE_IMG = "clamp(300px, min(70vw, 60svh), 700px)";
 
@@ -99,83 +143,157 @@ export default function RollerRevealStep({
     [eraseWithPath],
   );
 
-  // === Reserva el tracking de mano compartido (misma cámara que el cursor
-  // global si ya está corriendo; si no, arranca una sola para esta pantalla).
-  // Solo si el evento lo habilita explícitamente (handRevealEnabled): en el
-  // celular personal del asistente la cámara frontal no ve una mano estable
-  // y el "cursor" termina parpadeando y saltando de posición. ===
+  // === Reserva la detección de rodillo real compartida (misma cámara si ya
+  // está corriendo; si no, arranca una sola para esta pantalla). Este efecto
+  // ya no depende de mediapipe/gestos de mano, así que no necesita el
+  // interruptor handRevealEnabled: corre siempre que se usa este efecto. ===
   useEffect(() => {
-    if (!handTrackingEnabled) return;
-    return acquireHandTracking();
-  }, [handTrackingEnabled]);
+    return acquireRollerDetection();
+  }, []);
 
-  // === Estado del tracking compartido: listo/error, y conecta el self-view
-  // a la MISMA MediaStream (sin pedir una segunda cámara) ===
+  // === Estado de la detección compartida: listo/error, y conecta el
+  // self-view a la MISMA MediaStream (sin pedir una segunda cámara) ===
   useEffect(() => {
-    if (!handTrackingEnabled) return;
-    const unsubscribe = subscribeHandTrackingStatus((status) => {
+    const unsubscribe = subscribeRollerDetectionStatus((status) => {
       if (status === "ready") {
-        setHandTrackingReady(true);
-        setHandTrackingError(false);
-        const stream = getHandTrackingStream();
+        setRollerDetectionReady(true);
+        setRollerDetectionError(false);
+        const stream = getRollerDetectionStream();
         if (stream && selfViewRef.current) {
           selfViewRef.current.srcObject = stream;
           selfViewRef.current.play().catch(() => {});
         }
       } else if (status === "error") {
-        setHandTrackingError(true);
+        setRollerDetectionError(true);
       }
     });
     return unsubscribe;
-  }, [handTrackingEnabled]);
+  }, []);
 
-  // === Frames del tracking compartido: mueve el rodillo 3D (el mango queda
-  // anclado a la mano) y pinta usando la posición y el tamaño REALES del
-  // cabezal del rodillo — no de la mano — para que se note que es el
-  // rodillo el que pinta. Alcanza con pasarlo sobre la imagen, sin gesto. ===
+  // === Frames de la detección compartida: solo actualizan el OBJETIVO (la
+  // posición real detectada). El movimiento visible del cursor y el pintado
+  // los maneja el loop de abajo, a 60fps. ===
   useEffect(() => {
-    if (!handTrackingReady) return;
+    if (!rollerDetectionReady) return;
 
-    const unsubscribe = subscribeHandFrame((frame) => {
+    const unsubscribe = subscribeRollerFrame((frame) => {
+      targetRef.current = frame.visible ? { x: frame.screenX, y: frame.screenY, widthPx: frame.widthPx } : null;
+    });
+
+    return unsubscribe;
+  }, [rollerDetectionReady]);
+
+  // === Loop a 60fps: interpola el cursor hacia el último objetivo detectado
+  // (la inferencia ONNX es mucho más lenta que la pantalla) y pinta con esa
+  // posición ya suavizada, para que el movimiento se vea fluido en vez de a
+  // tirones. ===
+  useEffect(() => {
+    if (!rollerDetectionReady) return;
+
+    let rafId: number;
+    const tick = () => {
+      const now = performance.now();
+      const target = targetRef.current;
       const veil = veilCanvasRef.current;
-      if (!veil) return;
+      let pos: { x: number; y: number } | null = null;
 
-      if (!frame.visible) {
+      if (target) {
+        // Detección real: interpola hacia el objetivo (igual que antes) y
+        // además estima la velocidad actual del movimiento (EMA), para
+        // poder "seguir" con esa inercia si la detección se corta.
+        if (!easedPosRef.current) {
+          easedPosRef.current = { x: target.x, y: target.y };
+        } else {
+          easedPosRef.current.x += (target.x - easedPosRef.current.x) * EASE_FACTOR;
+          easedPosRef.current.y += (target.y - easedPosRef.current.y) * EASE_FACTOR;
+        }
+        pos = easedPosRef.current;
+        lastWidthPxRef.current = target.widthPx;
+
+        if (lastTickTimeRef.current !== null && lastTickPosRef.current) {
+          const dt = now - lastTickTimeRef.current;
+          if (dt > 0) {
+            const instVx = (pos.x - lastTickPosRef.current.x) / dt;
+            const instVy = (pos.y - lastTickPosRef.current.y) / dt;
+            velocityRef.current.vx += (instVx - velocityRef.current.vx) * VELOCITY_SMOOTHING;
+            velocityRef.current.vy += (instVy - velocityRef.current.vy) * VELOCITY_SMOOTHING;
+          }
+        }
+        lastTickPosRef.current = { x: pos.x, y: pos.y };
+        lastTickTimeRef.current = now;
+        coastStartedAtRef.current = null;
+      } else if (easedPosRef.current) {
+        // Detección perdida: sigue moviéndose solo con la última velocidad
+        // conocida, decayendo con el tiempo, en vez de congelarse o
+        // desaparecer de golpe.
+        if (coastStartedAtRef.current === null) coastStartedAtRef.current = now;
+        const coastingFor = now - coastStartedAtRef.current;
+
+        if (coastingFor <= COAST_DURATION_MS) {
+          const dt = lastTickTimeRef.current !== null ? now - lastTickTimeRef.current : 16;
+          const decay = Math.pow(VELOCITY_DECAY_PER_SEC, dt / 1000);
+          velocityRef.current.vx *= decay;
+          velocityRef.current.vy *= decay;
+          easedPosRef.current.x += velocityRef.current.vx * dt;
+          easedPosRef.current.y += velocityRef.current.vy * dt;
+          // No lo dejamos "volar" fuera de la ventana.
+          easedPosRef.current.x = Math.min(window.innerWidth, Math.max(0, easedPosRef.current.x));
+          easedPosRef.current.y = Math.min(window.innerHeight, Math.max(0, easedPosRef.current.y));
+          lastTickTimeRef.current = now;
+          pos = easedPosRef.current;
+        } else {
+          // Se acabó el tiempo de seguimiento: recién ahí desaparece.
+          easedPosRef.current = null;
+          lastPaintPointRef.current = null;
+          lastTickPosRef.current = null;
+          lastTickTimeRef.current = null;
+          velocityRef.current = { vx: 0, vy: 0 };
+          coastStartedAtRef.current = null;
+        }
+      }
+
+      if (!pos) {
         lastPaintPointRef.current = null;
         rollerCursorRef.current?.setTransform(0, 0, false);
+        rafId = requestAnimationFrame(tick);
         return;
       }
 
-      rollerCursorRef.current?.setTransform(frame.screenX, frame.screenY, true);
+      rollerCursorRef.current?.setTransform(pos.x, pos.y, true);
 
-      const rect = veil.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
+      const rect = veil?.getBoundingClientRect();
+      // Igual que la app de referencia: si el centro (ya suavizado/seguido)
+      // del rodillo cae FUERA del cuadro de la foto, no se pinta y se corta
+      // el trazo (no unir el próximo punto con este) — evita un manchón al
+      // volver a entrar desde afuera.
+      if (!rect || rect.width === 0 || rect.height === 0 || pos.x < rect.left || pos.x > rect.right || pos.y < rect.top || pos.y > rect.bottom) {
+        lastPaintPointRef.current = null;
+      } else {
+        const point = {
+          x: ((pos.x - rect.left) / rect.width) * CANVAS_SIZE,
+          y: ((pos.y - rect.top) / rect.height) * CANVAS_SIZE,
+        };
 
-      // El mango está anclado a la mano (frame.screenX/Y) + ROLLER_OFFSET_Y;
-      // el cabezal del rodillo queda fijo por encima de esa posición.
-      const headScreenX = frame.screenX;
-      const headScreenY =
-        frame.screenY +
-        ROLLER_OFFSET_Y -
-        ROLLER_VIEW_SIZE * (1 - ROLLER_HEAD_CENTER_Y_RATIO) +
-        PAINT_POINT_Y_CORRECTION_PX;
+        const last = lastPaintPointRef.current;
+        if (!last || Math.hypot(point.x - last.x, point.y - last.y) >= MIN_PAINT_MOVE) {
+          // Ancho real detectado del rodillo (el último conocido, mientras
+          // "vuela solo") -> convertido a unidades del canvas, con un piso
+          // mínimo para detecciones lejanas/chicas.
+          const canvasUnitsPerPx = CANVAS_SIZE / rect.width;
+          const length = Math.max(MIN_STROKE_LENGTH, lastWidthPxRef.current * canvasUnitsPerPx);
+          const thickness = length * ROLLER_STROKE_THICKNESS_RATIO;
 
-      const ratioX = Math.min(1, Math.max(0, (headScreenX - rect.left) / rect.width));
-      const ratioY = Math.min(1, Math.max(0, (headScreenY - rect.top) / rect.height));
-      const point = { x: ratioX * CANVAS_SIZE, y: ratioY * CANVAS_SIZE };
+          eraseRollerStroke(last, point, length, thickness);
+          lastPaintPointRef.current = point;
+        }
+      }
 
-      // Ancho real del cabezal en pantalla -> convertido a unidades del canvas.
-      const canvasUnitsPerPx = CANVAS_SIZE / rect.width;
-      const headWidthPx = ROLLER_VIEW_SIZE * ROLLER_HEAD_WIDTH_RATIO;
-      const length = headWidthPx * canvasUnitsPerPx;
-      const thickness = length * ROLLER_STROKE_THICKNESS_RATIO;
+      rafId = requestAnimationFrame(tick);
+    };
 
-      eraseRollerStroke(lastPaintPointRef.current, point, length, thickness);
-      lastPaintPointRef.current = point;
-    });
-
-    return unsubscribe;
-  }, [handTrackingReady, eraseRollerStroke, veilCanvasRef]);
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [rollerDetectionReady, eraseRollerStroke, veilCanvasRef]);
 
   // === Fallback táctil: tocar/arrastrar sobre el velo también pinta con el rodillo ===
   const pointToCanvas = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
@@ -222,7 +340,7 @@ export default function RollerRevealStep({
           role="status"
           aria-live="polite"
         >
-          {!handTrackingEnabled || handTrackingError
+          {rollerDetectionError
             ? "Toca y desliza la pantalla para pintar con el rodillo"
             : veilMode === "GRAYSCALE_PHOTO"
               ? "Pasa el rodillo sobre la foto para pintarla de color"
@@ -260,8 +378,8 @@ export default function RollerRevealStep({
         </div>
       </div>
 
-      {/* Self-view: misma cámara del tracking compartido, solo para ubicar la mano */}
-      {handTrackingEnabled && (
+      {/* Self-view: misma cámara de la detección compartida, solo para ubicar el rodillo */}
+      {!rollerDetectionError && (
         <div className="absolute bottom-5 right-5 z-20 w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-white/60 shadow-xl">
           <video
             ref={selfViewRef}
@@ -274,7 +392,7 @@ export default function RollerRevealStep({
         </div>
       )}
 
-      {handTrackingEnabled && <RollerCursor ref={rollerCursorRef} />}
+      {!rollerDetectionError && <RollerCursor ref={rollerCursorRef} />}
 
       <button
         type="button"

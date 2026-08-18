@@ -16,6 +16,7 @@ export default function RevealStep({
   enableFrame = true,
   revealColorHint = null,
   handTrackingEnabled = false,
+  paintTimeSeconds,
   onRevealed,
 }: {
   aiUrl: string;
@@ -25,6 +26,8 @@ export default function RevealStep({
   revealColorHint?: string | null;
   /** Activa la cámara para revelar la foto con la mano. Si es false, solo se usa el fallback táctil. */
   handTrackingEnabled?: boolean;
+  /** Tiempo máximo (segundos) para pintar/revelar antes de avanzar solo. Sin definir = default de useRevealVeil (28s). */
+  paintTimeSeconds?: number;
   onRevealed: () => void;
 }) {
   const {
@@ -35,7 +38,15 @@ export default function RevealStep({
     prefersReducedMotion,
     completeReveal,
     eraseStroke,
-  } = useRevealVeil({ aiUrl, videoUrl, frameSrc, enableFrame, revealColorHint, onRevealed });
+  } = useRevealVeil({
+    aiUrl,
+    videoUrl,
+    frameSrc,
+    enableFrame,
+    revealColorHint,
+    onRevealed,
+    ...(paintTimeSeconds !== undefined ? { safetyTimeoutMs: paintTimeSeconds * 1000 } : {}),
+  });
 
   const selfViewRef = useRef<HTMLVideoElement | null>(null);
   const lastHandPointRef = useRef<Point | null>(null);

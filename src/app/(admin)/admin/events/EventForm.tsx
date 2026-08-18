@@ -173,6 +173,7 @@ export default function EventForm({
     captureViewStyle: event?.captureViewStyle || "CLASSIC",
     imageCustomizationEnabled: event?.imageCustomizationEnabled === true,
     backgroundAnimation: event?.backgroundAnimation || "NONE",
+    paintTimeSeconds: event?.paintTimeSeconds,
     prompts: event?.prompts || [],
     isActive: event?.isActive !== false,
   });
@@ -490,6 +491,29 @@ export default function EventForm({
             checked={formData.handRevealEnabled === true}
             onChange={(checked) => setField("handRevealEnabled", checked)}
           />
+
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Tiempo para Pintar/Revelar (segundos)
+            </label>
+            <input
+              type="number"
+              min={5}
+              max={120}
+              value={formData.paintTimeSeconds ?? ""}
+              onChange={(e) =>
+                setField(
+                  "paintTimeSeconds",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+              placeholder="28 (por defecto)"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Tiempo máximo que se le da a la persona para revelar la foto (borrar el velo o pintar con el rodillo) antes de avanzar solo al resultado. Vacío = 28 segundos.
+            </p>
+          </div>
         </AccordionSection>
 
         {/* Pantallas: Carga / Splash / Fondo */}

@@ -6,7 +6,7 @@ import { composeFramedCanvas } from "@/app/components/photo-booth/composeFramedI
 // ── Configuración compartida por todos los efectos de revelado ──────────────
 export const CANVAS_SIZE = 1024;
 const REVEAL_THRESHOLD = 0.7; // % del velo borrado que auto-completa el revelado
-const SAFETY_TIMEOUT_MS = 28000; // si nadie interactúa, avanza igual
+const DEFAULT_SAFETY_TIMEOUT_MS = 28000; // si nadie interactúa, avanza igual (default si el evento no configura otro)
 const PROGRESS_CHECK_INTERVAL_MS = 350;
 const PROGRESS_SAMPLE_SIZE = 48; // miniatura offscreen para medir % borrado
 export const FADE_OUT_MS = 700;
@@ -37,6 +37,7 @@ export function useRevealVeil({
   enableFrame = true,
   revealColorHint = null,
   veilMode = "SOLID",
+  safetyTimeoutMs = DEFAULT_SAFETY_TIMEOUT_MS,
   onRevealed,
 }: {
   aiUrl: string;
@@ -48,6 +49,8 @@ export function useRevealVeil({
    * una copia en blanco y negro de la propia foto/video, así al borrarlo
    * aparece el color de abajo en vez de descubrir una imagen distinta. */
   veilMode?: "SOLID" | "GRAYSCALE_PHOTO";
+  /** Tiempo máximo (ms) para pintar/revelar antes de avanzar solo. Configurable por evento (EventProfile.paintTimeSeconds). */
+  safetyTimeoutMs?: number;
   onRevealed: () => void;
 }) {
   const photoCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -255,9 +258,9 @@ export function useRevealVeil({
 
   // === Timeout de seguridad: nunca deja el kiosco trabado ===
   useEffect(() => {
-    const id = window.setTimeout(completeReveal, SAFETY_TIMEOUT_MS);
+    const id = window.setTimeout(completeReveal, safetyTimeoutMs);
     return () => window.clearTimeout(id);
-  }, [completeReveal]);
+  }, [completeReveal, safetyTimeoutMs]);
 
   return {
     photoCanvasRef,

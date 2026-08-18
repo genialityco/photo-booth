@@ -8,17 +8,16 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 
 export const ROLLER_MODEL_PATH = "/models/rodillo/Paint_Roller.glb";
 
-/** Tamaño del cursor 3D en pantalla (px). Se ancla al punto de agarre (mango
- * abajo), así que el rodillo (arriba) queda a esta distancia por encima. */
-export const ROLLER_VIEW_SIZE = 390;
-/** Fracción de ROLLER_VIEW_SIZE, desde arriba, donde está el centro del
- * cabezal del rodillo (la parte que "pinta"). Ajustable si no calza visualmente. */
-export const ROLLER_HEAD_CENTER_Y_RATIO = 0.22;
-/** Ancho del cabezal del rodillo como fracción de ROLLER_VIEW_SIZE. */
+/** Tamaño del cursor 3D en pantalla (px). Se ancla centrado en el punto
+ * detectado (centro del rodillo real), sin desplazamiento. La cámara
+ * siempre encuadra el modelo completo dentro del viewport (ver
+ * fitDistance más abajo), así que este valor solo determina el tamaño en
+ * pantalla — 390 * 1.5 = 585, un 50% más grande. */
+export const ROLLER_VIEW_SIZE = 585;
+/** Ancho del cabezal del rodillo como fracción de ROLLER_VIEW_SIZE — solo se
+ * usa como tamaño de trazo por defecto para el fallback táctil (arrastrar
+ * con el dedo), donde no hay un ancho real detectado. */
 export const ROLLER_HEAD_WIDTH_RATIO = 0.5;
-/** Corrimiento vertical (px) del cursor completo respecto al punto de
- * tracking de la mano — positivo = más abajo. */
-export const ROLLER_OFFSET_Y = 200;
 // Dirección de la cámara en 3/4 (no de frente): evita que un eje largo del
 // modelo apunte directo a la cámara y se vea de canto. La distancia real se
 // calcula dinámicamente una vez cargado el modelo (ver fitCameraToObject).
@@ -102,31 +101,50 @@ const RollerCursor = React.forwardRef<RollerCursorHandle>(function RollerCursor(
         // como un mango largo, descuadrando el centro).
         model.updateMatrixWorld(true);
 
-        // Centra y escala el modelo para que quepa en la vista sin importar sus unidades originales.
+        // Escala el modelo para que quepa en la vista sin importar sus unidades originales.
         const box = new THREE.Box3().setFromObject(model, true);
         const size = new THREE.Vector3();
         box.getSize(size);
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        model.position.sub(center);
-
         const maxDim = Math.max(size.x, size.y, size.z) || 1;
         const scale = 6 / maxDim;
         model.scale.setScalar(scale);
+        model.updateMatrixWorld(true);
+
+        // Ancla el CABEZAL del rodillo (arriba, ya rotado) al origen de la
+        // escena — no el centro geométrico del modelo completo. El cursor se
+        // posiciona en pantalla por su centro (setTransform: translate(-50%,
+        // -50%)), y ese centro tiene que coincidir con la parte que
+        // efectivamente "pinta"; centrar por el modelo entero (mango +
+        // cabezal) dejaba el cabezal ~300px por encima del punto real
+        // pintado, porque el mango es mucho más largo que el cabezal.
+        const scaledBox = new THREE.Box3().setFromObject(model, true);
+        const headAnchor = new THREE.Vector3();
+        scaledBox.getCenter(headAnchor);
+        headAnchor.y = scaledBox.max.y;
+        model.position.sub(headAnchor);
 
         group.add(model);
 
-        // Encuadra la cámara según el tamaño REAL ya centrado/escalado (en
-        // vez de una distancia fija): un mango largo + un rodillo compacto es
-        // una forma muy alargada, y una distancia fija podía dejar una punta
-        // afuera del cuadro (por eso "no se veía el rodillo").
+        // Encuadra la cámara para que quepa el modelo COMPLETO aunque la
+        // cámara mire al cabezal (que ya no es el centro del modelo): la
+        // distancia se calcula contra el vértice más lejano del origen, no
+        // contra el radio de una esfera centrada en el modelo.
         model.updateMatrixWorld(true);
         const fitBox = new THREE.Box3().setFromObject(model, true);
-        const sphere = fitBox.getBoundingSphere(new THREE.Sphere());
-        const radius = sphere.radius || 3;
+        let maxDistFromOrigin = 0;
+        for (const x of [fitBox.min.x, fitBox.max.x]) {
+          for (const y of [fitBox.min.y, fitBox.max.y]) {
+            for (const z of [fitBox.min.z, fitBox.max.z]) {
+              maxDistFromOrigin = Math.max(maxDistFromOrigin, new THREE.Vector3(x, y, z).length());
+            }
+          }
+        }
+        const radius = maxDistFromOrigin || 3;
         const halfFovRad = (camera.fov * Math.PI) / 360;
         const fitDistance = (radius / Math.sin(halfFovRad)) * 1.35; // margen extra
         camera.position.copy(CAMERA_DIRECTION).multiplyScalar(fitDistance);
+        // Sigue mirando al origen: ahora es el cabezal, que es justo el punto
+        // que debe proyectarse al centro exacto del viewport.
         camera.lookAt(0, 0, 0);
         camera.updateProjectionMatrix();
       },
@@ -158,11 +176,9 @@ const RollerCursor = React.forwardRef<RollerCursorHandle>(function RollerCursor(
         const el = wrapperRef.current;
         if (!el) return;
         el.style.opacity = visible ? "1" : "0";
-        // Ancla la esquina inferior-central (el mango, agarrado por la mano)
-        // en el punto de tracking + ROLLER_OFFSET_Y; el rodillo queda fijo
-        // por encima. Sin rotación: la orientación siempre es la misma
-        // (rodillo arriba).
-        el.style.transform = `translate3d(${x}px, ${y + ROLLER_OFFSET_Y}px, 0) translate(-50%, -100%)`;
+        // Centrado en el punto detectado (centro del rodillo real). Sin
+        // rotación: la orientación siempre es la misma (rodillo arriba).
+        el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
       },
     }),
     [],
