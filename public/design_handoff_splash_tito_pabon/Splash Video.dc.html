@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet" />
+<style>
+  body { margin:0; background:#0d0d0f; }
+  a { color:#E4032E; } a:hover { color:#b30224; }
+</style>
+<script>window.OM_SCENES = '[{"name":"Fondo","dur":1.2,"desc":"El fondo amarillo con manchas de color entra a la deriva"},{"name":"Logo","dur":1,"desc":"El logo de Pinturas Tito Pabon cae con rebote"},{"name":"Titular","dur":1.6,"desc":"TU ROSTRO y TU ARTE entran desde los lados y se inclinan"},{"name":"Subtitulo","dur":1,"desc":"Aparece Conviertete en una obra de arte"},{"name":"Mascota","dur":1.6,"desc":"La tarjeta de la mascota sube con rebote y empieza a flotar"},{"name":"Palabras","dur":1,"desc":"ARTE y COLOR aparecen en pop girados"},{"name":"Carga","dur":1.6,"desc":"La barra de carga se llena con goteo de pintura"},{"name":"Boton","dur":2,"desc":"El boton Toca para comenzar aparece y late"},{"name":"Cierre","dur":1.2,"desc":"Todo se desvanece al fondo amarillo para cerrar el bucle"}]';</script>
+<script>window.OM_PLAYBACK = '{"mode":"loop"}';</script>
+</helmet>
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;">
+  <x-import component-from-global-scope="CompositionStage" from="./animations-v3.jsx ./splash-scene.jsx" width="440" height="760" bg="#0d0d0f" scenes="{{ scenes }}" playback="{{ playback }}" hint-size="440px,760px">
+    <x-import component-from-global-scope="SplashVideo" hint-size="440px,760px"></x-import>
+  </x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return { scenes: window.OM_SCENES, playback: window.OM_PLAYBACK };
+  }
+}
+</script>
+</body>
+</html>

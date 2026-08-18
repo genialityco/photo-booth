@@ -140,3 +140,143 @@ body {
   display: none !important;
   -webkit-appearance: none;
 }
+
+/* Splash inicial (SplashScreen.tsx): coreografía de entrada + loops sutiles,
+   fiel a public/design_handoff_splash_tito_pabon/. Los colores (título,
+   palabras, degradados) se pasan como estilos inline desde el componente;
+   acá solo viven los keyframes y las clases de animación.
+
+   La coreografía completa (logo → título → subtítulo → tarjeta → palabras →
+   barra → botón) es un solo ciclo de SPLASH_CYCLE (6.5s) que se repite
+   infinito: el stagger de cada elemento está "horneado" como porcentajes
+   dentro de ese único ciclo (en vez de animation-delay, que en un loop CSS
+   solo se aplica una vez, antes de la primera vuelta) — todo llega a su
+   estado final ~3.4s adentro del ciclo, se sostiene visible el resto
+   (~3.1s), y al llegar a 100% el navegador vuelve solo al 0% de la
+   siguiente vuelta. Independiente de esto, la carga real de assets
+   (ready, en el componente) solo controla cuándo la pantalla pasa a ser
+   tappable — no reinicia ni pausa el loop visual. */
+@keyframes splash-blobDrift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(18px, -26px, 0) scale(1.12); }
+}
+@keyframes splash-blobDrift2 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+  50% { transform: translate3d(-24px, 20px, 0) scale(0.92); }
+}
+@keyframes splash-logoDrop {
+  0% { opacity: 0; transform: translateY(-70px) scale(.7) rotate(-8deg); }
+  8.3% { opacity: 1; transform: translateY(6px) scale(1.04) rotate(2deg); }
+  13.8%, 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+}
+@keyframes splash-slideL {
+  0%, 5.4% { opacity: 0; transform: translateX(-70px) skewX(-22deg); }
+  16.2%, 100% { opacity: 1; transform: translateX(0) skewX(-9deg); }
+}
+@keyframes splash-slideR {
+  0%, 7.7% { opacity: 0; transform: translateX(70px) skewX(4deg); }
+  18.5%, 100% { opacity: 1; transform: translateX(0) skewX(-9deg); }
+}
+@keyframes splash-subtitleIn {
+  0%, 13.1% { opacity: 0; transform: translateY(18px); }
+  22.3%, 100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes splash-loaderbarIn {
+  0%, 26.2% { opacity: 0; transform: translateY(18px); }
+  35.4%, 100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes splash-popWord1 {
+  0%, 19.2% { opacity: 0; transform: scale(.3) rotate(6deg); }
+  25.2% { opacity: 1; transform: scale(1.18) rotate(-20deg); }
+  27.7%, 100% { opacity: 1; transform: scale(1) rotate(-16deg); }
+}
+@keyframes splash-popWord2 {
+  0%, 21.5% { opacity: 0; transform: scale(.3) rotate(6deg); }
+  27.5% { opacity: 1; transform: scale(1.18) rotate(-18deg); }
+  30%, 100% { opacity: 1; transform: scale(1) rotate(-14deg); }
+}
+@keyframes splash-cardIn {
+  0%, 16.2% { opacity: 0; transform: translateY(60px) scale(.82); }
+  24.7% { opacity: 1; transform: translateY(-10px) scale(1.03); }
+  29.2%, 100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes splash-bob {
+  0%, 100% { transform: translateY(0) rotate(-.6deg); }
+  50% { transform: translateY(-9px) rotate(.6deg); }
+}
+@keyframes splash-sheen {
+  0% { transform: translateX(-140%) rotate(18deg); }
+  55%, 100% { transform: translateX(240%) rotate(18deg); }
+}
+@keyframes splash-dropFall {
+  0% { transform: translateY(-8px) scaleY(.6); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translateY(34px) scaleY(1.25); opacity: 0; }
+}
+@keyframes splash-fillIn {
+  0%, 26.2% { width: 4%; }
+  52.3%, 100% { width: 100%; }
+}
+@keyframes splash-buttonIn {
+  0%, 52.3% { opacity: 0; transform: scale(.4); }
+  57.7% { opacity: 1; transform: scale(1.1); }
+  60%, 76% { opacity: 1; transform: scale(1); }
+  84% { transform: scale(1.04); }
+  92%, 100% { transform: scale(1); }
+}
+@keyframes splash-glowPulse {
+  0%, 100% { opacity: .35; }
+  50% { opacity: .7; }
+}
+
+.splash-anim-logo { animation: splash-logoDrop 6.5s cubic-bezier(.2,1.5,.4,1) infinite; }
+.splash-anim-slideL { animation: splash-slideL 6.5s cubic-bezier(.2,.9,.2,1) infinite; }
+.splash-anim-slideR { animation: splash-slideR 6.5s cubic-bezier(.2,.9,.2,1) infinite; }
+.splash-anim-subtitle { animation: splash-subtitleIn 6.5s ease-out infinite; }
+.splash-anim-card { animation: splash-cardIn 6.5s cubic-bezier(.2,1.3,.35,1) infinite; }
+.splash-anim-word1 { animation: splash-popWord1 6.5s cubic-bezier(.2,1.6,.4,1) infinite; }
+.splash-anim-word2 { animation: splash-popWord2 6.5s cubic-bezier(.2,1.6,.4,1) infinite; }
+.splash-anim-loaderbar { animation: splash-loaderbarIn 6.5s ease-out infinite; }
+.splash-anim-fill { animation: splash-fillIn 6.5s cubic-bezier(.5,.05,.3,1) infinite; }
+.splash-anim-halo { animation: splash-glowPulse 4s ease-in-out infinite; }
+.splash-anim-bob { animation: splash-bob 4.2s ease-in-out infinite; }
+.splash-anim-sheen { animation: splash-sheen 3.6s ease-in-out infinite; }
+.splash-anim-drop { animation: splash-dropFall 1.6s ease-in infinite; }
+.splash-anim-button { animation: splash-buttonIn 6.5s cubic-bezier(.2,1.6,.4,1) infinite; }
+.splash-anim-blob1 { animation: splash-blobDrift 11s ease-in-out infinite; }
+.splash-anim-blob2 { animation: splash-blobDrift2 13s ease-in-out infinite; }
+.splash-anim-blob3 { animation: splash-blobDrift 15s ease-in-out infinite; }
+.splash-anim-blob4 { animation: splash-blobDrift2 12s ease-in-out infinite; }
+
+.splash-button {
+  transition: transform 150ms ease;
+}
+.splash-button:hover:not(:disabled) { transform: translateY(-2px); }
+.splash-button:active:not(:disabled) {
+  transform: translateY(6px);
+  box-shadow: 0 4px 0 rgba(0,0,0,.35), 0 10px 18px rgba(0,0,0,.22) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-anim-logo,
+  .splash-anim-slideL,
+  .splash-anim-slideR,
+  .splash-anim-subtitle,
+  .splash-anim-card,
+  .splash-anim-word1,
+  .splash-anim-word2,
+  .splash-anim-loaderbar,
+  .splash-anim-fill,
+  .splash-anim-halo,
+  .splash-anim-bob,
+  .splash-anim-sheen,
+  .splash-anim-drop,
+  .splash-anim-button,
+  .splash-anim-blob1,
+  .splash-anim-blob2,
+  .splash-anim-blob3,
+  .splash-anim-blob4 {
+    animation: none !important;
+  }
+  .splash-anim-sheen { opacity: 0 !important; }
+}
