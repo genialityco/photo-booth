@@ -14,6 +14,57 @@ import {
   where,
 } from "firebase/firestore";
 
+/**
+ * Un logo posicionado libremente dentro del header configurable de la splash
+ * (ver `splashHeaderLogos` en `EventProfile`). Coordenadas y ancho en % del
+ * área del header (no de la pantalla completa), para que la posición escale
+ * igual sin importar el tamaño real de pantalla.
+ */
+export type SplashHeaderLogo = {
+  id: string;
+  url: string;
+  xPct: number;
+  yPct: number;
+  widthPct: number;
+};
+
+/** Los elementos de la splash (fuera del fondo) que se pueden reposicionar/
+ * redimensionar libremente cuando `splashFreeLayoutEnabled` está activo. Ver
+ * `splashLayout` en `EventProfile`. "logo" es el logo único (`logoTop`), solo
+ * relevante cuando el evento NO tiene varios logos en `splashHeaderLogos` —
+ * en ese caso cada logo del header tiene su propia posición libre en
+ * `splashLayout.logos` (ver más abajo), no bajo "logo". */
+export type SplashFreeElementKind =
+  | "logo"
+  | "title"
+  | "subtitle"
+  | "word1"
+  | "word2"
+  | "card"
+  | "bar"
+  | "button";
+
+/**
+ * Posición/tamaño de un elemento en el layout libre de la splash. `xPct`/`yPct`
+ * ubican la esquina superior izquierda del elemento en % de la pantalla
+ * completa; `scalePct` lo escala como un todo (100 = tamaño original).
+ */
+export type SplashFreeElement = {
+  xPct: number;
+  yPct: number;
+  scalePct: number;
+};
+
+export type SplashLayout = Partial<Record<SplashFreeElementKind, SplashFreeElement>> & {
+  /**
+   * Posición/escala libre de cada logo del header (clave = `SplashHeaderLogo.id`),
+   * usada solo en modo libre. Independiente de `xPct/yPct/widthPct` en
+   * `splashHeaderLogos`, que siguen describiendo la posición dentro de la
+   * franja del header cuando el modo libre está desactivado.
+   */
+  logos?: Record<string, SplashFreeElement>;
+};
+
 export type EventProfile = {
   id: string;
   slug: string;
@@ -97,8 +148,33 @@ export type EventProfile = {
    * componente aplica los valores por defecto de la campaña de referencia
    * ("Tu rostro, tu arte").
    */
+  /**
+   * Header configurable de la splash: reemplaza el logo único de arriba
+   * (`logoTop`) por N logos posicionados y redimensionados libremente dentro
+   * de una franja superior de alto `splashHeaderHeightPct` (% del alto de
+   * pantalla). Sin `splashHeaderLogos` (o array vacío), la splash sigue
+   * mostrando el logo único de siempre (comportamiento original).
+   */
+  splashHeaderHeightPct?: number;
+  splashHeaderLogos?: SplashHeaderLogo[];
+  /**
+   * Layout libre: cuando `splashFreeLayoutEnabled` es true, título, subtítulo,
+   * palabra 1/2, tarjeta, barra de carga y botón se posicionan/escalan según
+   * `splashLayout` en vez del grid responsivo de siempre. Sin este campo (o
+   * en false), la splash sigue usando el grid original sin cambios. El header
+   * de logos y el fondo NO forman parte del layout libre (siguen igual).
+   */
+  splashFreeLayoutEnabled?: boolean;
+  splashLayout?: SplashLayout;
   splashTitle?: string;
   splashTitleColor?: string;
+  /**
+   * "TEXT" (o sin este campo) = título animado con `splashTitle`/`splashTitleColor`/
+   * `splashTitleFont` (comportamiento original). "IMAGE" = reemplaza el título por
+   * `splashTitleImage`; si no hay imagen cargada, se usa el texto igual como respaldo.
+   */
+  splashTitleMode?: "TEXT" | "IMAGE";
+  splashTitleImage?: string;
   splashSubtitle?: string;
   splashSubtitleColor?: string;
   /** Imagen de la tarjeta central (mascota/logo secundario); sin ella, la tarjeta no se muestra. */
@@ -112,6 +188,28 @@ export type EventProfile = {
   splashButtonText?: string;
   splashButtonColorFrom?: string;
   splashButtonColorTo?: string;
+  /**
+   * Fuente independiente por texto de la splash inicial ("anton" | "barlow" |
+   * "azo" | "selima"). Sin alguno de estos campos (o valor "default"), ese
+   * texto mantiene la fuente original: Anton para título/palabras, Barlow
+   * Condensed para subtítulo.
+   */
+  splashTitleFont?: string;
+  splashSubtitleFont?: string;
+  /** Aplica en conjunto a splashWord1 y splashWord2. */
+  splashWordsFont?: string;
+  /**
+   * Si está activado y `splashVideoUrl` está configurado, la splash inicial
+   * reemplaza toda la coreografía animada (logo, título, subtítulo, tarjeta,
+   * palabras) por un video de fondo en loop; la barra de carga y el botón
+   * "Comenzar" (con sus colores/texto configurados arriba) se mantienen
+   * superpuestos como pie de página sobre el video. Por compatibilidad, los
+   * eventos sin este campo mantienen la animación CSS (comportamiento
+   * original).
+   */
+  splashUseVideo?: boolean;
+  /** Video en loop para el fondo de la splash inicial (ver splashUseVideo). */
+  splashVideoUrl?: string;
   /**
    * Habilita la pantalla opcional "Dale tu toque" (paleta de color, textura
    * e intensidad) entre el preview confirmado y la generación. Los valores
@@ -190,6 +288,37 @@ async function uploadImageViaAPI(
 }
 
 /**
+ * Sube cualquier logo del header cuya `url` sea todavía un data: URL (recién
+ * elegido en el editor) y devuelve el array con las URLs ya hospedadas. Los
+ * que ya son `http...` (reusados de otro campo de imagen del evento, o de un
+ * guardado previo) se dejan tal cual, sin volver a subir.
+ */
+async function resolveHeaderLogos(
+  logos: SplashHeaderLogo[] | undefined,
+  eventSlug: string | undefined
+): Promise<SplashHeaderLogo[] | undefined> {
+  if (!logos) return undefined;
+
+  const resolved: SplashHeaderLogo[] = [];
+  for (const logo of logos) {
+    let url = logo.url;
+    if (url && !url.startsWith("http")) {
+      const normalized = url.startsWith("data:") ? url : `data:${url}`;
+      const blob = dataURLtoBlob(normalized);
+      const contentType = blob.type || "image/png";
+      const extension = contentType.split("/")[1]?.replace("+", "_") || "png";
+      url = await uploadImageViaAPI(
+        normalized,
+        `splashHeaderLogo_${logo.id}.${extension}`,
+        eventSlug || "event"
+      );
+    }
+    resolved.push({ ...logo, url });
+  }
+  return resolved;
+}
+
+/**
  * Create a new event profile
  */
 export async function createEventProfile(
@@ -211,6 +340,7 @@ export async function createEventProfile(
       handRevealEnabled: data.handRevealEnabled === true,
       revealEffect: data.revealEffect || "HAND_WIPE",
       showSplashScreen: data.showSplashScreen === true,
+      splashUseVideo: data.splashUseVideo === true,
       captureBeforeFilter: data.captureBeforeFilter === true,
       captureViewStyle: data.captureViewStyle || "CLASSIC",
       imageCustomizationEnabled: data.imageCustomizationEnabled === true,
@@ -222,7 +352,7 @@ export async function createEventProfile(
     // Image fields to process
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl"];
 
     for (const field of imageFields) {
       const fileData = data[field];
@@ -276,6 +406,13 @@ export async function createEventProfile(
 
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
     if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;
+    if (data.splashTitleMode !== undefined) docData.splashTitleMode = data.splashTitleMode;
+    if (data.splashHeaderHeightPct !== undefined) docData.splashHeaderHeightPct = data.splashHeaderHeightPct;
+    if (data.splashHeaderLogos !== undefined) {
+      docData.splashHeaderLogos = await resolveHeaderLogos(data.splashHeaderLogos, data.slug);
+    }
+    if (data.splashFreeLayoutEnabled !== undefined) docData.splashFreeLayoutEnabled = data.splashFreeLayoutEnabled;
+    if (data.splashLayout !== undefined) docData.splashLayout = data.splashLayout;
     if (data.splashSubtitle !== undefined) docData.splashSubtitle = data.splashSubtitle;
     if (data.splashSubtitleColor !== undefined) docData.splashSubtitleColor = data.splashSubtitleColor;
     if (data.splashWord1 !== undefined) docData.splashWord1 = data.splashWord1;
@@ -287,6 +424,9 @@ export async function createEventProfile(
     if (data.splashButtonText !== undefined) docData.splashButtonText = data.splashButtonText;
     if (data.splashButtonColorFrom !== undefined) docData.splashButtonColorFrom = data.splashButtonColorFrom;
     if (data.splashButtonColorTo !== undefined) docData.splashButtonColorTo = data.splashButtonColorTo;
+    if (data.splashTitleFont !== undefined) docData.splashTitleFont = data.splashTitleFont;
+    if (data.splashSubtitleFont !== undefined) docData.splashSubtitleFont = data.splashSubtitleFont;
+    if (data.splashWordsFont !== undefined) docData.splashWordsFont = data.splashWordsFont;
 
     if (data.screenConfig !== undefined) {
       docData.screenConfig = data.screenConfig;
@@ -416,6 +556,7 @@ export async function updateEventProfile(
     if (data.handRevealEnabled !== undefined) docData.handRevealEnabled = data.handRevealEnabled;
     if (data.revealEffect !== undefined) docData.revealEffect = data.revealEffect;
     if (data.showSplashScreen !== undefined) docData.showSplashScreen = data.showSplashScreen;
+    if (data.splashUseVideo !== undefined) docData.splashUseVideo = data.splashUseVideo;
     if (data.captureBeforeFilter !== undefined) docData.captureBeforeFilter = data.captureBeforeFilter;
     if (data.captureViewStyle !== undefined) docData.captureViewStyle = data.captureViewStyle;
     if (data.imageCustomizationEnabled !== undefined) docData.imageCustomizationEnabled = data.imageCustomizationEnabled;
@@ -423,6 +564,13 @@ export async function updateEventProfile(
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
     if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;
+    if (data.splashTitleMode !== undefined) docData.splashTitleMode = data.splashTitleMode;
+    if (data.splashHeaderHeightPct !== undefined) docData.splashHeaderHeightPct = data.splashHeaderHeightPct;
+    if (data.splashHeaderLogos !== undefined) {
+      docData.splashHeaderLogos = await resolveHeaderLogos(data.splashHeaderLogos, data.slug);
+    }
+    if (data.splashFreeLayoutEnabled !== undefined) docData.splashFreeLayoutEnabled = data.splashFreeLayoutEnabled;
+    if (data.splashLayout !== undefined) docData.splashLayout = data.splashLayout;
     if (data.splashSubtitle !== undefined) docData.splashSubtitle = data.splashSubtitle;
     if (data.splashSubtitleColor !== undefined) docData.splashSubtitleColor = data.splashSubtitleColor;
     if (data.splashWord1 !== undefined) docData.splashWord1 = data.splashWord1;
@@ -434,11 +582,14 @@ export async function updateEventProfile(
     if (data.splashButtonText !== undefined) docData.splashButtonText = data.splashButtonText;
     if (data.splashButtonColorFrom !== undefined) docData.splashButtonColorFrom = data.splashButtonColorFrom;
     if (data.splashButtonColorTo !== undefined) docData.splashButtonColorTo = data.splashButtonColorTo;
+    if (data.splashTitleFont !== undefined) docData.splashTitleFont = data.splashTitleFont;
+    if (data.splashSubtitleFont !== undefined) docData.splashSubtitleFont = data.splashSubtitleFont;
+    if (data.splashWordsFont !== undefined) docData.splashWordsFont = data.splashWordsFont;
 
     // Process image fields
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl"];
     for (const field of imageFields) {
       const fileData = data[field];
       if (!fileData) continue;

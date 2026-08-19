@@ -577,6 +577,8 @@ export default function PhotoBoothWizard({
                   onRetake={resetAll}
                   onConfirm={handlePreviewConfirm}
                   buttonImage={eventData?.buttonImage}
+                  buttonColorFrom={eventData?.splashButtonColorFrom}
+                  buttonColorTo={eventData?.splashButtonColorTo}
                   buttonClickEffect={eventData?.buttonClickEffect}
                 />
               </motion.div>
@@ -595,6 +597,8 @@ export default function PhotoBoothWizard({
                 <ImageCustomizeStep
                   previewSrc={rawShot || framedShot}
                   buttonImage={eventData?.buttonImage}
+                  buttonColorFrom={eventData?.splashButtonColorFrom}
+                  buttonColorTo={eventData?.splashButtonColorTo}
                   buttonClickEffect={eventData?.buttonClickEffect}
                   logoLeftSrc={style?.logoLandingTop}
                   logoRightSrc={style?.logoLandingBottom}

@@ -16,11 +16,16 @@ import {
   EventProfile,
   createEventProfile,
   updateEventProfile,
+  type SplashHeaderLogo,
+  type SplashLayout,
 } from "@/app/services/photo-booth/eventService";
 import { getActivePhotoBoothPrompts, type PhotoBoothPrompt } from "@/app/services/photo-booth/brandService";
 import { BUTTON_CLICK_EFFECT_OPTIONS } from "@/app/components/common/click-effects";
+import { SPLASH_FONT_OPTIONS, resolveSplashFont } from "@/app/components/photo-booth/SplashScreen";
 import ImageUploadField from "./ImageUploadField";
 import VideoUploadField from "./VideoUploadField";
+import HeaderLogoEditor from "./HeaderLogoEditor";
+import SplashLayoutEditor from "./SplashLayoutEditor";
 
 /** Sección colapsable: agrupa campos relacionados bajo un título con ícono. */
 function AccordionSection({
@@ -169,8 +174,16 @@ export default function EventForm({
     handRevealEnabled: event?.handRevealEnabled === true,
     revealEffect: event?.revealEffect || "HAND_WIPE",
     showSplashScreen: event?.showSplashScreen === true,
+    splashUseVideo: event?.splashUseVideo === true,
+    splashVideoUrl: event?.splashVideoUrl || "",
+    splashHeaderHeightPct: event?.splashHeaderHeightPct || 18,
+    splashHeaderLogos: event?.splashHeaderLogos || ([] as SplashHeaderLogo[]),
+    splashFreeLayoutEnabled: event?.splashFreeLayoutEnabled === true,
+    splashLayout: event?.splashLayout || ({} as SplashLayout),
     splashTitle: event?.splashTitle || "",
     splashTitleColor: event?.splashTitleColor || "#E4032E",
+    splashTitleMode: event?.splashTitleMode || "TEXT",
+    splashTitleImage: event?.splashTitleImage || "",
     splashSubtitle: event?.splashSubtitle || "",
     splashSubtitleColor: event?.splashSubtitleColor || "#2B2118",
     splashCardImage: event?.splashCardImage || "",
@@ -183,6 +196,9 @@ export default function EventForm({
     splashButtonText: event?.splashButtonText || "",
     splashButtonColorFrom: event?.splashButtonColorFrom || "#F2143C",
     splashButtonColorTo: event?.splashButtonColorTo || "#C40024",
+    splashTitleFont: event?.splashTitleFont || "default",
+    splashSubtitleFont: event?.splashSubtitleFont || "default",
+    splashWordsFont: event?.splashWordsFont || "default",
     captureBeforeFilter: event?.captureBeforeFilter === true,
     captureViewStyle: event?.captureViewStyle || "CLASSIC",
     imageCustomizationEnabled: event?.imageCustomizationEnabled === true,
@@ -236,6 +252,18 @@ export default function EventForm({
       };
     });
   };
+
+  // Imágenes ya cargadas a nivel de evento, ofrecidas como atajo para
+  // agregarlas al header de la splash sin tener que volver a subirlas.
+  const headerAvailableImages = (
+    [
+      { label: "Logo Superior", url: formData.logoTop },
+      { label: "Logo Inferior", url: formData.logoBottom },
+      { label: "Imagen de Fondo", url: formData.bgImage },
+      { label: "Imagen del Botón", url: formData.buttonImage },
+      { label: "Tarjeta Central (Splash)", url: formData.splashCardImage },
+    ] as { label: string; url: string | undefined }[]
+  ).filter((img): img is { label: string; url: string } => !!img.url);
 
   const handleAddPrompt = (promptId: string) => {
     if (!selectedPromptIds.includes(promptId)) {
@@ -506,8 +534,352 @@ export default function EventForm({
           />
         </AccordionSection>
 
-        {/* Pantallas: Carga / Splash / Fondo */}
-        <AccordionSection title="Pantallas (Carga / Splash / Fondo)" icon={FaDesktop}>
+        {/* Pantalla 1: Splash inicial — primero porque es lo primero que ve el asistente */}
+        <AccordionSection title="Pantalla 1 · Splash Inicial" icon={FaDesktop}>
+          <ToggleField
+            id="showSplashScreen"
+            label="Mostrar pantalla de splash inicial"
+            description="Si está activado, antes de la selección de marca/foto se muestra la pantalla de bienvenida configurable de abajo (título, tarjeta, botón); tocar el botón, o la pantalla una vez cargó, arranca el evento."
+            checked={formData.showSplashScreen === true}
+            onChange={(checked) => setField("showSplashScreen", checked)}
+          />
+
+          <ToggleField
+            id="splashUseVideo"
+            label="Reemplazar la animación de la splash por un video de fondo"
+            description="Si está activado y hay un video cargado abajo, la splash muestra ese video en loop en vez de la animación (logo, título, subtítulo, tarjeta, palabras); la barra de carga y el botón se mantienen superpuestos abajo, sobre el video."
+            checked={formData.splashUseVideo === true}
+            onChange={(checked) => setField("splashUseVideo", checked)}
+          />
+
+          <VideoUploadField
+            label="Video de Fondo de la Splash (loop, opcional)"
+            value={formData.splashVideoUrl || ""}
+            onChange={(value) => handleImageChange("splashVideoUrl", value)}
+          />
+
+          <div className="border-t border-gray-200 pt-4 space-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-800">Contenido de la Splash</h4>
+              <p className="text-xs text-gray-500 mt-0.5">
+                El fondo de esta pantalla es el mismo configurado arriba como &quot;Imagen de
+                Fondo&quot; del evento. El logo de arriba usa &quot;Logo Superior&quot; salvo que
+                agregues logos al header de abajo, que lo reemplaza.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-gray-800 mb-2">Header (logos)</h4>
+              <HeaderLogoEditor
+                logos={formData.splashHeaderLogos || []}
+                heightPct={formData.splashHeaderHeightPct || 18}
+                onChangeLogos={(logos) => setField("splashHeaderLogos", logos)}
+                onChangeHeightPct={(pct) => setField("splashHeaderHeightPct", pct)}
+                availableImages={headerAvailableImages}
+              />
+            </div>
+
+            {formData.splashUseVideo ? (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Con el video de fondo activado, el título/subtítulo/tarjeta/palabras de abajo no se
+                muestran (los reemplaza el video) — se guardan igual por si desactivás el video más
+                adelante.
+              </p>
+            ) : null}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+
+              <SelectField
+                label="Tipo de título"
+                value={formData.splashTitleMode || "TEXT"}
+                onChange={(v) => setField("splashTitleMode", v as "TEXT" | "IMAGE")}
+                helperText="Imagen reemplaza el texto animado por un logo o texto ya diseñado."
+              >
+                <option value="TEXT">Texto</option>
+                <option value="IMAGE">Imagen</option>
+              </SelectField>
+
+              {formData.splashTitleMode === "IMAGE" ? (
+                <div className="mt-2">
+                  <ImageUploadField
+                    label="Imagen del Título"
+                    value={formData.splashTitleImage || ""}
+                    onChange={(value) => handleImageChange("splashTitleImage", value)}
+                  />
+                  <p className="text-xs text-gray-500 -mt-2">
+                    Se muestra donde iría el título de texto, con la misma animación de entrada. Si no se
+                    sube ninguna imagen, se usa el texto de abajo como respaldo.
+                  </p>
+                </div>
+              ) : null}
+
+              <div className={formData.splashTitleMode === "IMAGE" ? "mt-4 opacity-60" : "mt-2"}>
+                <textarea
+                  name="splashTitle"
+                  value={formData.splashTitle || ""}
+                  onChange={handleChange}
+                  placeholder={"Ej: TU ROSTRO,\nTU ARTE"}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Si no se especifica, muestra el título de referencia (&quot;Tu rostro, tu
+                  arte&quot;). Un salto de línea separa el texto en dos líneas animadas.
+                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <label htmlFor="splashTitleColor" className="text-sm text-gray-700">
+                    Color del título
+                  </label>
+                  <input
+                    type="color"
+                    id="splashTitleColor"
+                    name="splashTitleColor"
+                    value={formData.splashTitleColor || "#E4032E"}
+                    onChange={handleChange}
+                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-500">{formData.splashTitleColor || "#E4032E"}</span>
+                </div>
+                <div className="mt-2">
+                  <SelectField
+                    label="Fuente del título"
+                    value={formData.splashTitleFont || "default"}
+                    onChange={(v) => setField("splashTitleFont", v)}
+                  >
+                    {SPLASH_FONT_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </SelectField>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Subtítulo</label>
+              <input
+                type="text"
+                name="splashSubtitle"
+                value={formData.splashSubtitle || ""}
+                onChange={handleChange}
+                placeholder="Ej: Conviértete en una obra de arte"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              />
+              <div className="flex items-center gap-3 mt-2">
+                <label htmlFor="splashSubtitleColor" className="text-sm text-gray-700">
+                  Color del subtítulo
+                </label>
+                <input
+                  type="color"
+                  id="splashSubtitleColor"
+                  name="splashSubtitleColor"
+                  value={formData.splashSubtitleColor || "#2B2118"}
+                  onChange={handleChange}
+                  className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+                />
+                <span className="text-xs text-gray-500">{formData.splashSubtitleColor || "#2B2118"}</span>
+              </div>
+              <div className="mt-2">
+                <SelectField
+                  label="Fuente del subtítulo"
+                  value={formData.splashSubtitleFont || "default"}
+                  onChange={(v) => setField("splashSubtitleFont", v)}
+                >
+                  {SPLASH_FONT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </SelectField>
+              </div>
+            </div>
+
+            <ImageUploadField
+              label="Imagen de la Tarjeta Central (logo, mascota u otra imagen)"
+              value={formData.splashCardImage || ""}
+              onChange={(value) => handleImageChange("splashCardImage", value)}
+            />
+            <p className="text-xs text-gray-500 -mt-2">
+              Si no se sube ninguna imagen, la tarjeta central no se muestra.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Palabra decorativa 1 (ej. &quot;ARTE&quot;)
+                </label>
+                <input
+                  type="text"
+                  name="splashWord1"
+                  value={formData.splashWord1 || ""}
+                  onChange={handleChange}
+                  placeholder="ARTE"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+                <div className="flex items-center gap-3 mt-2">
+                  <input
+                    type="color"
+                    id="splashWord1Color"
+                    name="splashWord1Color"
+                    value={formData.splashWord1Color || "#1FB6C4"}
+                    onChange={handleChange}
+                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-500">{formData.splashWord1Color || "#1FB6C4"}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Palabra decorativa 2 (ej. &quot;COLOR&quot;)
+                </label>
+                <input
+                  type="text"
+                  name="splashWord2"
+                  value={formData.splashWord2 || ""}
+                  onChange={handleChange}
+                  placeholder="COLOR"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+                <div className="flex items-center gap-3 mt-2">
+                  <input
+                    type="color"
+                    id="splashWord2Color"
+                    name="splashWord2Color"
+                    value={formData.splashWord2Color || "#F0369A"}
+                    onChange={handleChange}
+                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-500">{formData.splashWord2Color || "#F0369A"}</span>
+                </div>
+              </div>
+            </div>
+
+            <SelectField
+              label="Fuente de las palabras decorativas"
+              value={formData.splashWordsFont || "default"}
+              onChange={(v) => setField("splashWordsFont", v)}
+              helperText="Aplica a las dos palabras (ARTE / COLOR) de arriba."
+            >
+              {SPLASH_FONT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </SelectField>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Degradado de la barra de carga
+              </label>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    id="splashLoaderColorFrom"
+                    name="splashLoaderColorFrom"
+                    value={formData.splashLoaderColorFrom || "#F7A600"}
+                    onChange={handleChange}
+                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-500">Inicio</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    id="splashLoaderColorTo"
+                    name="splashLoaderColorTo"
+                    value={formData.splashLoaderColorTo || "#E4032E"}
+                    onChange={handleChange}
+                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-500">Final</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Botón &quot;Toca para comenzar&quot; (texto, solo de la splash)
+              </label>
+              <input
+                type="text"
+                name="splashButtonText"
+                value={formData.splashButtonText || ""}
+                onChange={handleChange}
+                placeholder="Toca para comenzar"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Degradado de los botones principales — se usa acá en la splash y también en el resto
+                del flujo (Repetir/Confirmar, ¡Listo!, Nueva foto/Descargar, Empezar), salvo que ese
+                botón tenga su propia imagen configurada (&quot;Imagen del Botón&quot; arriba).
+              </p>
+              <div className="flex items-center gap-4 mt-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    id="splashButtonColorFrom"
+                    name="splashButtonColorFrom"
+                    value={formData.splashButtonColorFrom || "#F2143C"}
+                    onChange={handleChange}
+                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-500">Inicio</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    id="splashButtonColorTo"
+                    name="splashButtonColorTo"
+                    value={formData.splashButtonColorTo || "#C40024"}
+                    onChange={handleChange}
+                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-500">Final</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-200 pt-4">
+              <SplashLayoutEditor
+                enabled={formData.splashFreeLayoutEnabled === true}
+                onToggleEnabled={(v) => setField("splashFreeLayoutEnabled", v)}
+                layout={formData.splashLayout || {}}
+                onChangeLayout={(layout) => setField("splashLayout", layout)}
+                onReset={() => setField("splashLayout", {})}
+                headerLogos={formData.splashHeaderLogos || []}
+                preview={{
+                  logoTop: formData.logoTop || "",
+                  titleIsImage: formData.splashTitleMode === "IMAGE",
+                  titleImage: formData.splashTitleImage || "",
+                  titleText: formData.splashTitle || "TU ROSTRO,\nTU ARTE",
+                  titleColor: formData.splashTitleColor || "#E4032E",
+                  titleFontCss: resolveSplashFont(formData.splashTitleFont, "title"),
+                  subtitleText: formData.splashSubtitle || "Conviértete en una obra de arte",
+                  subtitleColor: formData.splashSubtitleColor || "#2B2118",
+                  subtitleFontCss: resolveSplashFont(formData.splashSubtitleFont, "subtitle"),
+                  word1Text: formData.splashWord1 || "ARTE",
+                  word1Color: formData.splashWord1Color || "#1FB6C4",
+                  word2Text: formData.splashWord2 || "COLOR",
+                  word2Color: formData.splashWord2Color || "#F0369A",
+                  wordsFontCss: resolveSplashFont(formData.splashWordsFont, "title"),
+                  cardImage: formData.splashCardImage || "",
+                  loaderFrom: formData.splashLoaderColorFrom || "#F7A600",
+                  loaderTo: formData.splashLoaderColorTo || "#E4032E",
+                  buttonText: formData.splashButtonText || "Toca para comenzar",
+                  buttonFrom: formData.splashButtonColorFrom || "#F2143C",
+                  buttonTo: formData.splashButtonColorTo || "#C40024",
+                }}
+              />
+            </div>
+          </div>
+        </AccordionSection>
+
+        {/* Pantalla 2: Carga (Loading) — se muestra mientras se genera la imagen */}
+        <AccordionSection title="Pantalla 2 · Carga (Loading)" icon={FaDesktop}>
           <ImageUploadField
             label="Imagen de Pantalla de Carga (Loading Page)"
             value={formData.loadingPageImage || ""}
@@ -583,7 +955,10 @@ export default function EventForm({
             checked={formData.showLogosInLoader !== false}
             onChange={(checked) => setField("showLogosInLoader", checked)}
           />
+        </AccordionSection>
 
+        {/* Pantalla 3: Inactividad (screensaver) y fondo animado de toda la app */}
+        <AccordionSection title="Pantalla 3 · Inactividad y Fondo" icon={FaDesktop}>
           <ImageUploadField
             label="Imagen o GIF de Pantalla de Inactividad (screensaver)"
             value={formData.splashImage || ""}
@@ -592,211 +967,8 @@ export default function EventForm({
           <p className="text-xs text-gray-500 -mt-2">
             Se usa como fondo de la pantalla de inactividad (screensaver), que aparece tras un rato sin uso, si no
             hay video configurado más abajo. No agrega texto ni botón encima — si querés un aviso tipo &quot;toca
-            para continuar&quot;, incluilo en el diseño de la imagen/gif. No afecta la splash inicial (ver más abajo).
+            para continuar&quot;, incluilo en el diseño de la imagen/gif. No afecta la splash inicial.
           </p>
-
-          <ToggleField
-            id="showSplashScreen"
-            label="Mostrar pantalla de splash inicial"
-            description="Si está activado, antes de la selección de marca/foto se muestra la pantalla de bienvenida configurable de abajo (título, tarjeta, botón); tocar el botón, o la pantalla una vez cargó, arranca el evento."
-            checked={formData.showSplashScreen === true}
-            onChange={(checked) => setField("showSplashScreen", checked)}
-          />
-
-          <div className="border-t border-gray-200 pt-4 space-y-4">
-            <div>
-              <h4 className="text-sm font-semibold text-gray-800">Contenido de la Splash</h4>
-              <p className="text-xs text-gray-500 mt-0.5">
-                El fondo y el logo superior de esta pantalla son los mismos configurados arriba
-                como &quot;Imagen de Fondo&quot; y &quot;Logo Superior&quot; del evento.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
-              <textarea
-                name="splashTitle"
-                value={formData.splashTitle || ""}
-                onChange={handleChange}
-                placeholder={"Ej: TU ROSTRO,\nTU ARTE"}
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Si no se especifica, muestra el título de referencia (&quot;Tu rostro, tu
-                arte&quot;). Un salto de línea separa el texto en dos líneas animadas.
-              </p>
-              <div className="flex items-center gap-3 mt-2">
-                <label htmlFor="splashTitleColor" className="text-sm text-gray-700">
-                  Color del título
-                </label>
-                <input
-                  type="color"
-                  id="splashTitleColor"
-                  name="splashTitleColor"
-                  value={formData.splashTitleColor || "#E4032E"}
-                  onChange={handleChange}
-                  className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
-                />
-                <span className="text-xs text-gray-500">{formData.splashTitleColor || "#E4032E"}</span>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Subtítulo</label>
-              <input
-                type="text"
-                name="splashSubtitle"
-                value={formData.splashSubtitle || ""}
-                onChange={handleChange}
-                placeholder="Ej: Conviértete en una obra de arte"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-              <div className="flex items-center gap-3 mt-2">
-                <label htmlFor="splashSubtitleColor" className="text-sm text-gray-700">
-                  Color del subtítulo
-                </label>
-                <input
-                  type="color"
-                  id="splashSubtitleColor"
-                  name="splashSubtitleColor"
-                  value={formData.splashSubtitleColor || "#2B2118"}
-                  onChange={handleChange}
-                  className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
-                />
-                <span className="text-xs text-gray-500">{formData.splashSubtitleColor || "#2B2118"}</span>
-              </div>
-            </div>
-
-            <ImageUploadField
-              label="Imagen de la Tarjeta Central (logo, mascota u otra imagen)"
-              value={formData.splashCardImage || ""}
-              onChange={(value) => handleImageChange("splashCardImage", value)}
-            />
-            <p className="text-xs text-gray-500 -mt-2">
-              Si no se sube ninguna imagen, la tarjeta central no se muestra.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Palabra decorativa 1 (ej. &quot;ARTE&quot;)
-                </label>
-                <input
-                  type="text"
-                  name="splashWord1"
-                  value={formData.splashWord1 || ""}
-                  onChange={handleChange}
-                  placeholder="ARTE"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-                <div className="flex items-center gap-3 mt-2">
-                  <input
-                    type="color"
-                    id="splashWord1Color"
-                    name="splashWord1Color"
-                    value={formData.splashWord1Color || "#1FB6C4"}
-                    onChange={handleChange}
-                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
-                  />
-                  <span className="text-xs text-gray-500">{formData.splashWord1Color || "#1FB6C4"}</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Palabra decorativa 2 (ej. &quot;COLOR&quot;)
-                </label>
-                <input
-                  type="text"
-                  name="splashWord2"
-                  value={formData.splashWord2 || ""}
-                  onChange={handleChange}
-                  placeholder="COLOR"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-                <div className="flex items-center gap-3 mt-2">
-                  <input
-                    type="color"
-                    id="splashWord2Color"
-                    name="splashWord2Color"
-                    value={formData.splashWord2Color || "#F0369A"}
-                    onChange={handleChange}
-                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
-                  />
-                  <span className="text-xs text-gray-500">{formData.splashWord2Color || "#F0369A"}</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Degradado de la barra de carga
-              </label>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    id="splashLoaderColorFrom"
-                    name="splashLoaderColorFrom"
-                    value={formData.splashLoaderColorFrom || "#F7A600"}
-                    onChange={handleChange}
-                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
-                  />
-                  <span className="text-xs text-gray-500">Inicio</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    id="splashLoaderColorTo"
-                    name="splashLoaderColorTo"
-                    value={formData.splashLoaderColorTo || "#E4032E"}
-                    onChange={handleChange}
-                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
-                  />
-                  <span className="text-xs text-gray-500">Final</span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Botón &quot;Toca para comenzar&quot;
-              </label>
-              <input
-                type="text"
-                name="splashButtonText"
-                value={formData.splashButtonText || ""}
-                onChange={handleChange}
-                placeholder="Toca para comenzar"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-              <div className="flex items-center gap-4 mt-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    id="splashButtonColorFrom"
-                    name="splashButtonColorFrom"
-                    value={formData.splashButtonColorFrom || "#F2143C"}
-                    onChange={handleChange}
-                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
-                  />
-                  <span className="text-xs text-gray-500">Inicio</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    id="splashButtonColorTo"
-                    name="splashButtonColorTo"
-                    value={formData.splashButtonColorTo || "#C40024"}
-                    onChange={handleChange}
-                    className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
-                  />
-                  <span className="text-xs text-gray-500">Final</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
           <VideoUploadField
             label="Video de Pantalla de Inactividad / Salvapantallas (loop, opcional)"
@@ -805,7 +977,7 @@ export default function EventForm({
           />
           <p className="text-xs text-gray-500 -mt-2">
             Si se sube un video, tiene prioridad sobre la imagen/gif de arriba y se reproduce en loop en la pantalla
-            de inactividad. No afecta la splash inicial (ver más abajo).
+            de inactividad. No afecta la splash inicial.
           </p>
 
           <SelectField

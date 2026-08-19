@@ -156,13 +156,23 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "dataUrl inválido" }, { status: 400 });
     }
 
-    // Parsear dataURL
-    const match = dataUrl.match(/^data:(.+);base64,(.*)$/);
-    if (!match) return Response.json({ error: "dataUrl debe ser base64" }, { status: 400 });
+    // Parsear dataURL: se separa por el primer "," ANTES de correr cualquier
+    // regex, para que el regex solo vea el header corto ("data:...;base64")
+    // y nunca el payload base64 completo. Con un video de varios MB, ese
+    // payload son decenas de millones de caracteres — un regex con (.*) $
+    // sobre un string así puede tirar "Maximum call stack size exceeded" en
+    // el motor de V8 (pasaba con /^data:(.+);base64,(.*)$/ aplicado entero).
+    const commaIndex = dataUrl.indexOf(",");
+    if (commaIndex === -1) {
+      return Response.json({ error: "dataUrl debe ser base64" }, { status: 400 });
+    }
+    const header = dataUrl.slice(0, commaIndex);
+    const headerMatch = header.match(/^data:(.+);base64$/);
+    if (!headerMatch) return Response.json({ error: "dataUrl debe ser base64" }, { status: 400 });
 
-    const contentType = match[1] || "image/png";
-    const base64Data = match[2];
-    
+    const contentType = headerMatch[1] || "image/png";
+    const base64Data = dataUrl.slice(commaIndex + 1);
+
     // Verificar que el buffer no esté vacío
     if (!base64Data || base64Data.length === 0) {
       return Response.json({ error: "Empty image data" }, { status: 400 });

@@ -221,7 +221,9 @@ export default function ResultStep({
           <ButtonPrimary
             onClick={onAgain}
             label="NUEVA FOTO"
-            imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
+            imageSrc={buttonImage}
+            colorFrom={event?.splashButtonColorFrom}
+            colorTo={event?.splashButtonColorTo}
             width="clamp(120px, 40vw, 310px)"
             height="clamp(40px, 8vh, 60px)"
             className="min-w-[130px]"
@@ -230,7 +232,9 @@ export default function ResultStep({
           <ButtonPrimary
             onClick={handleDownload}
             label="DESCARGAR"
-            imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
+            imageSrc={buttonImage}
+            colorFrom={event?.splashButtonColorFrom}
+            colorTo={event?.splashButtonColorTo}
             width="clamp(120px, 40vw, 310px)"
             height="clamp(40px, 8vh, 60px)"
             className="min-w-[130px]"

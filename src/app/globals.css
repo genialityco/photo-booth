@@ -47,8 +47,19 @@
   font-display: swap;
 }
 
+/* Selima: fuente script gratuita (uso comercial libre, JROH Creative) para
+   la splash inicial — ver selector "Fuente" en Pantalla 1 del admin. */
+@font-face {
+  font-family: "Selima";
+  src: url("/font/Selima.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --font-azo: "Azo Sans", sans-serif;
+  --font-selima: "Selima", cursive;
 }
 
 :root {
@@ -255,6 +266,123 @@ body {
 .splash-button:active:not(:disabled) {
   transform: translateY(6px);
   box-shadow: 0 4px 0 rgba(0,0,0,.35), 0 10px 18px rgba(0,0,0,.22) !important;
+}
+
+/* Distribución responsive del splash (SplashScreen.tsx): grid con áreas
+   nombradas en vez de un simple flex-col, para poder reacomodar el contenido
+   según el alto/ancho disponible sin tocar la coreografía de animación de
+   arriba. Por defecto reproduce el mismo orden vertical de siempre (logo →
+   título → subtítulo → tarjeta → acción), pero SIN márgenes propios en cada
+   elemento (se sacaron los marginTop inline que tenía cada uno): todo el
+   espaciado vertical sale de acá, de `row-gap` + `align-content:
+   space-between`, para que los 4 huecos entre logo/título/subtítulo/
+   tarjeta/acción sean siempre iguales entre sí y crezcan juntos para ocupar
+   el alto disponible, en vez de unos huecos chicos fijos + uno solo gigante
+   antes del botón (que es como quedaba con la fila a 1fr + margin-top:auto
+   de la versión anterior — muy notorio en tablets/desktop altos, ver
+   captura del handoff) o todo centrado como un bloque compacto (versión de
+   un paso atrás: se veía bien pero el usuario pidió explícitamente que el
+   contenido se reparta en vez de quedar agrupado). `row-gap` funciona como
+   piso mínimo del hueco en pantallas muy bajas; `space-between` reparte
+   arriba de ese piso el resto del alto sobrante, en partes iguales, entre
+   los 4 huecos (logo queda pegado arriba y acción pegado abajo, igual que
+   el diseño original).
+   Las dos secciones @media de abajo son las únicas que cambian algo más:
+   - Horizontal con poco alto (celular rotado, algún kiosk bajo): el stack
+     vertical completo no cabe y quedaba recortado por el overflow:hidden del
+     contenedor — se reacomoda a dos columnas (texto+acción / tarjeta) y se
+     bajan los pisos mínimos de tamaño, pensados para el ANCHO de un celular
+     en vertical, no para su ALTO en horizontal.
+   - Pantallas grandes y con alto de sobra (tablet/desktop/kiosk): se suben
+     los techos de tamaño, porque los clamp() originales fueron pensados
+     mobile-first y se quedaban chicos en una pantalla grande.
+   La tarjeta expone su ancho como variable CSS (--splash-card-w) para que
+   las palabras animadas (word1/word2) escalen siempre en proporción a la
+   tarjeta real en vez de depender de vmin por separado. */
+.splash-grid {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  grid-template-columns: 1fr;
+  grid-template-rows: repeat(5, auto);
+  grid-template-areas:
+    "logo"
+    "title"
+    "subtitle"
+    "card"
+    "action";
+  justify-items: center;
+  align-content: space-between;
+  row-gap: clamp(0.85rem, 3.4vh, 2.2rem);
+}
+.splash-area-logo { grid-area: logo; }
+.splash-area-title { grid-area: title; }
+.splash-area-subtitle { grid-area: subtitle; }
+.splash-area-card { grid-area: card; }
+.splash-area-action { grid-area: action; }
+/* Header configurable (N logos posicionados libremente, ver splashHeaderLogos):
+   ocupa el mismo grid-area "logo" que el logo único, pero con ancho completo y
+   posición relativa para que los <img> hijos se ubiquen en absolute por %. */
+.splash-header-multi {
+  grid-area: logo;
+  position: relative;
+  width: 100%;
+}
+
+@media (orientation: landscape) and (max-height: 640px) {
+  .splash-grid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    grid-template-rows: repeat(4, auto);
+    grid-template-areas:
+      "logo     card"
+      "title    card"
+      "subtitle card"
+      "action   card";
+    column-gap: clamp(1rem, 4vw, 2.5rem);
+    row-gap: clamp(0.2rem, 1.2vh, 0.55rem);
+    align-content: center;
+  }
+  .splash-area-logo,
+  .splash-area-title,
+  .splash-area-subtitle,
+  .splash-area-action {
+    justify-self: center;
+    margin-top: 0 !important;
+  }
+  .splash-area-card {
+    justify-self: center;
+    align-self: center;
+    margin-top: 0 !important;
+    --splash-card-w: clamp(120px, 30vh, 230px) !important;
+    width: var(--splash-card-w) !important;
+  }
+  .splash-area-logo { width: clamp(46px, 13vh, 84px) !important; }
+  .splash-title-line { font-size: clamp(1.3rem, 7vh, 2.4rem) !important; }
+  .splash-area-subtitle { font-size: clamp(0.72rem, 3.2vh, 1.05rem) !important; }
+  .splash-loader-track {
+    width: clamp(100px, 24vh, 170px) !important;
+    height: clamp(6px, 1.4vh, 9px) !important;
+  }
+  .splash-button {
+    font-size: clamp(0.85rem, 3.6vh, 1.2rem) !important;
+    padding: clamp(0.45rem, 1.8vh, 0.7rem) clamp(1rem, 3.6vh, 1.6rem) !important;
+  }
+}
+
+@media (min-width: 900px) and (min-height: 700px) {
+  .splash-area-logo { width: clamp(120px, 16vmin, 200px) !important; }
+  .splash-title-line { font-size: clamp(2.2rem, 7vmin, 4.6rem) !important; }
+  .splash-area-subtitle { font-size: clamp(1.1rem, 3vmin, 2rem) !important; }
+  .splash-area-card {
+    --splash-card-w: clamp(220px, 34vmin, 380px) !important;
+    width: var(--splash-card-w) !important;
+  }
+  .splash-grid { row-gap: clamp(1.4rem, 4vh, 3.2rem) !important; }
+  .splash-loader-track { width: clamp(170px, 30vmin, 280px) !important; }
+  .splash-button {
+    font-size: clamp(1.15rem, 3vmin, 1.9rem) !important;
+    padding: clamp(0.85rem, 1.8vmin, 1.2rem) clamp(1.6rem, 4vmin, 2.6rem) !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

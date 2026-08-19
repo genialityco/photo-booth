@@ -24,12 +24,18 @@ export default function MediaTapScreen({
   videoUrl,
   onTap,
   className = "",
+  children,
 }: {
   imageUrl?: string;
   /** Tiene prioridad sobre imageUrl si ambos están presentes. */
   videoUrl?: string;
   onTap: () => void;
   className?: string;
+  /** Overlay opcional encima del media (ej. SplashScreen superpone su barra
+   * de progreso + botón como "pie" cuando el fondo es un video). Se renderiza
+   * después de las capas de media, así que queda arriba en el stacking sin
+   * necesitar z-index; debe traer su propio posicionamiento (`absolute`). */
+  children?: React.ReactNode;
 }) {
   const hasMedia = !!(videoUrl || imageUrl);
 
@@ -125,6 +131,8 @@ export default function MediaTapScreen({
           draggable={false}
         />
       )}
+
+      {children}
     </div>
   );
 }

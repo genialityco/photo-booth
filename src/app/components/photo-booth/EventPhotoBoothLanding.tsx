@@ -1,13 +1,13 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { EventProfile } from "@/app/services/photo-booth/eventService";
 import {
   getPhotoBoothPromptsByIds,
   type PhotoBoothPrompt,
 } from "@/app/services/photo-booth/brandService";
-import { runButtonClickEffect } from "@/app/components/common/click-effects";
+import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 
 export default function EventPhotoBoothLanding({
   event,
@@ -74,14 +74,7 @@ export default function EventPhotoBoothLanding({
     setImageErrorStates((prev) => ({ ...prev, [promptId]: true }));
   };
 
-  const startButtonRef = useRef<HTMLButtonElement | null>(null);
-
   const handleStart = () => {
-    if (startButtonRef.current) {
-      runButtonClickEffect(event.buttonClickEffect, {
-        target: startButtonRef.current,
-      });
-    }
     const brand =
       selectedBrand || (prompts.length > 0 ? prompts[0].id : "default");
     onStart?.(brand, dataProcessingAccepted);
@@ -280,34 +273,18 @@ export default function EventPhotoBoothLanding({
           )}
 
           {/* Start Button */}
-          <button
-            ref={startButtonRef}
+          <ButtonPrimary
             onClick={handleStart}
             disabled={!isStartEnabled}
-            className={`w-[80%] text-center py-4 sm:py-5 md:py-6 text-white font-semibold rounded-xl transition-all duration-200 text-lg sm:text-xl md:text-2xl shadow-lg shadow-black/30 ${
-              isStartEnabled
-                ? "active:scale-95 cursor-pointer"
-                : "opacity-50 cursor-not-allowed"
-            }`}
-            style={
-              event.buttonImage
-                ? {
-                    backgroundImage: `url('${event.buttonImage}')`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }
-                : {
-                    backgroundColor: "rgba(255, 255, 255, 0.3)",
-                  }
-            }
-          >
-            {event.buttonImage && (
-              <span className="block drop-shadow-lg font-bold">
-                {buttonLabel}
-              </span>
-            )}
-            {!event.buttonImage && buttonLabel}
-          </button>
+            label={buttonLabel}
+            imageSrc={event.buttonImage}
+            colorFrom={event.splashButtonColorFrom}
+            colorTo={event.splashButtonColorTo}
+            clickEffect={event.buttonClickEffect}
+            width="80%"
+            height="clamp(52px, 8.5vh, 84px)"
+            textClassName="text-lg sm:text-xl md:text-2xl"
+          />
         </div>
       </div>
     </div>

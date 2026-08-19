@@ -41,6 +41,8 @@ function paletteStripesBackground(colors: string[]): string {
 export default function ImageCustomizeStep({
   previewSrc,
   buttonImage,
+  buttonColorFrom,
+  buttonColorTo,
   buttonClickEffect,
   logoLeftSrc,
   logoRightSrc,
@@ -48,6 +50,8 @@ export default function ImageCustomizeStep({
 }: {
   previewSrc?: string | null;
   buttonImage?: string;
+  buttonColorFrom?: string;
+  buttonColorTo?: string;
   buttonClickEffect?: ButtonClickEffectId;
   /** Logos del evento (arriba y abajo en el resto del wizard), mostrados
    * juntos bien arriba acá para dejarle el resto del alto a la foto y las
@@ -193,7 +197,9 @@ export default function ImageCustomizeStep({
         <ButtonPrimary
           onClick={handleConfirm}
           label="¡LISTO!"
-          imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
+          imageSrc={buttonImage}
+          colorFrom={buttonColorFrom}
+          colorTo={buttonColorTo}
           width="100%"
           height="clamp(52px, 8.5vh, 84px)"
           textClassName="text-lg sm:text-2xl"

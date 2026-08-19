@@ -13,6 +13,8 @@ export default function PreviewStep({
   onRetake,
   onConfirm,
   buttonImage,
+  buttonColorFrom,
+  buttonColorTo,
   buttonClickEffect,
 }: {
   framedShot: string; // foto con marco (no se usa visualmente)
@@ -20,6 +22,8 @@ export default function PreviewStep({
   boxSize?: string;
   borderRadius?: "none" | "md" | "lg" | "xl" | "4xl";
   buttonImage?: string;
+  buttonColorFrom?: string;
+  buttonColorTo?: string;
   buttonClickEffect?: ButtonClickEffectId;
   onRetake: () => void;
   onConfirm?: () => void; // confirmará y pasará al loader
@@ -86,7 +90,9 @@ export default function PreviewStep({
         <div className="flex flex-row gap-1 sm:gap-2 justify-center overflow-x-auto whitespace-nowrap flex-shrink-0 w-full px-2">
           <ButtonPrimary
             onClick={onRetake}
-            imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
+            imageSrc={buttonImage}
+            colorFrom={buttonColorFrom}
+            colorTo={buttonColorTo}
             label="REPETIR"
             width="clamp(120px, 40vw, 310px)"
             height="clamp(40px, 8vh, 60px)"
@@ -96,7 +102,9 @@ export default function PreviewStep({
           {onConfirm && (
             <ButtonPrimary
               onClick={onConfirm}
-              imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
+              imageSrc={buttonImage}
+              colorFrom={buttonColorFrom}
+              colorTo={buttonColorTo}
               label="CONFIRMAR"
               width="clamp(120px, 40vw, 310px)"
               height="clamp(40px, 8vh, 60px)"
