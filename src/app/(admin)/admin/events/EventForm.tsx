@@ -188,6 +188,7 @@ export default function EventForm({
     imageCustomizationEnabled: event?.imageCustomizationEnabled === true,
     backgroundAnimation: event?.backgroundAnimation || "NONE",
     paintTimeSeconds: event?.paintTimeSeconds,
+    photoAspectRatio: event?.photoAspectRatio || "SQUARE",
     prompts: event?.prompts || [],
     isActive: event?.isActive !== false,
   });
@@ -434,6 +435,16 @@ export default function EventForm({
 
         {/* Flujo de Captura */}
         <AccordionSection title="Flujo de Captura" icon={FaCamera}>
+          <SelectField
+            label="Relación de Aspecto de la Foto"
+            value={formData.photoAspectRatio || "SQUARE"}
+            onChange={(v) => setField("photoAspectRatio", v as "SQUARE" | "3:4")}
+            helperText='Afecta la captura, lo enviado a la IA, el revelado, la descarga y la impresión. "3:4" es para eventos que imprimen con una Canon Selphy CP1500.'
+          >
+            <option value="SQUARE">Cuadrada 1:1 (actual)</option>
+            <option value="3:4">3:4 (impresora Canon Selphy CP1500)</option>
+          </SelectField>
+
           <ToggleField
             id="captureBeforeFilter"
             label="Tomar la foto primero, elegir filtro/marca después"

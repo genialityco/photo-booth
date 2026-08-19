@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { getAspectClassName, getAspectDims, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
 
 // Tipos para navegadores con APIs legacy
 type LegacyGetUserMedia = (
@@ -33,13 +34,37 @@ type NavigatorWithLegacy = Navigator & {
  */
 export const CAPTURE_HEADER_RESERVE = "7rem";
 const CAPTURE_FOOTER_RESERVE = "9rem";
-export const CAPTURE_SQUARE_SIZE = `min(100vw, calc(100dvh - ${CAPTURE_HEADER_RESERVE} - ${CAPTURE_FOOTER_RESERVE}))`;
-export const CAPTURE_SQUARE_BOTTOM = `calc(${CAPTURE_HEADER_RESERVE} + ${CAPTURE_SQUARE_SIZE})`;
+const CAPTURE_AVAILABLE_HEIGHT = `calc(100dvh - ${CAPTURE_HEADER_RESERVE} - ${CAPTURE_FOOTER_RESERVE})`;
+
+/**
+ * Ancho del cuadro de cámara para una relación de aspecto dada (w:h). Cuadrado
+ * (1:1): ancho = alto disponible, igual que antes. Para formas más altas que
+ * anchas (ej. 3:4), el ancho se acota más para que la altura resultante
+ * (ancho * h/w) siga entrando en el espacio disponible.
+ */
+export function getCaptureBoxWidth(ratio?: PhotoAspectRatio | null): string {
+  const { w, h } = getAspectDims(ratio);
+  if (w === h) return `min(100vw, ${CAPTURE_AVAILABLE_HEIGHT})`;
+  return `min(100vw, calc(${CAPTURE_AVAILABLE_HEIGHT} * ${w} / ${h}))`;
+}
+
+/** `top` de la barra inferior: justo donde termina el cuadro de cámara. */
+export function getCaptureBoxBottom(ratio?: PhotoAspectRatio | null): string {
+  const { w, h } = getAspectDims(ratio);
+  const width = getCaptureBoxWidth(ratio);
+  const height = w === h ? width : `calc((${width}) * ${h} / ${w})`;
+  return `calc(${CAPTURE_HEADER_RESERVE} + ${height})`;
+}
+
+// Compatibilidad: valores para la relación de aspecto cuadrada (default original).
+export const CAPTURE_SQUARE_SIZE = getCaptureBoxWidth("SQUARE");
+export const CAPTURE_SQUARE_BOTTOM = getCaptureBoxBottom("SQUARE");
 
 export default function FrameCamera({
   frameSrc = null,
   mirror = true,
   backgroundSrc,
+  aspectRatio,
   onReady,
   children,
 }: {
@@ -47,6 +72,8 @@ export default function FrameCamera({
   mirror?: boolean;
   /** Fondo detrás del cuadro nítido (la imagen/fondo configurado del evento), en vez de un blur genérico. */
   backgroundSrc?: string;
+  /** Relación de aspecto del cuadro de cámara/foto. "SQUARE" (default) = comportamiento original. */
+  aspectRatio?: PhotoAspectRatio;
   onReady?: (api: { getVideoEl: () => HTMLVideoElement | null }) => void;
   /** Overlay opcional (ej. guía de encuadre) renderizado DENTRO del cuadro nítido, en el mismo tamaño/posición. */
   children?: React.ReactNode;
@@ -226,8 +253,12 @@ export default function FrameCamera({
           que la cámara ocupe todo el espacio disponible entre el header y
           la barra inferior, en vez de dejar relleno difuminado repartido. */}
       <div
-        className="absolute left-1/2 -translate-x-1/2 aspect-square shadow-[0_0_40px_rgba(0,0,0,0.5)]"
-        style={{ top: CAPTURE_HEADER_RESERVE, width: CAPTURE_SQUARE_SIZE, maxWidth: CAPTURE_SQUARE_SIZE }}
+        className={`absolute left-1/2 -translate-x-1/2 ${getAspectClassName(aspectRatio)} shadow-[0_0_40px_rgba(0,0,0,0.5)]`}
+        style={{
+          top: CAPTURE_HEADER_RESERVE,
+          width: getCaptureBoxWidth(aspectRatio),
+          maxWidth: getCaptureBoxWidth(aspectRatio),
+        }}
       >
         <video
           ref={videoRef}

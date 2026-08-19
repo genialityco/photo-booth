@@ -517,6 +517,7 @@ export default function PhotoBoothWizard({
           logoLeftSrc={style ? style.logoCaptureTop || style.logoLandingTop : "/genilaty_smart_led_logo.png"}
           logoRightSrc={style ? style.logoCaptureBottom || style.logoLandingBottom : "genilaty_smart_led_logo.png"}
           backgroundSrc={bgUrl}
+          aspectRatio={eventData?.photoAspectRatio}
         />
       )}
 
@@ -590,6 +591,7 @@ export default function PhotoBoothWizard({
                   onConfirm={handlePreviewConfirm}
                   buttonImage={eventData?.buttonImage}
                   buttonClickEffect={eventData?.buttonClickEffect}
+                  aspectRatio={eventData?.photoAspectRatio}
                 />
               </motion.div>
             )}
@@ -611,6 +613,7 @@ export default function PhotoBoothWizard({
                   logoLeftSrc={style?.logoLandingTop}
                   logoRightSrc={style?.logoLandingBottom}
                   onConfirm={handleCustomizeConfirmed}
+                  aspectRatio={eventData?.photoAspectRatio}
                 />
               </motion.div>
             )}
@@ -650,6 +653,7 @@ export default function PhotoBoothWizard({
                     revealColorHint={color}
                     veilMode={eventData?.revealEffect === "ROLLER_COLOR" ? "GRAYSCALE_PHOTO" : "SOLID"}
                     paintTimeSeconds={eventData?.paintTimeSeconds}
+                    aspectRatio={eventData?.photoAspectRatio}
                     onRevealed={() => setStep("result")}
                   />
                 ) : (
@@ -661,6 +665,7 @@ export default function PhotoBoothWizard({
                     revealColorHint={color}
                     handTrackingEnabled={eventData?.handRevealEnabled === true}
                     paintTimeSeconds={eventData?.paintTimeSeconds}
+                    aspectRatio={eventData?.photoAspectRatio}
                     onRevealed={() => setStep("result")}
                   />
                 )}

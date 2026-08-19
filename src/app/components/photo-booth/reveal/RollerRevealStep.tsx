@@ -7,12 +7,13 @@ import {
   subscribeRollerFrame,
   subscribeRollerDetectionStatus,
 } from "@/app/components/photo-booth/reveal/rollerDetectionStore";
-import { CANVAS_SIZE, FADE_OUT_MS, type Point, useRevealVeil } from "@/app/components/photo-booth/reveal/useRevealVeil";
+import { FADE_OUT_MS, type Point, useRevealVeil } from "@/app/components/photo-booth/reveal/useRevealVeil";
 import RollerCursor, {
   ROLLER_HEAD_WIDTH_RATIO,
   ROLLER_VIEW_SIZE,
   type RollerCursorHandle,
 } from "@/app/components/photo-booth/reveal/RollerCursor";
+import { getAspectClassName, getRevealBoxWidthCss, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
 
 // Franja horizontal que deja el cabezal del rodillo al pasar (el rodillo
 // tiene orientación fija, así que la franja también es siempre horizontal).
@@ -21,9 +22,13 @@ import RollerCursor, {
 // MIN_STROKE_LENGTH que se reescala porque allá el canvas es 500 y acá
 // CANVAS_SIZE=1024 (90/500 ≈ misma proporción).
 const ROLLER_STROKE_THICKNESS_RATIO = 0.28; // relativo al largo del trazo (0.35 * 0.8: campo pintado en Y reducido 20%)
+// Ancho de lo que pinta el rodillo (el "largo" de la franja horizontal),
+// reducido a la mitad respecto al ancho real detectado / del cursor 3D.
+const STROKE_LENGTH_SCALE = 0.5;
 // Largo mínimo de trazo (unidades de canvas) para detecciones muy
-// pequeñas/lejanas, para que la franja no quede imperceptible.
-const MIN_STROKE_LENGTH = 184;
+// pequeñas/lejanas, para que la franja no quede imperceptible. También
+// escalado, para no anular la reducción de arriba con este piso.
+const MIN_STROKE_LENGTH = 184 * STROKE_LENGTH_SCALE;
 // La inferencia ONNX corre mucho más lento que la pantalla (WASM de un solo
 // hilo: ~1 detección/seg), así que mover el cursor solo cuando llega un
 // frame nuevo se ve "a tirones". En cambio se guarda la última posición
@@ -71,6 +76,7 @@ export default function RollerRevealStep({
   revealColorHint = null,
   veilMode = "SOLID",
   paintTimeSeconds,
+  aspectRatio,
   onRevealed,
 }: {
   aiUrl: string;
@@ -84,6 +90,8 @@ export default function RollerRevealStep({
   veilMode?: "SOLID" | "GRAYSCALE_PHOTO";
   /** Tiempo máximo (segundos) para pintar/revelar antes de avanzar solo. Sin definir = default de useRevealVeil (28s). */
   paintTimeSeconds?: number;
+  /** Relación de aspecto de la foto. "SQUARE" (default) = comportamiento original. */
+  aspectRatio?: PhotoAspectRatio;
   onRevealed: () => void;
 }) {
   const {
@@ -93,6 +101,8 @@ export default function RollerRevealStep({
     prefersReducedMotion,
     completeReveal,
     eraseWithPath,
+    canvasWidth,
+    canvasHeight,
   } = useRevealVeil({
     aiUrl,
     videoUrl,
@@ -100,6 +110,7 @@ export default function RollerRevealStep({
     enableFrame,
     revealColorHint,
     veilMode,
+    aspectRatio,
     onRevealed,
     ...(paintTimeSeconds !== undefined ? { safetyTimeoutMs: paintTimeSeconds * 1000 } : {}),
   });
@@ -123,7 +134,7 @@ export default function RollerRevealStep({
   const [rollerDetectionReady, setRollerDetectionReady] = useState(false);
   const [rollerDetectionError, setRollerDetectionError] = useState(false);
 
-  const SIZE_IMG = "clamp(300px, min(70vw, 60svh), 700px)";
+  const SIZE_IMG = getRevealBoxWidthCss(aspectRatio);
 
   const eraseRollerStroke = React.useCallback(
     (from: Point | null, to: Point, length: number, thickness: number) => {
@@ -270,8 +281,8 @@ export default function RollerRevealStep({
         lastPaintPointRef.current = null;
       } else {
         const point = {
-          x: ((pos.x - rect.left) / rect.width) * CANVAS_SIZE,
-          y: ((pos.y - rect.top) / rect.height) * CANVAS_SIZE,
+          x: ((pos.x - rect.left) / rect.width) * canvasWidth,
+          y: ((pos.y - rect.top) / rect.height) * canvasHeight,
         };
 
         const last = lastPaintPointRef.current;
@@ -279,8 +290,8 @@ export default function RollerRevealStep({
           // Ancho real detectado del rodillo (el último conocido, mientras
           // "vuela solo") -> convertido a unidades del canvas, con un piso
           // mínimo para detecciones lejanas/chicas.
-          const canvasUnitsPerPx = CANVAS_SIZE / rect.width;
-          const length = Math.max(MIN_STROKE_LENGTH, lastWidthPxRef.current * canvasUnitsPerPx);
+          const canvasUnitsPerPx = canvasWidth / rect.width;
+          const length = Math.max(MIN_STROKE_LENGTH, lastWidthPxRef.current * canvasUnitsPerPx * STROKE_LENGTH_SCALE);
           const thickness = length * ROLLER_STROKE_THICKNESS_RATIO;
 
           eraseRollerStroke(last, point, length, thickness);
@@ -293,20 +304,20 @@ export default function RollerRevealStep({
 
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [rollerDetectionReady, eraseRollerStroke, veilCanvasRef]);
+  }, [rollerDetectionReady, eraseRollerStroke, veilCanvasRef, canvasWidth, canvasHeight]);
 
   // === Fallback táctil: tocar/arrastrar sobre el velo también pinta con el rodillo ===
   const pointToCanvas = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
     const rect = e.currentTarget.getBoundingClientRect();
     const nx = (e.clientX - rect.left) / rect.width;
     const ny = (e.clientY - rect.top) / rect.height;
-    return { x: nx * CANVAS_SIZE, y: ny * CANVAS_SIZE };
+    return { x: nx * canvasWidth, y: ny * canvasHeight };
   };
 
   const touchStrokeSize = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const canvasUnitsPerPx = CANVAS_SIZE / rect.width;
-    const length = ROLLER_VIEW_SIZE * ROLLER_HEAD_WIDTH_RATIO * canvasUnitsPerPx;
+    const canvasUnitsPerPx = canvasWidth / rect.width;
+    const length = ROLLER_VIEW_SIZE * ROLLER_HEAD_WIDTH_RATIO * canvasUnitsPerPx * STROKE_LENGTH_SCALE;
     return { length, thickness: length * ROLLER_STROKE_THICKNESS_RATIO };
   };
 
@@ -351,20 +362,20 @@ export default function RollerRevealStep({
       {/* Marco/mat + sombra en capas, igual que la foto en PreviewStep — le da
           profundidad en vez de quedar pegada al fondo. */}
       <div
-        className="relative p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 aspect-square rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]"
+        className={`relative p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 ${getAspectClassName(aspectRatio)} rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]`}
         style={{ width: SIZE_IMG, maxWidth: SIZE_IMG }}
       >
         <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/5">
           <canvas
             ref={photoCanvasRef}
-            width={CANVAS_SIZE}
-            height={CANVAS_SIZE}
+            width={canvasWidth}
+            height={canvasHeight}
             className="absolute inset-0 w-full h-full object-contain"
           />
           <canvas
             ref={veilCanvasRef}
-            width={CANVAS_SIZE}
-            height={CANVAS_SIZE}
+            width={canvasWidth}
+            height={canvasHeight}
             className="absolute inset-0 w-full h-full object-contain touch-none select-none cursor-pointer"
             style={{
               opacity: revealing ? 0 : 1,

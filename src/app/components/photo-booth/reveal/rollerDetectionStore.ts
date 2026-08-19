@@ -30,6 +30,24 @@ const SMOOTH_ALPHA = 0.35;
 // Frames sin detección por encima del umbral antes de dar por "perdido" el
 // rodillo — evita parpadeo cuando la confianza baja un instante.
 const GRACE_FRAMES = 5;
+// Corrección fina (px de pantalla) para la posición Y detectada: al levantar
+// el rodillo real hasta el borde superior del encuadre de la cámara, la
+// detección no alcanza a llegar a Y=0 (el modelo pierde confianza cerca del
+// borde de la imagen), por lo que la parte superior de la foto quedaba fuera
+// de alcance. Negativo = sube el punto mapeado, dándole más margen para
+// llegar arriba del todo.
+const SCREEN_Y_OFFSET_PX = -100;
+// Amplía el rango vertical detectado alrededor del centro (0.5), para que
+// llegue un poco más arriba Y más abajo — el modelo rara vez reporta
+// detecciones muy cerca de los bordes de la imagen (pierde confianza ahí),
+// así que el rango "útil" queda más angosto que la foto completa. >1 = más
+// alcance en ambos extremos.
+const Y_RANGE_SCALE = 1.3;
+
+/** Expande normY alrededor de 0.5 según Y_RANGE_SCALE (puede salir de [0,1] a propósito). */
+function expandNormY(normY: number): number {
+  return 0.5 + (normY - 0.5) * Y_RANGE_SCALE;
+}
 
 export type RollerFrame = {
   visible: boolean;
@@ -271,7 +289,7 @@ async function loop() {
           normX,
           normY,
           screenX: normX * window.innerWidth,
-          screenY: normY * window.innerHeight,
+          screenY: expandNormY(normY) * window.innerHeight + SCREEN_Y_OFFSET_PX,
           widthPx: (smoothedBox.w / INPUT_SIZE) * window.innerWidth,
           heightPx: (smoothedBox.h / INPUT_SIZE) * window.innerHeight,
           confidence: bestScore,
@@ -286,7 +304,7 @@ async function loop() {
           normX,
           normY,
           screenX: normX * window.innerWidth,
-          screenY: normY * window.innerHeight,
+          screenY: expandNormY(normY) * window.innerHeight + SCREEN_Y_OFFSET_PX,
           widthPx: (smoothedBox.w / INPUT_SIZE) * window.innerWidth,
           heightPx: (smoothedBox.h / INPUT_SIZE) * window.innerHeight,
           confidence: bestScore,

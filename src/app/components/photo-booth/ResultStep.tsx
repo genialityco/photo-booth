@@ -9,6 +9,7 @@ import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import QrTag from "@/app/components/photo-booth/QrTag";
 import { composeFramedCanvas, composeFramedImageDataUrl } from "@/app/components/photo-booth/composeFramedImage";
+import { getAspectClassName, getPixelDims, getRevealBoxWidthCss } from "@/app/components/photo-booth/photoAspectRatio";
 
 type Props = {
   taskId: string;
@@ -35,6 +36,8 @@ export default function ResultStep({
   const [showQr, setShowQr] = useState(false);
   const enableFrame = event?.enableFrame ?? style?.enableFrame ?? true;
   const frameSrc = event?.frameImage ?? null;
+  const aspectRatio = event?.photoAspectRatio;
+  const pixelDims = useMemo(() => getPixelDims(aspectRatio), [aspectRatio]);
 
   const surveyAI = useMemo(() => {
     const url = new URL(`${origin}/survey`);
@@ -57,7 +60,7 @@ export default function ResultStep({
     return url.toString();
   }, [origin, aiUrl, videoUrl, taskId, enableFrame, frameSrc]);
 
-  const SIZE_IMG = "clamp(300px, min(70vw, 60svh), 700px)";
+  const SIZE_IMG = getRevealBoxWidthCss(aspectRatio);
 
   // === Componer imagen con marco (para preview en pantalla) ===
   const [framedImageUrl, setFramedImageUrl] = useState<string>("");
@@ -73,7 +76,13 @@ export default function ResultStep({
           return;
         }
 
-        const dataUrl = await composeFramedImageDataUrl({ aiUrl, frameSrc, enableFrame });
+        const dataUrl = await composeFramedImageDataUrl({
+          aiUrl,
+          frameSrc,
+          enableFrame,
+          width: pixelDims.width,
+          height: pixelDims.height,
+        });
         setFramedImageUrl(dataUrl);
       } catch (err) {
         console.error("Error composing frame:", err);
@@ -82,7 +91,7 @@ export default function ResultStep({
     };
 
     composeFrame();
-  }, [aiUrl, frameSrc, enableFrame]);
+  }, [aiUrl, frameSrc, enableFrame, pixelDims.width, pixelDims.height]);
 
   useEffect(() => {
     try {
@@ -140,7 +149,13 @@ export default function ResultStep({
       return;
     }
     try {
-      const canvas = await composeFramedCanvas({ aiUrl, frameSrc, enableFrame });
+      const canvas = await composeFramedCanvas({
+        aiUrl,
+        frameSrc,
+        enableFrame,
+        width: pixelDims.width,
+        height: pixelDims.height,
+      });
 
       // Exportar como blob
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -163,6 +178,51 @@ export default function ResultStep({
     }
   };
 
+  // === Imprimir (ej. Canon Selphy CP1500 configurada como impresora
+  // predeterminada del kiosco): abre una ventana con la foto compuesta y
+  // dispara el diálogo de impresión nativo del navegador — mismo patrón que
+  // (public)/print/page.tsx, con estilos ajustados para llenar la página. No
+  // aplica a eventos con video. ===
+  const handlePrint = async () => {
+    if (videoUrl) return;
+    try {
+      const canvas = await composeFramedCanvas({
+        aiUrl,
+        frameSrc,
+        enableFrame,
+        width: pixelDims.width,
+        height: pixelDims.height,
+      });
+      const dataUrl = canvas.toDataURL("image/png");
+
+      const printWin = window.open("", "_blank");
+      if (!printWin) {
+        alert("El navegador bloqueó la ventana de impresión.");
+        return;
+      }
+      printWin.document.write(`
+        <html>
+          <head>
+            <title>Imprimir</title>
+            <style>
+              @page { margin: 0; }
+              html, body { margin: 0; padding: 0; background: #fff; height: 100%; }
+              img { display: block; width: 100vw; height: 100vh; object-fit: contain; margin: auto; }
+            </style>
+          </head>
+          <body>
+            <img src="${dataUrl}" />
+            <script>window.onload = function(){ window.print(); setTimeout(function(){ window.close(); }, 300); };</script>
+          </body>
+        </html>
+      `);
+      printWin.document.close();
+    } catch (err) {
+      console.error("Error preparando la impresión:", err);
+      alert("No se pudo preparar la foto para imprimir. Inténtalo nuevamente.");
+    }
+  };
+
   return (
     <div
       className="w-full h-full flex flex-col items-center justify-center px-3 sm:px-4 overflow-hidden"
@@ -179,7 +239,7 @@ export default function ResultStep({
           style={{ width: SIZE_IMG, maxWidth: SIZE_IMG }}
         >
           <div
-            className={`relative w-full h-full overflow-hidden rounded-xl aspect-square flex items-center justify-center transition-colors ${
+            className={`relative w-full h-full overflow-hidden rounded-xl ${getAspectClassName(aspectRatio)} flex items-center justify-center transition-colors ${
               showQr ? "bg-white" : "bg-black/5"
             }`}
           >
@@ -236,6 +296,17 @@ export default function ResultStep({
             className="min-w-[130px]"
             clickEffect={buttonClickEffect}
           />
+          {!videoUrl && (
+            <ButtonPrimary
+              onClick={handlePrint}
+              label="IMPRIMIR"
+              imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
+              width="clamp(120px, 40vw, 310px)"
+              height="clamp(40px, 8vh, 60px)"
+              className="min-w-[130px]"
+              clickEffect={buttonClickEffect}
+            />
+          )}
         </div>
       </main>
     </div>
