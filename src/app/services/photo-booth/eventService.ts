@@ -592,7 +592,15 @@ export async function updateEventProfile(
     const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl"];
     for (const field of imageFields) {
       const fileData = data[field];
-      if (!fileData) continue;
+      if (fileData === undefined) continue;
+      if (!fileData) {
+        // Campo explícitamente vaciado (ej. "Quitar Imagen"): hay que
+        // escribir "" en Firestore, no solo omitirlo — updateDoc únicamente
+        // toca los campos presentes en docData, así que omitirlo dejaría el
+        // valor anterior intacto.
+        docData[field] = "";
+        continue;
+      }
 
       let normalized = fileData as string;
       if (

@@ -95,18 +95,29 @@ body {
     0% { transform: scale(1); opacity: 0.5; }
     100% { transform: scale(1.45); opacity: 0; }
   }
+  /* "Palpito" en loop del CTA (ButtonPrimary, variante sin imageSrc — ver
+     comentario ahí). Usa la propiedad `scale` standalone (no `transform`)
+     a propósito: ButtonPrimary ya controla `transform` por inline style
+     para el efecto de presionado (translateY), y `scale`/`translate`
+     standalone se componen con `transform` sin pisarse entre sí. */
+  @keyframes buttonPrimaryPulse {
+    0%, 100% { scale: 1; }
+    50% { scale: 1.045; }
+  }
 
   .animate-float { animation: float 4s ease-in-out infinite; }
   .animate-glowSway { animation: glowSway 4s ease-in-out infinite; }
   .animate-fadeIn { animation: fadeIn .8s ease-out both; }
   .animate-shutterPulse { animation: shutterPulse 2s ease-out infinite; }
+  .animate-buttonPrimaryPulse { animation: buttonPrimaryPulse 1.7s ease-in-out infinite; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-float,
   .animate-glowSway,
   .animate-fadeIn,
-  .animate-shutterPulse { animation: none !important; }
+  .animate-shutterPulse,
+  .animate-buttonPrimaryPulse { animation: none !important; }
 }
 
 /* Cursor por gestos de mano (HandCursorOverlay): cambio de color sutil en

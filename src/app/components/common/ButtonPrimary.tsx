@@ -135,6 +135,10 @@ export default function ButtonPrimary({
         "outline-none focus-visible:ring-2 focus-visible:ring-white/60",
         "transition-transform duration-150 ease-out",
         disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:brightness-105",
+        // Palpito en loop, igual que el CTA de la splash — pausado mientras
+        // está presionado para no pelear visualmente con el translateY del
+        // estado "hundido".
+        !disabled && !isPressedLook ? "animate-buttonPrimaryPulse" : "",
         className,
       ].join(" ")}
       style={{
