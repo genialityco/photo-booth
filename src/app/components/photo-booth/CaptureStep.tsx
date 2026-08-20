@@ -3,12 +3,27 @@
 import React, { useRef, useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { FaSyncAlt, FaBolt } from "react-icons/fa";
-import FrameCamera, { CAPTURE_HEADER_RESERVE, CAPTURE_SQUARE_BOTTOM } from "./FrameCamera";
+import FrameCamera, { CAPTURE_HEADER_RESERVE, getCaptureBoxBottom } from "./FrameCamera";
 import captureWithFrame from "./captureWithFrame";
 import captureRawSquare from "./captureRawSquare";
 import ShutterButton from "@/app/components/common/ShutterButton";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import CaptureViewfinderOverlay from "@/app/components/photo-booth/CaptureViewfinderOverlay";
+import { getAspectDims, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
+
+/** Recorte "cover" centrado: el rectángulo más grande con la relación w:h pedida que entra en un video sourceW x sourceH. */
+function coverCropSize(sourceW: number, sourceH: number, ratio?: PhotoAspectRatio | null) {
+  const { w, h } = getAspectDims(ratio);
+  const targetRatio = w / h;
+  const sourceRatio = sourceW / sourceH;
+  if (sourceRatio > targetRatio) {
+    // el video es más ancho que el objetivo: el alto manda
+    const targetH = sourceH;
+    return { targetW: Math.round(targetH * targetRatio), targetH: Math.round(targetH) };
+  }
+  const targetW = sourceW;
+  return { targetW: Math.round(targetW), targetH: Math.round(targetW / targetRatio) };
+}
 
 /** Ícono circular puramente decorativo (tipo flash/flip de una cámara real) — sin función, no interactivo. */
 function DecorativeCameraButton({ icon: Icon }: { icon: React.ComponentType<{ className?: string }> }) {
@@ -33,6 +48,7 @@ export default function CaptureStep({
   logoLeftSrc,
   logoRightSrc,
   backgroundSrc,
+  aspectRatio,
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
@@ -46,6 +62,8 @@ export default function CaptureStep({
   logoRightSrc?: string;
   /** Fondo detrás del cuadro de cámara (la imagen de fondo configurada del evento). */
   backgroundSrc?: string;
+  /** Relación de aspecto de la foto capturada. "SQUARE" (default) = comportamiento original. Solo aplica cuando no hay marco (el marco manda su propia forma). */
+  aspectRatio?: PhotoAspectRatio;
   onCaptured: (payload: { framed: string; raw: string }) => void;
 }) {
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -200,12 +218,11 @@ export default function CaptureStep({
       console.log("Capture with frame:", { w, h });
     } else {
       // --- Sin marco ---
-      const square = Math.min(
+      const { targetW, targetH } = coverCropSize(
         video.videoWidth || 1080,
         video.videoHeight || 1080,
+        aspectRatio,
       );
-      const targetW = square;
-      const targetH = square;
 
       framed = captureWithFrame({
         video,
@@ -218,11 +235,12 @@ export default function CaptureStep({
     }
 
     // Raw siempre es sin marco
-    const square = Math.min(
+    const { targetW: rawW, targetH: rawH } = coverCropSize(
       video.videoWidth || 1080,
       video.videoHeight || 1080,
+      aspectRatio,
     );
-    const raw = captureRawSquare({ video, targetW: square, targetH: square, mirror });
+    const raw = captureRawSquare({ video, targetW: rawW, targetH: rawH, mirror });
 
     setFlash(true);
     setTimeout(() => setFlash(false), 120);
@@ -236,6 +254,7 @@ export default function CaptureStep({
         frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
         mirror={mirror}
         backgroundSrc={backgroundSrc}
+        aspectRatio={aspectRatio}
         onReady={onReady}
       >
         {viewStyle === "VIEWFINDER" && <CaptureViewfinderOverlay />}
@@ -320,7 +339,7 @@ export default function CaptureStep({
           flip/flash de una cámara real) — no tienen ninguna función. */}
       <div
         className="absolute left-0 right-0 bottom-0 z-20 flex items-center justify-center pb-[env(safe-area-inset-bottom)] px-6 sm:px-10"
-        style={{ top: CAPTURE_SQUARE_BOTTOM }}
+        style={{ top: getCaptureBoxBottom(aspectRatio) }}
       >
         <div className="grid grid-cols-3 items-center w-full h-full py-2">
           <div className="flex justify-start items-center h-full">

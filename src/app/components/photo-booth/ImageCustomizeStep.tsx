@@ -4,6 +4,7 @@
 import React, { useState } from "react";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
+import { getAspectClassName, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
 
 // Cada opción es una PALETA de varios colores (no un color plano). Debe
 // coincidir con TEXTURE_LABELS en functions/src/index.ts (mismos "value" de
@@ -46,6 +47,7 @@ export default function ImageCustomizeStep({
   buttonClickEffect,
   logoLeftSrc,
   logoRightSrc,
+  aspectRatio,
   onConfirm,
 }: {
   previewSrc?: string | null;
@@ -58,6 +60,8 @@ export default function ImageCustomizeStep({
    * configuraciones. */
   logoLeftSrc?: string;
   logoRightSrc?: string;
+  /** Relación de aspecto de la foto. "SQUARE" (default) = comportamiento original. */
+  aspectRatio?: PhotoAspectRatio;
   onConfirm: (value: ImageCustomization) => void;
 }) {
   const [paletteIndex, setPaletteIndex] = useState(0);
@@ -113,7 +117,7 @@ export default function ImageCustomizeStep({
       <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center justify-center gap-[2.5vh] py-2">
         {previewSrc && (
           <div
-            className="relative aspect-square rounded-3xl overflow-hidden shadow-2xl border-4 border-white/80 flex-shrink-0"
+            className={`relative ${getAspectClassName(aspectRatio)} rounded-3xl overflow-hidden shadow-2xl border-4 border-white/80 flex-shrink-0`}
             style={{ width: "clamp(209px, 39.6vw, 440px)" }}
           >
             <img src={previewSrc} alt="Vista previa" className="w-full h-full object-cover" />

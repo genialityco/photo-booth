@@ -7,7 +7,8 @@ import {
   subscribeHandFrame,
   subscribeHandTrackingStatus,
 } from "@/app/components/common/hand-cursor/handTrackingStore";
-import { CANVAS_SIZE, FADE_OUT_MS, type Point, useRevealVeil } from "@/app/components/photo-booth/reveal/useRevealVeil";
+import { FADE_OUT_MS, type Point, useRevealVeil } from "@/app/components/photo-booth/reveal/useRevealVeil";
+import { getAspectClassName, getRevealBoxWidthCss, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
 
 export default function RevealStep({
   aiUrl,
@@ -16,6 +17,8 @@ export default function RevealStep({
   enableFrame = true,
   revealColorHint = null,
   handTrackingEnabled = false,
+  paintTimeSeconds,
+  aspectRatio,
   onRevealed,
 }: {
   aiUrl: string;
@@ -25,6 +28,10 @@ export default function RevealStep({
   revealColorHint?: string | null;
   /** Activa la cámara para revelar la foto con la mano. Si es false, solo se usa el fallback táctil. */
   handTrackingEnabled?: boolean;
+  /** Tiempo máximo (segundos) para pintar/revelar antes de avanzar solo. Sin definir = default de useRevealVeil (28s). */
+  paintTimeSeconds?: number;
+  /** Relación de aspecto de la foto. "SQUARE" (default) = comportamiento original. */
+  aspectRatio?: PhotoAspectRatio;
   onRevealed: () => void;
 }) {
   const {
@@ -35,7 +42,18 @@ export default function RevealStep({
     prefersReducedMotion,
     completeReveal,
     eraseStroke,
-  } = useRevealVeil({ aiUrl, videoUrl, frameSrc, enableFrame, revealColorHint, onRevealed });
+    canvasWidth,
+    canvasHeight,
+  } = useRevealVeil({
+    aiUrl,
+    videoUrl,
+    frameSrc,
+    enableFrame,
+    revealColorHint,
+    aspectRatio,
+    onRevealed,
+    ...(paintTimeSeconds !== undefined ? { safetyTimeoutMs: paintTimeSeconds * 1000 } : {}),
+  });
 
   const selfViewRef = useRef<HTMLVideoElement | null>(null);
   const lastHandPointRef = useRef<Point | null>(null);
@@ -45,7 +63,7 @@ export default function RevealStep({
   const [handTrackingReady, setHandTrackingReady] = useState(false);
   const [handTrackingError, setHandTrackingError] = useState(false);
 
-  const SIZE_IMG = "clamp(300px, min(70vw, 60svh), 700px)";
+  const SIZE_IMG = getRevealBoxWidthCss(aspectRatio);
 
   // === Reserva el tracking de mano compartido (misma cámara que el cursor
   // global si ya está corriendo; si no, arranca una sola para esta pantalla).
@@ -99,21 +117,21 @@ export default function RevealStep({
 
       const ratioX = Math.min(1, Math.max(0, (frame.screenX - rect.left) / rect.width));
       const ratioY = Math.min(1, Math.max(0, (frame.screenY - rect.top) / rect.height));
-      const point = { x: ratioX * CANVAS_SIZE, y: ratioY * CANVAS_SIZE };
+      const point = { x: ratioX * canvasWidth, y: ratioY * canvasHeight };
 
       eraseStroke(lastHandPointRef.current, point);
       lastHandPointRef.current = point;
     });
 
     return unsubscribe;
-  }, [handTrackingReady, eraseStroke, veilCanvasRef]);
+  }, [handTrackingReady, eraseStroke, veilCanvasRef, canvasWidth, canvasHeight]);
 
   // === Fallback táctil: tocar/arrastrar sobre el velo también borra ===
   const pointToCanvas = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
     const rect = e.currentTarget.getBoundingClientRect();
     const nx = (e.clientX - rect.left) / rect.width;
     const ny = (e.clientY - rect.top) / rect.height;
-    return { x: nx * CANVAS_SIZE, y: ny * CANVAS_SIZE };
+    return { x: nx * canvasWidth, y: ny * canvasHeight };
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -153,20 +171,20 @@ export default function RevealStep({
       {/* Marco/mat + sombra en capas, igual que la foto en PreviewStep — le da
           profundidad en vez de quedar pegada al fondo. */}
       <div
-        className="relative p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 aspect-square rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]"
+        className={`relative p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 ${getAspectClassName(aspectRatio)} rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]`}
         style={{ width: SIZE_IMG, maxWidth: SIZE_IMG }}
       >
         <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/5">
           <canvas
             ref={photoCanvasRef}
-            width={CANVAS_SIZE}
-            height={CANVAS_SIZE}
+            width={canvasWidth}
+            height={canvasHeight}
             className="absolute inset-0 w-full h-full object-contain"
           />
           <canvas
             ref={veilCanvasRef}
-            width={CANVAS_SIZE}
-            height={CANVAS_SIZE}
+            width={canvasWidth}
+            height={canvasHeight}
             className="absolute inset-0 w-full h-full object-contain touch-none select-none cursor-pointer"
             style={{
               opacity: revealing ? 0 : 1,

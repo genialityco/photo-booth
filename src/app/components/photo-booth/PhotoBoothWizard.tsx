@@ -222,21 +222,33 @@ export default function PhotoBoothWizard({
     loadStyle();
   }, []);
 
-  // Precarga el modelo 3D del rodillo lo antes posible (apenas se sabe que el
-  // evento usa este efecto), así llega descargado/en caché del navegador
-  // mucho antes de que termine la generación y se necesite en RevealStep.
+  // Precarga el modelo 3D del rodillo y, si aplica, el modelo ONNX de
+  // detección del rodillo real + su binario WASM, lo antes posible (apenas
+  // se sabe que el evento usa este efecto), así llegan descargados/en caché
+  // del navegador mucho antes de que termine la generación y se necesiten
+  // en RevealStep.
   useEffect(() => {
     const usesRoller = eventData?.revealEffect === "ROLLER" || eventData?.revealEffect === "ROLLER_COLOR";
     if (!usesRoller) return;
     if (typeof document === "undefined") return;
-    if (document.querySelector(`link[href="${ROLLER_MODEL_PATH}"]`)) return;
 
-    const link = document.createElement("link");
-    link.rel = "prefetch";
-    link.as = "fetch";
-    link.href = ROLLER_MODEL_PATH;
-    link.crossOrigin = "anonymous";
-    document.head.appendChild(link);
+    const prefetch = (href: string) => {
+      if (document.querySelector(`link[href="${href}"]`)) return;
+      const link = document.createElement("link");
+      link.rel = "prefetch";
+      link.as = "fetch";
+      link.href = href;
+      link.crossOrigin = "anonymous";
+      document.head.appendChild(link);
+    };
+
+    prefetch(ROLLER_MODEL_PATH);
+    // La detección del rodillo real (rollerDetectionStore) ya no depende de
+    // handRevealEnabled — corre siempre que se usa este efecto, así que la
+    // precarga tampoco debe depender de ese flag.
+    prefetch("/models/rodillo-detector/best.onnx");
+    prefetch("/ort/ort-wasm-simd-threaded.asyncify.wasm"); // backend WebGPU (se intenta primero)
+    prefetch("/ort/ort-wasm-simd-threaded.wasm"); // backend WASM (fallback)
   }, [eventData?.revealEffect]);
 
   const handleCaptured = (payload: { framed: string; raw: string }) => {
@@ -505,6 +517,7 @@ export default function PhotoBoothWizard({
           logoLeftSrc={style ? style.logoCaptureTop || style.logoLandingTop : "/genilaty_smart_led_logo.png"}
           logoRightSrc={style ? style.logoCaptureBottom || style.logoLandingBottom : "genilaty_smart_led_logo.png"}
           backgroundSrc={bgUrl}
+          aspectRatio={eventData?.photoAspectRatio}
         />
       )}
 
@@ -580,6 +593,7 @@ export default function PhotoBoothWizard({
                   buttonColorFrom={eventData?.splashButtonColorFrom}
                   buttonColorTo={eventData?.splashButtonColorTo}
                   buttonClickEffect={eventData?.buttonClickEffect}
+                  aspectRatio={eventData?.photoAspectRatio}
                 />
               </motion.div>
             )}
@@ -603,6 +617,7 @@ export default function PhotoBoothWizard({
                   logoLeftSrc={style?.logoLandingTop}
                   logoRightSrc={style?.logoLandingBottom}
                   onConfirm={handleCustomizeConfirmed}
+                  aspectRatio={eventData?.photoAspectRatio}
                 />
               </motion.div>
             )}
@@ -641,7 +656,8 @@ export default function PhotoBoothWizard({
                     enableFrame={eventData?.enableFrame ?? style?.enableFrame ?? true}
                     revealColorHint={color}
                     veilMode={eventData?.revealEffect === "ROLLER_COLOR" ? "GRAYSCALE_PHOTO" : "SOLID"}
-                    handTrackingEnabled={eventData?.handRevealEnabled === true}
+                    paintTimeSeconds={eventData?.paintTimeSeconds}
+                    aspectRatio={eventData?.photoAspectRatio}
                     onRevealed={() => setStep("result")}
                   />
                 ) : (
@@ -652,6 +668,8 @@ export default function PhotoBoothWizard({
                     enableFrame={eventData?.enableFrame ?? style?.enableFrame ?? true}
                     revealColorHint={color}
                     handTrackingEnabled={eventData?.handRevealEnabled === true}
+                    paintTimeSeconds={eventData?.paintTimeSeconds}
+                    aspectRatio={eventData?.photoAspectRatio}
                     onRevealed={() => setStep("result")}
                   />
                 )}

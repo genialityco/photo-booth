@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { composeFramedCanvas } from "@/app/components/photo-booth/composeFramedImage";
+import { getPixelDims, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
 
 // ── Configuración compartida por todos los efectos de revelado ──────────────
+/** @deprecated usar CANVAS_BASE_SIZE + getPixelDims (photoAspectRatio.ts) para relaciones no cuadradas. Se mantiene por compatibilidad donde el canvas es siempre 1:1. */
 export const CANVAS_SIZE = 1024;
+const CANVAS_BASE_SIZE = 1024; // lado mayor del canvas, igual al tamaño cuadrado original
 const REVEAL_THRESHOLD = 0.7; // % del velo borrado que auto-completa el revelado
-const SAFETY_TIMEOUT_MS = 28000; // si nadie interactúa, avanza igual
+const DEFAULT_SAFETY_TIMEOUT_MS = 28000; // si nadie interactúa, avanza igual (default si el evento no configura otro)
 const PROGRESS_CHECK_INTERVAL_MS = 350;
 const PROGRESS_SAMPLE_SIZE = 48; // miniatura offscreen para medir % borrado
 export const FADE_OUT_MS = 700;
@@ -20,13 +23,14 @@ function drawCover(
   source: CanvasImageSource,
   sw: number,
   sh: number,
-  size: number,
+  targetW: number,
+  targetH: number,
 ) {
-  const scale = Math.max(size / sw, size / sh);
+  const scale = Math.max(targetW / sw, targetH / sh);
   const dw = sw * scale;
   const dh = sh * scale;
-  const dx = (size - dw) / 2;
-  const dy = (size - dh) / 2;
+  const dx = (targetW - dw) / 2;
+  const dy = (targetH - dh) / 2;
   ctx.drawImage(source, dx, dy, dw, dh);
 }
 
@@ -37,6 +41,8 @@ export function useRevealVeil({
   enableFrame = true,
   revealColorHint = null,
   veilMode = "SOLID",
+  aspectRatio,
+  safetyTimeoutMs = DEFAULT_SAFETY_TIMEOUT_MS,
   onRevealed,
 }: {
   aiUrl: string;
@@ -48,6 +54,10 @@ export function useRevealVeil({
    * una copia en blanco y negro de la propia foto/video, así al borrarlo
    * aparece el color de abajo en vez de descubrir una imagen distinta. */
   veilMode?: "SOLID" | "GRAYSCALE_PHOTO";
+  /** Relación de aspecto del canvas. "SQUARE" (default) = comportamiento original (1024x1024). */
+  aspectRatio?: PhotoAspectRatio;
+  /** Tiempo máximo (ms) para pintar/revelar antes de avanzar solo. Configurable por evento (EventProfile.paintTimeSeconds). */
+  safetyTimeoutMs?: number;
   onRevealed: () => void;
 }) {
   const photoCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -57,6 +67,11 @@ export function useRevealVeil({
 
   const [photoReady, setPhotoReady] = useState(false);
   const [revealing, setRevealing] = useState(false);
+
+  const { width: canvasWidth, height: canvasHeight } = useMemo(
+    () => getPixelDims(aspectRatio, CANVAS_BASE_SIZE),
+    [aspectRatio],
+  );
 
   const prefersReducedMotion = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -116,11 +131,12 @@ export function useRevealVeil({
           drawCover(
             pctx,
             vid,
-            vid.videoWidth || CANVAS_SIZE,
-            vid.videoHeight || CANVAS_SIZE,
-            CANVAS_SIZE,
+            vid.videoWidth || canvasWidth,
+            vid.videoHeight || canvasHeight,
+            canvasWidth,
+            canvasHeight,
           );
-          if (frameImg) pctx.drawImage(frameImg, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+          if (frameImg) pctx.drawImage(frameImg, 0, 0, canvasWidth, canvasHeight);
           if (!markedReady) {
             markedReady = true;
             setPhotoReady(true);
@@ -139,10 +155,10 @@ export function useRevealVeil({
       };
     }
 
-    composeFramedCanvas({ aiUrl, frameSrc, enableFrame, size: CANVAS_SIZE })
+    composeFramedCanvas({ aiUrl, frameSrc, enableFrame, width: canvasWidth, height: canvasHeight })
       .then((canvas) => {
         if (cancelled) return;
-        pctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+        pctx.clearRect(0, 0, canvasWidth, canvasHeight);
         pctx.drawImage(canvas, 0, 0);
         setPhotoReady(true);
       })
@@ -154,7 +170,7 @@ export function useRevealVeil({
     return () => {
       cancelled = true;
     };
-  }, [aiUrl, videoUrl, frameSrc, enableFrame]);
+  }, [aiUrl, videoUrl, frameSrc, enableFrame, canvasWidth, canvasHeight]);
 
   // === Pinta el velo inicial: color sólido, o (GRAYSCALE_PHOTO) una copia en
   // blanco y negro de la propia foto — se pinta una sola vez, como snapshot,
@@ -170,7 +186,7 @@ export function useRevealVeil({
       const photoCanvas = photoCanvasRef.current;
       if (!photoCanvas) return;
       ctx.globalCompositeOperation = "source-over";
-      ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
       // grayscale + un poco menos de contraste/brillo levantado: la foto se
       // ve "lavada"/desteñida, para que el color se note mucho más al pintar.
       ctx.filter = "grayscale(1) contrast(0.8) brightness(1.12)";
@@ -181,16 +197,16 @@ export function useRevealVeil({
       // y desatura aún más el blanco y negro — efecto "transparencia/neblina".
       ctx.globalAlpha = 0.32;
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
       ctx.globalAlpha = 1;
       return;
     }
 
     ctx.globalCompositeOperation = "source-over";
-    ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     ctx.fillStyle = resolvedVeilColor;
-    ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-  }, [resolvedVeilColor, veilMode, photoReady]);
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  }, [resolvedVeilColor, veilMode, photoReady, canvasWidth, canvasHeight]);
 
   // === Borra una forma arbitraria del velo (destination-out) ===
   const eraseWithPath = useCallback((draw: (ctx: CanvasRenderingContext2D) => void) => {
@@ -205,7 +221,7 @@ export function useRevealVeil({
 
   // === Borra un trazo suave (círculos) entre dos puntos del velo ===
   const eraseStroke = useCallback(
-    (from: Point | null, to: Point, radius: number = CANVAS_SIZE * 0.09) => {
+    (from: Point | null, to: Point, radius: number = Math.min(canvasWidth, canvasHeight) * 0.09) => {
       eraseWithPath((ctx) => {
         const drawDot = (p: Point) => {
           ctx.beginPath();
@@ -224,7 +240,7 @@ export function useRevealVeil({
         }
       });
     },
-    [eraseWithPath],
+    [eraseWithPath, canvasWidth, canvasHeight],
   );
 
   // === Chequeo periódico de % revelado → auto-completa al cruzar el umbral ===
@@ -255,9 +271,9 @@ export function useRevealVeil({
 
   // === Timeout de seguridad: nunca deja el kiosco trabado ===
   useEffect(() => {
-    const id = window.setTimeout(completeReveal, SAFETY_TIMEOUT_MS);
+    const id = window.setTimeout(completeReveal, safetyTimeoutMs);
     return () => window.clearTimeout(id);
-  }, [completeReveal]);
+  }, [completeReveal, safetyTimeoutMs]);
 
   return {
     photoCanvasRef,
@@ -269,5 +285,7 @@ export function useRevealVeil({
     completeReveal,
     eraseWithPath,
     eraseStroke,
+    canvasWidth,
+    canvasHeight,
   };
 }
