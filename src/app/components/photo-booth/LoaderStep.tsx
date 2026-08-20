@@ -14,7 +14,15 @@ import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService
 const ESTIMATED_DURATION_MS = 18000;
 const PROGRESS_CAP = 92;
 
-export default function LoaderStep() {
+export default function LoaderStep({
+  brandIdOverride,
+}: {
+  /** Modo espejo (BoothMirror): id de marca transmitido por el líder, en vez
+   * de leerlo de sessionStorage("selectedBrand") — ese valor es por-pestaña,
+   * así que la pantalla espejo nunca lo tiene (la selección ocurre en la
+   * tablet líder, no acá). */
+  brandIdOverride?: string | null;
+} = {}) {
   const [dots, setDots] = useState("");
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [event, setEvent] = useState<EventProfile | null>(null);
@@ -49,8 +57,9 @@ export default function LoaderStep() {
       }
 
       // Nombre de marca/estilo para el badge, a partir del brand elegido
-      // (guardado en sessionStorage por EventPhotoBoothLanding / el wizard).
-      const brandId = sessionStorage.getItem("selectedBrand");
+      // (guardado en sessionStorage por EventPhotoBoothLanding / el wizard) —
+      // o el transmitido por el líder, en modo espejo.
+      const brandId = brandIdOverride ?? sessionStorage.getItem("selectedBrand");
       if (brandId) {
         getPhotoBoothPromptById(brandId)
           .then((prompt) => {
@@ -63,7 +72,7 @@ export default function LoaderStep() {
     } catch (e) {
       // Error reading sessionStorage
     }
-  }, []);
+  }, [brandIdOverride]);
 
   useEffect(() => {
     const start = Date.now();

@@ -31,6 +31,28 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { event } from "firebase-functions/v1/analytics";
+import type { BoothLiveState } from "@/app/components/photo-booth/useBoothLiveSession";
+
+/** Sube un data: URL a Storage vía la ruta existente. Compartida entre la
+ * subida temprana (apenas se captura, para que la pantalla espejo tenga algo
+ * que mostrar) y confirmAndProcess (que reutiliza esa misma subida en vez de
+ * repetirla). */
+async function uploadCapturedPhoto(
+  dataUrl: string,
+  desiredPath: string
+): Promise<{ url: string; path: string }> {
+  const res = await fetch("/api/storage/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dataUrl, desiredPath }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(errorData.error || `Upload failed with status ${res.status}`);
+  }
+  const data = await res.json();
+  return { url: data.url, path: data.path };
+}
 
 export default function PhotoBoothWizard({
   mirror = true,
@@ -39,13 +61,20 @@ export default function PhotoBoothWizard({
   borderRadius = "4xl",
   eventData,
   onReset,
+  onLiveState,
 }: {
   frameSrc?: string | null;
+  /** Voltea la cámara como espejo de selfie — sin relación con el "modo
+   * espejo" de sincronización entre pantallas (ver useBoothLiveSession). */
   mirror?: boolean;
   boxSize?: string;
   borderRadius?: "none" | "md" | "lg" | "xl" | "4xl";
   eventData?: EventProfile;
   onReset?: () => void;
+  /** Notifica cada cambio de paso/foto/selección relevante para que la
+   * pantalla espejo (otro tab/dispositivo) se mantenga sincronizada. Solo lo
+   * pasa el tab líder — ver src/app/(public)/booth/[slug]/page.tsx. */
+  onLiveState?: (partial: Partial<Omit<BoothLiveState, "leaderId" | "updatedAt">>) => void;
 }) {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<
@@ -56,11 +85,17 @@ export default function PhotoBoothWizard({
   const [aiUrl, setAiUrl] = useState<string | null>(null);
   const [aiVideoUrl, setAiVideoUrl] = useState<string | null>(null);
   const [framedUrl, setFramedUrl] = useState<string | null>(null);
+  const [rawUrl, setRawUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [brand, setBrand] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
   const [customization, setCustomization] = useState<ImageCustomization | null>(null);
+  const [showQr, setShowQr] = useState(false);
   const unsubRef = useRef<() => void | undefined>(undefined);
+  // Subidas tempranas disparadas en handleCaptured (ver más abajo) —
+  // confirmAndProcess las espera en vez de volver a subir la misma foto.
+  const framedUploadRef = useRef<Promise<{ url: string; path: string }> | null>(null);
+  const rawUploadRef = useRef<Promise<{ url: string; path: string }> | null>(null);
   const [style, setStyle] = useState<StyleProfile | null>(null);
 
   useEffect(() => {
@@ -255,6 +290,31 @@ export default function PhotoBoothWizard({
     setFramedShot(payload.framed);
     setRawShot(payload.raw);
     setStep("preview");
+
+    // Subida temprana (no bloqueante): el taskId se genera acá en vez de en
+    // confirmAndProcess para que, desde el momento de la captura, exista una
+    // URL de Storage real que una pantalla espejo (otro tab/dispositivo)
+    // pueda mostrar durante preview/customize — antes de este cambio la foto
+    // solo existía como data: URL en memoria de este tab. confirmAndProcess
+    // reutiliza esta misma subida (framedUploadRef) en vez de repetirla.
+    const newTaskId = `t_${Math.random()
+      .toString(36)
+      .slice(2, 10)}_${Date.now().toString(36)}`;
+    setTaskId(newTaskId);
+
+    const framedPromise = uploadCapturedPhoto(payload.framed, `tasks/${newTaskId}/input.png`);
+    framedUploadRef.current = framedPromise;
+    framedPromise
+      .then((res) => setFramedUrl(res.url))
+      .catch((e) => console.error("[PhotoBoothWizard] Early framed upload failed:", e));
+
+    if (payload.raw) {
+      const rawPromise = uploadCapturedPhoto(payload.raw, `tasks/${newTaskId}/raw.png`);
+      rawUploadRef.current = rawPromise;
+      rawPromise
+        .then((res) => setRawUrl(res.url))
+        .catch((e) => console.error("[PhotoBoothWizard] Early raw upload failed:", e));
+    }
   };
 
   // Si el evento tiene "captura primero" activado y hay más de una marca
@@ -309,34 +369,31 @@ export default function PhotoBoothWizard({
     const finalCustomization = customizationOverride ?? customization;
     setStep("loading");
     try {
-      const newTaskId = `t_${Math.random()
-        .toString(36)
-        .slice(2, 10)}_${Date.now().toString(36)}`;
-      setTaskId(newTaskId);
+      // handleCaptured ya generó el taskId y disparó la subida en cuanto se
+      // tomó la foto (para que la pantalla espejo tuviera algo que mostrar
+      // durante preview/customize) — se reutiliza acá en vez de repetirla.
+      // El fallback (sin taskId/promesa) cubre el caso defensivo de que este
+      // método se invoque sin haber pasado por handleCaptured.
+      const newTaskId =
+        taskId ??
+        `t_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
+      if (!taskId) setTaskId(newTaskId);
 
-      // 1) Subir la FOTO CON MARCO como input via /api/storage/upload
-      const uploadResponse = await fetch("/api/storage/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dataUrl: framedShot,
-          desiredPath: `tasks/${newTaskId}/input.png`,
-        }),
-      });
-
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse
-          .json()
-          .catch(() => ({ error: "Unknown error" }));
-        throw new Error(
-          errorData.error ||
-            `Upload failed with status ${uploadResponse.status}`,
-        );
+      let framedDownloadUrl: string;
+      let inputPath: string;
+      try {
+        const uploaded = framedUploadRef.current
+          ? await framedUploadRef.current
+          : await uploadCapturedPhoto(framedShot, `tasks/${newTaskId}/input.png`);
+        framedDownloadUrl = uploaded.url;
+        inputPath = uploaded.path;
+      } catch {
+        // La subida temprana falló (ej. corte de red momentáneo) — un
+        // reintento acá antes de rendirse.
+        const uploaded = await uploadCapturedPhoto(framedShot, `tasks/${newTaskId}/input.png`);
+        framedDownloadUrl = uploaded.url;
+        inputPath = uploaded.path;
       }
-
-      const uploadData = await uploadResponse.json();
-      const framedDownloadUrl = uploadData.url;
-      const inputPath = uploadData.path;
 
       setFramedUrl(framedDownloadUrl);
 
@@ -462,10 +519,29 @@ export default function PhotoBoothWizard({
     setAiUrl(null);
     setAiVideoUrl(null);
     setFramedUrl(null);
+    setRawUrl(null);
     setTaskId(null);
     setCustomization(null);
+    setShowQr(false);
+    framedUploadRef.current = null;
+    rawUploadRef.current = null;
     setStep("capture");
   };
+
+  // Notifica a la pantalla espejo (si la hay) cada vez que cambia algo que
+  // afecta lo que debería estar mostrando — ver useBoothLiveSession/BoothMirror.
+  // No-op si nadie pasó onLiveState (el caso normal, sin espejo activo).
+  useEffect(() => {
+    onLiveState?.({
+      phase: step,
+      taskId,
+      brand,
+      customization,
+      previewUrl: rawUrl || framedUrl || null,
+      showQr,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, taskId, brand, customization, rawUrl, framedUrl, showQr]);
 
   const stepVariants = {
     initial: { opacity: 0, y: 16, scale: 0.98 },
@@ -693,6 +769,8 @@ export default function PhotoBoothWizard({
                   onAgain={resetAll}
                   buttonImage={eventData?.buttonImage}
                   buttonClickEffect={eventData?.buttonClickEffect}
+                  showQr={showQr}
+                  onShowQrChange={setShowQr}
                 />
               </motion.div>
             )}

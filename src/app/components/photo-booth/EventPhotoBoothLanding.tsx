@@ -13,6 +13,8 @@ export default function EventPhotoBoothLanding({
   event,
   onStart,
   buttonLabel = "Comenzar",
+  readOnly = false,
+  selectedBrandOverride = null,
 }: {
   event: EventProfile;
   onStart?: (brand?: string, dataProcessingAccepted?: boolean) => void;
@@ -20,6 +22,12 @@ export default function EventPhotoBoothLanding({
    * ej. cuando esta pantalla se usa después de tomar la foto (captura
    * primero) y el botón dispara la generación en vez de arrancar el flujo. */
   buttonLabel?: string;
+  /** Modo espejo (BoothMirror): sin interacción propia, solo refleja el
+   * estado del tab líder — tarjetas y checkbox/CTA quedan inertes. */
+  readOnly?: boolean;
+  /** Fuerza qué tarjeta aparece seleccionada (modo espejo), en vez de la
+   * selección local por defecto (primera marca al cargar). */
+  selectedBrandOverride?: string | null;
 }) {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [prompts, setPrompts] = useState<PhotoBoothPrompt[]>([]);
@@ -41,8 +49,9 @@ export default function EventPhotoBoothLanding({
           const loadedPrompts = await getPhotoBoothPromptsByIds(event.prompts);
           setPrompts(loadedPrompts);
 
-          // Seleccionar automáticamente la primera brand
-          if (loadedPrompts.length > 0) {
+          // Seleccionar automáticamente la primera brand — salvo que venga
+          // una selección forzada desde afuera (modo espejo).
+          if (loadedPrompts.length > 0 && !selectedBrandOverride) {
             setSelectedBrand(loadedPrompts[0].id);
           }
 
@@ -64,6 +73,12 @@ export default function EventPhotoBoothLanding({
 
     loadPrompts();
   }, [event.prompts]);
+
+  // Modo espejo: si la selección forzada cambia después del montaje (el
+  // líder eligió otra marca), seguirla.
+  useEffect(() => {
+    if (selectedBrandOverride) setSelectedBrand(selectedBrandOverride);
+  }, [selectedBrandOverride]);
 
   const handleImageLoad = (promptId: string) => {
     setImageLoadingStates((prev) => ({ ...prev, [promptId]: false }));
@@ -172,8 +187,11 @@ export default function EventPhotoBoothLanding({
                   return (
                     <button
                       key={prompt.id}
-                      onClick={() => setSelectedBrand(prompt.id)}
+                      onClick={readOnly ? undefined : () => setSelectedBrand(prompt.id)}
+                      disabled={readOnly}
                       className={`relative w-full aspect-square rounded-2xl font-semibold transition-all duration-200 overflow-hidden flex items-center justify-center shadow-lg shadow-black/30 ${
+                        readOnly ? "cursor-default" : ""
+                      } ${
                         isSelected
                           ? "ring-4 ring-blue-400 scale-[1.04]"
                           : "ring-1 ring-white/20 hover:scale-[1.02] opacity-90 hover:opacity-100"
@@ -259,7 +277,8 @@ export default function EventPhotoBoothLanding({
                   type="checkbox"
                   id="dataProcessing"
                   checked={dataProcessingAccepted}
-                  onChange={(e) => setDataProcessingAccepted(e.target.checked)}
+                  disabled={readOnly}
+                  onChange={readOnly ? undefined : (e) => setDataProcessingAccepted(e.target.checked)}
                   className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer flex-shrink-0"
                 />
                 <label
@@ -274,8 +293,8 @@ export default function EventPhotoBoothLanding({
 
           {/* Start Button */}
           <ButtonPrimary
-            onClick={handleStart}
-            disabled={!isStartEnabled}
+            onClick={readOnly ? undefined : handleStart}
+            disabled={readOnly || !isStartEnabled}
             label={buttonLabel}
             imageSrc={event.buttonImage}
             colorFrom={event.splashButtonColorFrom}

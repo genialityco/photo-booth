@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import { getAspectClassName, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
@@ -49,6 +49,8 @@ export default function ImageCustomizeStep({
   logoRightSrc,
   aspectRatio,
   onConfirm,
+  readOnly = false,
+  customizationOverride = null,
 }: {
   previewSrc?: string | null;
   buttonImage?: string;
@@ -63,10 +65,27 @@ export default function ImageCustomizeStep({
   /** Relación de aspecto de la foto. "SQUARE" (default) = comportamiento original. */
   aspectRatio?: PhotoAspectRatio;
   onConfirm: (value: ImageCustomization) => void;
+  /** Modo espejo (BoothMirror): paleta/textura/intensidad e imagen quedan
+   * inertes, solo reflejan `customizationOverride`; el botón "¡Listo!" no se
+   * muestra — la decisión es de la tablet líder. */
+  readOnly?: boolean;
+  customizationOverride?: ImageCustomization | null;
 }) {
   const [paletteIndex, setPaletteIndex] = useState(0);
   const [texture, setTexture] = useState(TEXTURES[0].value);
   const [intensity, setIntensity] = useState(50);
+
+  // Modo espejo: seguir la selección transmitida por el líder en vez de la
+  // propia (acá nunca se toca nada localmente cuando readOnly).
+  useEffect(() => {
+    if (!customizationOverride) return;
+    const idx = PALETTES.findIndex(
+      (p) => p.join(",") === customizationOverride.palette.join(",")
+    );
+    if (idx >= 0) setPaletteIndex(idx);
+    setTexture(customizationOverride.texture);
+    setIntensity(customizationOverride.intensity);
+  }, [customizationOverride]);
 
   const handleConfirm = () => {
     onConfirm({ palette: PALETTES[paletteIndex], texture, intensity });
@@ -136,7 +155,8 @@ export default function ImageCustomizeStep({
               <button
                 key={colors.join(",")}
                 type="button"
-                onClick={() => setPaletteIndex(i)}
+                onClick={readOnly ? undefined : () => setPaletteIndex(i)}
+                disabled={readOnly}
                 aria-label={`Paleta ${colors.join(", ")}`}
                 className={`flex-1 aspect-square rounded-2xl transition-transform ${
                   paletteIndex === i ? "ring-4 ring-white scale-110" : "opacity-90 hover:opacity-100"
@@ -162,7 +182,8 @@ export default function ImageCustomizeStep({
               <button
                 key={t.value}
                 type="button"
-                onClick={() => setTexture(t.value)}
+                onClick={readOnly ? undefined : () => setTexture(t.value)}
+                disabled={readOnly}
                 className={`flex-1 rounded-full font-semibold transition-colors ${
                   texture === t.value ? "bg-black text-white" : "bg-white text-black hover:bg-white/90"
                 }`}
@@ -190,26 +211,29 @@ export default function ImageCustomizeStep({
             min={0}
             max={100}
             value={intensity}
-            onChange={(e) => setIntensity(Number(e.target.value))}
+            onChange={readOnly ? undefined : (e) => setIntensity(Number(e.target.value))}
+            disabled={readOnly}
             className="w-full accent-red-500"
             style={{ height: "clamp(10px, 1.4vh, 16px)" }}
           />
         </div>
       </div>
 
-      <div className="w-full flex-shrink-0 pt-2" style={{ maxWidth: "clamp(340px, 65vw, 680px)" }}>
-        <ButtonPrimary
-          onClick={handleConfirm}
-          label="¡LISTO!"
-          imageSrc={buttonImage}
-          colorFrom={buttonColorFrom}
-          colorTo={buttonColorTo}
-          width="100%"
-          height="clamp(52px, 8.5vh, 84px)"
-          textClassName="text-lg sm:text-2xl"
-          clickEffect={buttonClickEffect}
-        />
-      </div>
+      {!readOnly && (
+        <div className="w-full flex-shrink-0 pt-2" style={{ maxWidth: "clamp(340px, 65vw, 680px)" }}>
+          <ButtonPrimary
+            onClick={handleConfirm}
+            label="¡LISTO!"
+            imageSrc={buttonImage}
+            colorFrom={buttonColorFrom}
+            colorTo={buttonColorTo}
+            width="100%"
+            height="clamp(52px, 8.5vh, 84px)"
+            textClassName="text-lg sm:text-2xl"
+            clickEffect={buttonClickEffect}
+          />
+        </div>
+      )}
     </div>
   );
 }

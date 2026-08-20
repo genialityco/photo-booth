@@ -2,14 +2,14 @@
 "use client";
 
 import React, { useMemo, useEffect, useState } from "react";
-import { FaQrcode } from "react-icons/fa";
 import type { StyleProfile } from "@/app/services/admin/styleService";
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import QrTag from "@/app/components/photo-booth/QrTag";
 import { composeFramedCanvas, composeFramedImageDataUrl } from "@/app/components/photo-booth/composeFramedImage";
-import { getAspectClassName, getPixelDims, getRevealBoxWidthCss } from "@/app/components/photo-booth/photoAspectRatio";
+import { getPixelDims } from "@/app/components/photo-booth/photoAspectRatio";
+import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
 
 type Props = {
   taskId: string;
@@ -19,6 +19,11 @@ type Props = {
   footer?: React.ReactNode;
   buttonImage?: string;
   buttonClickEffect?: ButtonClickEffectId;
+  /** Controlado por el padre (PhotoBoothWizard) en vez de estado local, para
+   * poder transmitirlo a la pantalla espejo (BoothMirror) — ver
+   * useBoothLiveSession. */
+  showQr: boolean;
+  onShowQrChange: (value: boolean) => void;
 };
 
 export default function ResultStep({
@@ -28,16 +33,23 @@ export default function ResultStep({
   onAgain,
   buttonImage,
   buttonClickEffect,
+  showQr,
+  onShowQrChange,
 }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [event, setEvent] = useState<EventProfile | null>(null);
   const [qrSize, setQrSize] = useState(500);
-  const [showQr, setShowQr] = useState(false);
   const enableFrame = event?.enableFrame ?? style?.enableFrame ?? true;
   const frameSrc = event?.frameImage ?? null;
   const aspectRatio = event?.photoAspectRatio;
   const pixelDims = useMemo(() => getPixelDims(aspectRatio), [aspectRatio]);
+  // Mide el contenedor real y encoge la foto para que todo (foto + botones)
+  // quepa sin scroll, en vez del "scroll de emergencia" que había antes —
+  // mismo mecanismo que PreviewStep, importante ahora que la relación de
+  // aspecto es configurable por evento (3:4 ocupa más alto que el cuadrado
+  // original).
+  const { containerRef, boxDims } = useFitAspectBox(aspectRatio);
 
   const surveyAI = useMemo(() => {
     const url = new URL(`${origin}/survey`);
@@ -59,8 +71,6 @@ export default function ResultStep({
     
     return url.toString();
   }, [origin, aiUrl, videoUrl, taskId, enableFrame, frameSrc]);
-
-  const SIZE_IMG = getRevealBoxWidthCss(aspectRatio);
 
   // === Componer imagen con marco (para preview en pantalla) ===
   const [framedImageUrl, setFramedImageUrl] = useState<string>("");
@@ -116,10 +126,8 @@ export default function ResultStep({
     }
   }, []);
 
-  // Calcular tamaño del QR responsivo. Ahora el QR ocupa la misma caja
-  // grande que la foto (hasta 700px, ver SIZE_IMG), así que le damos más
-  // espacio del que tenía cuando era un sello chico superpuesto — pero
-  // limitado también por el alto de pantalla, para no desbordar la caja en
+  // Calcular tamaño del QR expandido (ocupa toda la caja de la foto al
+  // tocarlo) — acotado también por el alto de pantalla, para no desbordar en
   // pantallas bajas y anchas.
   useEffect(() => {
     const updateQrSize = () => {
@@ -227,54 +235,63 @@ export default function ResultStep({
     <div
       className="w-full h-full flex flex-col items-center justify-center px-3 sm:px-4 overflow-hidden"
     >
-      {/* Contenido principal — scroll de emergencia si no alcanza el alto
-          (foto + botón QR + QR abierto + botones, todo junto, en una
-          pantalla baja). */}
-      <main className="flex-1 min-h-0 w-full flex flex-col items-center justify-center gap-3 sm:gap-4 overflow-y-auto py-2 sm:py-4">
-        {/* Imagen/Video IA — o el QR, cuando está activo, en el mismo
-            espacio (mismo tamaño de caja, sin salto de layout). Mat + sombra
-            en capas, mismo tratamiento que el resto del wizard. */}
+      {/* Sin scroll: la foto encoge (useFitAspectBox) para que foto + botones
+          quepan siempre en el alto disponible, incluso con relaciones de
+          aspecto más altas que el cuadrado original (3:4). */}
+      <main className="flex-1 min-h-0 w-full flex flex-col items-center gap-2 sm:gap-3 py-2 sm:py-4">
+        {/* Imagen/Video IA, con el QR como sello en la esquina — tocarlo lo
+            agranda a toda la caja (mismo lugar, sin salto de layout). Mat +
+            sombra en capas, mismo tratamiento que el resto del wizard. */}
         <div
-          className="relative flex-shrink-0 p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]"
-          style={{ width: SIZE_IMG, maxWidth: SIZE_IMG }}
+          ref={containerRef}
+          className="relative flex-1 min-h-0 w-full flex items-center justify-center"
         >
           <div
-            className={`relative w-full h-full overflow-hidden rounded-xl ${getAspectClassName(aspectRatio)} flex items-center justify-center transition-colors ${
-              showQr ? "bg-white" : "bg-black/5"
-            }`}
+            className="relative p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]"
+            style={
+              boxDims
+                ? { width: boxDims.width, height: boxDims.height }
+                : { maxWidth: "100%", maxHeight: "100%" }
+            }
           >
-            {showQr ? (
-              <QrTag value={surveyAI} size={qrSize} label="Escanea para descargar tu foto en tu celular" />
-            ) : videoUrl ? (
-              <video
-                src={videoUrl}
-                className="absolute inset-0 w-full h-full object-contain"
-                autoPlay
-                loop
-                muted
-                playsInline
-              />
-            ) : (
-              <img
-                src={framedImageUrl || aiUrl}
-                alt="Imagen generada por IA"
-                className="absolute inset-0 w-full h-full object-contain select-none"
-                draggable={false}
-              />
-            )}
+            <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/5">
+              {videoUrl ? (
+                <video
+                  src={videoUrl}
+                  className="absolute inset-0 w-full h-full object-contain"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                />
+              ) : (
+                <img
+                  src={framedImageUrl || aiUrl}
+                  alt="Imagen generada por IA"
+                  className="absolute inset-0 w-full h-full object-contain select-none"
+                  draggable={false}
+                />
+              )}
+
+              <button
+                type="button"
+                onClick={() => onShowQrChange(!showQr)}
+                aria-label={showQr ? "Volver a la foto" : "Mostrar código QR para descargar la foto"}
+                className={`absolute rounded-xl transition-all duration-300 ease-out ${
+                  showQr
+                    ? "inset-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
+                    : "bottom-2 right-2 sm:bottom-3 sm:right-3 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10 active:scale-95"
+                }`}
+              >
+                <QrTag
+                  value={surveyAI}
+                  size={showQr ? qrSize : Math.max(48, Math.min(88, (boxDims?.width ?? 240) * 0.22))}
+                  label={showQr ? "Escanea para descargar tu foto en tu celular" : undefined}
+                />
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* Botón para alternar entre la foto y el QR en la misma caja. */}
-        <button
-          type="button"
-          onClick={() => setShowQr((v) => !v)}
-          className="flex-shrink-0 inline-flex items-center gap-2 bg-white/90 hover:bg-white active:scale-95 transition-all rounded-full px-5 py-2.5 shadow-lg font-semibold text-black"
-          style={{ fontSize: "clamp(0.85rem, 2vmin, 1.05rem)" }}
-        >
-          <FaQrcode className="w-4 h-4" aria-hidden />
-          {showQr ? "Ver foto" : "Mostrar QR"}
-        </button>
 
         {/* Botones: nueva foto / descargar */}
         <div className="flex-shrink-0 w-full flex flex-row items-center justify-center gap-2 sm:gap-3 overflow-x-auto whitespace-nowrap">

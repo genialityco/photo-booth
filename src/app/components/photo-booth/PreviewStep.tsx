@@ -1,10 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
-import { getAspectClassName, getAspectDims, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
+import { getAspectClassName, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
+import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
 
 export default function PreviewStep({
   framedShot,
@@ -18,6 +19,7 @@ export default function PreviewStep({
   buttonColorFrom,
   buttonColorTo,
   buttonClickEffect,
+  readOnly = false,
 }: {
   framedShot: string; // foto con marco (no se usa visualmente)
   rawShot?: string; // foto sin marco (para mostrar)
@@ -31,6 +33,9 @@ export default function PreviewStep({
   buttonClickEffect?: ButtonClickEffectId;
   onRetake: () => void;
   onConfirm?: () => void; // confirmará y pasará al loader
+  /** Modo espejo (BoothMirror): oculta los botones Repetir/Confirmar — solo
+   * la tablet líder decide, esta pantalla nada más refleja la foto. */
+  readOnly?: boolean;
 }) {
   // Mostrar la foto sin marco (rawShot si está disponible, sino framedShot)
   const displayImage = rawShot || framedShot;
@@ -53,27 +58,7 @@ export default function PreviewStep({
   // contenedor real y forzamos el rectángulo exacto en píxeles cuando hace
   // falta; el contenedor no depende del tamaño de esta caja, así que no hay
   // loop de resize.
-  const { w: ratioW, h: ratioH } = getAspectDims(aspectRatio);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [boxDims, setBoxDims] = useState<{ width: number; height: number } | null>(null);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect;
-      if (width <= 0 || height <= 0) return;
-      const containerRatio = width / height;
-      const targetRatio = ratioW / ratioH;
-      if (containerRatio > targetRatio) {
-        setBoxDims({ width: height * targetRatio, height });
-      } else {
-        setBoxDims({ width, height: width / targetRatio });
-      }
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [ratioW, ratioH]);
+  const { containerRef, boxDims } = useFitAspectBox(aspectRatio);
 
   {
     return (
@@ -100,32 +85,34 @@ export default function PreviewStep({
           </div>
         </div>
 
-        <div className="flex flex-row gap-1 sm:gap-2 justify-center overflow-x-auto whitespace-nowrap flex-shrink-0 w-full px-2">
-          <ButtonPrimary
-            onClick={onRetake}
-            imageSrc={buttonImage}
-            colorFrom={buttonColorFrom}
-            colorTo={buttonColorTo}
-            label="REPETIR"
-            width="clamp(120px, 40vw, 310px)"
-            height="clamp(40px, 8vh, 60px)"
-            className="flex-1 max-w-[310px]"
-            clickEffect={buttonClickEffect}
-          />
-          {onConfirm && (
+        {!readOnly && (
+          <div className="flex flex-row gap-1 sm:gap-2 justify-center overflow-x-auto whitespace-nowrap flex-shrink-0 w-full px-2">
             <ButtonPrimary
-              onClick={onConfirm}
+              onClick={onRetake}
               imageSrc={buttonImage}
               colorFrom={buttonColorFrom}
               colorTo={buttonColorTo}
-              label="CONFIRMAR"
+              label="REPETIR"
               width="clamp(120px, 40vw, 310px)"
               height="clamp(40px, 8vh, 60px)"
               className="flex-1 max-w-[310px]"
               clickEffect={buttonClickEffect}
             />
-          )}
-        </div>
+            {onConfirm && (
+              <ButtonPrimary
+                onClick={onConfirm}
+                imageSrc={buttonImage}
+                colorFrom={buttonColorFrom}
+                colorTo={buttonColorTo}
+                label="CONFIRMAR"
+                width="clamp(120px, 40vw, 310px)"
+                height="clamp(40px, 8vh, 60px)"
+                className="flex-1 max-w-[310px]"
+                clickEffect={buttonClickEffect}
+              />
+            )}
+          </div>
+        )}
       </div>
     );
   }

@@ -11,6 +11,8 @@ import LoadingScreen from "@/app/components/common/LoadingScreen";
 import ScreenSaver from "@/app/components/common/ScreenSaver";
 import HandCursorOverlay from "@/app/components/common/hand-cursor/HandCursorOverlay";
 import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
+import { useBoothLiveSession } from "@/app/components/photo-booth/useBoothLiveSession";
+import BoothMirror from "@/app/components/photo-booth/BoothMirror";
 
 export default function EventBoothPage({
   params,
@@ -73,6 +75,22 @@ export default function EventBoothPage({
     loadEvent();
   }, [slug]);
 
+  // Determina si este tab es la tablet interactiva ("leader") o una pantalla
+  // espejo pasiva de otra tab/dispositivo con el mismo evento ya activo — ver
+  // useBoothLiveSession. Se llama siempre (regla de hooks), aunque `event`
+  // todavía no haya cargado: el hook queda en "pending" hasta tener un id.
+  const liveSession = useBoothLiveSession(event?.id ?? null);
+
+  // Mantiene sincronizada la fase "splash"/"landing" de ESTA página (antes de
+  // que exista un PhotoBoothWizard montado) — una vez en "wizard", el propio
+  // PhotoBoothWizard transmite su paso interno con más detalle vía
+  // onLiveState, así que acá no hace falta (ni se debe) pisarlo.
+  useEffect(() => {
+    if (liveSession.role !== "leader") return;
+    if (phase === "wizard") return;
+    liveSession.broadcast({ phase });
+  }, [phase, liveSession]);
+
   if (loading) {
     return <LoadingScreen />;
   }
@@ -89,6 +107,16 @@ export default function EventBoothPage({
       </div>
     );
   }
+
+  if (liveSession.role === "pending") {
+    return <div className="fixed inset-0 bg-black" />;
+  }
+
+  if (liveSession.role === "mirror") {
+    return <BoothMirror event={event} state={liveSession.state} isStale={liveSession.isStale} />;
+  }
+
+  const { broadcast } = liveSession;
 
   // "Volver a la selección" solo tiene sentido si hay una fase "landing" a la
   // que volver: no aplica con una sola brand, ni con captura primero (ahí la
@@ -178,6 +206,7 @@ export default function EventBoothPage({
               boxSize={boxSize}
               eventData={event}
               onReset={canReturnToLanding ? () => setPhase("landing") : undefined}
+              onLiveState={broadcast}
             />
           </motion.div>
         )}
