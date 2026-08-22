@@ -1,0 +1,16 @@
+numpy>=1.24,<2.0
+opencv-python>=4.8
+websockets>=12.0
+
+# Hand tracking, used to locate the hand gripping the roller in the Kinect's
+# color feed. Pinned to 0.10.21 (last release with the classic
+# mediapipe.solutions.hands API) - mediapipe 1.0+ dropped that API in favor
+# of a Task-file-based API; 0.10.21 matches what
+# C:\Users\prosopon\Documents\realsensemptouch already uses successfully.
+mediapipe==0.10.21
+
+# Kinect v2 access (Windows only). Requires the "Kinect for Windows SDK 2.0"
+# to be installed system-wide (native DLLs) - pip alone is not enough.
+# See README.md for setup notes and a known numpy-compat patch.
+pykinect2>=0.1.0
+comtypes>=1.2
