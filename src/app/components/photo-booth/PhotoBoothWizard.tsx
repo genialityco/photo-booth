@@ -62,6 +62,7 @@ export default function PhotoBoothWizard({
   eventData,
   onReset,
   onLiveState,
+  remoteRevealedTaskId,
 }: {
   frameSrc?: string | null;
   /** Voltea la cámara como espejo de selfie — sin relación con el "modo
@@ -75,6 +76,10 @@ export default function PhotoBoothWizard({
    * pantalla espejo (otro tab/dispositivo) se mantenga sincronizada. Solo lo
    * pasa el tab líder — ver src/app/(public)/booth/[slug]/page.tsx. */
   onLiveState?: (partial: Partial<Omit<BoothLiveState, "leaderId" | "updatedAt">>) => void;
+  /** taskId que la pantalla espejo (pantalla gigante + Kinect) reportó como
+   * ya revelado — ver BoothLiveState.revealedTaskId. Solo relevante con
+   * revealEffect="KINECT_ROLLER", donde el revelado ocurre allá, no acá. */
+  remoteRevealedTaskId?: string | null;
 }) {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<
@@ -97,6 +102,18 @@ export default function PhotoBoothWizard({
   const framedUploadRef = useRef<Promise<{ url: string; path: string }> | null>(null);
   const rawUploadRef = useRef<Promise<{ url: string; path: string }> | null>(null);
   const [style, setStyle] = useState<StyleProfile | null>(null);
+
+  // revealEffect="KINECT_ROLLER": el revelado ocurre en la pantalla gigante
+  // (BoothMirror + Kinect real), no acá — esta tab solo espera a que la
+  // pantalla espejo reporte terminado el revelado de ESTA foto (comparando
+  // taskId, no un booleano suelto, para no adelantarse con el de una ronda
+  // anterior) y recién ahí avanza a "result".
+  useEffect(() => {
+    if (step !== "reveal") return;
+    if (eventData?.revealEffect !== "KINECT_ROLLER") return;
+    if (!taskId || !remoteRevealedTaskId) return;
+    if (remoteRevealedTaskId === taskId) setStep("result");
+  }, [step, eventData?.revealEffect, taskId, remoteRevealedTaskId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -724,7 +741,16 @@ export default function PhotoBoothWizard({
                 exit="exit"
                 transition={stepTransition}
               >
-                {eventData?.revealEffect === "ROLLER" || eventData?.revealEffect === "ROLLER_COLOR" ? (
+                {eventData?.revealEffect === "KINECT_ROLLER" ? (
+                  <div className="flex flex-col items-center justify-center gap-4 text-center px-6">
+                    <p className="text-white text-xl sm:text-2xl font-semibold drop-shadow-sm">
+                      Revelando tu foto en la pantalla grande…
+                    </p>
+                    <p className="text-white/70 text-base max-w-sm">
+                      Usa el rodillo real para descubrirla ahí. Cuando termines, esta pantalla continúa sola.
+                    </p>
+                  </div>
+                ) : eventData?.revealEffect === "ROLLER" || eventData?.revealEffect === "ROLLER_COLOR" ? (
                   <RollerRevealStep
                     aiUrl={aiUrl}
                     videoUrl={aiVideoUrl ?? undefined}

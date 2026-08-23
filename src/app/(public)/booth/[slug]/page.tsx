@@ -113,7 +113,14 @@ export default function EventBoothPage({
   }
 
   if (liveSession.role === "mirror") {
-    return <BoothMirror event={event} state={liveSession.state} isStale={liveSession.isStale} />;
+    return (
+      <BoothMirror
+        event={event}
+        state={liveSession.state}
+        isStale={liveSession.isStale}
+        reportRevealDone={liveSession.reportRevealDone}
+      />
+    );
   }
 
   const { broadcast } = liveSession;
@@ -207,6 +214,7 @@ export default function EventBoothPage({
               eventData={event}
               onReset={canReturnToLanding ? () => setPhase("landing") : undefined}
               onLiveState={broadcast}
+              remoteRevealedTaskId={liveSession.role === "leader" ? liveSession.remoteRevealedTaskId : null}
             />
           </motion.div>
         )}

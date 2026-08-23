@@ -57,16 +57,29 @@ const STATUS_LABEL: Record<KinectConnectionStatus, string> = {
   error: "Error de conexión, reintentando...",
 };
 
-export default function KinectPaintTest({
+/**
+ * Revelado por rodillo REAL: la posición viene del backend Python del Kinect
+ * (kinect-roller-backend/, WebSocket) en vez de detección por cámara+ONNX
+ * (RollerRevealStep.tsx). Pensado para la pantalla gigante (BoothMirror con
+ * revealEffect="KINECT_ROLLER") pero también lo usa /test/rodillo-reveal
+ * para probar el backend contra una imagen de muestra sin pasar por todo el
+ * flujo del wizard.
+ */
+export default function KinectRollerRevealStep({
   wsUrl,
   aiUrl,
   aspectRatio,
   onRevealed,
+  showStatus = true,
 }: {
   wsUrl: string;
   aiUrl: string;
   aspectRatio?: PhotoAspectRatio;
   onRevealed: () => void;
+  /** Oculta la etiqueta de estado de conexión / última lectura (útil en la
+   * pantalla gigante, donde no aporta nada al público). Visible por defecto
+   * para la ruta de prueba. */
+  showStatus?: boolean;
 }) {
   const {
     photoCanvasRef,
@@ -245,12 +258,14 @@ export default function KinectPaintTest({
         <p className="text-center text-white font-semibold drop-shadow-sm" style={{ fontSize: "clamp(0.95rem, 2.6vmin, 1.25rem)" }}>
           Pasa el rodillo real sobre la foto para descubrirla
         </p>
-        <p className="text-center text-white/70 text-xs font-mono">
-          {STATUS_LABEL[wsStatus]}
-          {lastFrame
-            ? ` · ${lastFrame.touching ? "TOCANDO" : "en el aire"} · x=${lastFrame.normX.toFixed(2)} y=${lastFrame.normY.toFixed(2)}`
-            : " · sin detección"}
-        </p>
+        {showStatus && (
+          <p className="text-center text-white/70 text-xs font-mono">
+            {STATUS_LABEL[wsStatus]}
+            {lastFrame
+              ? ` · ${lastFrame.touching ? "TOCANDO" : "en el aire"} · x=${lastFrame.normX.toFixed(2)} y=${lastFrame.normY.toFixed(2)}`
+              : " · sin detección"}
+          </p>
+        )}
       </div>
 
       <div

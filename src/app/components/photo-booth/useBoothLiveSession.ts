@@ -46,14 +46,37 @@ export type BoothLiveState = {
   /** Si el QR de descarga está expandido a pantalla completa en "result" —
    * la pantalla espejo lo refleja en vez de tener su propio toggle. */
   showQr: boolean;
+  /**
+   * Escrito por la pantalla ESPEJO (no el líder) cuando el revelado con
+   * rodillo real + Kinect en la pantalla gigante termina —
+   * revealEffect="KINECT_ROLLER" no revela nada en el tablet, así que el
+   * líder mira este campo para saber cuándo avanzar a "result". Va con el
+   * taskId de la foto actual (no un booleano suelto) para que un revelado
+   * de una foto anterior no cuente como el de la ronda actual.
+   */
+  revealedTaskId: string | null;
 };
 
 type BroadcastPartial = Partial<Omit<BoothLiveState, "leaderId" | "updatedAt">>;
 
 export type BoothLiveSessionResult =
   | { role: "pending" }
-  | { role: "leader"; broadcast: (partial: BroadcastPartial) => void }
-  | { role: "mirror"; state: BoothLiveState | null; isStale: boolean };
+  | {
+      role: "leader";
+      broadcast: (partial: BroadcastPartial) => void;
+      /** El `revealedTaskId` más reciente que reportó la pantalla espejo (ver
+       * BoothLiveState.revealedTaskId) - null hasta que la pantalla espejo
+       * escriba algo. */
+      remoteRevealedTaskId: string | null;
+    }
+  | {
+      role: "mirror";
+      state: BoothLiveState | null;
+      isStale: boolean;
+      /** Reporta al líder que el revelado con Kinect en esta pantalla
+       * terminó para `taskId` — ver revealEffect="KINECT_ROLLER". */
+      reportRevealDone: (taskId: string) => void;
+    };
 
 function isDocStale(updatedAt: Timestamp | null | undefined): boolean {
   return !updatedAt || Date.now() - updatedAt.toMillis() > STALE_MS;
@@ -94,12 +117,18 @@ export function useBoothLiveSession(
     const subscribeAsMirror = () => {
       let latest: (BoothLiveState & { updatedAt?: Timestamp | null }) | null = null;
 
+      const reportRevealDone = (taskId: string) => {
+        void updateDoc(sessionRef, { revealedTaskId: taskId }).catch((e) =>
+          console.error("[useBoothLiveSession] reportRevealDone failed:", e)
+        );
+      };
+
       const applyLatest = () => {
         if (!latest) {
-          setResult({ role: "mirror", state: null, isStale: true });
+          setResult({ role: "mirror", state: null, isStale: true, reportRevealDone });
           return;
         }
-        setResult({ role: "mirror", state: latest, isStale: isDocStale(latest.updatedAt) });
+        setResult({ role: "mirror", state: latest, isStale: isDocStale(latest.updatedAt), reportRevealDone });
       };
 
       unsub = onSnapshot(sessionRef, (snap) => {
@@ -137,6 +166,7 @@ export function useBoothLiveSession(
               customization: sameDevice ? data?.customization ?? null : null,
               previewUrl: sameDevice ? data?.previewUrl ?? null : null,
               showQr: sameDevice ? data?.showQr ?? false : false,
+              revealedTaskId: sameDevice ? data?.revealedTaskId ?? null : null,
             });
             return true;
           }
@@ -153,7 +183,14 @@ export function useBoothLiveSession(
               updatedAt: serverTimestamp(),
             }).catch((e) => console.error("[useBoothLiveSession] broadcast failed:", e));
           };
-          setResult({ role: "leader", broadcast });
+
+          // También escucha el doc (no solo escribe): revealEffect="KINECT_ROLLER"
+          // depende de que la pantalla espejo reporte `revealedTaskId` acá.
+          unsub = onSnapshot(sessionRef, (snap) => {
+            if (cancelled) return;
+            const data = snap.data() as (BoothLiveState & { updatedAt?: Timestamp | null }) | undefined;
+            setResult({ role: "leader", broadcast, remoteRevealedTaskId: data?.revealedTaskId ?? null });
+          });
 
           heartbeat = setInterval(() => {
             void updateDoc(sessionRef, { updatedAt: serverTimestamp() }).catch(() => {});

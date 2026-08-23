@@ -16,7 +16,7 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import KinectPaintTest from "./KinectPaintTest";
+import KinectRollerRevealStep from "@/app/components/photo-booth/reveal/KinectRollerRevealStep";
 
 const DEFAULT_SAMPLE_IMAGE = "/Colombia4.0/ALIEN.png";
 const DEFAULT_WS_URL = "ws://localhost:8765";
@@ -27,13 +27,13 @@ function RodilloRevealTestInner() {
   const wsUrl = params.get("ws") || DEFAULT_WS_URL;
 
   const [revealed, setRevealed] = useState(false);
-  // key para forzar remount de KinectPaintTest (nuevo velo limpio) al probar de nuevo
+  // key para forzar remount de KinectRollerRevealStep (nuevo velo limpio) al probar de nuevo
   const [attempt, setAttempt] = useState(0);
 
   return (
     <div className="w-full h-screen bg-neutral-900 overflow-hidden">
       {!revealed ? (
-        <KinectPaintTest key={attempt} wsUrl={wsUrl} aiUrl={aiUrl} onRevealed={() => setRevealed(true)} />
+        <KinectRollerRevealStep key={attempt} wsUrl={wsUrl} aiUrl={aiUrl} onRevealed={() => setRevealed(true)} />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center gap-4 px-4">
           <img
