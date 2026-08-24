@@ -5,48 +5,7 @@ import {
     type PrintJob,
     type PrintJobFile,
 } from "@/app/services/photo-booth/printJobsService";
-
-
-const printFile = (url: string) => {
-    const printWin = window.open("", "_blank");
-    if (!printWin) {
-        alert("El navegador bloqueó la ventana de impresión.");
-        return;
-    }
-    printWin.document.write(`
-            <html>
-                <head>
-                    <title>Imprimir</title>
-                    <style>
-                        /* size: auto dejaba que el navegador usara el tamaño de
-                           página por defecto (Carta/A4) en vez del papel postal
-                           real (10x14.8cm) de la Selphy CP1500 - el driver
-                           terminaba imprimiendo esa hoja grande reducida sobre
-                           el papel chico, dejando la foto flotando en el medio
-                           con márgenes grandes. Fijar el tamaño exacto del
-                           papel acá hace que tanto el navegador como el driver
-                           encuadren sobre el tamaño real. Si cambia el cassette
-                           de papel, actualizar esta medida (y la del cassette
-                           real cargado en la impresora, en Windows también). */
-                        @page { size: 100mm 148mm; margin: 0; }
-                        html, body { margin: 0; padding: 0; height: 100%; background: #fff; }
-                        /* cover, no contain: la relación 3:4 de la foto (0.75)
-                           no calza exacto con la del papel postal (100/148 =
-                           0.676) - con "contain" quedarían franjas blancas a
-                           los lados. "cover" llena el papel completo sin
-                           ningún margen, recortando apenas ~10% de los bordes
-                           izquierdo/derecho de la foto. */
-                        img { display: block; width: 100%; height: 100%; object-fit: cover; }
-                    </style>
-                </head>
-                <body>
-                    <img src="${url}" />
-                    <script>window.onload = function(){ window.print(); setTimeout(()=>window.close(), 300); };</script>
-                </body>
-            </html>
-        `);
-    printWin.document.close();
-};
+import { printPhoto as printFile } from "@/app/components/photo-booth/printPhoto";
 
 export default function PrintJobsPage() {
     const [jobs, setJobs] = useState<(PrintJob & { files?: PrintJobFile[] })[]>([]);

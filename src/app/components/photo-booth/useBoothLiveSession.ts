@@ -110,6 +110,7 @@ export function useBoothLiveSession(
     let unsub: (() => void) | undefined;
     let heartbeat: ReturnType<typeof setInterval> | undefined;
     let staleTick: ReturnType<typeof setInterval> | undefined;
+    let onVisible: (() => void) | undefined;
 
     const sessionRef = doc(db, COLLECTION, eventId);
     const deviceId = deviceIdRef.current;
@@ -176,7 +177,12 @@ export function useBoothLiveSession(
         if (cancelled) return;
 
         if (becameLeader) {
+          // Guarda el último estado completo transmitido (no solo el
+          // último `partial` suelto) para que el heartbeat pueda
+          // reenviarlo entero - ver más abajo.
+          let latestBroadcast: BroadcastPartial = {};
           const broadcast = (partial: BroadcastPartial) => {
+            latestBroadcast = { ...latestBroadcast, ...partial };
             void updateDoc(sessionRef, {
               ...partial,
               leaderId: deviceId,
@@ -186,15 +192,48 @@ export function useBoothLiveSession(
 
           // También escucha el doc (no solo escribe): revealEffect="KINECT_ROLLER"
           // depende de que la pantalla espejo reporte `revealedTaskId` acá.
+          // Evita un setResult (y por lo tanto un re-render de todo el
+          // wizard) en cada heartbeat cuando `revealedTaskId` no cambió -
+          // este listener recibe también los propios writes del líder.
           unsub = onSnapshot(sessionRef, (snap) => {
             if (cancelled) return;
             const data = snap.data() as (BoothLiveState & { updatedAt?: Timestamp | null }) | undefined;
-            setResult({ role: "leader", broadcast, remoteRevealedTaskId: data?.revealedTaskId ?? null });
+            const nextRevealedTaskId = data?.revealedTaskId ?? null;
+            setResult((prev) =>
+              prev.role === "leader" && prev.remoteRevealedTaskId === nextRevealedTaskId
+                ? prev
+                : { role: "leader", broadcast, remoteRevealedTaskId: nextRevealedTaskId }
+            );
           });
 
-          heartbeat = setInterval(() => {
-            void updateDoc(sessionRef, { updatedAt: serverTimestamp() }).catch(() => {});
-          }, HEARTBEAT_MS);
+          const flushHeartbeat = () => {
+            // Reenvía el ÚLTIMO ESTADO COMPLETO, no solo el timestamp: si un
+            // broadcast puntual se perdió por una red inestable (frecuente
+            // en tablets de evento, y más probable durante "loading" - la
+            // espera más larga de todo el flujo, mientras se genera la foto
+            // con IA), esto autocorrige la pantalla espejo dentro de
+            // HEARTBEAT_MS en vez de dejarla trabada en una fase vieja
+            // hasta el SIGUIENTE cambio de paso (o hasta que se declare
+            // stale y se desconecte del todo - el bug reportado).
+            void updateDoc(sessionRef, {
+              ...latestBroadcast,
+              leaderId: deviceId,
+              updatedAt: serverTimestamp(),
+            }).catch(() => {});
+          };
+          heartbeat = setInterval(flushHeartbeat, HEARTBEAT_MS);
+
+          // Los navegadores throttlean setInterval en tabs en segundo plano
+          // (una tablet que se bloquea la pantalla, o donde el SO manda otra
+          // app al frente un momento, durante la espera larga de "loading")
+          // - el heartbeat de arriba puede así atrasarse justo lo suficiente
+          // para que la pantalla espejo lo declare stale. Al recuperar
+          // visibilidad, forzar un heartbeat inmediato en vez de esperar al
+          // próximo tick programado.
+          onVisible = () => {
+            if (document.visibilityState === "visible") flushHeartbeat();
+          };
+          document.addEventListener("visibilitychange", onVisible);
         } else {
           subscribeAsMirror();
         }
@@ -211,6 +250,7 @@ export function useBoothLiveSession(
       if (unsub) unsub();
       if (heartbeat) clearInterval(heartbeat);
       if (staleTick) clearInterval(staleTick);
+      if (onVisible) document.removeEventListener("visibilitychange", onVisible);
     };
   }, [eventId]);
 
