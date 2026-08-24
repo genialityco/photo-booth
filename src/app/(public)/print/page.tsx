@@ -18,8 +18,13 @@ const printFile = (url: string) => {
                 <head>
                     <title>Imprimir</title>
                     <style>
-                        body { margin: 0; background: #fff; }
-                        img { display: block; max-width: 100vw; max-height: 100vh; margin: auto; }
+                        /* Sin esto el navegador aplica sus márgenes de impresión
+                           por defecto (los que se ven a los lados/arriba/abajo)
+                           aunque el diálogo de impresión diga "sin márgenes" -
+                           @page es lo que realmente los desactiva. */
+                        @page { size: auto; margin: 0; }
+                        html, body { margin: 0; padding: 0; height: 100%; background: #fff; }
+                        img { display: block; width: 100%; height: 100%; object-fit: contain; }
                     </style>
                 </head>
                 <body>
