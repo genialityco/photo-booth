@@ -528,14 +528,18 @@ export default function EventForm({
             label="Efecto de Revelado de la Foto"
             value={formData.revealEffect || "HAND_WIPE"}
             onChange={(v) =>
-              setField("revealEffect", v as "NONE" | "HAND_WIPE" | "ROLLER" | "ROLLER_COLOR")
+              setField(
+                "revealEffect",
+                v as "NONE" | "HAND_WIPE" | "ROLLER" | "ROLLER_COLOR" | "KINECT_ROLLER"
+              )
             }
-            helperText='Cómo se revela la foto generada antes de mostrar el resultado final. Con "Rodillo" basta con pasar la mano (o el dedo, si no hay cámara) sobre la foto. "Blanco y negro a color" usa el mismo rodillo pero arranca la foto en blanco y negro y va pintando el color al pasarlo.'
+            helperText='Cómo se revela la foto generada antes de mostrar el resultado final. Con "Rodillo" basta con pasar la mano (o el dedo, si no hay cámara) sobre la foto. "Blanco y negro a color" usa el mismo rodillo pero arranca la foto en blanco y negro y va pintando el color al pasarlo. "Rodillo Kinect" es para instalaciones con pantalla gigante + Kinect + rodillo físico: el tablet no revela nada por sí mismo, solo espera a que termine en la pantalla grande.'
           >
             <option value="NONE">Sin efecto (pasa directo al resultado)</option>
             <option value="HAND_WIPE">Borrar el velo con la mano</option>
             <option value="ROLLER">Rodillo de pintura (descubre la foto)</option>
             <option value="ROLLER_COLOR">Rodillo: blanco y negro a color</option>
+            <option value="KINECT_ROLLER">Rodillo Kinect (pantalla gigante)</option>
           </SelectField>
 
           <ToggleField

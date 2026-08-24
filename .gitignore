@@ -43,3 +43,12 @@ node_modules/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# kinect roller backend - machine/rig-specific calibration artifacts
+kinect-roller-backend/calibration.json
+kinect-roller-backend/background_depth.npy
+kinect-roller-backend/__pycache__/
+kinect-roller-backend/src/__pycache__/
+kinect-roller-backend/.venv/
+kinect-roller-backend/venv/
+

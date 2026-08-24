@@ -10,6 +10,7 @@ import QrTag from "@/app/components/photo-booth/QrTag";
 import { composeFramedCanvas, composeFramedImageDataUrl } from "@/app/components/photo-booth/composeFramedImage";
 import { getPixelDims } from "@/app/components/photo-booth/photoAspectRatio";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
+import { printPhoto } from "@/app/components/photo-booth/printPhoto";
 
 type Props = {
   taskId: string;
@@ -188,9 +189,8 @@ export default function ResultStep({
 
   // === Imprimir (ej. Canon Selphy CP1500 configurada como impresora
   // predeterminada del kiosco): abre una ventana con la foto compuesta y
-  // dispara el diálogo de impresión nativo del navegador — mismo patrón que
-  // (public)/print/page.tsx, con estilos ajustados para llenar la página. No
-  // aplica a eventos con video. ===
+  // dispara el diálogo de impresión nativo del navegador — ver printPhoto.ts
+  // (compartido con (public)/print/page.tsx). No aplica a eventos con video. ===
   const handlePrint = async () => {
     if (videoUrl) return;
     try {
@@ -202,29 +202,7 @@ export default function ResultStep({
         height: pixelDims.height,
       });
       const dataUrl = canvas.toDataURL("image/png");
-
-      const printWin = window.open("", "_blank");
-      if (!printWin) {
-        alert("El navegador bloqueó la ventana de impresión.");
-        return;
-      }
-      printWin.document.write(`
-        <html>
-          <head>
-            <title>Imprimir</title>
-            <style>
-              @page { margin: 0; }
-              html, body { margin: 0; padding: 0; background: #fff; height: 100%; }
-              img { display: block; width: 100vw; height: 100vh; object-fit: contain; margin: auto; }
-            </style>
-          </head>
-          <body>
-            <img src="${dataUrl}" />
-            <script>window.onload = function(){ window.print(); setTimeout(function(){ window.close(); }, 300); };</script>
-          </body>
-        </html>
-      `);
-      printWin.document.close();
+      printPhoto(dataUrl);
     } catch (err) {
       console.error("Error preparando la impresión:", err);
       alert("No se pudo preparar la foto para imprimir. Inténtalo nuevamente.");

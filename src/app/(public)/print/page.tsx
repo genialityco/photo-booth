@@ -5,31 +5,7 @@ import {
     type PrintJob,
     type PrintJobFile,
 } from "@/app/services/photo-booth/printJobsService";
-
-
-const printFile = (url: string) => {
-    const printWin = window.open("", "_blank");
-    if (!printWin) {
-        alert("El navegador bloqueó la ventana de impresión.");
-        return;
-    }
-    printWin.document.write(`
-            <html>
-                <head>
-                    <title>Imprimir</title>
-                    <style>
-                        body { margin: 0; background: #fff; }
-                        img { display: block; max-width: 100vw; max-height: 100vh; margin: auto; }
-                    </style>
-                </head>
-                <body>
-                    <img src="${url}" />
-                    <script>window.onload = function(){ window.print(); setTimeout(()=>window.close(), 300); };</script>
-                </body>
-            </html>
-        `);
-    printWin.document.close();
-};
+import { printPhoto as printFile } from "@/app/components/photo-booth/printPhoto";
 
 export default function PrintJobsPage() {
     const [jobs, setJobs] = useState<(PrintJob & { files?: PrintJobFile[] })[]>([]);

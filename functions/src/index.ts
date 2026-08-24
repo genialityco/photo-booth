@@ -463,6 +463,44 @@ async function downloadAndConvertLogo(
   }
 }
 
+/**
+ * Recorta al centro (crop, no letterbox) una imagen a la relación de
+ * aspecto targetW:targetH exacta, sin importar qué forma tenga - Gemini no
+ * respeta consistentemente el aspectRatio pedido en la generación (a veces
+ * devuelve 16:9 en vez del 3:4/1:1 configurado por evento), así que esto es
+ * lo que realmente garantiza que la imagen guardada calce con lo que
+ * capture/reveal/impresión esperan. Si ya calza (dentro de una tolerancia
+ * chica), devuelve el buffer original sin recomprimir.
+ */
+async function cropToAspectRatio(buf: Buffer, targetW: number, targetH: number): Promise<Buffer> {
+  const img = sharp(buf);
+  const meta = await img.metadata();
+  const w = meta.width;
+  const h = meta.height;
+  if (!w || !h) return buf;
+
+  const targetRatio = targetW / targetH;
+  const currentRatio = w / h;
+  if (Math.abs(currentRatio - targetRatio) < 0.005) return buf;
+
+  let cropW = w;
+  let cropH = h;
+  if (currentRatio > targetRatio) {
+    // Más ancha que el target -> recortar los lados.
+    cropW = Math.round(h * targetRatio);
+  } else {
+    // Más alta que el target -> recortar arriba/abajo.
+    cropH = Math.round(w / targetRatio);
+  }
+  const left = Math.round((w - cropW) / 2);
+  const top = Math.round((h - cropH) / 2);
+
+  return sharp(buf)
+    .extract({ left, top, width: cropW, height: cropH })
+    .png()
+    .toBuffer();
+}
+
 // --- Función Principal Modificada ---
 
 /**
@@ -568,19 +606,33 @@ export const processImageTask = onDocumentCreated(
       }
     }
 
-    // Leer generationType y frameImage del evento si se provee eventId
+    // Leer generationType, frameImage y photoAspectRatio del evento si se
+    // provee eventId. "SQUARE" (o sin configurar) es el default histórico;
+    // "3:4" existe para imprimir en la Canon Selphy CP1500 (ver
+    // photoAspectRatio.ts en el frontend) - el frontend ya recorta la foto
+    // de ENTRADA a esa forma antes de mandarla a la IA, pero Gemini no
+    // respeta consistentemente esa forma en la SALIDA (a veces devuelve
+    // 16:9 en vez de 3:4), así que acá se fuerza también en la generación
+    // (PHOTO_ASPECT_RATIO_GEMINI) y se garantiza con un recorte posterior
+    // (ver cropToAspectRatio más abajo).
     let FRAME_IMAGE_URL = "";
+    let PHOTO_ASPECT_RATIO: "SQUARE" | "3:4" = "SQUARE";
     if (data?.eventId) {
       try {
         const eventSnap = await db.collection("events").doc(data.eventId).get();
         if (eventSnap.exists) {
           GENERATION_TYPE = eventSnap.data()?.generationType || "IMAGE";
           FRAME_IMAGE_URL = eventSnap.data()?.frameImage || "";
+          PHOTO_ASPECT_RATIO = eventSnap.data()?.photoAspectRatio === "3:4" ? "3:4" : "SQUARE";
         }
       } catch (e) {
         console.warn("Error reading event data:", e);
       }
     }
+    const PHOTO_ASPECT_DIMS = PHOTO_ASPECT_RATIO === "3:4" ? { w: 3, h: 4 } : { w: 1, h: 1 };
+    // Gemini's supported aspectRatio values happen to match our own strings
+    // 1:1 for anything else.
+    const GEMINI_ASPECT_RATIO = PHOTO_ASPECT_RATIO === "3:4" ? "3:4" : "1:1";
 
     if (!data?.inputPath) {
       await docRef.update({
@@ -736,7 +788,18 @@ export const processImageTask = onDocumentCreated(
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-image",
         contents: contents,
-   
+        // `imageConfig.aspectRatio` no está tipado todavía en esta versión
+        // del SDK (@google/genai) - de ahí el `as any` - pero la API REST sí
+        // lo soporta. NO confiar solo en esto: hay un bug reportado donde el
+        // SDK JS a veces lo omite del request
+        // (github.com/googleapis/js-genai/issues/1009), así que el recorte
+        // con sharp más abajo (cropToAspectRatio) es lo que realmente
+        // garantiza la forma final, esto es solo para acercar el resultado
+        // del modelo y evitar recortar de más.
+        config: {
+          responseModalities: ["Image"],
+          imageConfig: { aspectRatio: GEMINI_ASPECT_RATIO },
+        } as any,
       });
 
       console.log("Response received:", JSON.stringify(response, null, 2));
@@ -800,7 +863,13 @@ export const processImageTask = onDocumentCreated(
 
       // 5) Guardar salida y generar URL con token
       const outPath = `tasks/${taskId}/output.png`;
-      const outBuf = Buffer.from(generatedImageData, "base64");
+      const rawOutBuf = Buffer.from(generatedImageData, "base64");
+      // El `config.imageConfig` de arriba no garantiza la forma de salida
+      // (ver comentario ahí) - esto sí: recorta al centro a la relación de
+      // aspecto exacta del evento (PHOTO_ASPECT_DIMS) sin importar qué
+      // forma haya devuelto Gemini, así la imagen guardada/impresa/mostrada
+      // siempre calza con lo configurado (ej. 3:4 para la Selphy CP1500).
+      const outBuf = await cropToAspectRatio(rawOutBuf, PHOTO_ASPECT_DIMS.w, PHOTO_ASPECT_DIMS.h);
 
       const token = randomUUID();
       await bucket.file(outPath).save(outBuf, {

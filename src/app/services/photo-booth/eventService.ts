@@ -108,12 +108,16 @@ export type EventProfile = {
   /**
    * Efecto para revelar la foto generada: sin efecto (pasa directo al
    * resultado), borrar el velo con la mano, pintar con un rodillo 3D
-   * (descubre la foto de un velo sólido), o el mismo rodillo pero arrancando
-   * la foto en blanco y negro y pintando el color al pasarlo. Por
+   * (descubre la foto de un velo sólido), el mismo rodillo pero arrancando
+   * la foto en blanco y negro y pintando el color al pasarlo, o un rodillo
+   * REAL detectado por un Kinect apuntando a la pantalla gigante (pantalla
+   * espejo) - en ese caso el tablet no revela nada por sí mismo, solo
+   * espera a que la pantalla espejo reporte que terminó (ver
+   * useBoothLiveSession.revealedTaskId / kinect-roller-backend/). Por
    * compatibilidad, los eventos sin este campo se comportan como
    * "HAND_WIPE" (comportamiento original).
    */
-  revealEffect?: "NONE" | "HAND_WIPE" | "ROLLER" | "ROLLER_COLOR";
+  revealEffect?: "NONE" | "HAND_WIPE" | "ROLLER" | "ROLLER_COLOR" | "KINECT_ROLLER";
   /**
    * Pantalla inicial con imagen (splashImage) + botón "Comenzar" antes del
    * resto del flujo. Por compatibilidad, los eventos sin este campo NO la
