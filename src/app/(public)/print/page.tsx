@@ -18,13 +18,25 @@ const printFile = (url: string) => {
                 <head>
                     <title>Imprimir</title>
                     <style>
-                        /* Sin esto el navegador aplica sus márgenes de impresión
-                           por defecto (los que se ven a los lados/arriba/abajo)
-                           aunque el diálogo de impresión diga "sin márgenes" -
-                           @page es lo que realmente los desactiva. */
-                        @page { size: auto; margin: 0; }
+                        /* size: auto dejaba que el navegador usara el tamaño de
+                           página por defecto (Carta/A4) en vez del papel postal
+                           real (10x14.8cm) de la Selphy CP1500 - el driver
+                           terminaba imprimiendo esa hoja grande reducida sobre
+                           el papel chico, dejando la foto flotando en el medio
+                           con márgenes grandes. Fijar el tamaño exacto del
+                           papel acá hace que tanto el navegador como el driver
+                           encuadren sobre el tamaño real. Si cambia el cassette
+                           de papel, actualizar esta medida (y la del cassette
+                           real cargado en la impresora, en Windows también). */
+                        @page { size: 100mm 148mm; margin: 0; }
                         html, body { margin: 0; padding: 0; height: 100%; background: #fff; }
-                        img { display: block; width: 100%; height: 100%; object-fit: contain; }
+                        /* cover, no contain: la relación 3:4 de la foto (0.75)
+                           no calza exacto con la del papel postal (100/148 =
+                           0.676) - con "contain" quedarían franjas blancas a
+                           los lados. "cover" llena el papel completo sin
+                           ningún margen, recortando apenas ~10% de los bordes
+                           izquierdo/derecho de la foto. */
+                        img { display: block; width: 100%; height: 100%; object-fit: cover; }
                     </style>
                 </head>
                 <body>
