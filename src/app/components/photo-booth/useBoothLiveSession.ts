@@ -59,6 +59,8 @@ function isDocStale(updatedAt: Timestamp | null | undefined): boolean {
   return !updatedAt || Date.now() - updatedAt.toMillis() > STALE_MS;
 }
 
+const noopBroadcast: (partial: BroadcastPartial) => void = () => {};
+
 /**
  * Determina si este tab es el "líder" interactivo (la tablet) o un "espejo"
  * pasivo de otro tab que ya está liderando el mismo evento — ver el plan de
@@ -70,9 +72,15 @@ function isDocStale(updatedAt: Timestamp | null | undefined): boolean {
  * considera caído y el próximo tab que cargue puede reemplazarlo. Los
  * espejos NUNCA se autopromueven a líder — solo una carga nueva de página
  * corre la transacción de reclamo.
+ *
+ * `enabled` (default true) es el toggle `mirrorScreenEnabled` del evento: en
+ * false, esta pestaña nunca reclama/consulta `boothLiveSessions` y siempre
+ * se resuelve como "leader" con un broadcast no-op — cada dispositivo queda
+ * completamente independiente, sin detectar ni reflejar a otros.
  */
 export function useBoothLiveSession(
-  eventId: string | null | undefined
+  eventId: string | null | undefined,
+  enabled: boolean = true
 ): BoothLiveSessionResult {
   const deviceIdRef = useRef<string>("");
   if (!deviceIdRef.current) deviceIdRef.current = getBoothDeviceId();
@@ -81,6 +89,12 @@ export function useBoothLiveSession(
 
   useEffect(() => {
     if (!eventId) return;
+
+    if (!enabled) {
+      setResult({ role: "leader", broadcast: noopBroadcast });
+      return;
+    }
+
     setResult({ role: "pending" });
 
     let cancelled = false;
@@ -175,7 +189,7 @@ export function useBoothLiveSession(
       if (heartbeat) clearInterval(heartbeat);
       if (staleTick) clearInterval(staleTick);
     };
-  }, [eventId]);
+  }, [eventId, enabled]);
 
   return result;
 }

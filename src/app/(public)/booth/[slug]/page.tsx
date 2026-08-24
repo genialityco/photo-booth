@@ -79,7 +79,10 @@ export default function EventBoothPage({
   // espejo pasiva de otra tab/dispositivo con el mismo evento ya activo — ver
   // useBoothLiveSession. Se llama siempre (regla de hooks), aunque `event`
   // todavía no haya cargado: el hook queda en "pending" hasta tener un id.
-  const liveSession = useBoothLiveSession(event?.id ?? null);
+  const liveSession = useBoothLiveSession(
+    event?.id ?? null,
+    event?.mirrorScreenEnabled !== false
+  );
 
   // Mantiene sincronizada la fase "splash"/"landing" de ESTA página (antes de
   // que exista un PhotoBoothWizard montado) — una vez en "wizard", el propio

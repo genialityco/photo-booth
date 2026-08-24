@@ -237,6 +237,16 @@ export type EventProfile = {
    * envía a la IA, el revelado y la descarga/impresión final.
    */
   photoAspectRatio?: "SQUARE" | "3:4";
+  /**
+   * Si una segunda pestaña/dispositivo abre la misma URL de `/booth/[slug]`
+   * mientras otra ya está activa, se convierte automáticamente en "pantalla
+   * espejo" pasiva (sincronizada en tiempo real vía `boothLiveSessions`, ver
+   * `useBoothLiveSession`). Por compatibilidad, los eventos sin este campo
+   * mantienen ese comportamiento (default true). Si se desactiva, cada
+   * pestaña/dispositivo funciona de forma independiente como booth
+   * interactivo normal, sin detectar ni reflejar a otras.
+   */
+  mirrorScreenEnabled?: boolean;
   prompts: string[];
   isActive: boolean;
   screenConfig?: {
@@ -359,6 +369,7 @@ export async function createEventProfile(
       captureViewStyle: data.captureViewStyle || "CLASSIC",
       imageCustomizationEnabled: data.imageCustomizationEnabled === true,
       backgroundAnimation: data.backgroundAnimation || "NONE",
+      mirrorScreenEnabled: data.mirrorScreenEnabled !== false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -585,6 +596,7 @@ export async function updateEventProfile(
     if (data.backgroundAnimation !== undefined) docData.backgroundAnimation = data.backgroundAnimation;
     if (data.paintTimeSeconds !== undefined) docData.paintTimeSeconds = data.paintTimeSeconds;
     if (data.photoAspectRatio !== undefined) docData.photoAspectRatio = data.photoAspectRatio;
+    if (data.mirrorScreenEnabled !== undefined) docData.mirrorScreenEnabled = data.mirrorScreenEnabled;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
     if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;

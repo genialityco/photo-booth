@@ -204,6 +204,7 @@ export default function EventForm({
     imageCustomizationEnabled: event?.imageCustomizationEnabled === true,
     backgroundAnimation: event?.backgroundAnimation || "NONE",
     paintTimeSeconds: event?.paintTimeSeconds,
+    mirrorScreenEnabled: event?.mirrorScreenEnabled !== false,
     photoAspectRatio: event?.photoAspectRatio || "SQUARE",
     prompts: event?.prompts || [],
     isActive: event?.isActive !== false,
@@ -511,6 +512,14 @@ export default function EventForm({
               </option>
             ))}
           </SelectField>
+
+          <ToggleField
+            id="mirrorScreenEnabled"
+            label="Pantalla espejo automática en un segundo dispositivo"
+            description='Si está activado (por defecto), al abrir la misma URL del booth en una segunda pestaña/dispositivo mientras el primero ya está activo, esa segunda pantalla se convierte automáticamente en un espejo pasivo en tiempo real del primero (útil para una TV o pantalla de apoyo detrás del booth). Si se desactiva, cada dispositivo que abra la URL funciona de forma independiente como booth interactivo normal, sin detectar ni reflejar a otros.'
+            checked={formData.mirrorScreenEnabled !== false}
+            onChange={(checked) => setField("mirrorScreenEnabled", checked)}
+          />
         </AccordionSection>
 
         {/* Revelado de la Foto */}
