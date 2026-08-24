@@ -174,17 +174,22 @@ class RollerDetector:
         """Per-row median background depth, with rows that have NO valid
         pixel at all filled in by interpolating from nearby rows that do.
 
-        Why: screen-Y is derived from the background depth at the detected
-        pixel's exact (row, col) - but on a rig where much of the Kinect's
-        view has no valid reading (common: most of a screen is out of the
-        sensor's reliable range, or reflective), that EXACT pixel is very
-        often invalid (0), silently giving a bogus, constant, wildly
-        out-of-[0,1] "Y" no matter where the roller actually is - this was
-        the reported "y stays fixed at -3.79 even moving the roller a
-        meter" bug. Using a smooth per-row curve (this rig's screen-Y is
-        primarily row-dependent anyway - see the rig-geometry notes above)
-        means every row gets a sensible value even where the raw capture
-        has a gap."""
+        Why: this is used as a FALLBACK size (mm_per_px) and Y reference for
+        when a detected candidate has no valid raw depth reading of its own
+        this frame (see detect()) - on a rig where much of the Kinect's view
+        has no valid reading (common: most of a screen is out of the
+        sensor's reliable range, or reflective), that can happen easily.
+        Originally this fallback value was fed directly into the Y
+        calculation for every detection (not just as a fallback), which
+        caused two bugs at different times: first a raw single-pixel lookup
+        giving a bogus, constant, wildly out-of-[0,1] "Y" no matter where
+        the roller actually was (the reported "y stays fixed at -3.79 even
+        moving the roller a meter" bug), and later - after being replaced by
+        this smoothed-but-row-only curve - a Y that barely moved at all,
+        because image ROW barely changes with vertical movement on this
+        grazing-angle rig (see module docstring: Y is encoded in DEPTH, not
+        row). Y now uses the candidate's own live depth reading instead;
+        this curve only fills gaps where that live reading is missing."""
         h, w = background.shape
         row_depth = np.full(h, np.nan, dtype=np.float64)
         for row in range(h):
@@ -264,10 +269,26 @@ class RollerDetector:
 
             # The background's exact pixel here is very often invalid (0) on
             # rigs where much of the Kinect's view has no valid reading -
-            # use the interpolated per-row curve instead, which is always a
-            # sensible value (see _compute_row_depth_curve).
+            # use the interpolated per-row curve as a FALLBACK for the size
+            # (mm_per_px) calculation below, for when this frame's own raw
+            # reading under the candidate is also invalid.
             row_idx = min(max(int(round(cy)), 0), len(self._row_depth_curve) - 1)
             bg_depth_at_center = float(self._row_depth_curve[row_idx])
+
+            # Screen-Y comes from THIS frame's raw depth reading at the
+            # candidate itself, not from image row (see module docstring):
+            # on this grazing-angle rig, physical up/down movement on the
+            # screen barely shifts which row the roller appears in, but
+            # shifts its raw depth a lot - a per-row background curve is too
+            # coarse (and, critically, doesn't move at all as the object
+            # moves) to carry that signal. Only fall back to the background
+            # curve when every raw pixel under the candidate is itself
+            # invalid (sensor dropout), to avoid resurrecting the old
+            # "y frozen at a garbage constant" bug.
+            live_depth_vals = depth[in_band_mask == 1]
+            live_depth_vals = live_depth_vals[live_depth_vals > 0]
+            depth_for_y = float(np.median(live_depth_vals)) if live_depth_vals.size else bg_depth_at_center
+
             depth_at_center = max(bg_depth_at_center - top_height_mm, 1.0)
             mm_per_px = depth_at_center / cfg.focal_length_px
             length_cm = length_px * mm_per_px / 10.0
@@ -275,7 +296,7 @@ class RollerDetector:
             area_cm2 = area_px * (mm_per_px / 10.0) ** 2
             elongation = length_px / width_px
 
-            x_norm, y_norm = self._to_screen_norm((cx, cy), bg_depth_at_center)
+            x_norm, y_norm = self._to_screen_norm((cx, cy), depth_for_y)
 
             box_px = cv2.boxPoints(rect)
 
@@ -372,19 +393,21 @@ class RollerDetector:
         # signal even without isolating the roller itself.
         return max(accepted, key=lambda c: c.area_cm2)
 
-    def _to_screen_norm(self, center_px: Tuple[float, float], bg_depth_mm: float) -> Tuple[float, float]:
+    def _to_screen_norm(self, center_px: Tuple[float, float], depth_mm: float) -> Tuple[float, float]:
         # Screen-X: direct, the camera is perpendicular on this axis.
         x_norm = center_px[0] / self.config.depth_width
         # Screen-Y: derived from depth (see module docstring) once calibrated;
         # otherwise fall back to image row (better than nothing, but won't
         # line up with the real screen until depth_top_mm/depth_bottom_mm
-        # are set).
+        # are set). `depth_mm` should be the candidate's own live reading
+        # (see detect()), not a row/background-derived value - it's the one
+        # thing that actually varies with vertical movement on this rig.
         if self.depth_range_mm is None:
             y_norm = center_px[1] / self.config.depth_height
         else:
             depth_top_mm, depth_bottom_mm = self.depth_range_mm
-            span = depth_bottom_mm - depth_top_mm
-            y_norm = (bg_depth_mm - depth_top_mm) / span if span else 0.0
+            span = (depth_bottom_mm - depth_top_mm) * self.config.y_span_scale
+            y_norm = (depth_mm - depth_top_mm) / span if span else 0.0
             # y_sensitivity != 1.0 rescales around the center (0.5) instead
             # of the raw [0,1] the calibrated span implies - a rig where
             # the two --calibrate-depth clicks ended up close together (or

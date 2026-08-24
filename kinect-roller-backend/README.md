@@ -384,6 +384,24 @@ qué ajustar:
   de fondo, solo la compensa sin tener que recalibrar. Ajusta mirando el
   valor `y=` en `--debug` mientras mueves el rodillo una distancia conocida
   y cómoda.
+  **OJO — tiene un techo matemático**: como reescala alrededor del centro
+  (0.5), a partir de cierto valor los extremos 0 y 1 (arriba/abajo de toda
+  la imagen) quedan matemáticamente inalcanzables por más que muevas el
+  rodillo — la salida comprimida nunca termina de cerrar la distancia al
+  extremo. Si necesitás MÁS movimiento físico para cubrir toda la imagen
+  pero sin perder la capacidad de llegar a los extremos, usá
+  `y_span_scale` en su lugar (dejando `y_sensitivity` en `1.0`).
+- **`y_span_scale`** (default `1.0`) → mismo síntoma que arriba (Y cubre
+  toda la imagen con muy poco movimiento real) pero sin el techo de
+  `y_sensitivity`: multiplica el span calibrado (`depth_bottom_mm -
+  depth_top_mm`) usado para normalizar Y, anclado en `depth_top_mm` — no
+  comprime alrededor de un centro, así que el `[0,1]` completo sigue
+  siendo alcanzable a cualquier valor, solo que hace falta
+  proporcionalmente más recorrido físico real para llegar. Ejemplo: si hoy
+  con 20cm de movimiento ya cubrís una pantalla de ~80cm de alto, poné
+  `4.0` (80/20) para que haga falta cerca de los 80cm completos. Ajustá
+  mirando `y=` en `--debug`, confirmando que 0 y 1 siguen siendo
+  alcanzables en los extremos físicos reales.
 - **Detecta cosas que no son el rodillo (manos, brazos, ruido)** → esto es
   esperado con `require_shape_match: false`, ya que acepta cualquier cosa
   en la franja. Opciones, de más simple a más estricta:

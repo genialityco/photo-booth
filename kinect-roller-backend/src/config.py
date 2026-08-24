@@ -126,7 +126,30 @@ class RollerConfig:
     # the underlying narrow calibration - it just compensates for it
     # without redoing --calibrate-depth. Tune by watching `y=` in --debug
     # while moving the roller a known, comfortable distance.
+    #
+    # IMPORTANT CAVEAT: because this compresses around the *center*
+    # (0.5), it has a hard ceiling - past a certain value the [0,1]
+    # extremes (top/bottom of the image) become mathematically
+    # unreachable no matter how far the roller physically moves, since
+    # the compressed output can never fully close the gap to 0 or 1. If
+    # you need MORE physical movement to cover the full image without
+    # losing the ability to reach the very top/bottom, use
+    # `y_span_scale` instead (or in addition, with this left at 1.0).
     y_sensitivity: float = 1.0
+    # Multiplies the calibrated depth span (depth_bottom_mm - depth_top_mm)
+    # used to normalize Y, anchored at depth_top_mm - unlike y_sensitivity,
+    # this does NOT compress around a center point, so [0,1] stays fully
+    # reachable at any value; it just takes proportionally more real
+    # roller travel to get there. E.g. if today only 20cm of movement
+    # already covers the whole ~80cm-tall image (span too narrow relative
+    # to the physical screen - common on a rig where the Kinect is
+    # mounted close and much of the screen is near/below its minimum
+    # valid range), set this to ~4.0 (80/20) so the full [0,1] range
+    # requires close to the full 80cm of travel instead. Tune by watching
+    # `y=` in --debug while moving the roller a known, comfortable
+    # distance, and confirming both 0 and 1 are still reachable at the
+    # real physical extremes.
+    y_span_scale: float = 1.0
 
     # --- Stale/static suppression ---
     # A region that reads as "in front of the screen" continuously for
