@@ -14,9 +14,17 @@ import ImageCustomizeStep from "@/app/components/photo-booth/ImageCustomizeStep"
 import LoaderStep from "@/app/components/photo-booth/LoaderStep";
 import QrTag from "@/app/components/photo-booth/QrTag";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
+import KinectRollerRevealStep from "@/app/components/photo-booth/reveal/KinectRollerRevealStep";
 
 const NOOP = () => {};
 const NOOP_CUSTOMIZE = (_value: ImageCustomization) => {};
+
+// Backend Python del Kinect (kinect-roller-backend/) - corre en la MISMA pc
+// que esta pantalla gigante (ver README ahí: mixed-content bloquea ws:// a
+// otra IP de LAN desde una página https, pero ws://localhost está exento),
+// así que el default apunta a localhost. Configurable por si el backend
+// corre en otro puerto/host en algún despliegue.
+const KINECT_WS_URL = process.env.NEXT_PUBLIC_KINECT_WS_URL || "ws://localhost:8765";
 
 type TaskResult = { status?: string; url?: string; videoUrl?: string };
 
@@ -227,6 +235,49 @@ function ResultView({
   );
 }
 
+/** Revelado con rodillo REAL + Kinect, para revealEffect="KINECT_ROLLER" —
+ * la pantalla gigante ES el Kinect, así que acá sí hay alguien tocándola de
+ * verdad (a diferencia de "capture"/"preview"/etc., que reflejan lo que
+ * pasa en la tablet). Espera a que la imagen generada por IA esté lista
+ * antes de montar el revelado, y avisa al líder vía `reportRevealDone`
+ * cuando la persona termina de descubrirla — el líder está esperando ese
+ * campo para avanzar su propio paso a "result" (ver useBoothLiveSession). */
+function KinectRevealView({
+  event,
+  taskId,
+  reportRevealDone,
+}: {
+  event: EventProfile;
+  taskId: string | null;
+  reportRevealDone: (taskId: string) => void;
+}) {
+  const { result, error } = useTaskResult(taskId);
+  const mediaSrc = result?.url;
+
+  if (!taskId || error) {
+    return (
+      <FullBleedMessage
+        event={event}
+        title="No se pudo cargar el resultado"
+        subtitle={error || "Falta el identificador de la tarea."}
+      />
+    );
+  }
+
+  if (!mediaSrc) return <LoaderStep />;
+
+  return (
+    <KinectRollerRevealStep
+      key={taskId}
+      wsUrl={KINECT_WS_URL}
+      aiUrl={mediaSrc}
+      aspectRatio={event.photoAspectRatio}
+      showStatus={false}
+      onRevealed={() => reportRevealDone(taskId)}
+    />
+  );
+}
+
 /**
  * Pantalla espejo, de solo lectura: se renderiza en vez de la app interactiva
  * cuando useBoothLiveSession determina que este tab NO es el líder — refleja
@@ -238,10 +289,12 @@ export default function BoothMirror({
   event,
   state,
   isStale,
+  reportRevealDone,
 }: {
   event: EventProfile;
   state: BoothLiveState | null;
   isStale: boolean;
+  reportRevealDone: (taskId: string) => void;
 }) {
   if (!state || isStale) {
     return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" />;
@@ -296,11 +349,15 @@ export default function BoothMirror({
       return <LoaderStep brandIdOverride={state.brand} />;
 
     case "reveal":
-      // Los gestos de revelado (mano/rodillo) son de la persona frente a la
-      // tablet — no hay nadie tocando la pantalla espejo, así que se queda en
-      // este mensaje hasta que el líder reporte "result". Mensaje propio (no
-      // el loader de "Generando con IA") porque en este punto la imagen ya
-      // está generada, solo falta que la persona termine de revelarla.
+      // revealEffect="KINECT_ROLLER": la pantalla gigante ES el Kinect, así
+      // que acá SÍ hay alguien tocándola de verdad — se revela con el
+      // rodillo real y se le avisa al líder cuando termina. Para cualquier
+      // otro revealEffect (mano/rodillo virtual con webcam), quien gesticula
+      // está frente a la tablet, no acá, así que solo se muestra un mensaje
+      // hasta que el líder reporte "result".
+      if (event.revealEffect === "KINECT_ROLLER") {
+        return <KinectRevealView event={event} taskId={state.taskId} reportRevealDone={reportRevealDone} />;
+      }
       return <FullBleedMessage event={event} title="Revelando foto…" />;
 
     case "result":
