@@ -742,14 +742,26 @@ export default function PhotoBoothWizard({
                 transition={stepTransition}
               >
                 {eventData?.revealEffect === "KINECT_ROLLER" ? (
-                  <div className="flex flex-col items-center justify-center gap-4 text-center px-6">
-                    <p className="text-white text-xl sm:text-2xl font-semibold drop-shadow-sm">
-                      Revelando tu foto en la pantalla grande…
-                    </p>
-                    <p className="text-white/70 text-base max-w-sm">
-                      Usa el rodillo real para descubrirla ahí. Cuando termines, esta pantalla continúa sola.
-                    </p>
-                  </div>
+                  <>
+                    <div className="flex flex-col items-center justify-center gap-4 text-center px-6">
+                      <p className="text-white text-xl sm:text-2xl font-semibold drop-shadow-sm">
+                        Revelando tu foto en la pantalla grande…
+                      </p>
+                      <p className="text-white/70 text-base max-w-sm">
+                        Usa el rodillo real para descubrirla ahí. Cuando termines, esta pantalla continúa sola.
+                      </p>
+                    </div>
+                    {/* Botón invisible de rescate: si el revelado con Kinect
+                        no llega a reportar "listo" (falla de red, backend
+                        caído, etc.), el operador puede tocar acá para forzar
+                        el avance a "result" sin esperar a remoteRevealedTaskId. */}
+                    <button
+                      type="button"
+                      onClick={() => setStep("result")}
+                      aria-label="Revelar manualmente"
+                      className="absolute bottom-0 right-0 w-20 h-20 opacity-0"
+                    />
+                  </>
                 ) : eventData?.revealEffect === "ROLLER" || eventData?.revealEffect === "ROLLER_COLOR" ? (
                   <RollerRevealStep
                     aiUrl={aiUrl}
