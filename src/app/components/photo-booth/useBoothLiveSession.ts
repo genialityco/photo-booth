@@ -114,7 +114,7 @@ export function useBoothLiveSession(
     if (!eventId) return;
 
     if (!enabled) {
-      setResult({ role: "leader", broadcast: noopBroadcast });
+      setResult({ role: "leader", broadcast: noopBroadcast, remoteRevealedTaskId: null });
       return;
     }
 
