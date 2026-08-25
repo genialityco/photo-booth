@@ -103,6 +103,7 @@ export default function LoaderStep({
   const loadingSubtitle = event?.loadingSubtitle || "Estamos creando tu imagen";
   const loadingTitleColor = event?.loadingTitleColor || "#ef4444";
   const loadingSubtitleColor = event?.loadingSubtitleColor || "#1a1a1a";
+  const loadingProgressColor = event?.loadingProgressColor || "#ef4444";
 
   // Controlar si mostrar logos basado en la configuración del evento
   const showLogos = event?.showLogosInLoader !== false && style !== null;
@@ -184,7 +185,7 @@ export default function LoaderStep({
               cy={ringSize / 2}
               r={radius}
               fill="none"
-              stroke="#ef4444"
+              stroke={loadingProgressColor}
               strokeWidth={strokeWidth}
               strokeLinecap="round"
               strokeDasharray={circumference}

@@ -165,6 +165,7 @@ export default function EventForm({
     loadingSubtitle: event?.loadingSubtitle || "",
     loadingTitleColor: event?.loadingTitleColor || "#ef4444",
     loadingSubtitleColor: event?.loadingSubtitleColor || "#1a1a1a",
+    loadingProgressColor: event?.loadingProgressColor || "#ef4444",
     showLogosInLoader: event?.showLogosInLoader !== false,
     enableFrame: event?.enableFrame !== false,
     dataProcessingText: event?.dataProcessingText || "",
@@ -993,6 +994,26 @@ export default function EventForm({
                 className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
               />
               <span className="text-xs text-gray-500">{formData.loadingSubtitleColor || "#1a1a1a"}</span>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="loadingProgressColor" className="block text-sm font-medium text-gray-700 mb-1">
+              Color del anillo de progreso
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Color del círculo/barra de carga animada mientras se genera la imagen.
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                id="loadingProgressColor"
+                name="loadingProgressColor"
+                value={formData.loadingProgressColor || "#ef4444"}
+                onChange={handleChange}
+                className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+              />
+              <span className="text-xs text-gray-500">{formData.loadingProgressColor || "#ef4444"}</span>
             </div>
           </div>
 

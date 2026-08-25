@@ -87,6 +87,8 @@ export type EventProfile = {
   loadingTitleColor?: string;
   /** Color (hex) del subtítulo de la pantalla de carga. Default "#1a1a1a". */
   loadingSubtitleColor?: string;
+  /** Color (hex) del anillo/barra de progreso de la pantalla de carga. Default "#ef4444". */
+  loadingProgressColor?: string;
   showLogosInLoader?: boolean;
   enableFrame?: boolean;
   dataProcessingText?: string;
@@ -433,6 +435,10 @@ export async function createEventProfile(
       docData.loadingSubtitleColor = data.loadingSubtitleColor;
     }
 
+    if (data.loadingProgressColor !== undefined) {
+      docData.loadingProgressColor = data.loadingProgressColor;
+    }
+
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
     if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;
     if (data.splashTitleMode !== undefined) docData.splashTitleMode = data.splashTitleMode;
@@ -584,6 +590,7 @@ export async function updateEventProfile(
     if (data.loadingSubtitle !== undefined) docData.loadingSubtitle = data.loadingSubtitle;
     if (data.loadingTitleColor !== undefined) docData.loadingTitleColor = data.loadingTitleColor;
     if (data.loadingSubtitleColor !== undefined) docData.loadingSubtitleColor = data.loadingSubtitleColor;
+    if (data.loadingProgressColor !== undefined) docData.loadingProgressColor = data.loadingProgressColor;
     if (data.showLogosInLoader !== undefined) docData.showLogosInLoader = data.showLogosInLoader;
     if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
     if (data.dataProcessingText !== undefined) docData.dataProcessingText = data.dataProcessingText;
