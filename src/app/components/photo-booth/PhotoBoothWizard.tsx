@@ -20,6 +20,13 @@ import {
   type EventProfile,
 } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
+import {
+  LOGO_BAR_BOTTOM_MAX_WIDTH,
+  LOGO_BAR_HEIGHT,
+  LOGO_BAR_PADDING,
+  LOGO_BAR_TOP_MAX_WIDTH,
+  scaledLogoStyle,
+} from "@/app/components/photo-booth/logoBarSizing";
 import { useSearchParams } from "next/navigation";
 import { db } from "@/firebaseConfig";
 import {
@@ -565,12 +572,59 @@ export default function PhotoBoothWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, taskId, brand, customization, rawUrl, framedUrl, showQr]);
 
+  // Crossfade puro entre pasos (solo opacidad, sin y/scale), por dos motivos:
+  //
+  // 1) Con `mode="wait"` la salida terminaba ANTES de que entrara el paso
+  //    siguiente: quedaba ~0.35s de contenedor vacío en el que el fondo y los
+  //    logos YA habían cambiado (viven fuera del AnimatePresence). Se veía
+  //    como si el loader se montara primero y recién después se cayera el
+  //    preview. Ahora los dos pasos coexisten superpuestos (`absolute
+  //    inset-0`) y se cruzan en opacidad, sin hueco intermedio.
+  //
+  // 2) Un transform activo (y/scale) crea un containing block, así que el
+  //    `fixed inset-0` de LoaderStep quedaba anclado a la caja del wizard
+  //    durante la animación y saltaba a pantalla completa al terminar — el
+  //    mismo motivo por el que CaptureStep se renderiza fuera de este
+  //    AnimatePresence. Animando solo opacidad no hay containing block y el
+  //    loader cubre el viewport desde el primer frame.
   const stepVariants = {
-    initial: { opacity: 0, y: 16, scale: 0.98 },
-    animate: { opacity: 1, y: 0, scale: 1 },
-    exit: { opacity: 0, y: -16, scale: 0.98 },
+    initial: { opacity: 0 },
+    animate: { opacity: 1, pointerEvents: "auto" as const },
+    // El paso que sale sigue montado durante el cruce: se desactivan sus
+    // eventos para que no se pueda tocar un botón que ya está desapareciendo.
+    exit: { opacity: 0, pointerEvents: "none" as const },
   };
-  const stepTransition = { duration: 0.35, ease: [0.4, 0, 0.2, 1] as const };
+  const stepTransition = { duration: 0.28, ease: [0.4, 0, 0.2, 1] as const };
+
+  // Los campos de logo del admin se guardan como "" cuando no se sube nada.
+  // Pasar eso a `src` no solo dispara el warning de React ("An empty string was
+  // passed to the src attribute"), sino que además deja renderizado un <img>
+  // vacío que igual ocupa el alto de la barra — el "cuadro esperando una
+  // imagen". Sin logo utilizable no se renderiza la barra en absoluto.
+  const usableLogo = (url?: string | null): string | null => {
+    const trimmed = typeof url === "string" ? url.trim() : "";
+    return trimmed || null;
+  };
+
+  const topLogoSrc = style
+    ? usableLogo(
+        step === "loading"
+          ? style.logoLoadingTop || style.logoLandingTop
+          : step === "result" || step === "reveal"
+            ? style.logoResultsTop || style.logoLandingTop
+            : style.logoLandingTop
+      )
+    : "/genilaty_smart_led_logo.png";
+
+  const bottomLogoSrc = style
+    ? usableLogo(
+        step === "loading"
+          ? style.logoLoadingBottom || style.logoLandingBottom
+          : step === "result" || step === "reveal"
+            ? style.logoResultsBottom || style.logoLandingBottom
+            : style.logoLandingBottom
+      )
+    : "/genilaty_smart_led_logo.png";
 
   const bgUrl = style
     ? step === "capture"
@@ -597,13 +651,13 @@ export default function PhotoBoothWizard({
           />
         </div>
       )}
-
       {/* Paso "capture": cámara a pantalla completa. Se renderiza fuera del
-          AnimatePresence animado de abajo a propósito — un motion.div con
-          transform activo (lo que usan las demás transiciones de paso)
-          crea un "containing block" para posición fixed, y CaptureStep
-          necesita que su `fixed inset-0` interno apunte al viewport real,
-          no al box de contenido acotado por `boxSize`. */}
+          AnimatePresence de abajo a propósito: ese contenedor está acotado por
+          `boxSize` y la cámara necesita el viewport entero, sin heredar
+          márgenes ni recortes del box de contenido. (Históricamente además
+          había que evitar el containing block que creaba el transform de la
+          transición; hoy el crossfade es solo opacidad, pero mantener la
+          cámara fuera sigue siendo lo correcto por el encuadre.) */}
       {step === "capture" && (
         <CaptureStep
           mirror={mirror}
@@ -619,12 +673,22 @@ export default function PhotoBoothWizard({
         />
       )}
 
-      {/* Fondo full-screen */}
-      <div
-        className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{ backgroundImage: `url('${bgUrl}')` }}
-        aria-hidden
-      />
+      {/* Fondo full-screen. Va con su propio crossfade porque `bgUrl` depende
+          del paso: sin esto el fondo cambiaba de golpe en el mismo frame en
+          que arrancaba la transición del contenido, y el corte se notaba más
+          que el propio cambio de vista. */}
+      <AnimatePresence initial={false}>
+        <motion.div
+          key={bgUrl || "no-bg"}
+          className="fixed inset-0 -z-10 bg-cover bg-center"
+          style={{ backgroundImage: `url('${bgUrl}')` }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+          aria-hidden
+        />
+      </AnimatePresence>
 
       {/* HEADER: Logo superior — fijo, siempre visible. En "capture" no se
           renderiza: los logos viven dentro de CaptureStep, abajo a los
@@ -632,24 +696,25 @@ export default function PhotoBoothWizard({
           despejada para la cámara. En "customize" tampoco: los dos logos
           (arriba y abajo) se muestran juntos arriba dentro de
           ImageCustomizeStep, para liberar espacio vertical y evitar scroll. */}
-      {step !== "capture" && step !== "customize" && (
-        <div className="relative z-5 flex-shrink-0 flex justify-center items-center pt-[max(1.5rem,env(safe-area-inset-top))]">
-          <div className="w-[50vw] max-w-[260px]">
-            <img
-              src={
-                style
-                  ? step === "loading"
-                    ? style.logoLoadingTop || style.logoLandingTop
-                    : step === "result" || step === "reveal"
-                      ? style.logoResultsTop || style.logoLandingTop
-                      : style.logoLandingTop
-                  : "/genilaty_smart_led_logo.png"
-              }
-              alt="Logo"
-              className="w-full select-none"
-              draggable={false}
-            />
-          </div>
+      {step !== "capture" && step !== "customize" && topLogoSrc && (
+        <div
+          className="relative z-5 flex-shrink-0 flex justify-center items-center px-4"
+          style={{
+            paddingTop: `max(${LOGO_BAR_PADDING}, env(safe-area-inset-top))`,
+            paddingBottom: LOGO_BAR_PADDING,
+          }}
+        >
+          <img
+            src={topLogoSrc}
+            alt="Logo"
+            className="block w-auto object-contain select-none"
+            style={scaledLogoStyle({
+              baseHeight: LOGO_BAR_HEIGHT,
+              baseMaxWidth: LOGO_BAR_TOP_MAX_WIDTH,
+              scalePct: eventData?.logoTopScalePct,
+            })}
+            draggable={false}
+          />
         </div>
       )}
 
@@ -665,15 +730,17 @@ export default function PhotoBoothWizard({
             el overflow-hidden + justify-center de acá abajo (tapando mitad
             arriba, mitad abajo). Cada paso ya centra su propio contenido
             internamente, así que h-full fijo no cambia cómo se ve. */}
+        {/* `relative`: los pasos se apilan con `absolute inset-0` para poder
+            cruzarse en opacidad (ver stepVariants) en vez de turnarse. */}
         <div
-          className="flex flex-col items-center justify-center overflow-hidden w-full h-full"
+          className="relative flex flex-col items-center justify-center overflow-hidden w-full h-full"
           style={{ width: "100%", maxWidth: boxSize, maxHeight: "100%" }}
         >
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence initial={false}>
             {step === "preview" && framedShot && (
               <motion.div
                 key="preview"
-                className="relative w-full h-full flex items-center justify-center"
+                className="absolute inset-0 flex items-center justify-center"
                 variants={stepVariants}
                 initial="initial"
                 animate="animate"
@@ -699,7 +766,7 @@ export default function PhotoBoothWizard({
             {step === "customize" && framedShot && (
               <motion.div
                 key="customize"
-                className="relative w-full h-full flex items-center justify-center"
+                className="absolute inset-0 flex items-center justify-center"
                 variants={stepVariants}
                 initial="initial"
                 animate="animate"
@@ -723,23 +790,21 @@ export default function PhotoBoothWizard({
             {step === "loading" && (
               <motion.div
                 key="loading"
-                className="relative w-full h-full"
+                className="absolute inset-0 z-50"
                 variants={stepVariants}
                 initial="initial"
                 animate="animate"
                 exit="exit"
                 transition={stepTransition}
               >
-                <div className="absolute inset-0 z-50">
-                  <LoaderStep />
-                </div>
+                <LoaderStep />
               </motion.div>
             )}
 
             {step === "reveal" && framedShot && aiUrl && (
               <motion.div
                 key="reveal"
-                className="relative w-full h-full flex items-center justify-center"
+                className="absolute inset-0 flex items-center justify-center"
                 variants={stepVariants}
                 initial="initial"
                 animate="animate"
@@ -798,7 +863,7 @@ export default function PhotoBoothWizard({
             {step === "result" && framedShot && aiUrl && (
               <motion.div
                 key="result"
-                className="relative w-full h-full flex items-center justify-center"
+                className="absolute inset-0 flex items-center justify-center"
                 variants={stepVariants}
                 initial="initial"
                 animate="animate"
@@ -824,24 +889,25 @@ export default function PhotoBoothWizard({
       {/* FOOTER: Logo inferior — fijo, siempre visible. En "capture" no se
           renderiza: el logo va dentro de CaptureStep, al costado del
           disparador. En "customize" tampoco: ver nota del HEADER arriba. */}
-      {step !== "capture" && step !== "customize" && (
-        <div className="relative z-5 flex-shrink-0 flex justify-center items-center pb-[max(env(safe-area-inset-bottom),2rem)] pointer-events-none">
-          <div className="w-[50vw] max-w-[380px]">
-            <img
-              src={
-                style
-                  ? step === "loading"
-                    ? style.logoLoadingBottom || style.logoLandingBottom
-                    : step === "result" || step === "reveal"
-                      ? style.logoResultsBottom || style.logoLandingBottom
-                      : style.logoLandingBottom
-                  : "genilaty_smart_led_logo.png"
-              }
-              alt="Logos Footer"
-              className="w-full select-none"
-              draggable={false}
-            />
-          </div>
+      {step !== "capture" && step !== "customize" && bottomLogoSrc && (
+        <div
+          className="relative z-5 flex-shrink-0 flex justify-center items-center px-4 pointer-events-none"
+          style={{
+            paddingTop: LOGO_BAR_PADDING,
+            paddingBottom: `max(${LOGO_BAR_PADDING}, env(safe-area-inset-bottom))`,
+          }}
+        >
+          <img
+            src={bottomLogoSrc}
+            alt="Logos Footer"
+            className="block w-auto object-contain select-none"
+            style={scaledLogoStyle({
+              baseHeight: LOGO_BAR_HEIGHT,
+              baseMaxWidth: LOGO_BAR_BOTTOM_MAX_WIDTH,
+              scalePct: eventData?.logoBottomScalePct,
+            })}
+            draggable={false}
+          />
         </div>
       )}
     </div>

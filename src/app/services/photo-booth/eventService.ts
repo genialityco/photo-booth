@@ -73,6 +73,17 @@ export type EventProfile = {
   bgImage?: string;
   logoTop?: string;
   logoBottom?: string;
+  /**
+   * Tamaño del logo superior, en % del tamaño base (100 = el de siempre).
+   * Aplica al header del wizard (preview, resultado, revelado) y al logo
+   * izquierdo de la pantalla de carga. Se acota entre 50 y 250 al renderizar
+   * — ver `clampLogoScale` en components/photo-booth/logoBarSizing.ts. Por
+   * compatibilidad, los eventos sin este campo usan 100.
+   */
+  logoTopScalePct?: number;
+  /** Igual que `logoTopScalePct`, para el logo inferior (footer del wizard y
+   * logo derecho de la pantalla de carga). */
+  logoBottomScalePct?: number;
   frameImage?: string;
   buttonImage?: string;
   loadingPageImage?: string;
@@ -87,6 +98,8 @@ export type EventProfile = {
   loadingTitleColor?: string;
   /** Color (hex) del subtítulo de la pantalla de carga. Default "#1a1a1a". */
   loadingSubtitleColor?: string;
+  /** Color (hex) del anillo/barra de progreso de la pantalla de carga. Default "#ef4444". */
+  loadingProgressColor?: string;
   showLogosInLoader?: boolean;
   enableFrame?: boolean;
   dataProcessingText?: string;
@@ -242,6 +255,16 @@ export type EventProfile = {
    */
   photoAspectRatio?: "SQUARE" | "3:4";
   /**
+   * Si una segunda pestaña/dispositivo abre la misma URL de `/booth/[slug]`
+   * mientras otra ya está activa, se convierte automáticamente en "pantalla
+   * espejo" pasiva (sincronizada en tiempo real vía `boothLiveSessions`, ver
+   * `useBoothLiveSession`). Por compatibilidad, los eventos sin este campo
+   * mantienen ese comportamiento (default true). Si se desactiva, cada
+   * pestaña/dispositivo funciona de forma independiente como booth
+   * interactivo normal, sin detectar ni reflejar a otras.
+   */
+  mirrorScreenEnabled?: boolean;
+  /**
    * Logo de auspiciante/marca del evento, dibujado en la esquina superior
    * izquierda de la foto RESULTANTE (composeFramedImage.ts) — se ve tanto al
    * mostrar el resultado (ResultStep) como al descargarla/imprimirla, ya que
@@ -380,6 +403,7 @@ export async function createEventProfile(
       captureViewStyle: data.captureViewStyle || "CLASSIC",
       imageCustomizationEnabled: data.imageCustomizationEnabled === true,
       backgroundAnimation: data.backgroundAnimation || "NONE",
+      mirrorScreenEnabled: data.mirrorScreenEnabled !== false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -439,6 +463,10 @@ export async function createEventProfile(
       docData.loadingSubtitleColor = data.loadingSubtitleColor;
     }
 
+    if (data.loadingProgressColor !== undefined) {
+      docData.loadingProgressColor = data.loadingProgressColor;
+    }
+
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
     if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;
     if (data.splashTitleMode !== undefined) docData.splashTitleMode = data.splashTitleMode;
@@ -479,6 +507,13 @@ export async function createEventProfile(
       docData.brandingFooterText = data.brandingFooterText;
     }
 
+    if (data.logoTopScalePct !== undefined) {
+      docData.logoTopScalePct = data.logoTopScalePct;
+    }
+
+    if (data.logoBottomScalePct !== undefined) {
+      docData.logoBottomScalePct = data.logoBottomScalePct;
+    }
     const docRef = await addDoc(collection(db, COLLECTION), docData);
     return docRef.id;
   } catch (error) {
@@ -594,6 +629,7 @@ export async function updateEventProfile(
     if (data.loadingSubtitle !== undefined) docData.loadingSubtitle = data.loadingSubtitle;
     if (data.loadingTitleColor !== undefined) docData.loadingTitleColor = data.loadingTitleColor;
     if (data.loadingSubtitleColor !== undefined) docData.loadingSubtitleColor = data.loadingSubtitleColor;
+    if (data.loadingProgressColor !== undefined) docData.loadingProgressColor = data.loadingProgressColor;
     if (data.showLogosInLoader !== undefined) docData.showLogosInLoader = data.showLogosInLoader;
     if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
     if (data.dataProcessingText !== undefined) docData.dataProcessingText = data.dataProcessingText;
@@ -610,7 +646,9 @@ export async function updateEventProfile(
     if (data.backgroundAnimation !== undefined) docData.backgroundAnimation = data.backgroundAnimation;
     if (data.paintTimeSeconds !== undefined) docData.paintTimeSeconds = data.paintTimeSeconds;
     if (data.photoAspectRatio !== undefined) docData.photoAspectRatio = data.photoAspectRatio;
-    if (data.brandingFooterText !== undefined) docData.brandingFooterText = data.brandingFooterText;
+    if (data.logoTopScalePct !== undefined) docData.logoTopScalePct = data.logoTopScalePct;
+    if (data.logoBottomScalePct !== undefined) docData.logoBottomScalePct = data.logoBottomScalePct;
+    if (data.mirrorScreenEnabled !== undefined) docData.mirrorScreenEnabled = data.mirrorScreenEnabled;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
     if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;

@@ -12,7 +12,9 @@ import ScreenSaver from "@/app/components/common/ScreenSaver";
 import HandCursorOverlay from "@/app/components/common/hand-cursor/HandCursorOverlay";
 import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
 import { useBoothLiveSession } from "@/app/components/photo-booth/useBoothLiveSession";
+import type { BoothLiveState } from "@/app/components/photo-booth/useBoothLiveSession";
 import BoothMirror from "@/app/components/photo-booth/BoothMirror";
+import LiveSessionStatusBadge from "@/app/components/photo-booth/LiveSessionStatusBadge";
 
 export default function EventBoothPage({
   params,
@@ -79,7 +81,19 @@ export default function EventBoothPage({
   // espejo pasiva de otra tab/dispositivo con el mismo evento ya activo — ver
   // useBoothLiveSession. Se llama siempre (regla de hooks), aunque `event`
   // todavía no haya cargado: el hook queda en "pending" hasta tener un id.
-  const liveSession = useBoothLiveSession(event?.id ?? null);
+  const liveSession = useBoothLiveSession(
+    event?.id ?? null,
+    event?.mirrorScreenEnabled !== false
+  );
+
+  // Espeja localmente lo último transmitido por `broadcast` (que solo manda
+  // el partial, no el estado completo) para poder mostrarlo en
+  // LiveSessionStatusBadge — ver conversación sobre diagnóstico de espejo.
+  const [transmittedState, setTransmittedState] = useState<Partial<BoothLiveState>>({});
+  const trackedBroadcast = (partial: Partial<BoothLiveState>) => {
+    if (liveSession.role === "leader") liveSession.broadcast(partial);
+    setTransmittedState((prev) => ({ ...prev, ...partial }));
+  };
 
   // Mantiene sincronizada la fase "splash"/"landing" de ESTA página (antes de
   // que exista un PhotoBoothWizard montado) — una vez en "wizard", el propio
@@ -88,7 +102,8 @@ export default function EventBoothPage({
   useEffect(() => {
     if (liveSession.role !== "leader") return;
     if (phase === "wizard") return;
-    liveSession.broadcast({ phase });
+    trackedBroadcast({ phase });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, liveSession]);
 
   if (loading) {
@@ -118,12 +133,11 @@ export default function EventBoothPage({
         event={event}
         state={liveSession.state}
         isStale={liveSession.isStale}
+        connected={liveSession.connected}
         reportRevealDone={liveSession.reportRevealDone}
       />
     );
   }
-
-  const { broadcast } = liveSession;
 
   // "Volver a la selección" solo tiene sentido si hay una fase "landing" a la
   // que volver: no aplica con una sola brand, ni con captura primero (ahí la
@@ -213,12 +227,20 @@ export default function EventBoothPage({
               boxSize={boxSize}
               eventData={event}
               onReset={canReturnToLanding ? () => setPhase("landing") : undefined}
-              onLiveState={broadcast}
+              onLiveState={trackedBroadcast}
               remoteRevealedTaskId={liveSession.role === "leader" ? liveSession.remoteRevealedTaskId : null}
             />
           </motion.div>
         )}
       </AnimatePresence>
+
+      <LiveSessionStatusBadge
+        role="leader"
+        connected={liveSession.connected}
+        phase={transmittedState.phase ?? null}
+        brand={transmittedState.brand ?? null}
+        taskId={transmittedState.taskId ?? null}
+      />
     </div>
   );
 }

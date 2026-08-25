@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import type { StyleProfile } from "@/app/services/admin/styleService";
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
+import {
+  LOADER_LOGO_HEIGHT,
+  scaledLogoStyle,
+} from "@/app/components/photo-booth/logoBarSizing";
 
 // No hay progreso real del backend (el doc de imageTasks solo pasa de
 // "queued" a "done", sin pasos intermedios), así que el anillo sube
@@ -108,6 +112,7 @@ export default function LoaderStep({
   const loadingSubtitle = event?.loadingSubtitle || "Estamos creando tu imagen";
   const loadingTitleColor = event?.loadingTitleColor || "#ef4444";
   const loadingSubtitleColor = event?.loadingSubtitleColor || "#1a1a1a";
+  const loadingProgressColor = event?.loadingProgressColor || "#ef4444";
 
   // Controlar si mostrar logos basado en la configuración del evento
   const showLogos = event?.showLogosInLoader !== false && style !== null;
@@ -154,29 +159,47 @@ export default function LoaderStep({
       {/* Logos: juntos arriba, lado a lado */}
       {(topLogo || bottomLogo) && (
         <div
-          className="relative z-20 flex-shrink-0 w-full flex items-center justify-between gap-4 px-6"
+          /* Con los dos logos van uno a cada lado; con uno solo va centrado.
+             Antes era `justify-between` fijo con un <span/> vacío haciendo de
+             relleno, así que si faltaba uno el otro quedaba pegado a un
+             costado en vez de centrado. */
+          className={`relative z-20 flex-shrink-0 w-full flex items-center gap-4 px-6 ${
+            topLogo && bottomLogo ? "justify-between" : "justify-center"
+          }`}
           style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}
         >
           {topLogo ? (
             <img
               src={topLogo}
               alt=""
-              className={`${wide ? "h-[clamp(4.5rem,14vh,8rem)]" : "h-[clamp(2.9rem,8vh,4.6rem)]"} w-auto max-w-[42vw] object-contain select-none`}
+              className="w-auto object-contain select-none"
+              /* Misma escala configurable que el header/footer del wizard, para
+                 que el tamaño elegido en el admin no "salte" al entrar y salir
+                 de la pantalla de carga. El tope de viewport es más chico acá
+                 (46vw) porque los dos logos van lado a lado. */
+              style={scaledLogoStyle({
+                baseHeight: LOADER_LOGO_HEIGHT,
+                baseMaxWidth: "42vw",
+                scalePct: event?.logoTopScalePct,
+                viewportMaxWidth: "46vw",
+              })}
               draggable={false}
             />
-          ) : (
-            <span />
-          )}
+          ) : null}
           {bottomLogo ? (
             <img
               src={bottomLogo}
               alt=""
-              className={`${wide ? "h-[clamp(4.5rem,14vh,8rem)]" : "h-[clamp(2.9rem,8vh,4.6rem)]"} w-auto max-w-[42vw] object-contain select-none`}
+              className="w-auto object-contain select-none"
+              style={scaledLogoStyle({
+                baseHeight: LOADER_LOGO_HEIGHT,
+                baseMaxWidth: "42vw",
+                scalePct: event?.logoBottomScalePct,
+                viewportMaxWidth: "46vw",
+              })}
               draggable={false}
             />
-          ) : (
-            <span />
-          )}
+          ) : null}
         </div>
       )}
 
@@ -211,7 +234,7 @@ export default function LoaderStep({
               cy={ringSize / 2}
               r={radius}
               fill="none"
-              stroke="#ef4444"
+              stroke={loadingProgressColor}
               strokeWidth={strokeWidth}
               strokeLinecap="round"
               strokeDasharray={circumference}
@@ -232,7 +255,10 @@ export default function LoaderStep({
         <div className="flex flex-col items-center gap-2">
           <h1
             className="text-center font-black uppercase tracking-tight drop-shadow-sm"
-            style={{ fontSize: "clamp(1.75rem, 5vmin, 2.6rem)", color: loadingTitleColor }}
+            style={{
+              fontSize: wide ? "clamp(3rem, 7.5vmin, 4.6rem)" : "clamp(1.75rem, 5vmin, 2.6rem)",
+              color: loadingTitleColor,
+            }}
             role="status"
             aria-live="polite"
           >
@@ -242,7 +268,10 @@ export default function LoaderStep({
           {loadingSubtitle && (
             <p
               className="text-center font-semibold drop-shadow-sm"
-              style={{ fontSize: "clamp(1rem, 2.6vmin, 1.35rem)", color: loadingSubtitleColor }}
+              style={{
+                fontSize: wide ? "clamp(1.6rem, 3.6vmin, 2.2rem)" : "clamp(1rem, 2.6vmin, 1.35rem)",
+                color: loadingSubtitleColor,
+              }}
             >
               {loadingSubtitle}
               {dots}
@@ -251,11 +280,15 @@ export default function LoaderStep({
         </div>
 
         {brandName && (
-          <div className="inline-flex items-center gap-2 bg-white/85 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+          <div
+            className={`inline-flex items-center gap-2 bg-white/85 backdrop-blur-sm rounded-full shadow-lg ${
+              wide ? "px-6 py-3" : "px-4 py-2"
+            }`}
+          >
+            <span className={`rounded-full bg-red-500 animate-pulse flex-shrink-0 ${wide ? "w-3 h-3" : "w-2 h-2"}`} />
             <span
               className="font-semibold text-black"
-              style={{ fontSize: "clamp(0.95rem, 2.3vmin, 1.2rem)" }}
+              style={{ fontSize: wide ? "clamp(1.5rem, 3.2vmin, 2rem)" : "clamp(0.95rem, 2.3vmin, 1.2rem)" }}
             >
               Estilo: {brandName}
             </span>
@@ -267,7 +300,7 @@ export default function LoaderStep({
         className="relative z-20 flex-shrink-0 pb-6 text-white/90 font-bold tracking-[0.2em] uppercase drop-shadow-sm"
         style={{
           paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
-          fontSize: "clamp(0.75rem, 1.8vmin, 1rem)",
+          fontSize: wide ? "clamp(1.2rem, 2.6vmin, 1.7rem)" : "clamp(0.75rem, 1.8vmin, 1rem)",
         }}
       >
         Generando con IA

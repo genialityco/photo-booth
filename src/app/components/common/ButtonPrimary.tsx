@@ -26,6 +26,15 @@ type ButtonPrimaryProps = {
   height?: number | string;
   className?: string; // clases extra para el <button>
   textClassName?: string; // clases extra para el <span> (texto)
+  /** Estilos inline extra para el <span> (texto). A diferencia de
+   * `textClassName`, esto tiene prioridad garantizada sobre CUALQUIER clase
+   * (incluida la de tamaño de fuente hardcodeada acá abajo) porque un style
+   * inline siempre gana por especificidad — pensado para tamaños grandes
+   * tipo clamp() en pantallas gigantes, donde los breakpoints fijos de
+   * Tailwind (que topean en `lg:` = 1024px, sin variante más grande) se
+   * quedan chicos en 1920px y compiten con `textClassName` sin garantía de
+   * cuál gana. */
+  textStyle?: React.CSSProperties;
   disabled?: boolean;
   ariaLabel?: string;
   /** Animación disparada al hacer click (configurable por evento). Default "NONE". */
@@ -42,6 +51,7 @@ export default function ButtonPrimary({
   height = 64,
   className = "",
   textClassName = "",
+  textStyle,
   disabled = false,
   ariaLabel,
   clickEffect = "NONE",
@@ -114,6 +124,7 @@ export default function ButtonPrimary({
             "drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]",
             textClassName,
           ].join(" ")}
+          style={textStyle}
         >
           {label}
         </span>
@@ -161,7 +172,7 @@ export default function ButtonPrimary({
           "text-xs sm:text-sm md:text-xl lg:text-lg",
           textClassName,
         ].join(" ")}
-        style={{ fontFamily: "var(--font-splash-anton), sans-serif", letterSpacing: "1.6px" }}
+        style={{ fontFamily: "var(--font-splash-anton), sans-serif", letterSpacing: "1.6px", ...textStyle }}
       >
         {label}
       </span>

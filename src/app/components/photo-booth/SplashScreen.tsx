@@ -156,7 +156,14 @@ export default function SplashScreen({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
 
-  const isVideoMode = !!(event.splashUseVideo && event.splashVideoUrl);
+  // `bgVideoUrl` (el salvapantallas del evento, pasado por BoothMirror para
+  // la pantalla gigante) fuerza este modo directamente, sin importar
+  // splashUseVideo/splashFreeLayoutEnabled - así el video queda garantizado
+  // sin depender de en qué rama (layout libre / grid por defecto) caiga la
+  // splash para este evento en particular. Tiene prioridad sobre el video
+  // propio de la splash (splashVideoUrl) cuando ambos están presentes.
+  const effectiveVideoUrl = bgVideoUrl || event.splashVideoUrl;
+  const isVideoMode = !!(bgVideoUrl || (event.splashUseVideo && event.splashVideoUrl));
 
   // La coreografía visual (logo → título → ... → botón) es un loop CSS
   // infinito, independiente de esto: acá solo se resuelve cuándo la pantalla
@@ -725,9 +732,9 @@ export default function SplashScreen({
     return (
       <div
         ref={containerRef}
-        className={`fixed inset-0 overflow-hidden select-none ${anton.variable} ${barlowCondensed.variable}`}
+        className={`fixed inset-0 overflow-hidden select-none ${anton.variable} ${barlowCondensed.variable} ${wide ? "splash-wide" : ""}`}
       >
-        <MediaTapScreen videoUrl={event.splashVideoUrl} onTap={handleStart}>
+        <MediaTapScreen videoUrl={effectiveVideoUrl} onTap={handleStart} videoObjectFit={wide ? "cover" : "contain"}>
           {/* Velo inferior: legibilidad de la barra/botón sobre un video cuyo
               contenido no se controla (podría ser claro justo ahí abajo). */}
           <div

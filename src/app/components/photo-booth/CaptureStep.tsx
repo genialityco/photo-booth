@@ -265,7 +265,11 @@ export default function CaptureStep({
           dónde arranca el cuadro de cámara) — acá sí conviene fijo, porque
           a diferencia de la barra inferior no depende de cuánto sobre. */}
       <div
-        className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 sm:px-10 pt-[env(safe-area-inset-top)] pointer-events-none"
+        /* Con los dos logos van uno a cada lado; con uno solo va centrado
+           (antes un <span/> vacío de relleno lo dejaba pegado a un costado). */
+        className={`absolute top-0 left-0 right-0 z-20 flex items-center px-6 sm:px-10 pt-[env(safe-area-inset-top)] pointer-events-none ${
+          logoLeftSrc && logoRightSrc ? "justify-between" : "justify-center"
+        }`}
         style={{ height: CAPTURE_HEADER_RESERVE }}
       >
         {logoLeftSrc ? (
@@ -276,9 +280,7 @@ export default function CaptureStep({
             className="h-[clamp(2.5rem,50%,4rem)] w-auto max-w-[35vw] object-contain select-none"
             draggable={false}
           />
-        ) : (
-          <span />
-        )}
+        ) : null}
         {logoRightSrc ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -287,9 +289,7 @@ export default function CaptureStep({
             className="h-[clamp(2.5rem,50%,4rem)] w-auto max-w-[35vw] object-contain select-none"
             draggable={false}
           />
-        ) : (
-          <span />
-        )}
+        ) : null}
       </div>
 
       <AnimatePresence>

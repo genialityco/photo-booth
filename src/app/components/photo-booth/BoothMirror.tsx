@@ -13,6 +13,7 @@ import ImageCustomizeStep from "@/app/components/photo-booth/ImageCustomizeStep"
 import LoaderStep from "@/app/components/photo-booth/LoaderStep";
 import QrTag from "@/app/components/photo-booth/QrTag";
 import KinectRollerRevealStep from "@/app/components/photo-booth/reveal/KinectRollerRevealStep";
+import LiveSessionStatusBadge from "@/app/components/photo-booth/LiveSessionStatusBadge";
 
 const NOOP = () => {};
 const NOOP_CUSTOMIZE = (_value: ImageCustomization) => {};
@@ -46,9 +47,17 @@ function useTaskResult(taskId: string | null | undefined): {
       doc(db, "imageTasks", taskId),
       (snap) => {
         if (!snap.exists()) {
-          setError(`No se encontró la tarea ${taskId}.`);
+          // Desde que la suscripción arranca apenas se conoce `taskId` (ver
+          // BoothMirror, hoisted para no perder tiempo esperando a "result"),
+          // este primer snapshot puede llegar ANTES de que el líder termine
+          // de escribir el doc (setTaskId/broadcast y el setDoc del doc en sí
+          // no son atómicos) - no es un error real, solo "todavía no existe",
+          // así que se deja `result` en null (pantallas de espera) en vez de
+          // marcar error; si de verdad nunca llega, ResultView tiene su
+          // propio timeout (`tookTooLong`) para avisar.
           return;
         }
+        setError(null);
         setResult(snap.data() as TaskResult);
       },
       (err) => {
@@ -172,12 +181,22 @@ function ResultView({
   event,
   taskId,
   showQr,
+  result,
+  error,
 }: {
   event: EventProfile;
   taskId: string | null;
   showQr: boolean;
+  /** Recibido desde BoothMirror (suscripción a imageTasks/{taskId} arrancada
+   * desde "loading", no acá) — con revealEffect="NONE" la fase salta directo
+   * de "loading" a "result" sin ningún paso intermedio que le dé tiempo a
+   * una suscripción propia de arrancar, así que si ResultView se suscribiera
+   * recién al montarse se vería un salto/espera extra (doc ya listo en el
+   * servidor, pero todavía sin llegar a este tab) justo en el caso que más
+   * se nota por no tener ninguna animación de revelado que lo disimule. */
+  result: TaskResult | null;
+  error: string | null;
 }) {
-  const { result, error } = useTaskResult(taskId);
   const [qrSize, setQrSize] = useState(400);
 
   // Si no hay `taskId` en absoluto (no debería pasar en "result", pero por
@@ -294,12 +313,18 @@ function KinectRevealView({
   event,
   taskId,
   reportRevealDone,
+  result,
+  error,
 }: {
   event: EventProfile;
   taskId: string | null;
   reportRevealDone: (taskId: string) => void;
+  /** Ver mismo comentario en ResultView — recibido desde BoothMirror en vez
+   * de suscribirse acá, para que la espera de red quede escondida detrás del
+   * "loading" en vez de sumarse recién al entrar a "reveal". */
+  result: TaskResult | null;
+  error: string | null;
 }) {
-  const { result, error } = useTaskResult(taskId);
   const mediaSrc = result?.url;
 
   if (!taskId || error) {
@@ -341,111 +366,140 @@ export default function BoothMirror({
   event,
   state,
   isStale,
+  connected,
   reportRevealDone,
 }: {
   event: EventProfile;
   state: BoothLiveState | null;
   isStale: boolean;
+  connected: boolean;
   reportRevealDone: (taskId: string) => void;
 }) {
-  // Adelanta "loading" -> "reveal" sin depender de que el líder llegue a
-  // transmitir ese cambio de fase: escucha el mismo doc de imageTasks que ya
-  // usa el líder para saber cuándo terminó la IA. "loading" es la espera más
-  // larga de todo el flujo, así que es donde más chance hay de que un corte
-  // de red puntual en el líder se pierda esa única transmisión y la pantalla
-  // espejo quede trabada ahí (ver useBoothLiveSession) - esto la hace
-  // independiente de esa transmisión para este paso puntual. Solo activo
-  // mientras `phase==="loading"`: en "reveal"/"result" ya hay su propia
-  // suscripción al mismo doc (KinectRevealView/ResultView).
-  const { result: loadingTaskResult } = useTaskResult(
-    state?.phase === "loading" ? state?.taskId ?? null : null
-  );
+  // Arrancada acá (no dentro de ResultView/KinectRevealView) para que la
+  // suscripción a imageTasks/{taskId} - y por lo tanto el primer round-trip
+  // de red hasta tener `result.url` - ya esté en curso desde "loading",
+  // bastante antes de llegar a "result". Con revealEffect="NONE" esos dos
+  // pasos son consecutivos (sin ningún paso de revelado en el medio que
+  // disimule esa espera), así que si se arrancara recién al montar
+  // ResultView la foto tardaría en aparecer un instante después de que la
+  // fase ya diga "result" en vez de mostrarse al toque.
+  const { result: taskResult, error: taskError } = useTaskResult(state?.taskId ?? null);
 
-  if (!state || isStale) {
-    return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" />;
-  }
-
-  const effectivePhase: BoothLiveState["phase"] =
-    state.phase === "loading" && loadingTaskResult?.status === "done" ? "reveal" : state.phase;
-
-  switch (effectivePhase) {
-    case "splash":
-      return <SplashScreen event={event} onStart={NOOP} wide bgVideoUrl={event.screenSaverVideoUrl} />;
-
-    case "landing":
-    case "filter":
-      return (
-        <EventPhotoBoothLanding
-          event={event}
-          readOnly
-          selectedBrandOverride={state.brand}
-          wide
-          bgVideoUrl={event.screenSaverVideoUrl}
-        />
-      );
-
-    case "capture":
-      return <FullBleedMessage event={event} title="Capturando fotografía en otro dispositivo" />;
-
-    case "preview":
-      if (!state.previewUrl) {
-        return <FullBleedMessage event={event} title="Confirmando foto en otro dispositivo" />;
-      }
-      // A diferencia del resto del wizard (donde la foto mantiene su forma
-      // real dentro de una caja), acá se estira para llenar los 1920x1080
-      // de la pantalla gigante de punta a punta - mismo criterio que
-      // /display (object-fill), en vez de PreviewStep/MirrorStage (que
-      // preservarían la proporción y dejarían barras negras a los costados
-      // en una pantalla ancha).
-      return (
-        <div className="fixed inset-0 bg-black">
-          <img
-            key={state.previewUrl}
-            src={state.previewUrl}
-            alt="Vista previa"
-            className="absolute inset-0 w-full h-full object-fill"
-          />
-        </div>
-      );
-
-    case "customize":
-      if (!state.previewUrl) {
-        return <FullBleedMessage event={event} title="Confirmando foto en otro dispositivo" />;
-      }
-      return (
-        <MirrorStage event={event}>
-          <ImageCustomizeStep
-            previewSrc={state.previewUrl}
-            customizationOverride={state.customization}
-            onConfirm={NOOP_CUSTOMIZE}
-            readOnly
-            logoLeftSrc={event.logoTop}
-            logoRightSrc={event.logoBottom}
-            aspectRatio={event.photoAspectRatio}
-            wide
-          />
-        </MirrorStage>
-      );
-
-    case "loading":
-      return <LoaderStep brandIdOverride={state.brand} wide />;
-
-    case "reveal":
-      // revealEffect="KINECT_ROLLER": la pantalla gigante ES el Kinect, así
-      // que acá SÍ hay alguien tocándola de verdad — se revela con el
-      // rodillo real y se le avisa al líder cuando termina. Para cualquier
-      // otro revealEffect (mano/rodillo virtual con webcam), quien gesticula
-      // está frente a la tablet, no acá, así que solo se muestra un mensaje
-      // hasta que el líder reporte "result".
-      if (event.revealEffect === "KINECT_ROLLER") {
-        return <KinectRevealView event={event} taskId={state.taskId} reportRevealDone={reportRevealDone} />;
-      }
-      return <FullBleedMessage event={event} title="Revelando foto…" />;
-
-    case "result":
-      return <ResultView event={event} taskId={state.taskId} showQr={state.showQr} />;
-
-    default:
+  const content = (() => {
+    if (!state || isStale) {
       return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" />;
-  }
+    }
+
+    switch (state.phase) {
+      case "splash":
+        return <SplashScreen event={event} onStart={NOOP} wide bgVideoUrl={event.screenSaverVideoUrl} />;
+
+      case "landing":
+      case "filter":
+        return (
+          <EventPhotoBoothLanding
+            event={event}
+            readOnly
+            selectedBrandOverride={state.brand}
+            wide
+            bgVideoUrl={event.screenSaverVideoUrl}
+          />
+        );
+
+      case "capture":
+        return <FullBleedMessage event={event} title="Capturando fotografía en otro dispositivo" />;
+
+      case "preview":
+        if (!state.previewUrl) {
+          return <FullBleedMessage event={event} title="Confirmando foto en otro dispositivo" />;
+        }
+        // A diferencia del resto del wizard (donde la foto mantiene su forma
+        // real dentro de una caja), acá se estira para llenar los 1920x1080
+        // de la pantalla gigante de punta a punta - mismo criterio que
+        // /display (object-fill), en vez de PreviewStep/MirrorStage (que
+        // preservarían la proporción y dejarían barras negras a los costados
+        // en una pantalla ancha).
+        return (
+          <div className="fixed inset-0 bg-black">
+            <img
+              key={state.previewUrl}
+              src={state.previewUrl}
+              alt="Vista previa"
+              className="absolute inset-0 w-full h-full object-fill"
+            />
+          </div>
+        );
+
+      case "customize":
+        if (!state.previewUrl) {
+          return <FullBleedMessage event={event} title="Confirmando foto en otro dispositivo" />;
+        }
+        return (
+          <MirrorStage event={event}>
+            <ImageCustomizeStep
+              previewSrc={state.previewUrl}
+              customizationOverride={state.customization}
+              onConfirm={NOOP_CUSTOMIZE}
+              readOnly
+              logoLeftSrc={event.logoTop}
+              logoRightSrc={event.logoBottom}
+              aspectRatio={event.photoAspectRatio}
+              wide
+            />
+          </MirrorStage>
+        );
+
+      case "loading":
+        return <LoaderStep brandIdOverride={state.brand} wide />;
+
+      case "reveal":
+        // revealEffect="KINECT_ROLLER": la pantalla gigante ES el Kinect, así
+        // que acá SÍ hay alguien tocándola de verdad — se revela con el
+        // rodillo real y se le avisa al líder cuando termina. Para cualquier
+        // otro revealEffect (mano/rodillo virtual con webcam), quien gesticula
+        // está frente a la tablet, no acá, así que solo se muestra un mensaje
+        // hasta que el líder reporte "result".
+        if (event.revealEffect === "KINECT_ROLLER") {
+          return (
+            <KinectRevealView
+              event={event}
+              taskId={state.taskId}
+              reportRevealDone={reportRevealDone}
+              result={taskResult}
+              error={taskError}
+            />
+          );
+        }
+        return <FullBleedMessage event={event} title="Revelando foto…" />;
+
+      case "result":
+        return (
+          <ResultView
+            event={event}
+            taskId={state.taskId}
+            showQr={state.showQr}
+            result={taskResult}
+            error={taskError}
+          />
+        );
+
+      default:
+        return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" />;
+    }
+  })();
+
+  return (
+    <>
+      {content}
+      <LiveSessionStatusBadge
+        role="mirror"
+        connected={connected}
+        isStale={isStale}
+        phase={state?.phase ?? null}
+        brand={state?.brand ?? null}
+        taskId={state?.taskId ?? null}
+        updatedAt={state?.updatedAt ?? null}
+      />
+    </>
+  );
 }

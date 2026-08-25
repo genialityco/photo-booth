@@ -131,27 +131,38 @@ export default function ImageCustomizeStep({
       }}
     >
       {(logoLeftSrc || logoRightSrc) && (
-        <div className="flex-shrink-0 w-full flex items-center justify-between gap-4 pb-1">
+        <div
+          /* Con los dos logos van uno a cada lado; con uno solo va centrado.
+             Antes era `justify-between` fijo con un <span/> vacío de relleno,
+             así que si faltaba uno el otro quedaba pegado a un costado. */
+          className={`flex-shrink-0 w-full flex items-center gap-4 pb-1 ${
+            logoLeftSrc && logoRightSrc ? "justify-between" : "justify-center"
+          }`}
+        >
           {logoLeftSrc ? (
             <img
               src={logoLeftSrc}
               alt=""
-              className={`${logoHeightClass} w-auto max-w-[42vw] object-contain select-none`}
+              className={
+                wide
+                  ? `${logoHeightClass} w-[24vw] object-fill select-none`
+                  : `${logoHeightClass} w-auto max-w-[42vw] object-contain select-none`
+              }
               draggable={false}
             />
-          ) : (
-            <span />
-          )}
+          ) : null}
           {logoRightSrc ? (
             <img
               src={logoRightSrc}
               alt=""
-              className={`${logoHeightClass} w-auto max-w-[42vw] object-contain select-none`}
+              className={
+                wide
+                  ? `${logoHeightClass} w-[24vw] object-fill select-none`
+                  : `${logoHeightClass} w-auto max-w-[42vw] object-contain select-none`
+              }
               draggable={false}
             />
-          ) : (
-            <span />
-          )}
+          ) : null}
         </div>
       )}
 
@@ -161,14 +172,14 @@ export default function ImageCustomizeStep({
             className={`relative ${previewAspectClass} rounded-3xl overflow-hidden shadow-2xl border-4 border-white/80 flex-shrink-0`}
             style={previewSizeStyle}
           >
-            <img src={previewSrc} alt="Vista previa" className="w-full h-full object-cover" />
+            <img src={previewSrc} alt="Vista previa" className={`w-full h-full ${wide ? "object-fill" : "object-cover"}`} />
           </div>
         )}
 
         <div className="w-full" style={{ maxWidth: panelMaxWidth }}>
           <p
             className="text-white/90 font-bold tracking-widest mb-2"
-            style={{ fontSize: "clamp(0.9rem, 1.8vw, 1.25rem)" }}
+            style={{ fontSize: wide ? "clamp(1.4rem, 2.6vw, 2.1rem)" : "clamp(0.9rem, 1.8vw, 1.25rem)" }}
           >
             PALETA
           </p>
@@ -180,7 +191,7 @@ export default function ImageCustomizeStep({
                 onClick={readOnly ? undefined : () => setPaletteIndex(i)}
                 disabled={readOnly}
                 aria-label={`Paleta ${colors.join(", ")}`}
-                className={`flex-1 aspect-square rounded-2xl transition-transform ${
+                className={`flex-1 ${wide ? "aspect-[3/2]" : "aspect-square"} rounded-2xl transition-transform ${
                   paletteIndex === i ? "ring-4 ring-white scale-110" : "opacity-90 hover:opacity-100"
                 }`}
                 style={{
@@ -195,7 +206,7 @@ export default function ImageCustomizeStep({
         <div className="w-full" style={{ maxWidth: panelMaxWidth }}>
           <p
             className="text-white/90 font-bold tracking-widest mb-2"
-            style={{ fontSize: "clamp(0.9rem, 1.8vw, 1.25rem)" }}
+            style={{ fontSize: wide ? "clamp(1.4rem, 2.6vw, 2.1rem)" : "clamp(0.9rem, 1.8vw, 1.25rem)" }}
           >
             TEXTURA
           </p>
@@ -210,9 +221,9 @@ export default function ImageCustomizeStep({
                   texture === t.value ? "bg-black text-white" : "bg-white text-black hover:bg-white/90"
                 }`}
                 style={{
-                  paddingTop: "clamp(0.55rem, 1.3vh, 1.1rem)",
-                  paddingBottom: "clamp(0.55rem, 1.3vh, 1.1rem)",
-                  fontSize: "clamp(0.9rem, 1.8vw, 1.25rem)",
+                  paddingTop: wide ? "clamp(1rem, 2.4vh, 2rem)" : "clamp(0.55rem, 1.3vh, 1.1rem)",
+                  paddingBottom: wide ? "clamp(1rem, 2.4vh, 2rem)" : "clamp(0.55rem, 1.3vh, 1.1rem)",
+                  fontSize: wide ? "clamp(1.3rem, 2.6vw, 2rem)" : "clamp(0.9rem, 1.8vw, 1.25rem)",
                 }}
               >
                 {t.label}
@@ -224,7 +235,7 @@ export default function ImageCustomizeStep({
         <div className="w-full" style={{ maxWidth: panelMaxWidth }}>
           <p
             className="text-white/90 font-bold tracking-widest mb-2"
-            style={{ fontSize: "clamp(0.9rem, 1.8vw, 1.25rem)" }}
+            style={{ fontSize: wide ? "clamp(1.4rem, 2.6vw, 2.1rem)" : "clamp(0.9rem, 1.8vw, 1.25rem)" }}
           >
             INTENSIDAD
           </p>
@@ -236,7 +247,7 @@ export default function ImageCustomizeStep({
             onChange={readOnly ? undefined : (e) => setIntensity(Number(e.target.value))}
             disabled={readOnly}
             className="w-full accent-red-500"
-            style={{ height: "clamp(10px, 1.4vh, 16px)" }}
+            style={{ height: wide ? "clamp(18px, 2.4vh, 26px)" : "clamp(10px, 1.4vh, 16px)" }}
           />
         </div>
       </div>
