@@ -378,31 +378,26 @@ export async function updatePhotoBoothPrompt(
     id: string, 
     data: Partial<Omit<PhotoBoothPrompt,  | 'createdAt' | 'updatedAt'>>
 ): Promise<void> {
-    console.log(data)
     try {
         const docRef = doc(db, PHOTO_BOOTH_PROMPTS_COLLECTION, id);
-        let logoUrl = data.logoPath;
-        let imageUrl = (data as any).imageUrl || undefined;
-        let fileData = data.logo; 
-        console.log("filedata", fileData)
-      if (fileData) {
-        // 1. Normalizar la Data URL
-        if (typeof fileData === "string" && !fileData.startsWith("data:")) {
-          fileData = `data:${fileData}`;
+        // El form (ver brand/page.tsx onEdit) siembra `logo` con la URL ya
+        // guardada (`logoPath`) para poder mostrar la preview al editar. Por
+        // eso acá, igual que con imageUrl/promptBgImage/objectImage más abajo,
+        // solo se re-sube si es una Data URL nueva — si `logo` llega sin tocar
+        // (misma URL https existente) o `null` (usuario quitó el logo), se
+        // respeta tal cual en vez de intentar "subir" una URL como si fuera
+        // base64.
+        let logoUrl: string | null | undefined = data.logo !== undefined ? data.logo : data.logoPath;
+        const logoFileData = data.logo;
+        if (logoFileData && typeof logoFileData === "string" && logoFileData.startsWith("data:")) {
+          const logoBlob = dataURLtoBlob(logoFileData);
+          const contentType = logoBlob.type;
+          const extension = contentType.split("/")[1] || "png";
+          const fileName = `${Date.now()}_${data.brand}.${extension.replace("+", "_")}`;
+          logoUrl = await uploadImageViaAPI(logoFileData, fileName, "logos");
         }
-        console.log(fileData)
-        // 2. Convertir la Data URL a un Blob
-        const logoBlob = dataURLtoBlob(fileData as string);
-        const contentType = logoBlob.type;
-  
-        // 3. Crear nombre de archivo
-        const extension = contentType.split("/")[1] || "png";
-        const fileName = `${Date.now()}_${data.brand}.${extension.replace("+", "_")}`;
-  
-        // 4. Subir usando la API
-        logoUrl = await uploadImageViaAPI(fileData as string, fileName, "logos");
-      }
             // handle imageUrl upload if data.imageUrl provided as data URL
+            let imageUrl = (data as any).imageUrl || undefined;
             const imageFileData = (data as any).imageUrl;
             if (imageFileData && typeof imageFileData === 'string' && imageFileData.startsWith('data:')) {
                 const imageBlob = dataURLtoBlob(imageFileData);

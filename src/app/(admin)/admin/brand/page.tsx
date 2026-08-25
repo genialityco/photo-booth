@@ -27,14 +27,16 @@ const columns = [
     key: "basePrompt",
     label: "Prompt",
     sortable: false,
-    className: "truncate w-fit max-w-md",
-    render: (item: PhotoBoothPrompt, value: string) => value,
+    // Sin `render` propio: usa el truncado + "Ver más"/"Ver completo..." que
+    // ya trae DataTable por defecto para strings largos (funciona en las 3
+    // variantes responsive) — un `render` que solo devuelve el valor crudo
+    // bypasseaba esa lógica y mostraba el prompt completo sin cortar,
+    // especialmente roto en la tarjeta mobile.
   },
   {
     key: "colorDirectiveTemplate",
     label: "Color Template",
     sortable: false,
-    render: (item: PhotoBoothPrompt, value: string) => value,
   },
   {
     key: "active",
@@ -150,9 +152,12 @@ export default function PhotoBoothPromptsPage() {
   };
 
   const onEdit = (prompt: PhotoBoothPrompt) => {
-    //console.log("Edit prompt:", prompt);
-   
-    setSelectedPrompt(prompt);
+    // El campo de archivo "Logo" del form se llama `logo` (para diferenciar
+    // "URL ya subida" de "archivo nuevo seleccionado" — ver
+    // updatePhotoBoothPrompt), pero el valor persistido vive en `logoPath`.
+    // Sin este seed, el formulario de edición no mostraba el logo ya
+    // guardado, como si no existiera.
+    setSelectedPrompt({ ...prompt, logo: prompt.logoPath });
     setIsModalOpen(true);
   };
 
@@ -292,6 +297,7 @@ export default function PhotoBoothPromptsPage() {
       <input type="color" value={color || "#000000"} onChange={(e) => setColor(e.target.value)} />
       <DataTable
         data={prompts}
+        loading={isLoading}
         columns={columns}
         actions={actions}
         searchFields={["brand", "basePrompt"]}
