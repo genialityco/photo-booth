@@ -776,6 +776,8 @@ export default function SplashScreen({
             </FreePositioned>
           </>
         )}
+          </div>
+        </div>
       </div>
     );
   }
