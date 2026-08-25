@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Anton, Barlow_Condensed } from "next/font/google";
+import { Anton, Barlow_Condensed, Roboto } from "next/font/google";
 import {
   EventProfile,
   type SplashFreeElement,
@@ -28,14 +28,18 @@ export const barlowCondensed = Barlow_Condensed({
   variable: "--font-splash-barlow",
   display: "swap",
 });
+export const roboto = Roboto({
+  weight: ["400", "500", "700", "900"],
+  subsets: ["latin"],
+  variable: "--font-splash-roboto",
+  display: "swap",
+});
 
 const DEFAULT_TITLE = "TU ROSTRO,\nTU ARTE";
 const DEFAULT_TITLE_COLOR = "#E4032E";
 const DEFAULT_SUBTITLE = "Conviértete en una obra de arte";
 const DEFAULT_SUBTITLE_COLOR = "#2B2118";
-const DEFAULT_WORD1 = "ARTE";
 const DEFAULT_WORD1_COLOR = "#1FB6C4";
-const DEFAULT_WORD2 = "COLOR";
 const DEFAULT_WORD2_COLOR = "#F0369A";
 const DEFAULT_LOADER_FROM = "#F7A600";
 const DEFAULT_LOADER_TO = "#E4032E";
@@ -52,6 +56,7 @@ export const SPLASH_FONT_OPTIONS = [
   { value: "barlow", label: "Barlow Condensed" },
   { value: "azo", label: "Azo Sans" },
   { value: "selima", label: "Selima (script)" },
+  { value: "roboto", label: "Roboto" },
 ] as const;
 
 const SPLASH_FONT_CSS: Record<string, string> = {
@@ -59,6 +64,7 @@ const SPLASH_FONT_CSS: Record<string, string> = {
   barlow: "var(--font-splash-barlow), sans-serif",
   azo: "var(--font-azo), sans-serif",
   selima: "var(--font-selima), cursive",
+  roboto: "var(--font-splash-roboto), sans-serif",
 };
 
 // Con "default" (o sin el campo, eventos existentes) cada texto mantiene su
@@ -70,6 +76,16 @@ export function resolveSplashFont(fontKey: string | undefined, role: "title" | "
   const key = fontKey && fontKey !== "default" ? fontKey : fallback;
   return SPLASH_FONT_CSS[key] || SPLASH_FONT_CSS[fallback];
 }
+
+/**
+ * Relación de aspecto (ancho/alto) del "escenario" de referencia sobre el
+ * que se calibran las posiciones xPct/yPct del layout libre — la misma que
+ * usa el canvas de SplashLayoutEditor.tsx (celular 9:19.5), para que edición
+ * y render real coincidan exactamente. Ver SPLASH_STAGE_ASPECT_RATIO más
+ * abajo, donde se usa para acotar el escenario en pantallas mucho más anchas
+ * que un celular (tablets, TV, desktop).
+ */
+export const SPLASH_STAGE_ASPECT_RATIO = 9 / 19.5;
 
 /** Posiciones iniciales del layout libre (splashFreeLayoutEnabled), pensadas
  *  para acercarse al look del grid original en un celular vertical — el
@@ -231,6 +247,10 @@ export default function SplashScreen({
   const titleLines = title.split("\n").map((l) => l.trim()).filter(Boolean);
   const titleColor = event.splashTitleColor || DEFAULT_TITLE_COLOR;
   const titleFont = resolveSplashFont(event.splashTitleFont, "title");
+  // El look "cursiva"/inclinado del título de texto (independiente de la
+  // fuente elegida) es un skewX fijo — configurable por evento, 0 = recto.
+  // Por compatibilidad, sin este campo se mantiene el -9° original.
+  const titleSkewDeg = event.splashTitleSkewDeg ?? -9;
   // Con "IMAGE" pero sin imagen cargada, se cae de vuelta a texto en vez de
   // dejar el título vacío.
   const titleIsImage = event.splashTitleMode === "IMAGE" && !!event.splashTitleImage;
@@ -240,9 +260,13 @@ export default function SplashScreen({
   const subtitleFont = resolveSplashFont(event.splashSubtitleFont, "subtitle");
   const wordsFont = resolveSplashFont(event.splashWordsFont, "title");
 
-  const word1 = event.splashWord1?.trim() || DEFAULT_WORD1;
+  // Sin fallback a "ARTE"/"COLOR": si el evento no configuró la palabra (o la
+  // dejó en blanco), no se muestra nada — antes con el default, todo evento
+  // sin estas palabras configuradas mostraba "ARTE"/"COLOR" igual, aunque no
+  // tuviera nada que ver con esa marca.
+  const word1 = event.splashWord1?.trim() || "";
   const word1Color = event.splashWord1Color || DEFAULT_WORD1_COLOR;
-  const word2 = event.splashWord2?.trim() || DEFAULT_WORD2;
+  const word2 = event.splashWord2?.trim() || "";
   const word2Color = event.splashWord2Color || DEFAULT_WORD2_COLOR;
 
   const loaderFrom = event.splashLoaderColorFrom || DEFAULT_LOADER_FROM;
@@ -435,16 +459,23 @@ export default function SplashScreen({
               className={`splash-title-line ${
                 i === 0 ? "splash-anim-slideL" : i === 1 ? "splash-anim-slideR" : "splash-anim-subtitle"
               }`}
-              style={{
-                fontSize: "8.46cqw",
-                lineHeight: 0.94,
-                letterSpacing: "0.5px",
-                color: titleColor,
-                transform: "skewX(-9deg)",
-                textAlign: "center",
-                whiteSpace: "nowrap",
-                textShadow: "0 3px 0 rgba(255,255,255,.5), 0 10px 22px rgba(0,0,0,.22)",
-              }}
+              style={
+                {
+                  fontSize: "8.46cqw",
+                  lineHeight: 0.94,
+                  letterSpacing: "0.5px",
+                  color: titleColor,
+                  // Fallback para prefers-reduced-motion (sin animación
+                  // corriendo, este transform inline es el que manda) — con
+                  // animación activa, manda la variable CSS de abajo (ver
+                  // comentario en @keyframes splash-slideL/R en globals.css).
+                  transform: `skewX(${titleSkewDeg}deg)`,
+                  "--title-skew": `${titleSkewDeg}deg`,
+                  textAlign: "center",
+                  whiteSpace: "nowrap",
+                  textShadow: "0 3px 0 rgba(255,255,255,.5), 0 10px 22px rgba(0,0,0,.22)",
+                } as React.CSSProperties
+              }
             >
               {line}
             </div>
@@ -526,13 +557,12 @@ export default function SplashScreen({
       <div
         ref={containerRef}
         onClick={ready ? handleStart : undefined}
-        className={`fixed inset-0 overflow-hidden select-none ${anton.variable} ${barlowCondensed.variable}`}
+        className={`fixed inset-0 overflow-hidden select-none ${anton.variable} ${barlowCondensed.variable} ${roboto.variable}`}
         style={
           {
             cursor: ready ? "pointer" : "default",
             width: "100dvw",
             height: "100dvh",
-            containerType: "size",
           } as React.CSSProperties
         }
       >
@@ -633,6 +663,28 @@ export default function SplashScreen({
           </div>
         )}
 
+        {/* Escenario acotado a la relación de aspecto de referencia del
+            editor (SPLASH_STAGE_ASPECT_RATIO) y centrado horizontalmente —
+            el fondo de arriba sigue ocupando el 100% de la pantalla (sin
+            barras de letterbox), pero el CONTENIDO posicionado libremente
+            (xPct/yPct + tamaños en cqw) queda acotado a ese ancho máximo, así
+            en pantallas mucho más anchas que un celular (tablets como
+            1024×1366, TV, desktop) no se ve desproporcionadamente grande ni
+            corrido del centro — antes `containerType:size` medía el ancho
+            REAL del viewport sin techo, así que cqw crecía más de lo
+            calibrado en el editor en cualquier pantalla más "cuadrada" que
+            una vertical de celular. */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div
+            style={
+              {
+                position: "relative",
+                height: "100%",
+                width: `min(100dvw, calc(100dvh * ${SPLASH_STAGE_ASPECT_RATIO}))`,
+                containerType: "size",
+              } as React.CSSProperties
+            }
+          >
         {hasHeaderLogos
           ? event.splashHeaderLogos!.map((logo, i) => {
               const pos =
@@ -732,7 +784,7 @@ export default function SplashScreen({
     return (
       <div
         ref={containerRef}
-        className={`fixed inset-0 overflow-hidden select-none ${anton.variable} ${barlowCondensed.variable} ${wide ? "splash-wide" : ""}`}
+        className={`fixed inset-0 overflow-hidden select-none ${anton.variable} ${barlowCondensed.variable} ${roboto.variable}`}
       >
         <MediaTapScreen videoUrl={effectiveVideoUrl} onTap={handleStart} videoObjectFit={wide ? "cover" : "contain"}>
           {/* Velo inferior: legibilidad de la barra/botón sobre un video cuyo
@@ -755,7 +807,7 @@ export default function SplashScreen({
     <div
       ref={containerRef}
       onClick={ready ? handleStart : undefined}
-      className={`fixed inset-0 overflow-hidden select-none ${anton.variable} ${barlowCondensed.variable} ${wide ? "splash-wide" : ""}`}
+      className={`fixed inset-0 overflow-hidden select-none ${anton.variable} ${barlowCondensed.variable} ${roboto.variable}`}
       style={{ cursor: ready ? "pointer" : "default" }}
     >
       {/* Fondo: la imagen de fondo del evento (misma que el resto del flujo);
@@ -935,16 +987,21 @@ export default function SplashScreen({
                 className={`splash-title-line ${
                   i === 0 ? "splash-anim-slideL" : i === 1 ? "splash-anim-slideR" : "splash-anim-subtitle"
                 }`}
-                style={{
-                  fontSize: "clamp(1.9rem, 9vmin, 3.6rem)",
-                  lineHeight: 0.94,
-                  letterSpacing: "0.5px",
-                  color: titleColor,
-                  transform: "skewX(-9deg)",
-                  textAlign: "center",
-                  textShadow:
-                    "0 3px 0 rgba(255,255,255,.5), 0 10px 22px rgba(0,0,0,.22)",
-                }}
+                style={
+                  {
+                    fontSize: "clamp(1.9rem, 9vmin, 3.6rem)",
+                    lineHeight: 0.94,
+                    letterSpacing: "0.5px",
+                    color: titleColor,
+                    // Fallback para prefers-reduced-motion; con animación
+                    // activa manda --title-skew (ver globals.css).
+                    transform: `skewX(${titleSkewDeg}deg)`,
+                    "--title-skew": `${titleSkewDeg}deg`,
+                    textAlign: "center",
+                    textShadow:
+                      "0 3px 0 rgba(255,255,255,.5), 0 10px 22px rgba(0,0,0,.22)",
+                  } as React.CSSProperties
+                }
               >
                 {line}
               </div>

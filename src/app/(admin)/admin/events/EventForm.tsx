@@ -228,6 +228,8 @@ export default function EventForm({
     loadingTitleColor: event?.loadingTitleColor || "#ef4444",
     loadingSubtitleColor: event?.loadingSubtitleColor || "#1a1a1a",
     loadingProgressColor: event?.loadingProgressColor || "#ef4444",
+    loadingProgressTrackColor: event?.loadingProgressTrackColor || "",
+    loadingPercentColor: event?.loadingPercentColor || "#000000",
     showLogosInLoader: event?.showLogosInLoader !== false,
     enableFrame: event?.enableFrame !== false,
     dataProcessingText: event?.dataProcessingText || "",
@@ -246,6 +248,7 @@ export default function EventForm({
     splashTitle: event?.splashTitle || "",
     splashTitleColor: event?.splashTitleColor || "#E4032E",
     splashTitleMode: event?.splashTitleMode || "TEXT",
+    splashTitleSkewDeg: event?.splashTitleSkewDeg ?? -9,
     splashTitleImage: event?.splashTitleImage || "",
     splashSubtitle: event?.splashSubtitle || "",
     splashSubtitleColor: event?.splashSubtitleColor || "#2B2118",
@@ -816,6 +819,22 @@ export default function EventForm({
                     ))}
                   </SelectField>
                 </div>
+                <div className="flex items-center gap-3 mt-2">
+                  <label htmlFor="splashTitleSkewDeg" className="text-sm text-gray-700">
+                    Inclinación del título
+                  </label>
+                  <input
+                    type="number"
+                    id="splashTitleSkewDeg"
+                    min={-45}
+                    max={45}
+                    step={1}
+                    value={formData.splashTitleSkewDeg ?? -9}
+                    onChange={(e) => setField("splashTitleSkewDeg", Number(e.target.value))}
+                    className="w-20 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <span className="text-xs text-gray-500">grados (0 = recto, sin cursiva)</span>
+                </div>
               </div>
             </div>
 
@@ -1115,7 +1134,7 @@ export default function EventForm({
               Color del anillo de progreso
             </label>
             <p className="text-xs text-gray-500 mb-2">
-              Color del círculo/barra de carga animada mientras se genera la imagen.
+              Color de la parte YA RELLENADA del círculo/barra de carga animada mientras se genera la imagen.
             </p>
             <div className="flex items-center gap-3">
               <input
@@ -1127,6 +1146,51 @@ export default function EventForm({
                 className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
               />
               <span className="text-xs text-gray-500">{formData.loadingProgressColor || "#ef4444"}</span>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="loadingProgressTrackColor" className="block text-sm font-medium text-gray-700 mb-1">
+              Color del fondo del anillo
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Color de la parte AÚN NO rellenada del anillo. Por defecto es gris translúcido — al elegir un color acá
+              se vuelve sólido (sin transparencia).
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                id="loadingProgressTrackColor"
+                name="loadingProgressTrackColor"
+                value={
+                  formData.loadingProgressTrackColor && formData.loadingProgressTrackColor.startsWith("#")
+                    ? formData.loadingProgressTrackColor
+                    : "#000000"
+                }
+                onChange={handleChange}
+                className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+              />
+              <span className="text-xs text-gray-500">
+                {formData.loadingProgressTrackColor || "rgba(0,0,0,0.15) (por defecto)"}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="loadingPercentColor" className="block text-sm font-medium text-gray-700 mb-1">
+              Color del porcentaje
+            </label>
+            <p className="text-xs text-gray-500 mb-2">Color del número (%) en el centro del anillo.</p>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                id="loadingPercentColor"
+                name="loadingPercentColor"
+                value={formData.loadingPercentColor || "#000000"}
+                onChange={handleChange}
+                className="h-9 w-14 rounded border border-gray-300 cursor-pointer"
+              />
+              <span className="text-xs text-gray-500">{formData.loadingPercentColor || "#000000"}</span>
             </div>
           </div>
 

@@ -113,6 +113,8 @@ export default function LoaderStep({
   const loadingTitleColor = event?.loadingTitleColor || "#ef4444";
   const loadingSubtitleColor = event?.loadingSubtitleColor || "#1a1a1a";
   const loadingProgressColor = event?.loadingProgressColor || "#ef4444";
+  const loadingProgressTrackColor = event?.loadingProgressTrackColor || "rgba(0,0,0,0.15)";
+  const loadingPercentColor = event?.loadingPercentColor || "#000000";
 
   // Controlar si mostrar logos basado en la configuración del evento
   const showLogos = event?.showLogosInLoader !== false && style !== null;
@@ -226,7 +228,7 @@ export default function LoaderStep({
               cy={ringSize / 2}
               r={radius}
               fill="none"
-              stroke="rgba(0,0,0,0.15)"
+              stroke={loadingProgressTrackColor}
               strokeWidth={strokeWidth}
             />
             <circle
@@ -244,8 +246,8 @@ export default function LoaderStep({
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
             <span
-              className="font-black text-black drop-shadow-sm"
-              style={{ fontSize: wide ? "clamp(2.4rem, 7vmin, 4.2rem)" : "clamp(1.7rem, 4.5vmin, 2.5rem)" }}
+              className="font-black drop-shadow-sm"
+              style={{ fontSize: "clamp(1.7rem, 4.5vmin, 2.5rem)", color: loadingPercentColor }}
             >
               {progress}%
             </span>

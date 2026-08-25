@@ -124,26 +124,44 @@ async function getServiceAccountFromSecretManager() {
   }
 }
 
+// Dos requests concurrentes (ej. subir raw.png y el compuesto casi al mismo
+// tiempo durante la captura) podían pasar el `if (!getApps().length)` ANTES
+// de que cualquiera terminara de resolver credenciales (hay un `await` a
+// Secret Manager en el medio), y ambas terminaban llamando a `initializeApp`
+// — la segunda tiraba "The default Firebase app already exists". Compartir
+// una única promesa de inicialización entre todas las llamadas concurrentes
+// asegura que `initializeApp` se ejecute una sola vez sin importar cuántos
+// requests lleguen a la vez.
+let initPromise: Promise<void> | null = null;
+
 async function initAdminWithSecrets() {
-  if (!getApps().length) {
-    const storageBucket = getStorageBucket();
-    
-    console.log("Initializing Firebase Admin with bucket:", storageBucket);
-    
-    // Intentar Secret Manager primero, luego fallback
-    let serviceAccount = await getServiceAccountFromSecretManager();
-    if (!serviceAccount) {
-      serviceAccount = getServiceAccount();
-    }
-    
-    initializeApp({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      credential: cert(serviceAccount as any),
-      storageBucket,
-    });
-    
-    console.log("✓ Firebase Admin initialized successfully");
+  if (getApps().length) return;
+
+  if (!initPromise) {
+    initPromise = (async () => {
+      const storageBucket = getStorageBucket();
+
+      console.log("Initializing Firebase Admin with bucket:", storageBucket);
+
+      // Intentar Secret Manager primero, luego fallback
+      let serviceAccount = await getServiceAccountFromSecretManager();
+      if (!serviceAccount) {
+        serviceAccount = getServiceAccount();
+      }
+
+      if (!getApps().length) {
+        initializeApp({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          credential: cert(serviceAccount as any),
+          storageBucket,
+        });
+
+        console.log("✓ Firebase Admin initialized successfully");
+      }
+    })();
   }
+
+  return initPromise;
 }
 
 export async function POST(req: NextRequest) {

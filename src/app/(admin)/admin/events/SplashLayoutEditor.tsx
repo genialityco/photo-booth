@@ -7,7 +7,13 @@ import type {
   SplashHeaderLogo,
   SplashLayout,
 } from "@/app/services/photo-booth/eventService";
-import { SPLASH_FREE_LAYOUT_DEFAULTS, anton, barlowCondensed } from "@/app/components/photo-booth/SplashScreen";
+import {
+  SPLASH_FREE_LAYOUT_DEFAULTS,
+  SPLASH_STAGE_ASPECT_RATIO,
+  anton,
+  barlowCondensed,
+  roboto,
+} from "@/app/components/photo-booth/SplashScreen";
 
 const MIN_SCALE = 40;
 const MAX_SCALE = 250;
@@ -15,12 +21,14 @@ const SNAP_THRESHOLD_PX = 6;
 const GRID_LINES_PCT = [10, 20, 30, 40, 50, 60, 70, 80, 90];
 
 // Mismo criterio de referencia que HeaderLogoEditor: ancho fijo + relación de
-// aspecto tipo celular (9:19.5). Acá el canvas representa la pantalla
+// aspecto tipo celular (9:19.5, SPLASH_STAGE_ASPECT_RATIO — el render real
+// acota el "escenario" del layout libre a esta misma proporción en pantallas
+// más anchas, ver SplashScreen.tsx). Acá el canvas representa la pantalla
 // COMPLETA (no solo el header), así que los tamaños de fuente del preview son
 // valores fijos elegidos a ojo para verse proporcionados en este ancho —no
 // son los mismos clamp() del render real, que usan vmin del dispositivo.
 const PREVIEW_WIDTH = 260;
-const PREVIEW_HEIGHT = Math.round(PREVIEW_WIDTH * (19.5 / 9));
+const PREVIEW_HEIGHT = Math.round(PREVIEW_WIDTH / SPLASH_STAGE_ASPECT_RATIO);
 
 function clamp(v: number, min: number, max: number) {
   return Math.min(Math.max(v, min), max);
@@ -153,7 +161,7 @@ export default function SplashLayoutEditor({
           <div
             ref={containerRef}
             onPointerDown={() => setSelected(null)}
-            className={`relative border border-gray-300 rounded-lg overflow-hidden mx-auto ${anton.variable} ${barlowCondensed.variable}`}
+            className={`relative border border-gray-300 rounded-lg overflow-hidden mx-auto ${anton.variable} ${barlowCondensed.variable} ${roboto.variable}`}
             style={{
               width: PREVIEW_WIDTH,
               height: PREVIEW_HEIGHT,

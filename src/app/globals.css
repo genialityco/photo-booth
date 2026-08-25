@@ -191,13 +191,21 @@ body {
   8.3% { opacity: 1; transform: translateY(6px) scale(1.04) rotate(2deg); }
   13.8%, 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
 }
+/* skewX del estado asentado (16.2%/18.5% -> 100%) lee la variable
+   --title-skew en vez de un -9deg fijo, para que SplashScreen.tsx pueda
+   configurarlo (splashTitleSkewDeg) — esta animación corre `infinite`, así
+   que sin la variable CUALQUIER transform inline en el elemento queda
+   pisado permanentemente por este valor (las animaciones ganan sobre estilos
+   inline mientras están activas). El overshoot de entrada (-22deg/4deg) se
+   deja fijo a propósito: es un efecto decorativo momentáneo, no la
+   inclinación final que el admin configura. */
 @keyframes splash-slideL {
   0%, 5.4% { opacity: 0; transform: translateX(-70px) skewX(-22deg); }
-  16.2%, 100% { opacity: 1; transform: translateX(0) skewX(-9deg); }
+  16.2%, 100% { opacity: 1; transform: translateX(0) skewX(var(--title-skew, -9deg)); }
 }
 @keyframes splash-slideR {
   0%, 7.7% { opacity: 0; transform: translateX(70px) skewX(4deg); }
-  18.5%, 100% { opacity: 1; transform: translateX(0) skewX(-9deg); }
+  18.5%, 100% { opacity: 1; transform: translateX(0) skewX(var(--title-skew, -9deg)); }
 }
 @keyframes splash-subtitleIn {
   0%, 13.1% { opacity: 0; transform: translateY(18px); }
