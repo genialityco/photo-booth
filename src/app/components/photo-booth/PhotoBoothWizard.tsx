@@ -591,6 +591,36 @@ export default function PhotoBoothWizard({
   };
   const stepTransition = { duration: 0.28, ease: [0.4, 0, 0.2, 1] as const };
 
+  // Los campos de logo del admin se guardan como "" cuando no se sube nada.
+  // Pasar eso a `src` no solo dispara el warning de React ("An empty string was
+  // passed to the src attribute"), sino que además deja renderizado un <img>
+  // vacío que igual ocupa el alto de la barra — el "cuadro esperando una
+  // imagen". Sin logo utilizable no se renderiza la barra en absoluto.
+  const usableLogo = (url?: string | null): string | null => {
+    const trimmed = typeof url === "string" ? url.trim() : "";
+    return trimmed || null;
+  };
+
+  const topLogoSrc = style
+    ? usableLogo(
+        step === "loading"
+          ? style.logoLoadingTop || style.logoLandingTop
+          : step === "result" || step === "reveal"
+            ? style.logoResultsTop || style.logoLandingTop
+            : style.logoLandingTop
+      )
+    : "/genilaty_smart_led_logo.png";
+
+  const bottomLogoSrc = style
+    ? usableLogo(
+        step === "loading"
+          ? style.logoLoadingBottom || style.logoLandingBottom
+          : step === "result" || step === "reveal"
+            ? style.logoResultsBottom || style.logoLandingBottom
+            : style.logoLandingBottom
+      )
+    : "/genilaty_smart_led_logo.png";
+
   const bgUrl = style
     ? step === "capture"
       ? style.bgCapture || style.bgLanding
@@ -661,7 +691,7 @@ export default function PhotoBoothWizard({
           despejada para la cámara. En "customize" tampoco: los dos logos
           (arriba y abajo) se muestran juntos arriba dentro de
           ImageCustomizeStep, para liberar espacio vertical y evitar scroll. */}
-      {step !== "capture" && step !== "customize" && (
+      {step !== "capture" && step !== "customize" && topLogoSrc && (
         <div
           className="relative z-5 flex-shrink-0 flex justify-center items-center px-4"
           style={{
@@ -670,15 +700,7 @@ export default function PhotoBoothWizard({
           }}
         >
           <img
-            src={
-              style
-                ? step === "loading"
-                  ? style.logoLoadingTop || style.logoLandingTop
-                  : step === "result" || step === "reveal"
-                    ? style.logoResultsTop || style.logoLandingTop
-                    : style.logoLandingTop
-                : "/genilaty_smart_led_logo.png"
-            }
+            src={topLogoSrc}
             alt="Logo"
             className="block w-auto object-contain select-none"
             style={scaledLogoStyle({
@@ -862,7 +884,7 @@ export default function PhotoBoothWizard({
       {/* FOOTER: Logo inferior — fijo, siempre visible. En "capture" no se
           renderiza: el logo va dentro de CaptureStep, al costado del
           disparador. En "customize" tampoco: ver nota del HEADER arriba. */}
-      {step !== "capture" && step !== "customize" && (
+      {step !== "capture" && step !== "customize" && bottomLogoSrc && (
         <div
           className="relative z-5 flex-shrink-0 flex justify-center items-center px-4 pointer-events-none"
           style={{
@@ -871,15 +893,7 @@ export default function PhotoBoothWizard({
           }}
         >
           <img
-            src={
-              style
-                ? step === "loading"
-                  ? style.logoLoadingBottom || style.logoLandingBottom
-                  : step === "result" || step === "reveal"
-                    ? style.logoResultsBottom || style.logoLandingBottom
-                    : style.logoLandingBottom
-                : "genilaty_smart_led_logo.png"
-            }
+            src={bottomLogoSrc}
             alt="Logos Footer"
             className="block w-auto object-contain select-none"
             style={scaledLogoStyle({

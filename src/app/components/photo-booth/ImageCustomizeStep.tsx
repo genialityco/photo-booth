@@ -109,7 +109,14 @@ export default function ImageCustomizeStep({
       }}
     >
       {(logoLeftSrc || logoRightSrc) && (
-        <div className="flex-shrink-0 w-full flex items-center justify-between gap-4 pb-1">
+        <div
+          /* Con los dos logos van uno a cada lado; con uno solo va centrado.
+             Antes era `justify-between` fijo con un <span/> vacío de relleno,
+             así que si faltaba uno el otro quedaba pegado a un costado. */
+          className={`flex-shrink-0 w-full flex items-center gap-4 pb-1 ${
+            logoLeftSrc && logoRightSrc ? "justify-between" : "justify-center"
+          }`}
+        >
           {logoLeftSrc ? (
             <img
               src={logoLeftSrc}
@@ -117,9 +124,7 @@ export default function ImageCustomizeStep({
               className="h-[clamp(3.4rem,10vh,5.5rem)] w-auto max-w-[42vw] object-contain select-none"
               draggable={false}
             />
-          ) : (
-            <span />
-          )}
+          ) : null}
           {logoRightSrc ? (
             <img
               src={logoRightSrc}
@@ -127,9 +132,7 @@ export default function ImageCustomizeStep({
               className="h-[clamp(3.4rem,10vh,5.5rem)] w-auto max-w-[42vw] object-contain select-none"
               draggable={false}
             />
-          ) : (
-            <span />
-          )}
+          ) : null}
         </div>
       )}
 

@@ -136,7 +136,13 @@ export default function LoaderStep({
       {/* Logos: juntos arriba, lado a lado */}
       {(topLogo || bottomLogo) && (
         <div
-          className="relative z-20 flex-shrink-0 w-full flex items-center justify-between gap-4 px-6"
+          /* Con los dos logos van uno a cada lado; con uno solo va centrado.
+             Antes era `justify-between` fijo con un <span/> vacío haciendo de
+             relleno, así que si faltaba uno el otro quedaba pegado a un
+             costado en vez de centrado. */
+          className={`relative z-20 flex-shrink-0 w-full flex items-center gap-4 px-6 ${
+            topLogo && bottomLogo ? "justify-between" : "justify-center"
+          }`}
           style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}
         >
           {topLogo ? (
@@ -156,9 +162,7 @@ export default function LoaderStep({
               })}
               draggable={false}
             />
-          ) : (
-            <span />
-          )}
+          ) : null}
           {bottomLogo ? (
             <img
               src={bottomLogo}
@@ -172,9 +176,7 @@ export default function LoaderStep({
               })}
               draggable={false}
             />
-          ) : (
-            <span />
-          )}
+          ) : null}
         </div>
       )}
 
