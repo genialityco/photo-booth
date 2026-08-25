@@ -100,6 +100,11 @@ export type EventProfile = {
   loadingSubtitleColor?: string;
   /** Color (hex) del anillo/barra de progreso de la pantalla de carga. Default "#ef4444". */
   loadingProgressColor?: string;
+  /** Color (hex, admite alpha vía rgba/hex8) del track de fondo del anillo —
+   * la parte AÚN NO rellenada de la barra. Default "rgba(0,0,0,0.15)". */
+  loadingProgressTrackColor?: string;
+  /** Color (hex) del número de porcentaje dentro del anillo. Default "#000000". */
+  loadingPercentColor?: string;
   showLogosInLoader?: boolean;
   enableFrame?: boolean;
   dataProcessingText?: string;
@@ -192,6 +197,13 @@ export type EventProfile = {
    */
   splashTitleMode?: "TEXT" | "IMAGE";
   splashTitleImage?: string;
+  /**
+   * Inclinación (grados) del título de texto (`splashTitleMode !== "IMAGE"`) —
+   * el look "cursiva"/inclinado hacia la derecha era un `skewX` fijo en -9°.
+   * 0 = sin inclinar. Por compatibilidad, los eventos sin este campo
+   * mantienen -9 (comportamiento original).
+   */
+  splashTitleSkewDeg?: number;
   splashSubtitle?: string;
   splashSubtitleColor?: string;
   /** Imagen de la tarjeta central (mascota/logo secundario); sin ella, la tarjeta no se muestra. */
@@ -450,9 +462,18 @@ export async function createEventProfile(
       docData.loadingProgressColor = data.loadingProgressColor;
     }
 
+    if (data.loadingProgressTrackColor !== undefined) {
+      docData.loadingProgressTrackColor = data.loadingProgressTrackColor;
+    }
+
+    if (data.loadingPercentColor !== undefined) {
+      docData.loadingPercentColor = data.loadingPercentColor;
+    }
+
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
     if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;
     if (data.splashTitleMode !== undefined) docData.splashTitleMode = data.splashTitleMode;
+    if (data.splashTitleSkewDeg !== undefined) docData.splashTitleSkewDeg = data.splashTitleSkewDeg;
     if (data.splashHeaderHeightPct !== undefined) docData.splashHeaderHeightPct = data.splashHeaderHeightPct;
     if (data.splashHeaderLogos !== undefined) {
       docData.splashHeaderLogos = await resolveHeaderLogos(data.splashHeaderLogos, data.slug);
@@ -609,6 +630,8 @@ export async function updateEventProfile(
     if (data.loadingTitleColor !== undefined) docData.loadingTitleColor = data.loadingTitleColor;
     if (data.loadingSubtitleColor !== undefined) docData.loadingSubtitleColor = data.loadingSubtitleColor;
     if (data.loadingProgressColor !== undefined) docData.loadingProgressColor = data.loadingProgressColor;
+    if (data.loadingProgressTrackColor !== undefined) docData.loadingProgressTrackColor = data.loadingProgressTrackColor;
+    if (data.loadingPercentColor !== undefined) docData.loadingPercentColor = data.loadingPercentColor;
     if (data.showLogosInLoader !== undefined) docData.showLogosInLoader = data.showLogosInLoader;
     if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
     if (data.dataProcessingText !== undefined) docData.dataProcessingText = data.dataProcessingText;
@@ -632,6 +655,7 @@ export async function updateEventProfile(
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
     if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;
     if (data.splashTitleMode !== undefined) docData.splashTitleMode = data.splashTitleMode;
+    if (data.splashTitleSkewDeg !== undefined) docData.splashTitleSkewDeg = data.splashTitleSkewDeg;
     if (data.splashHeaderHeightPct !== undefined) docData.splashHeaderHeightPct = data.splashHeaderHeightPct;
     if (data.splashHeaderLogos !== undefined) {
       docData.splashHeaderLogos = await resolveHeaderLogos(data.splashHeaderLogos, data.slug);
