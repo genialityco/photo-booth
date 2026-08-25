@@ -241,6 +241,23 @@ export type EventProfile = {
    * envía a la IA, el revelado y la descarga/impresión final.
    */
   photoAspectRatio?: "SQUARE" | "3:4";
+  /**
+   * Logo de auspiciante/marca del evento, dibujado en la esquina superior
+   * izquierda de la foto RESULTANTE (composeFramedImage.ts) — se ve tanto al
+   * mostrar el resultado (ResultStep) como al descargarla/imprimirla, ya que
+   * las tres rutas comparten esa misma composición en canvas. Distinto de
+   * `logoTop`/`logoBottom` (esos son para el header del wizard durante la
+   * captura, no quedan "quemados" en la foto final). Opcional: sin este
+   * campo no se dibuja nada (comportamiento original).
+   */
+  brandingLogoUrl?: string;
+  /**
+   * Texto centrado en la parte inferior de la foto RESULTANTE (mismo
+   * mecanismo que brandingLogoUrl, ver ahí). Soporta múltiples líneas
+   * separadas por "\n" (ej. sitio web en una línea, contacto en la
+   * siguiente). Opcional: sin este campo no se dibuja nada.
+   */
+  brandingFooterText?: string;
   prompts: string[];
   isActive: boolean;
   screenConfig?: {
@@ -370,7 +387,7 @@ export async function createEventProfile(
     // Image fields to process
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl"];
 
     for (const field of imageFields) {
       const fileData = data[field];
@@ -456,6 +473,10 @@ export async function createEventProfile(
 
     if (data.photoAspectRatio !== undefined) {
       docData.photoAspectRatio = data.photoAspectRatio;
+    }
+
+    if (data.brandingFooterText !== undefined) {
+      docData.brandingFooterText = data.brandingFooterText;
     }
 
     const docRef = await addDoc(collection(db, COLLECTION), docData);
@@ -589,6 +610,7 @@ export async function updateEventProfile(
     if (data.backgroundAnimation !== undefined) docData.backgroundAnimation = data.backgroundAnimation;
     if (data.paintTimeSeconds !== undefined) docData.paintTimeSeconds = data.paintTimeSeconds;
     if (data.photoAspectRatio !== undefined) docData.photoAspectRatio = data.photoAspectRatio;
+    if (data.brandingFooterText !== undefined) docData.brandingFooterText = data.brandingFooterText;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
     if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;
@@ -617,7 +639,7 @@ export async function updateEventProfile(
     // Process image fields
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl"];
     for (const field of imageFields) {
       const fileData = data[field];
       if (fileData === undefined) continue;

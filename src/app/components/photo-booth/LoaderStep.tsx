@@ -16,12 +16,17 @@ const PROGRESS_CAP = 92;
 
 export default function LoaderStep({
   brandIdOverride,
+  wide = false,
 }: {
   /** Modo espejo (BoothMirror): id de marca transmitido por el líder, en vez
    * de leerlo de sessionStorage("selectedBrand") — ese valor es por-pestaña,
    * así que la pantalla espejo nunca lo tiene (la selección ocurre en la
    * tablet líder, no acá). */
   brandIdOverride?: string | null;
+  /** Agranda el anillo de progreso y los logos (pensados para tablet, con
+   * topes chicos en vmin/vh) para una pantalla gigante 1920x1080. Off por
+   * defecto (comportamiento original en la tablet). */
+  wide?: boolean;
 } = {}) {
   const [dots, setDots] = useState("");
   const [style, setStyle] = useState<StyleProfile | null>(null);
@@ -121,10 +126,28 @@ export default function LoaderStep({
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - progress / 100);
 
+  // En la pantalla gigante (wide), el video del salvapantallas del evento
+  // reemplaza la imagen de fondo de siempre - mismo criterio que el resto
+  // de las pantallas del espejo (BoothMirror.MirrorBackground).
+  const bgVideoUrl = wide ? event?.screenSaverVideoUrl : null;
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center text-white">
       {/* Fondo */}
-      <div className="absolute inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: `url('${bgUrl}')` }} aria-hidden />
+      {bgVideoUrl ? (
+        <video
+          key={bgVideoUrl}
+          src={bgVideoUrl}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 -z-10 w-full h-full object-cover"
+          aria-hidden
+        />
+      ) : (
+        <div className="absolute inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: `url('${bgUrl}')` }} aria-hidden />
+      )}
       {/* Velo para legibilidad */}
       <div className="absolute inset-0 bg-black/20" />
 
@@ -138,7 +161,7 @@ export default function LoaderStep({
             <img
               src={topLogo}
               alt=""
-              className="h-[clamp(2.9rem,8vh,4.6rem)] w-auto max-w-[42vw] object-contain select-none"
+              className={`${wide ? "h-[clamp(4.5rem,14vh,8rem)]" : "h-[clamp(2.9rem,8vh,4.6rem)]"} w-auto max-w-[42vw] object-contain select-none`}
               draggable={false}
             />
           ) : (
@@ -148,7 +171,7 @@ export default function LoaderStep({
             <img
               src={bottomLogo}
               alt=""
-              className="h-[clamp(2.9rem,8vh,4.6rem)] w-auto max-w-[42vw] object-contain select-none"
+              className={`${wide ? "h-[clamp(4.5rem,14vh,8rem)]" : "h-[clamp(2.9rem,8vh,4.6rem)]"} w-auto max-w-[42vw] object-contain select-none`}
               draggable={false}
             />
           ) : (
@@ -165,7 +188,11 @@ export default function LoaderStep({
             así queda responsive en cualquier pantalla. */}
         <div
           className="relative"
-          style={{ width: "clamp(125px, 16vmin, 185px)", height: "clamp(125px, 16vmin, 185px)" }}
+          style={
+            wide
+              ? { width: "clamp(180px, 26vmin, 320px)", height: "clamp(180px, 26vmin, 320px)" }
+              : { width: "clamp(125px, 16vmin, 185px)", height: "clamp(125px, 16vmin, 185px)" }
+          }
         >
           <svg
             viewBox={`0 0 ${ringSize} ${ringSize}`}
@@ -195,7 +222,7 @@ export default function LoaderStep({
           <div className="absolute inset-0 flex items-center justify-center">
             <span
               className="font-black text-black drop-shadow-sm"
-              style={{ fontSize: "clamp(1.7rem, 4.5vmin, 2.5rem)" }}
+              style={{ fontSize: wide ? "clamp(2.4rem, 7vmin, 4.2rem)" : "clamp(1.7rem, 4.5vmin, 2.5rem)" }}
             >
               {progress}%
             </span>

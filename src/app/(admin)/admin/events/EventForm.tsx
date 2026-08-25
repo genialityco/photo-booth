@@ -205,6 +205,8 @@ export default function EventForm({
     backgroundAnimation: event?.backgroundAnimation || "NONE",
     paintTimeSeconds: event?.paintTimeSeconds,
     photoAspectRatio: event?.photoAspectRatio || "SQUARE",
+    brandingLogoUrl: event?.brandingLogoUrl || "",
+    brandingFooterText: event?.brandingFooterText || "",
     prompts: event?.prompts || [],
     isActive: event?.isActive !== false,
   });
@@ -459,6 +461,36 @@ export default function EventForm({
             value={formData.buttonImage || ""}
             onChange={(value) => handleImageChange("buttonImage", value)}
           />
+
+          <ImageUploadField
+            label="Logo de Auspiciante (foto resultante)"
+            value={formData.brandingLogoUrl || ""}
+            onChange={(value) => handleImageChange("brandingLogoUrl", value)}
+          />
+          <p className="text-xs text-gray-500 -mt-3 mb-3">
+            Se dibuja en la esquina superior izquierda de la foto RESULTANTE
+            (no del wizard) — se ve al mostrarla, descargarla e imprimirla.
+            Distinto del &quot;Logo Superior&quot; de arriba, que es solo del
+            encabezado durante la captura.
+          </p>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Texto de Contacto (foto resultante)
+            </label>
+            <textarea
+              name="brandingFooterText"
+              value={formData.brandingFooterText || ""}
+              onChange={handleChange}
+              rows={2}
+              placeholder={"www.ejemplo.com\nContáctanos: (601) 000 0000"}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Centrado en la parte inferior de la foto resultante, sobre una
+              franja semi-transparente. Cada línea aparece por separado.
+            </p>
+          </div>
         </AccordionSection>
 
         {/* Flujo de Captura */}

@@ -15,6 +15,50 @@ const loadImage = (src: string): Promise<HTMLImageElement> =>
     img.src = src;
   });
 
+/** Dibuja un logo de auspiciante en la esquina superior izquierda —
+ * ver EventProfile.brandingLogoUrl. Tamaño proporcional al canvas,
+ * preservando la relación de aspecto original del logo. */
+async function drawBrandingLogo(ctx: CanvasRenderingContext2D, src: string, w: number) {
+  const logoImg = await loadImage(src);
+  const lw0 = logoImg.naturalWidth || logoImg.width;
+  const lh0 = logoImg.naturalHeight || logoImg.height;
+  if (!lw0 || !lh0) return;
+
+  const margin = w * 0.04;
+  const maxLogoW = w * 0.22;
+  const logoScale = Math.min(1, maxLogoW / lw0);
+  ctx.drawImage(logoImg, margin, margin, lw0 * logoScale, lh0 * logoScale);
+}
+
+/** Dibuja texto centrado (multilínea con "\n") pegado al borde inferior,
+ * sobre una barra semi-transparente para que se lea sobre cualquier fondo —
+ * ver EventProfile.brandingFooterText. */
+function drawBrandingFooterText(ctx: CanvasRenderingContext2D, text: string, w: number, h: number) {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return;
+
+  const fontSize = Math.round(h * 0.026);
+  const lineHeight = Math.round(fontSize * 1.35);
+  const paddingV = Math.round(fontSize * 0.6);
+  const barHeight = lines.length * lineHeight + paddingV * 2;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+  ctx.fillRect(0, h - barHeight, w, barHeight);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `600 ${fontSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  let y = h - barHeight + paddingV + lineHeight / 2;
+  for (const line of lines) {
+    ctx.fillText(line, w / 2, y);
+    y += lineHeight;
+  }
+  ctx.restore();
+}
+
 export async function composeFramedCanvas({
   aiUrl,
   frameSrc,
@@ -22,6 +66,8 @@ export async function composeFramedCanvas({
   size = 1024,
   width,
   height,
+  brandingLogoSrc,
+  brandingFooterText,
 }: {
   aiUrl: string;
   frameSrc?: string | null;
@@ -30,6 +76,10 @@ export async function composeFramedCanvas({
   size?: number;
   width?: number;
   height?: number;
+  /** Logo de auspiciante, esquina superior izquierda — ver EventProfile.brandingLogoUrl. */
+  brandingLogoSrc?: string | null;
+  /** Texto (multilínea con "\n") centrado abajo — ver EventProfile.brandingFooterText. */
+  brandingFooterText?: string | null;
 }): Promise<HTMLCanvasElement> {
   const w = width ?? size;
   const h = height ?? size;
@@ -55,6 +105,14 @@ export async function composeFramedCanvas({
     ctx.drawImage(frameImg, 0, 0, w, h);
   }
 
+  if (brandingLogoSrc) {
+    await drawBrandingLogo(ctx, brandingLogoSrc, w);
+  }
+
+  if (brandingFooterText) {
+    drawBrandingFooterText(ctx, brandingFooterText, w, h);
+  }
+
   return canvas;
 }
 
@@ -65,6 +123,8 @@ export async function composeFramedImageDataUrl(opts: {
   size?: number;
   width?: number;
   height?: number;
+  brandingLogoSrc?: string | null;
+  brandingFooterText?: string | null;
 }): Promise<string> {
   const canvas = await composeFramedCanvas(opts);
   return canvas.toDataURL("image/png");

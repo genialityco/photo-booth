@@ -9,11 +9,9 @@ import type { BoothLiveState } from "@/app/components/photo-booth/useBoothLiveSe
 import type { ImageCustomization } from "@/app/components/photo-booth/ImageCustomizeStep";
 import SplashScreen from "@/app/components/photo-booth/SplashScreen";
 import EventPhotoBoothLanding from "@/app/components/photo-booth/EventPhotoBoothLanding";
-import PreviewStep from "@/app/components/photo-booth/PreviewStep";
 import ImageCustomizeStep from "@/app/components/photo-booth/ImageCustomizeStep";
 import LoaderStep from "@/app/components/photo-booth/LoaderStep";
 import QrTag from "@/app/components/photo-booth/QrTag";
-import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
 import KinectRollerRevealStep from "@/app/components/photo-booth/reveal/KinectRollerRevealStep";
 
 const NOOP = () => {};
@@ -64,6 +62,36 @@ function useTaskResult(taskId: string | null | undefined): {
   return { result, error };
 }
 
+/** Fondo full-bleed compartido por las pantallas del espejo que NO están ya
+ * 100% cubiertas por una foto/canvas propio ("result"/"reveal" con Kinect no
+ * lo usan - no habría nada de fondo visible detrás igual): el video del
+ * salvapantallas configurado en el evento (`screenSaverVideoUrl`, la misma
+ * pantalla de inactividad de la tablet) tiene prioridad; si no hay video,
+ * cae a la imagen de fondo (`bgImage`) de siempre. */
+function MirrorBackground({ event }: { event: EventProfile }) {
+  if (event.screenSaverVideoUrl) {
+    return (
+      <video
+        key={event.screenSaverVideoUrl}
+        src={event.screenSaverVideoUrl}
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed inset-0 -z-10 w-full h-full object-cover"
+        aria-hidden
+      />
+    );
+  }
+  return (
+    <div
+      className="fixed inset-0 -z-10 bg-cover bg-center"
+      style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')` }}
+      aria-hidden
+    />
+  );
+}
+
 function FullBleedMessage({
   event,
   title,
@@ -74,38 +102,70 @@ function FullBleedMessage({
   subtitle?: string;
 }) {
   return (
-    <div
-      className="fixed inset-0 bg-black bg-cover bg-center flex items-center justify-center"
-      style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')` }}
-    >
-      <div className="bg-black/60 backdrop-blur-sm rounded-2xl px-8 py-6 text-center max-w-md mx-4">
-        <p className="text-white text-xl sm:text-2xl font-semibold">{title}</p>
-        {subtitle && <p className="text-white/70 text-base mt-2">{subtitle}</p>}
+    <div className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden">
+      <MirrorBackground event={event} />
+      <div className="relative z-10 bg-black/60 backdrop-blur-sm rounded-2xl px-12 py-10 text-center max-w-4xl mx-4">
+        <p className="text-white font-semibold" style={{ fontSize: "clamp(1.75rem, 4vw, 3.25rem)" }}>{title}</p>
+        {subtitle && (
+          <p className="text-white/70 mt-4" style={{ fontSize: "clamp(1.1rem, 2vw, 1.75rem)" }}>{subtitle}</p>
+        )}
       </div>
     </div>
   );
 }
 
-/** Contenedor que reproduce, de forma simplificada, la caja centrada que
- * PhotoBoothWizard usa para preview/customize — sin header/footer de logos,
- * que no aportan nada esencial acá. */
+/** Logo de auspiciante (esquina superior izquierda) + texto de contacto
+ * (franja inferior centrada) configurados en el evento
+ * (`brandingLogoUrl`/`brandingFooterText`, ver EventForm en el admin) —
+ * mismo branding que ResultStep "quema" en la foto para ver/descargar/
+ * imprimir en la tablet (composeFramedImage.ts), pero acá como overlay de
+ * UI sobre la pantalla gigante en vez de compuesto en el archivo, ya que
+ * esta pantalla es de solo visualización, no genera ningún archivo. */
+function BrandingOverlay({ event }: { event: EventProfile }) {
+  const footerLines = event.brandingFooterText?.split("\n").map((l) => l.trim()).filter(Boolean) ?? [];
+  return (
+    <>
+      {event.brandingLogoUrl && (
+        <img
+          src={event.brandingLogoUrl}
+          alt=""
+          className="absolute top-6 left-6 z-30 max-w-[32vw] max-h-[28vh] object-contain drop-shadow-lg select-none"
+          draggable={false}
+        />
+      )}
+      {footerLines.length > 0 && (
+        <div className="absolute bottom-0 inset-x-0 z-30 bg-black/55 backdrop-blur-sm text-center py-5 sm:py-7 px-4">
+          {footerLines.map((line, i) => (
+            <p key={i} className="text-white font-semibold leading-snug" style={{ fontSize: "clamp(1.75rem, 4vw, 3.25rem)" }}>
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Fondo full-bleed detrás de "customize" (el único caso que la usa - a
+ * diferencia de "preview"/"result"/"reveal", que estiran la foto edge-to-edge,
+ * ImageCustomizeStep es un panel de controles, no una foto, así que acá solo
+ * se le da el ancho completo de la pantalla y que sus propios topes internos
+ * (`wide`) decidan cuánto ocupar). */
 function MirrorStage({ event, children }: { event: EventProfile; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden">
-      <div
-        className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')` }}
-        aria-hidden
-      />
-      <div className="w-full h-full flex items-center justify-center" style={{ maxWidth: "min(80vw, 80vh)", maxHeight: "100%" }}>
+      <MirrorBackground event={event} />
+      <div className="w-full h-full flex items-center justify-center">
         {children}
       </div>
     </div>
   );
 }
 
-/** Espejo de ResultStep — misma caja "mat" ajustada a la relación de aspecto
- * (useFitAspectBox) y mismo QR (sello en la esquina / expandido), pero
+/** Espejo de ResultStep, pero a diferencia de esa pantalla en la tablet, acá
+ * la foto se estira para llenar toda la pantalla gigante (mismo criterio que
+ * /display, ver comentario en el "preview" de BoothMirror) en vez de
+ * mantener su proporción real. Mismo QR (sello en la esquina / expandido),
  * dirigido por `showQr` transmitido por el líder en vez de un click propio:
  * acá es de solo lectura, refleja lo que el líder decide mostrar. */
 function ResultView({
@@ -118,7 +178,6 @@ function ResultView({
   showQr: boolean;
 }) {
   const { result, error } = useTaskResult(taskId);
-  const { containerRef, boxDims } = useFitAspectBox(event.photoAspectRatio);
   const [qrSize, setQrSize] = useState(400);
 
   // Si no hay `taskId` en absoluto (no debería pasar en "result", pero por
@@ -177,60 +236,49 @@ function ResultView({
     );
   }
 
-  if (!mediaSrc) return <LoaderStep />;
+  if (!mediaSrc) return <LoaderStep wide />;
 
+  // Igual que /display (object-fill): la foto/video llena los 1920x1080 de
+  // la pantalla gigante de punta a punta, sin mantener su proporción real
+  // (a diferencia de ResultStep en la tablet, donde sí importa preservarla).
   return (
-    <div className="fixed inset-0 bg-black flex items-center justify-center p-4">
-      <div ref={containerRef} className="relative w-full h-full flex items-center justify-center">
-        <div
-          className="relative p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]"
-          style={
-            boxDims
-              ? { width: boxDims.width, height: boxDims.height }
-              : {
-                  width: "min(80vw, 80vh)",
-                  aspectRatio: event.photoAspectRatio === "3:4" ? "3 / 4" : "1 / 1",
-                }
-          }
-        >
-          <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/5">
-            {result?.videoUrl ? (
-              <video
-                key={result.videoUrl}
-                src={result.videoUrl}
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="absolute inset-0 w-full h-full object-contain"
-              />
-            ) : (
-              <img
-                key={result?.url}
-                src={result?.url}
-                alt="Resultado"
-                className="absolute inset-0 w-full h-full object-contain"
-              />
-            )}
+    <div className="fixed inset-0 bg-black">
+      {result?.videoUrl ? (
+        <video
+          key={result.videoUrl}
+          src={result.videoUrl}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-fill"
+        />
+      ) : (
+        <img
+          key={result?.url}
+          src={result?.url}
+          alt="Resultado"
+          className="absolute inset-0 w-full h-full object-fill"
+        />
+      )}
 
-            {surveyUrl && (
-              <div
-                className={`absolute rounded-xl transition-all duration-300 ease-out ${
-                  showQr
-                    ? "inset-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
-                    : "bottom-2 right-2 sm:bottom-3 sm:right-3 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10"
-                }`}
-              >
-                <QrTag
-                  value={surveyUrl}
-                  size={showQr ? qrSize : Math.max(48, Math.min(88, (boxDims?.width ?? 240) * 0.22))}
-                  label={showQr ? "Escanea para descargar tu foto en tu celular" : undefined}
-                />
-              </div>
-            )}
-          </div>
+      <BrandingOverlay event={event} />
+
+      {surveyUrl && (
+        <div
+          className={`absolute rounded-xl transition-all duration-300 ease-out ${
+            showQr
+              ? "inset-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
+              : "bottom-4 right-4 sm:bottom-6 sm:right-6 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10"
+          }`}
+        >
+          <QrTag
+            value={surveyUrl}
+            size={showQr ? qrSize : 96}
+            label={showQr ? "Escanea para descargar tu foto en tu celular" : undefined}
+          />
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -264,17 +312,21 @@ function KinectRevealView({
     );
   }
 
-  if (!mediaSrc) return <LoaderStep />;
+  if (!mediaSrc) return <LoaderStep wide />;
 
   return (
-    <KinectRollerRevealStep
-      key={taskId}
-      wsUrl={KINECT_WS_URL}
-      aiUrl={mediaSrc}
-      aspectRatio={event.photoAspectRatio}
-      showStatus={false}
-      onRevealed={() => reportRevealDone(taskId)}
-    />
+    <div className="fixed inset-0">
+      <KinectRollerRevealStep
+        key={taskId}
+        wsUrl={KINECT_WS_URL}
+        aiUrl={mediaSrc}
+        aspectRatio={event.photoAspectRatio}
+        showStatus={false}
+        fillScreen
+        onRevealed={() => reportRevealDone(taskId)}
+      />
+      <BrandingOverlay event={event} />
+    </div>
   );
 }
 
@@ -296,17 +348,41 @@ export default function BoothMirror({
   isStale: boolean;
   reportRevealDone: (taskId: string) => void;
 }) {
+  // Adelanta "loading" -> "reveal" sin depender de que el líder llegue a
+  // transmitir ese cambio de fase: escucha el mismo doc de imageTasks que ya
+  // usa el líder para saber cuándo terminó la IA. "loading" es la espera más
+  // larga de todo el flujo, así que es donde más chance hay de que un corte
+  // de red puntual en el líder se pierda esa única transmisión y la pantalla
+  // espejo quede trabada ahí (ver useBoothLiveSession) - esto la hace
+  // independiente de esa transmisión para este paso puntual. Solo activo
+  // mientras `phase==="loading"`: en "reveal"/"result" ya hay su propia
+  // suscripción al mismo doc (KinectRevealView/ResultView).
+  const { result: loadingTaskResult } = useTaskResult(
+    state?.phase === "loading" ? state?.taskId ?? null : null
+  );
+
   if (!state || isStale) {
     return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" />;
   }
 
-  switch (state.phase) {
+  const effectivePhase: BoothLiveState["phase"] =
+    state.phase === "loading" && loadingTaskResult?.status === "done" ? "reveal" : state.phase;
+
+  switch (effectivePhase) {
     case "splash":
-      return <SplashScreen event={event} onStart={NOOP} />;
+      return <SplashScreen event={event} onStart={NOOP} wide bgVideoUrl={event.screenSaverVideoUrl} />;
 
     case "landing":
     case "filter":
-      return <EventPhotoBoothLanding event={event} readOnly selectedBrandOverride={state.brand} />;
+      return (
+        <EventPhotoBoothLanding
+          event={event}
+          readOnly
+          selectedBrandOverride={state.brand}
+          wide
+          bgVideoUrl={event.screenSaverVideoUrl}
+        />
+      );
 
     case "capture":
       return <FullBleedMessage event={event} title="Capturando fotografía en otro dispositivo" />;
@@ -315,16 +391,21 @@ export default function BoothMirror({
       if (!state.previewUrl) {
         return <FullBleedMessage event={event} title="Confirmando foto en otro dispositivo" />;
       }
+      // A diferencia del resto del wizard (donde la foto mantiene su forma
+      // real dentro de una caja), acá se estira para llenar los 1920x1080
+      // de la pantalla gigante de punta a punta - mismo criterio que
+      // /display (object-fill), en vez de PreviewStep/MirrorStage (que
+      // preservarían la proporción y dejarían barras negras a los costados
+      // en una pantalla ancha).
       return (
-        <MirrorStage event={event}>
-          <PreviewStep
-            framedShot={state.previewUrl}
-            rawShot={state.previewUrl}
-            onRetake={NOOP}
-            readOnly
-            aspectRatio={event.photoAspectRatio}
+        <div className="fixed inset-0 bg-black">
+          <img
+            key={state.previewUrl}
+            src={state.previewUrl}
+            alt="Vista previa"
+            className="absolute inset-0 w-full h-full object-fill"
           />
-        </MirrorStage>
+        </div>
       );
 
     case "customize":
@@ -341,12 +422,13 @@ export default function BoothMirror({
             logoLeftSrc={event.logoTop}
             logoRightSrc={event.logoBottom}
             aspectRatio={event.photoAspectRatio}
+            wide
           />
         </MirrorStage>
       );
 
     case "loading":
-      return <LoaderStep brandIdOverride={state.brand} />;
+      return <LoaderStep brandIdOverride={state.brand} wide />;
 
     case "reveal":
       // revealEffect="KINECT_ROLLER": la pantalla gigante ES el Kinect, así

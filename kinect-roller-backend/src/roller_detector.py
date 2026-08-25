@@ -219,6 +219,11 @@ class RollerDetector:
             dist = dist - cfg.plane_offset_mm
 
         in_band = (dist > cfg.background_diff_min_mm) & (dist <= cfg.mask_height_max_mm)
+        # Filtro grueso en Z crudo (distancia real al sensor, no al plano):
+        # descarta cualquier cosa más lejos que max_raw_depth_mm, p.ej.
+        # alguien caminando de fondo cuya altura respecto al plano ajustado
+        # cae en rango por casualidad pero está muy lejos del Kinect.
+        in_band = in_band & (depth > 0) & (depth <= cfg.max_raw_depth_mm)
         if cfg.stale_suppress_enabled:
             in_band = self._suppress_stale(in_band)
         mask = in_band.astype(np.uint8) * 255

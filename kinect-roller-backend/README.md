@@ -114,6 +114,189 @@ Sin calibrar `depth_top_mm`/`depth_bottom_mm` (`--calibrate-depth` sin correr
 todavía), Y cae de vuelta a la fila de imagen (no va a coincidir con la
 pantalla real).
 
+## Referencia completa de `config.json`
+
+Todos los campos, en el orden en que se aplican dentro de `detect()`
+(`roller_detector.py`), con qué hace cada uno y — importante — con qué otros
+campos interactúa o se solapa. Verificado leyendo el código, no de memoria:
+varios de estos solapamientos son fáciles de introducir sin darse cuenta al
+ajustar un solo valor.
+
+### ⚠️ Antes que nada: combinaciones que rompen todo en silencio
+
+- **`background_diff_min_mm` debe ser MENOR que `mask_height_max_mm`,
+  con margen.** La franja de detección es `dist > background_diff_min_mm AND
+  dist <= mask_height_max_mm`. Si son iguales (o el mínimo es mayor), esa
+  condición **nunca** se cumple para ningún píxel — cero detecciones
+  posibles, sin importar qué tan pegado esté el rodillo. No hay ningún log
+  ni error que avise de esto; se ve exactamente igual que "el rodillo no se
+  detecta" por cualquier otra razón.
+- **`mask_height_max_mm` debe quedar por ENCIMA del diámetro real del
+  rodillo** (`roller_width_cm * 10`, ej. 70mm para un rodillo de 7cm) **más
+  un margen** (unos 20-30mm). Si queda por debajo, la franja tapa la propia
+  cresta superior del rodillo apoyado, no solo la mano — el rodillo mismo
+  deja de ser detectable. Este invariante NO está validado por código, es
+  solo un comentario — `config.json` acepta cualquier valor sin avisar.
+- **`touch_height_min_mm` casi nunca puede ser menor que
+  `background_diff_min_mm`, así que ponerlo por debajo no cambia nada.**
+  `top_height_mm` (lo que se compara contra `touch_height_min_mm`/`_max_mm`)
+  se calcula como el percentil 95 de la distancia al plano **de los mismos
+  píxeles ya filtrados** por `background_diff_min_mm`/`mask_height_max_mm` —
+  o sea que `top_height_mm` nunca puede bajar de `background_diff_min_mm`
+  en la práctica. Si `touch_height_min_mm` queda por debajo de ese valor,
+  es un número muerto: la condición ya se cumple sola.
+- **`touch_height_max_mm` debe quedar por DEBAJO de `mask_height_max_mm`.**
+  Si lo superás, esa parte del rango de "tocando" es inalcanzable — nunca
+  va a llegar un candidato con esa altura porque ya se descartó antes, en
+  la franja de detección.
+- **`plane_offset_mm` desplaza el punto cero de TODOS los demás umbrales en
+  mm** (`background_diff_min_mm`, `mask_height_max_mm`,
+  `touch_height_min_mm`, `touch_height_max_mm`) — se resta de `dist` antes
+  de que se compare contra cualquiera de ellos. Si cambiás
+  `plane_offset_mm`, los demás umbrales dejan de significar lo que
+  significaban antes; revisalos de nuevo con `--debug`.
+
+### Cámara / geometría (fundamentales — no tocar sin remedir)
+
+- **`depth_width` / `depth_height`** (512×424) — resolución del stream de
+  profundidad del Kinect v2. Fija, no cambia entre rigs.
+- **`focal_length_px`** (365.6) — distancia focal aproximada, valores
+  promedio de fábrica del Kinect v2. Se usa para convertir tamaños en
+  píxeles a centímetros reales (proyección pinhole) y como centro óptico
+  (`cx`/`cy` = mitad de `depth_width`/`depth_height`) al ajustar el plano de
+  pantalla. Cambiarlo sin recalibrar desajusta tanto los tamaños reportados
+  (`length_cm`/`width_cm`) como el ajuste del plano mismo.
+- **`roller_length_cm` / `roller_width_cm`** (22.0 / 7.0) — dimensiones
+  reales del rodillo físico. Solo se usan programáticamente cuando
+  `require_shape_match: true` (para el área nominal de comparación,
+  `_pick_best`). Con `require_shape_match: false` (default) son
+  informativos: la única función real que cumplen es la advertencia en
+  comentarios de que `mask_height_max_mm` debe superar `roller_width_cm*10`
+  — ver arriba.
+
+### Ajuste del plano de pantalla (`screen_plane.py`)
+
+- **`plane_fit_use_full_depth`** (`false`) — con `depth_top_mm`/
+  `depth_bottom_mm` ya calibrados, el ajuste del plano por defecto solo usa
+  puntos del fondo dentro de ese rango de profundidad (± margen), para que
+  piso/pared/muebles fuera de rango no contaminen el ajuste. `true` ignora
+  esa restricción y usa todo el fondo válido. **Solapa con el rango
+  calibrado**: en cuartos grandes donde piso/pared caen DENTRO del mismo
+  rango de profundidad amplio que la pantalla, ninguno de los dos valores
+  cambia mucho el resultado (la restricción por profundidad deja de
+  discriminar) — mirá el `inlier_ratio` en consola al arrancar para
+  confirmar si de verdad está ayudando.
+- **`plane_offset_mm`** (0.0) — ver arriba, desplaza el punto cero de todos
+  los demás umbrales en mm.
+- **`max_raw_depth_mm`** (3500.0 en tu config actual) — filtro grueso en Z
+  **crudo** (distancia real al sensor), no en distancia al plano. Se aplica
+  DESPUÉS de calcular `dist` pero es independiente de
+  `background_diff_min_mm`/`mask_height_max_mm` (esos usan `dist`, este usa
+  `depth` crudo) — pensado para descartar algo lejos del Kinect cuya altura
+  respecto al plano ajustado caiga en rango por casualidad (plano mal
+  ajustado). No reemplaza un buen `inlier_ratio`, es una red de seguridad
+  extra sobre eso.
+
+### Franja de detección (qué cuenta como "posible rodillo")
+
+- **`background_diff_min_mm`** (mínimo) y **`mask_height_max_mm`** (máximo)
+  — juntos acotan la franja de distancia-al-plano que cuenta como
+  candidato. Ver la advertencia de arriba sobre mantenerlos con margen
+  entre sí y `mask_height_max_mm` por encima del diámetro del rodillo.
+- **`min_contour_area_px`** (80) — piso de ruido en PÍXELES, se aplica
+  **siempre**, sin importar `require_shape_match`. No es lo mismo que
+  `min_area_cm2` (ver abajo): este actúa antes, en píxeles crudos, solo
+  para descartar motas de ruido del sensor; no intenta parecerse al tamaño
+  real del rodillo.
+- **`stale_suppress_enabled`** / **`stale_suppress_seconds`** (`true` /
+  15.0 por defecto, actualmente `false` en tu config) — descarta cualquier
+  región que lleve más de `stale_suppress_seconds` **continuamente** en la
+  franja (objetos quietos: muebles, un rodillo abandonado ahí). Se aplica
+  ANTES de la morfología/contornos, así que un objeto suprimido no genera
+  ningún candidato en absoluto ese frame. Ver la sección dedicada más abajo.
+
+### Morfología (limpieza de la máscara binaria)
+
+- **`morph_open_kernel_size`** / **`morph_open_iterations`** (3 / 1) —
+  kernel chico para quitar ruido tipo sal-y-pimienta. **Cuidado**: si el
+  rodillo aparece genuinamente delgado en la imagen en algún punto (ej.
+  cerca del borde del rango calibrado, donde la franja visible de pantalla
+  puede ocupar pocas filas), un kernel de apertura demasiado grande puede
+  borrar esa detección real junto con el ruido — no solo afecta ruido.
+- **`morph_close_kernel_size`** / **`morph_close_iterations`** (15 / 2) —
+  kernel más grande para volver a unir el rodillo cuando los dedos lo
+  cortan en varios pedazos. Actúa **después** de la apertura, sobre lo que
+  haya sobrevivido — si la apertura ya borró el rodillo, el cierre no tiene
+  nada que reunir. Solo une por cercanía en píxeles, sin saber a qué
+  distancia real (mm) está lo que rellena — por eso posición/tamaño
+  reportados se calculan solo con los píxeles genuinamente dentro de la
+  franja, nunca con la forma ya cerrada.
+
+### Filtro por forma (todo este bloque es inerte si `require_shape_match: false`)
+
+- **`require_shape_match`** (`false`) — interruptor maestro de este bloque.
+  En `false` (el estado actual recomendado), **ninguno** de los siguientes
+  tres campos tiene ningún efecto — podés cambiarlos sin que pase nada
+  hasta que actives esto.
+- **`min_area_cm2`** / **`max_area_cm2`** (35.0 / 260.0) — rango de área en
+  cm² (no píxeles — convertido vía profundidad). Solo se evalúa con
+  `require_shape_match: true`.
+- **`min_elongation`** (1.3) — relación largo/ancho mínima del rectángulo
+  ajustado, para rechazar blobs muy redondos (puño, yema de dedo). Solo con
+  `require_shape_match: true`.
+
+### Filtro por posición en pantalla (inerte si `require_on_screen_y: false`)
+
+- **`require_on_screen_y`** (`false`) — interruptor maestro.
+- **`screen_y_tolerance`** (0.15, actualmente `1` en tu config — con ese
+  valor el filtro prácticamente no rechaza nada aunque se active, ya que
+  tolera estar hasta un 100% fuera de `[0,1]`) — solo se evalúa con
+  `require_on_screen_y: true` **y** con `depth_top_mm`/`depth_bottom_mm` ya
+  calibrados.
+
+### Y en pantalla (`_to_screen_norm`)
+
+- **`y_sensitivity`** (1.0) y **`y_span_scale`** (1.0) — ambos reescalan Y,
+  pero con matemática distinta y se **componen** (no son alternativos): el
+  span calibrado se multiplica por `y_span_scale` primero (cambia el
+  denominador, sin techo), y el resultado se comprime alrededor de 0.5 por
+  `y_sensitivity` después (con techo matemático — ver la nota en
+  `config.py`). Para la mayoría de los casos alcanza con uno solo de los
+  dos; usar ambos a la vez es más difícil de razonar. Ninguno de los dos
+  hace nada sin `depth_top_mm`/`depth_bottom_mm` calibrados.
+
+### "¿Está tocando?"
+
+- **`touch_height_min_mm`** / **`touch_height_max_mm`** (35.0 / 110.0) —
+  banda de `top_height_mm` (altura del punto más alto del candidato sobre
+  el plano) que cuenta como "apoyado". Ver las dos advertencias de
+  solapamiento con `background_diff_min_mm`/`mask_height_max_mm` al
+  principio de esta sección — son las que más fácil rompen sin avisar.
+
+### Modo `--method hand` (alternativo, NO es el default — todo este bloque es inerte en modo `shape`)
+
+- **`hand_max_num_hands`**, **`hand_min_detection_confidence`**,
+  **`hand_min_tracking_confidence`**, **`hand_touch_min_mm`**,
+  **`hand_touch_max_mm`** — configuración de MediaPipe y del gate de
+  "tocando" para el modo de tracking de mano. Ninguno de estos afecta el
+  modo `shape` (el default, y el que está documentado en detalle arriba).
+
+### Fuera del pipeline de detección (no afectan qué se detecta)
+
+- **`background_capture_frames`** (30) — solo usado al capturar el fondo
+  (`--calibrate-bg`/`--calibrate-depth`), cuántos frames promediar. No
+  afecta la detección en vivo.
+- **`ws_host`** / **`ws_port`** / **`broadcast_fps`** — solo la parte de
+  red (dónde escucha el WebSocket, cuántas veces por segundo transmite).
+  Sin relación con qué cuenta como detección.
+- **`depth_view_min_mm`** / **`depth_view_max_mm`** (400.0 / 1500.0) —
+  **solo afectan el colormap de `--debug`** (qué tan lejos hay que estar
+  para que el color se vea "rojo tope" en vez de variar). Cero efecto en la
+  detección real — es un error común pensar que esto limita qué tan lejos
+  detecta el sistema; no lo hace. Ver el ejemplo con `colorize_depth` en la
+  sección de troubleshooting más abajo si la vista de profundidad se ve
+  "aplastada" (todo rojo a partir de cierta distancia).
+
 ### Supresión de objetos quietos (`stale_suppress_seconds`)
 
 Cualquier zona que se lea como "diferente al fondo" de forma **continua**
@@ -373,6 +556,13 @@ qué ajustar:
   cae justo en la superficie real), pon ese valor acá. Positivo = empuja el
   punto cero más lejos (usar cuando el plano lee todo "más cerca" de lo
   real); negativo = lo acerca.
+- **`max_raw_depth_mm`** (default `1900.0`) → filtro grueso en Z **crudo**
+  (distancia real al sensor, no la distancia al plano como `plane_offset_mm`/
+  `mask_height_max_mm` arriba): descarta de entrada cualquier píxel más lejos
+  que esto, antes de cualquier otro cálculo. Pensado para gente caminando de
+  fondo, lejos de la pantalla, cuya altura respecto al plano ajustado podría
+  caer en rango por casualidad y colarse como detección. Bajalo si necesitás
+  ser más estricto con qué tan lejos puede estar algo para contar.
 - **`y_sensitivity`** (default `1.0`) → **si Y varía demasiado** (un
   movimiento chico del rodillo mueve Y casi de 0 a 1) → esto pasa cuando el
   rango de profundidad calibrado es angosto (los 2 clics de

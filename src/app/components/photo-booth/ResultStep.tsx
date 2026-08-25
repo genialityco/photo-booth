@@ -43,6 +43,11 @@ export default function ResultStep({
   const [qrSize, setQrSize] = useState(500);
   const enableFrame = event?.enableFrame ?? style?.enableFrame ?? true;
   const frameSrc = event?.frameImage ?? null;
+  // Logo de auspiciante + texto de contacto "quemados" en la foto resultante
+  // (composeFramedImage.ts) — a diferencia de frameSrc, no dependen de
+  // enableFrame: son branding del evento, independiente del marco decorativo.
+  const brandingLogoSrc = event?.brandingLogoUrl ?? null;
+  const brandingFooterText = event?.brandingFooterText ?? null;
   const aspectRatio = event?.photoAspectRatio;
   const pixelDims = useMemo(() => getPixelDims(aspectRatio), [aspectRatio]);
   // Mide el contenedor real y encoge la foto para que todo (foto + botones)
@@ -81,8 +86,9 @@ export default function ResultStep({
 
     const composeFrame = async () => {
       try {
-        // Si enableFrame está desactivado o no hay frameSrc, mostrar imagen sin marco
-        if (!enableFrame || !frameSrc) {
+        // Si no hay marco NI branding, mostrar la imagen tal cual (evita el
+        // round-trip a canvas cuando no hace falta componer nada).
+        if ((!enableFrame || !frameSrc) && !brandingLogoSrc && !brandingFooterText) {
           setFramedImageUrl(aiUrl);
           return;
         }
@@ -91,6 +97,8 @@ export default function ResultStep({
           aiUrl,
           frameSrc,
           enableFrame,
+          brandingLogoSrc,
+          brandingFooterText,
           width: pixelDims.width,
           height: pixelDims.height,
         });
@@ -102,7 +110,7 @@ export default function ResultStep({
     };
 
     composeFrame();
-  }, [aiUrl, frameSrc, enableFrame, pixelDims.width, pixelDims.height]);
+  }, [aiUrl, frameSrc, enableFrame, brandingLogoSrc, brandingFooterText, pixelDims.width, pixelDims.height]);
 
   useEffect(() => {
     try {
@@ -162,6 +170,8 @@ export default function ResultStep({
         aiUrl,
         frameSrc,
         enableFrame,
+        brandingLogoSrc,
+        brandingFooterText,
         width: pixelDims.width,
         height: pixelDims.height,
       });
@@ -198,6 +208,8 @@ export default function ResultStep({
         aiUrl,
         frameSrc,
         enableFrame,
+        brandingLogoSrc,
+        brandingFooterText,
         width: pixelDims.width,
         height: pixelDims.height,
       });

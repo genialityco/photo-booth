@@ -15,6 +15,8 @@ export default function EventPhotoBoothLanding({
   buttonLabel = "Comenzar",
   readOnly = false,
   selectedBrandOverride = null,
+  wide = false,
+  bgVideoUrl,
 }: {
   event: EventProfile;
   onStart?: (brand?: string, dataProcessingAccepted?: boolean) => void;
@@ -28,6 +30,14 @@ export default function EventPhotoBoothLanding({
   /** Fuerza qué tarjeta aparece seleccionada (modo espejo), en vez de la
    * selección local por defecto (primera marca al cargar). */
   selectedBrandOverride?: string | null;
+  /** Relaja los topes de ancho (pensados para tablet/celular, ej.
+   * max-w-[980px]) para aprovechar una pantalla gigante 1920x1080 en vez de
+   * quedar como una columna angosta centrada con barras vacías a los
+   * costados. Off por defecto (comportamiento original en la tablet). */
+  wide?: boolean;
+  /** Video de fondo (ej. el del salvapantallas del evento) en vez de
+   * `event.bgImage` — usado por BoothMirror. */
+  bgVideoUrl?: string | null;
 }) {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [prompts, setPrompts] = useState<PhotoBoothPrompt[]>([]);
@@ -105,11 +115,16 @@ export default function EventPhotoBoothLanding({
   // pantallas anchas (kiosco/tablet).
   const getGridClass = () => {
     const count = prompts.length;
-    if (count === 1) return "grid-cols-1 max-w-[min(60vw,20rem)]";
-    if (count === 2) return "grid-cols-2 max-w-[min(80vw,32rem)]";
-    if (count === 3) return "grid-cols-3 max-w-[min(90vw,40rem)]";
-    if (count === 4) return "grid-cols-2 sm:grid-cols-4 max-w-[min(90vw,44rem)]";
-    return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-w-[min(95vw,56rem)]";
+    // En modo `wide` (pantalla gigante), los mismos topes en rem quedarían
+    // chicos para 1920px — se relajan (~1.7x) para que las tarjetas usen
+    // más del ancho disponible en vez de quedar agrupadas en el centro.
+    if (count === 1) return wide ? "grid-cols-1 max-w-[min(60vw,34rem)]" : "grid-cols-1 max-w-[min(60vw,20rem)]";
+    if (count === 2) return wide ? "grid-cols-2 max-w-[min(80vw,54rem)]" : "grid-cols-2 max-w-[min(80vw,32rem)]";
+    if (count === 3) return wide ? "grid-cols-3 max-w-[min(90vw,68rem)]" : "grid-cols-3 max-w-[min(90vw,40rem)]";
+    if (count === 4) return wide ? "grid-cols-2 sm:grid-cols-4 max-w-[min(90vw,75rem)]" : "grid-cols-2 sm:grid-cols-4 max-w-[min(90vw,44rem)]";
+    return wide
+      ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-w-[min(95vw,95rem)]"
+      : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-w-[min(95vw,56rem)]";
   };
 
   return (
@@ -120,16 +135,29 @@ export default function EventPhotoBoothLanding({
         paddingBottom: "max(12px, env(safe-area-inset-bottom))",
       }}
     >
-      {/* Background Image */}
-      <div
-        className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{
-          backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')`,
-        }}
-        aria-hidden
-      />
+      {/* Background: video (ej. salvapantallas del evento) si se pasó, si no la imagen de siempre */}
+      {bgVideoUrl ? (
+        <video
+          key={bgVideoUrl}
+          src={bgVideoUrl}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="fixed inset-0 -z-10 w-full h-full object-cover"
+          aria-hidden
+        />
+      ) : (
+        <div
+          className="fixed inset-0 -z-10 bg-cover bg-center"
+          style={{
+            backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')`,
+          }}
+          aria-hidden
+        />
+      )}
 
-      <div className="mx-auto flex min-h-[100svh] max-w-[980px] flex-col items-center justify-center px-4 sm:px-6 md:px-8">
+      <div className={`mx-auto flex min-h-[100svh] ${wide ? "max-w-[1700px]" : "max-w-[980px]"} flex-col items-center justify-center px-4 sm:px-6 md:px-8`}>
         {/* Logos: uno a cada lado (o centrado si solo hay uno), buen tamaño */}
         <div
           className={`
@@ -144,7 +172,7 @@ export default function EventPhotoBoothLanding({
             <img
               src={event.logoTop}
               alt={event.name}
-              className="h-[clamp(3rem,11vh,6rem)] w-auto max-w-[42vw] object-contain select-none"
+              className={`${wide ? "h-[clamp(4.5rem,15vh,8.5rem)]" : "h-[clamp(3rem,11vh,6rem)]"} w-auto max-w-[42vw] object-contain select-none`}
               draggable={false}
             />
           )}
@@ -152,7 +180,7 @@ export default function EventPhotoBoothLanding({
             <img
               src={event.logoBottom}
               alt=""
-              className="h-[clamp(3rem,11vh,6rem)] w-auto max-w-[42vw] object-contain select-none"
+              className={`${wide ? "h-[clamp(4.5rem,15vh,8.5rem)]" : "h-[clamp(3rem,11vh,6rem)]"} w-auto max-w-[42vw] object-contain select-none`}
               draggable={false}
             />
           )}
@@ -189,7 +217,7 @@ export default function EventPhotoBoothLanding({
                       key={prompt.id}
                       onClick={readOnly ? undefined : () => setSelectedBrand(prompt.id)}
                       disabled={readOnly}
-                      className={`relative w-full aspect-square rounded-2xl font-semibold transition-all duration-200 overflow-hidden flex items-center justify-center shadow-lg shadow-black/30 ${
+                      className={`relative w-full ${wide ? "aspect-[4/3]" : "aspect-square"} rounded-2xl font-semibold transition-all duration-200 overflow-hidden flex items-center justify-center shadow-lg shadow-black/30 ${
                         readOnly ? "cursor-default" : ""
                       } ${
                         isSelected

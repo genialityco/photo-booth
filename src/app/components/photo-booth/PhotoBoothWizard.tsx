@@ -476,6 +476,11 @@ export default function PhotoBoothWizard({
         palette: finalCustomization?.palette ?? null,
         texture: finalCustomization?.texture ?? null,
         intensity: finalCustomization?.intensity ?? null,
+        // Relación de aspecto pedida para la SALIDA de la IA, ya en el
+        // formato que espera Gemini ("3:4" o "1:1") - la Cloud Function la
+        // usa con prioridad sobre volver a leer event.photoAspectRatio (ver
+        // processImageTask en functions/src/index.ts).
+        aspectRatio: eventData?.photoAspectRatio === "3:4" ? "3:4" : "1:1",
         taskId: newTaskId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

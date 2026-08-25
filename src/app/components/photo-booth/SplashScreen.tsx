@@ -132,9 +132,26 @@ function wordFontFactor(word: string) {
 export default function SplashScreen({
   event,
   onStart,
+  wide = false,
+  bgVideoUrl,
 }: {
   event: EventProfile;
   onStart: () => void;
+  /** Pantalla gigante (BoothMirror): el layout libre (splashFreeLayoutEnabled)
+   * posiciona todo con xPct/yPct pensados para acercarse a un celular
+   * vertical (ver SPLASH_FREE_LAYOUT_DEFAULTS) - en una pantalla ancha eso
+   * deja la barra de carga y el botón corridos hacia la izquierda en vez de
+   * centrados, y las imágenes se ven chicas relativo al espacio disponible.
+   * Con esto: barra/botón se centran (dejan de usar FreePositioned) y las
+   * imágenes del layout libre (logo, tarjeta, título en imagen) se agrandan.
+   * Off por defecto (comportamiento original en la tablet). */
+  wide?: boolean;
+  /** Video de fondo (ej. el del salvapantallas del evento) en vez de
+   * `event.bgImage`/el degradado con manchas de color - usado por
+   * BoothMirror. No reemplaza el modo video propio de la splash
+   * (`splashUseVideo`/`splashVideoUrl`, que ya trae su propia coreografía);
+   * solo aplica como fondo del layout libre o del grid por defecto. */
+  bgVideoUrl?: string | null;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
@@ -332,8 +349,8 @@ export default function SplashScreen({
       <div
         className="splash-anim-loaderbar relative splash-loader-track"
         style={{
-          width: "34.62cqw",
-          height: "2.31cqw",
+          width: wide ? "52cqw" : "34.62cqw",
+          height: wide ? "3.46cqw" : "2.31cqw",
           borderRadius: 999,
           background: "rgba(120,80,10,.18)",
         }}
@@ -348,10 +365,10 @@ export default function SplashScreen({
           <div
             className="splash-anim-drop absolute"
             style={{
-              right: "-1.15cqw",
-              top: "2.3cqw",
-              width: "3.46cqw",
-              height: "4.6cqw",
+              right: wide ? "-1.7cqw" : "-1.15cqw",
+              top: wide ? "3.46cqw" : "2.3cqw",
+              width: wide ? "5.2cqw" : "3.46cqw",
+              height: wide ? "6.9cqw" : "4.6cqw",
               borderRadius: "0 0 50% 50%",
               background: loaderTo,
             }}
@@ -374,12 +391,12 @@ export default function SplashScreen({
           ready ? "cursor-pointer" : "pointer-events-none"
         }`}
         style={{
-          padding: "1.92cqw 4.62cqw",
+          padding: wide ? "2.9cqw 6.9cqw" : "1.92cqw 4.62cqw",
           borderRadius: 999,
           background: `linear-gradient(180deg, ${buttonFrom}, ${buttonTo})`,
           color: "#fff",
           fontFamily: "var(--font-splash-anton), sans-serif",
-          fontSize: "3.46cqw",
+          fontSize: wide ? "5.2cqw" : "3.46cqw",
           letterSpacing: "1.6px",
           boxShadow: "0 10px 0 rgba(0,0,0,.35), 0 18px 30px rgba(0,0,0,.28)",
         }}
@@ -399,7 +416,7 @@ export default function SplashScreen({
             alt={event.name}
             draggable={false}
             style={{
-              width: "38.46cqw",
+              width: wide ? "52cqw" : "38.46cqw",
               height: "auto",
               filter: "drop-shadow(0 6px 14px rgba(0,0,0,.28))",
             }}
@@ -447,7 +464,7 @@ export default function SplashScreen({
     );
 
     const cardNode = event.splashCardImage ? (
-      <div className="relative" style={{ width: "34.62cqw" }}>
+      <div className="relative" style={{ width: wide ? "48cqw" : "34.62cqw" }}>
         <div className="splash-anim-card relative">
           <div
             className="splash-anim-halo absolute pointer-events-none"
@@ -512,7 +529,28 @@ export default function SplashScreen({
           } as React.CSSProperties
         }
       >
-        {event.bgImage ? (
+        {bgVideoUrl ? (
+          <>
+            <video
+              key={bgVideoUrl}
+              src={bgVideoUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+              aria-hidden
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to bottom, rgba(0,0,0,.15) 0%, rgba(0,0,0,.1) 45%, rgba(0,0,0,.55) 100%)",
+              }}
+              aria-hidden
+            />
+          </>
+        ) : event.bgImage ? (
           <>
             <div
               className="absolute inset-0 bg-cover bg-center"
@@ -610,7 +648,7 @@ export default function SplashScreen({
                     draggable={false}
                     className="splash-anim-logo"
                     style={{
-                      width: "16.92cqw",
+                      width: wide ? "24cqw" : "16.92cqw",
                       height: "auto",
                       filter: "drop-shadow(0 6px 10px rgba(150,90,0,.28))",
                     }}
@@ -626,7 +664,7 @@ export default function SplashScreen({
                   draggable={false}
                   className="splash-anim-logo"
                   style={{
-                    width: "16.92cqw",
+                    width: wide ? "24cqw" : "16.92cqw",
                     height: "auto",
                     filter: "drop-shadow(0 6px 10px rgba(150,90,0,.28))",
                   }}
@@ -659,12 +697,26 @@ export default function SplashScreen({
             </div>
           </FreePositioned>
         )}
-        <FreePositioned event={event} kind="bar">
-          {barNode}
-        </FreePositioned>
-        <FreePositioned event={event} kind="button">
-          {buttonNode}
-        </FreePositioned>
+        {wide ? (
+          // Los xPct/yPct de "bar"/"button" (ver SPLASH_FREE_LAYOUT_DEFAULTS)
+          // están pensados para un celular vertical - en la pantalla ancha
+          // dejan ambos corridos hacia la izquierda en vez de centrados. Acá
+          // se centran horizontalmente de verdad, en vez de usar
+          // FreePositioned (que solo posiciona por left/top absolutos).
+          <div className="absolute inset-x-0 bottom-[6%] flex flex-col items-center gap-4">
+            {barNode}
+            {buttonNode}
+          </div>
+        ) : (
+          <>
+            <FreePositioned event={event} kind="bar">
+              {barNode}
+            </FreePositioned>
+            <FreePositioned event={event} kind="button">
+              {buttonNode}
+            </FreePositioned>
+          </>
+        )}
       </div>
     );
   }
@@ -696,13 +748,34 @@ export default function SplashScreen({
     <div
       ref={containerRef}
       onClick={ready ? handleStart : undefined}
-      className={`fixed inset-0 overflow-hidden select-none ${anton.variable} ${barlowCondensed.variable}`}
+      className={`fixed inset-0 overflow-hidden select-none ${anton.variable} ${barlowCondensed.variable} ${wide ? "splash-wide" : ""}`}
       style={{ cursor: ready ? "pointer" : "default" }}
     >
       {/* Fondo: la imagen de fondo del evento (misma que el resto del flujo);
           si no hay ninguna configurada, degradado + manchas de color de
           referencia del handoff, para que el splash nunca se vea vacío. */}
-      {event.bgImage ? (
+      {bgVideoUrl ? (
+        <>
+          <video
+            key={bgVideoUrl}
+            src={bgVideoUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+            aria-hidden
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(to bottom, rgba(0,0,0,.15) 0%, rgba(0,0,0,.1) 45%, rgba(0,0,0,.55) 100%)",
+            }}
+            aria-hidden
+          />
+        </>
+      ) : event.bgImage ? (
         <>
           <div
             className="absolute inset-0 bg-cover bg-center"
@@ -842,7 +915,7 @@ export default function SplashScreen({
               draggable={false}
               className="splash-anim-slideL"
               style={{
-                maxWidth: "min(84vw, 480px)",
+                maxWidth: wide ? "min(70vw, 900px)" : "min(84vw, 480px)",
                 width: "100%",
                 height: "auto",
                 filter: "drop-shadow(0 6px 14px rgba(0,0,0,.28))",

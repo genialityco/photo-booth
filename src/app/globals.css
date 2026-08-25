@@ -396,6 +396,30 @@ body {
   }
 }
 
+/* Pantalla gigante (BoothMirror con wide=true, ver SplashScreen.tsx): los
+   clamp() de la media query de arriba fueron pensados para una ventana de
+   escritorio normal, no para 1920x1080 llenando toda la pantalla - ahí
+   quedan chicos (logo topeado a 200px, etc.), sin importar qué estilo
+   inline se intente poner (el !important de arriba le gana a cualquier
+   style prop). Selector con más especificidad (dos clases en vez de una)
+   para ganarle a esas reglas sin tocarlas ni afectar el uso normal en
+   desktop/tablet. */
+.splash-wide .splash-area-logo { width: clamp(220px, 24vmin, 420px) !important; }
+.splash-wide .splash-title-line { font-size: clamp(3rem, 9vmin, 6rem) !important; }
+.splash-wide .splash-area-subtitle { font-size: clamp(1.4rem, 3.6vmin, 2.6rem) !important; }
+.splash-wide .splash-area-card {
+  --splash-card-w: clamp(320px, 42vmin, 560px) !important;
+  width: var(--splash-card-w) !important;
+}
+.splash-wide .splash-loader-track {
+  width: clamp(260px, 40vmin, 480px) !important;
+  height: clamp(12px, 2.2vmin, 18px) !important;
+}
+.splash-wide .splash-button {
+  font-size: clamp(1.6rem, 4vmin, 2.6rem) !important;
+  padding: clamp(1.1rem, 2.4vmin, 1.7rem) clamp(2rem, 5vmin, 3.4rem) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .splash-anim-logo,
   .splash-anim-slideL,
