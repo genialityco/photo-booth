@@ -15,6 +15,7 @@ import LoaderStep from "@/app/components/photo-booth/LoaderStep";
 import QrTag from "@/app/components/photo-booth/QrTag";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
 import KinectRollerRevealStep from "@/app/components/photo-booth/reveal/KinectRollerRevealStep";
+import LiveSessionStatusBadge from "@/app/components/photo-booth/LiveSessionStatusBadge";
 
 const NOOP = () => {};
 const NOOP_CUSTOMIZE = (_value: ImageCustomization) => {};
@@ -289,81 +290,100 @@ export default function BoothMirror({
   event,
   state,
   isStale,
+  connected,
   reportRevealDone,
 }: {
   event: EventProfile;
   state: BoothLiveState | null;
   isStale: boolean;
+  connected: boolean;
   reportRevealDone: (taskId: string) => void;
 }) {
-  if (!state || isStale) {
-    return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" />;
-  }
-
-  switch (state.phase) {
-    case "splash":
-      return <SplashScreen event={event} onStart={NOOP} />;
-
-    case "landing":
-    case "filter":
-      return <EventPhotoBoothLanding event={event} readOnly selectedBrandOverride={state.brand} />;
-
-    case "capture":
-      return <FullBleedMessage event={event} title="Capturando fotografía en otro dispositivo" />;
-
-    case "preview":
-      if (!state.previewUrl) {
-        return <FullBleedMessage event={event} title="Confirmando foto en otro dispositivo" />;
-      }
-      return (
-        <MirrorStage event={event}>
-          <PreviewStep
-            framedShot={state.previewUrl}
-            rawShot={state.previewUrl}
-            onRetake={NOOP}
-            readOnly
-            aspectRatio={event.photoAspectRatio}
-          />
-        </MirrorStage>
-      );
-
-    case "customize":
-      if (!state.previewUrl) {
-        return <FullBleedMessage event={event} title="Confirmando foto en otro dispositivo" />;
-      }
-      return (
-        <MirrorStage event={event}>
-          <ImageCustomizeStep
-            previewSrc={state.previewUrl}
-            customizationOverride={state.customization}
-            onConfirm={NOOP_CUSTOMIZE}
-            readOnly
-            logoLeftSrc={event.logoTop}
-            logoRightSrc={event.logoBottom}
-            aspectRatio={event.photoAspectRatio}
-          />
-        </MirrorStage>
-      );
-
-    case "loading":
-      return <LoaderStep brandIdOverride={state.brand} />;
-
-    case "reveal":
-      // revealEffect="KINECT_ROLLER": la pantalla gigante ES el Kinect, así
-      // que acá SÍ hay alguien tocándola de verdad — se revela con el
-      // rodillo real y se le avisa al líder cuando termina. Para cualquier
-      // otro revealEffect (mano/rodillo virtual con webcam), quien gesticula
-      // está frente a la tablet, no acá, así que solo se muestra un mensaje
-      // hasta que el líder reporte "result".
-      if (event.revealEffect === "KINECT_ROLLER") {
-        return <KinectRevealView event={event} taskId={state.taskId} reportRevealDone={reportRevealDone} />;
-      }
-      return <FullBleedMessage event={event} title="Revelando foto…" />;
-
-    case "result":
-      return <ResultView event={event} taskId={state.taskId} showQr={state.showQr} />;
-
-    default:
+  const content = (() => {
+    if (!state || isStale) {
       return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" />;
-  }
+    }
+
+    switch (state.phase) {
+      case "splash":
+        return <SplashScreen event={event} onStart={NOOP} />;
+
+      case "landing":
+      case "filter":
+        return <EventPhotoBoothLanding event={event} readOnly selectedBrandOverride={state.brand} />;
+
+      case "capture":
+        return <FullBleedMessage event={event} title="Capturando fotografía en otro dispositivo" />;
+
+      case "preview":
+        if (!state.previewUrl) {
+          return <FullBleedMessage event={event} title="Confirmando foto en otro dispositivo" />;
+        }
+        return (
+          <MirrorStage event={event}>
+            <PreviewStep
+              framedShot={state.previewUrl}
+              rawShot={state.previewUrl}
+              onRetake={NOOP}
+              readOnly
+              aspectRatio={event.photoAspectRatio}
+            />
+          </MirrorStage>
+        );
+
+      case "customize":
+        if (!state.previewUrl) {
+          return <FullBleedMessage event={event} title="Confirmando foto en otro dispositivo" />;
+        }
+        return (
+          <MirrorStage event={event}>
+            <ImageCustomizeStep
+              previewSrc={state.previewUrl}
+              customizationOverride={state.customization}
+              onConfirm={NOOP_CUSTOMIZE}
+              readOnly
+              logoLeftSrc={event.logoTop}
+              logoRightSrc={event.logoBottom}
+              aspectRatio={event.photoAspectRatio}
+            />
+          </MirrorStage>
+        );
+
+      case "loading":
+        return <LoaderStep brandIdOverride={state.brand} />;
+
+      case "reveal":
+        // revealEffect="KINECT_ROLLER": la pantalla gigante ES el Kinect, así
+        // que acá SÍ hay alguien tocándola de verdad — se revela con el
+        // rodillo real y se le avisa al líder cuando termina. Para cualquier
+        // otro revealEffect (mano/rodillo virtual con webcam), quien gesticula
+        // está frente a la tablet, no acá, así que solo se muestra un mensaje
+        // hasta que el líder reporte "result".
+        if (event.revealEffect === "KINECT_ROLLER") {
+          return <KinectRevealView event={event} taskId={state.taskId} reportRevealDone={reportRevealDone} />;
+        }
+        return <FullBleedMessage event={event} title="Revelando foto…" />;
+
+      case "result":
+        return <ResultView event={event} taskId={state.taskId} showQr={state.showQr} />;
+
+      default:
+        return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" />;
+    }
+  })();
+
+  return (
+    <>
+      {content}
+      <LiveSessionStatusBadge
+        role="mirror"
+        connected={connected}
+        isStale={isStale}
+        phase={state?.phase ?? null}
+        brand={state?.brand ?? null}
+        taskId={state?.taskId ?? null}
+        updatedAt={state?.updatedAt ?? null}
+      />
+    </>
+  );
 }

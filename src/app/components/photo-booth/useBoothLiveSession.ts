@@ -68,6 +68,11 @@ export type BoothLiveSessionResult =
        * BoothLiveState.revealedTaskId) - null hasta que la pantalla espejo
        * escriba algo. */
       remoteRevealedTaskId: string | null;
+      /** false cuando la última lectura del propio doc vino de caché local
+       * (snap.metadata.fromCache) en vez del servidor — señal de que este
+       * dispositivo está desconectado/reconectando, útil para el badge de
+       * estado en pantalla (no solo inferirlo por ausencia de datos). */
+      connected: boolean;
     }
   | {
       role: "mirror";
@@ -76,6 +81,10 @@ export type BoothLiveSessionResult =
       /** Reporta al líder que el revelado con Kinect en esta pantalla
        * terminó para `taskId` — ver revealEffect="KINECT_ROLLER". */
       reportRevealDone: (taskId: string) => void;
+      /** Ver mismo campo en el caso "leader" — acá refleja la conexión de
+       * ESTA pantalla espejo, independiente de `isStale` (que refleja si el
+       * LÍDER dejó de mandar heartbeat). */
+      connected: boolean;
     };
 
 function isDocStale(updatedAt: Timestamp | null | undefined): boolean {
@@ -114,7 +123,7 @@ export function useBoothLiveSession(
     if (!eventId) return;
 
     if (!enabled) {
-      setResult({ role: "leader", broadcast: noopBroadcast, remoteRevealedTaskId: null });
+      setResult({ role: "leader", broadcast: noopBroadcast, remoteRevealedTaskId: null, connected: true });
       return;
     }
 
@@ -131,6 +140,7 @@ export function useBoothLiveSession(
 
     const subscribeAsMirror = () => {
       let latest: (BoothLiveState & { updatedAt?: Timestamp | null }) | null = null;
+      let latestConnected = true;
 
       const reportRevealDone = (taskId: string) => {
         void updateDoc(sessionRef, { revealedTaskId: taskId }).catch((e) =>
@@ -140,15 +150,22 @@ export function useBoothLiveSession(
 
       const applyLatest = () => {
         if (!latest) {
-          setResult({ role: "mirror", state: null, isStale: true, reportRevealDone });
+          setResult({ role: "mirror", state: null, isStale: true, reportRevealDone, connected: latestConnected });
           return;
         }
-        setResult({ role: "mirror", state: latest, isStale: isDocStale(latest.updatedAt), reportRevealDone });
+        setResult({
+          role: "mirror",
+          state: latest,
+          isStale: isDocStale(latest.updatedAt),
+          reportRevealDone,
+          connected: latestConnected,
+        });
       };
 
       unsub = onSnapshot(sessionRef, (snap) => {
         if (cancelled) return;
         latest = (snap.data() as BoothLiveState & { updatedAt?: Timestamp | null } | undefined) ?? null;
+        latestConnected = !snap.metadata.fromCache;
         applyLatest();
       });
 
@@ -213,10 +230,13 @@ export function useBoothLiveSession(
             if (cancelled) return;
             const data = snap.data() as (BoothLiveState & { updatedAt?: Timestamp | null }) | undefined;
             const nextRevealedTaskId = data?.revealedTaskId ?? null;
+            const nextConnected = !snap.metadata.fromCache;
             setResult((prev) =>
-              prev.role === "leader" && prev.remoteRevealedTaskId === nextRevealedTaskId
+              prev.role === "leader" &&
+              prev.remoteRevealedTaskId === nextRevealedTaskId &&
+              prev.connected === nextConnected
                 ? prev
-                : { role: "leader", broadcast, remoteRevealedTaskId: nextRevealedTaskId }
+                : { role: "leader", broadcast, remoteRevealedTaskId: nextRevealedTaskId, connected: nextConnected }
             );
           });
 
