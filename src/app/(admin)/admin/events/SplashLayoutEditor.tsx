@@ -50,11 +50,13 @@ export type SplashLayoutPreviewData = {
   titleText: string;
   titleColor: string;
   titleFontCss: string;
+  titleUppercase: boolean;
   titleIsImage: boolean;
   titleImage: string;
   subtitleText: string;
   subtitleColor: string;
   subtitleFontCss: string;
+  subtitleUppercase: boolean;
   word1Text: string;
   word1Color: string;
   word2Text: string;
@@ -410,6 +412,7 @@ function ElementPreview({
             fontFamily: preview.titleFontCss,
             fontSize: 22,
             lineHeight: 1,
+            textTransform: preview.titleUppercase ? "uppercase" : "none",
             color: preview.titleColor,
             whiteSpace: "nowrap",
             textShadow: "0 2px 0 rgba(255,255,255,.5)",
@@ -425,7 +428,9 @@ function ElementPreview({
             fontFamily: preview.subtitleFontCss,
             fontWeight: 800,
             fontSize: 10,
-            textTransform: "uppercase",
+            // Sigue el mismo toggle que el subtítulo real en SplashScreen — si
+            // no, el preview mentiría sobre cómo se va a ver.
+            textTransform: preview.subtitleUppercase ? "uppercase" : "none",
             color: preview.subtitleColor,
             whiteSpace: "nowrap",
           }}

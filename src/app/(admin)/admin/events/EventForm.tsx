@@ -248,10 +248,17 @@ export default function EventForm({
     splashTitle: event?.splashTitle || "",
     splashTitleColor: event?.splashTitleColor || "#E4032E",
     splashTitleMode: event?.splashTitleMode || "TEXT",
+    // `=== true` acá y `!== false` en el subtítulo: ver la nota en
+    // EventProfile.splashTitleUppercase — el punto de partida de cada texto es
+    // distinto, así que el default que "no cambia nada" también lo es.
+    splashTitleUppercase: event?.splashTitleUppercase === true,
     splashTitleSkewDeg: event?.splashTitleSkewDeg ?? -9,
     splashTitleImage: event?.splashTitleImage || "",
     splashSubtitle: event?.splashSubtitle || "",
     splashSubtitleColor: event?.splashSubtitleColor || "#2B2118",
+    // `!== false`, no `=== true`: sin el campo (eventos ya creados) el toggle
+    // arranca activo, que es como se venían viendo.
+    splashSubtitleUppercase: event?.splashSubtitleUppercase !== false,
     splashCardImage: event?.splashCardImage || "",
     splashWord1: event?.splashWord1 || "",
     splashWord1Color: event?.splashWord1Color || "#1FB6C4",
@@ -819,6 +826,15 @@ export default function EventForm({
                     ))}
                   </SelectField>
                 </div>
+                <div className="mt-2">
+                  <ToggleField
+                    id="splashTitleUppercase"
+                    label="Título en mayúsculas"
+                    description="Desactivado (por defecto) el título sale literal, tal cual lo escribiste. Actívalo para forzarlo TODO EN MAYÚSCULAS. No aplica si el título es una imagen."
+                    checked={formData.splashTitleUppercase === true}
+                    onChange={(checked) => setField("splashTitleUppercase", checked)}
+                  />
+                </div>
                 <div className="flex items-center gap-3 mt-2">
                   <label htmlFor="splashTitleSkewDeg" className="text-sm text-gray-700">
                     Inclinación del título
@@ -874,6 +890,15 @@ export default function EventForm({
                     </option>
                   ))}
                 </SelectField>
+              </div>
+              <div className="mt-2">
+                <ToggleField
+                  id="splashSubtitleUppercase"
+                  label="Subtítulo en mayúsculas"
+                  description="Activado (por defecto) muestra el subtítulo TODO EN MAYÚSCULAS, sin importar cómo se haya escrito. Desactivalo para que salga literal, tal cual lo escribiste acá arriba."
+                  checked={formData.splashSubtitleUppercase !== false}
+                  onChange={(checked) => setField("splashSubtitleUppercase", checked)}
+                />
               </div>
             </div>
 
@@ -1039,9 +1064,11 @@ export default function EventForm({
                   titleText: formData.splashTitle || "TU ROSTRO,\nTU ARTE",
                   titleColor: formData.splashTitleColor || "#E4032E",
                   titleFontCss: resolveSplashFont(formData.splashTitleFont, "title"),
+                  titleUppercase: formData.splashTitleUppercase === true,
                   subtitleText: formData.splashSubtitle || "Conviértete en una obra de arte",
                   subtitleColor: formData.splashSubtitleColor || "#2B2118",
                   subtitleFontCss: resolveSplashFont(formData.splashSubtitleFont, "subtitle"),
+                  subtitleUppercase: formData.splashSubtitleUppercase !== false,
                   word1Text: formData.splashWord1 || "ARTE",
                   word1Color: formData.splashWord1Color || "#1FB6C4",
                   word2Text: formData.splashWord2 || "COLOR",

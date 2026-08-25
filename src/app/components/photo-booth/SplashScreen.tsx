@@ -57,6 +57,7 @@ export const SPLASH_FONT_OPTIONS = [
   { value: "azo", label: "Azo Sans" },
   { value: "selima", label: "Selima (script)" },
   { value: "roboto", label: "Roboto" },
+  { value: "jakarta", label: "Plus Jakarta Sans" },
 ] as const;
 
 const SPLASH_FONT_CSS: Record<string, string> = {
@@ -65,6 +66,19 @@ const SPLASH_FONT_CSS: Record<string, string> = {
   azo: "var(--font-azo), sans-serif",
   selima: "var(--font-selima), cursive",
   roboto: "var(--font-splash-roboto), sans-serif",
+  // Variable (wght 200-800), declarada por @font-face en globals.css. A
+  // diferencia de anton/barlow/roboto (next/font, cuya variable CSS solo
+  // existe donde se aplica la clase `.variable`), --font-jakarta se define en
+  // @theme y por lo tanto está disponible en todas partes, incluido el preview
+  // del admin.
+  //
+  // El nombre real de la familia va como fallback DENTRO del var() a
+  // propósito: si `--font-jakarta` no estuviera definida (CSS viejo cacheado,
+  // un contexto que no cargue globals.css), `font-family: var(--indefinida),
+  // sans-serif` no cae a sans-serif — queda inválida al calcular el valor y la
+  // propiedad HEREDA la fuente del padre. O sea, el texto sale en una fuente
+  // cualquiera en vez de en la elegida, sin ningún error visible.
+  jakarta: 'var(--font-jakarta, "Plus Jakarta Sans"), "Plus Jakarta Sans", sans-serif',
 };
 
 // Con "default" (o sin el campo, eventos existentes) cada texto mantiene su
@@ -257,6 +271,17 @@ export default function SplashScreen({
 
   const subtitle = event.splashSubtitle?.trim() || DEFAULT_SUBTITLE;
   const subtitleColor = event.splashSubtitleColor || DEFAULT_SUBTITLE_COLOR;
+  // Los dos toggles siguen la misma regla — "un evento ya creado no puede
+  // cambiar de look solo porque apareció un campo nuevo" — pero eso da
+  // defaults OPUESTOS, porque el punto de partida de cada texto es distinto:
+  //
+  //  - Subtítulo: iba forzado a mayúsculas por código -> default ACTIVO
+  //    (`!== false`), solo un false explícito lo deja literal.
+  //  - Título: nunca tuvo text-transform, se mostraba tal cual -> default
+  //    INACTIVO (`=== true`), solo un true explícito lo pasa a mayúsculas.
+  const subtitleTransform =
+    event.splashSubtitleUppercase !== false ? "uppercase" : "none";
+  const titleTransform = event.splashTitleUppercase === true ? "uppercase" : "none";
   const subtitleFont = resolveSplashFont(event.splashSubtitleFont, "subtitle");
   const wordsFont = resolveSplashFont(event.splashWordsFont, "title");
 
@@ -464,6 +489,7 @@ export default function SplashScreen({
                   fontSize: "8.46cqw",
                   lineHeight: 0.94,
                   letterSpacing: "0.5px",
+                  textTransform: titleTransform,
                   color: titleColor,
                   // Fallback para prefers-reduced-motion (sin animación
                   // corriendo, este transform inline es el que manda) — con
@@ -492,7 +518,7 @@ export default function SplashScreen({
           fontWeight: 800,
           fontSize: "3.85cqw",
           letterSpacing: "0.6px",
-          textTransform: "uppercase",
+          textTransform: subtitleTransform,
           color: subtitleColor,
           whiteSpace: "nowrap",
         }}
@@ -994,6 +1020,7 @@ export default function SplashScreen({
                     fontSize: "clamp(1.9rem, 9vmin, 3.6rem)",
                     lineHeight: 0.94,
                     letterSpacing: "0.5px",
+                    textTransform: titleTransform,
                     color: titleColor,
                     // Fallback para prefers-reduced-motion; con animación
                     // activa manda --title-skew (ver globals.css).
@@ -1018,7 +1045,7 @@ export default function SplashScreen({
             fontWeight: 800,
             fontSize: "clamp(0.95rem, 4vmin, 1.6rem)",
             letterSpacing: "0.6px",
-            textTransform: "uppercase",
+            textTransform: subtitleTransform,
             color: subtitleColor,
           }}
         >
