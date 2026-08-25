@@ -22,6 +22,11 @@ import {
 import { getActivePhotoBoothPrompts, type PhotoBoothPrompt } from "@/app/services/photo-booth/brandService";
 import { BUTTON_CLICK_EFFECT_OPTIONS } from "@/app/components/common/click-effects";
 import { SPLASH_FONT_OPTIONS, resolveSplashFont } from "@/app/components/photo-booth/SplashScreen";
+import {
+  LOGO_SCALE_DEFAULT,
+  LOGO_SCALE_MAX,
+  LOGO_SCALE_MIN,
+} from "@/app/components/photo-booth/logoBarSizing";
 import ImageUploadField from "./ImageUploadField";
 import VideoUploadField from "./VideoUploadField";
 import HeaderLogoEditor from "./HeaderLogoEditor";
@@ -101,6 +106,58 @@ function ToggleField({
   );
 }
 
+/**
+ * Slider + número para el tamaño de un logo, en % del tamaño base.
+ *
+ * Vacío/undefined = 100 (el tamaño de siempre), así los eventos ya creados no
+ * cambian de aspecto solo por abrir y guardar el formulario. El rango coincide
+ * con el que aplica `clampLogoScale` al renderizar.
+ */
+function LogoScaleField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value?: number;
+  onChange: (value: number | undefined) => void;
+}) {
+  const current = value ?? LOGO_SCALE_DEFAULT;
+  return (
+    <div>
+      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={LOGO_SCALE_MIN}
+          max={LOGO_SCALE_MAX}
+          step={5}
+          value={current}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="flex-1 min-w-0 accent-blue-600"
+          aria-label={label}
+        />
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="number"
+            min={LOGO_SCALE_MIN}
+            max={LOGO_SCALE_MAX}
+            value={value ?? ""}
+            placeholder={String(LOGO_SCALE_DEFAULT)}
+            onChange={(e) =>
+              onChange(e.target.value === "" ? undefined : Number(e.target.value))
+            }
+            className="w-20 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <span className="text-sm text-gray-500">%</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Label + <select> + texto de ayuda opcional, con estilo consistente. */
 function SelectField({
   label,
@@ -155,6 +212,11 @@ export default function EventForm({
     bgImage: event?.bgImage || "",
     logoTop: event?.logoTop || "",
     logoBottom: event?.logoBottom || "",
+    // Sin `|| 100`: dejarlos en undefined mantiene el campo fuera del doc de
+    // Firestore mientras nadie lo toque, y el render ya trata "sin valor" como
+    // 100 (ver clampLogoScale).
+    logoTopScalePct: event?.logoTopScalePct,
+    logoBottomScalePct: event?.logoBottomScalePct,
     frameImage: event?.frameImage || "",
     buttonImage: event?.buttonImage || "",
     loadingPageImage: event?.loadingPageImage || "",
@@ -441,6 +503,25 @@ export default function EventForm({
             value={formData.logoBottom || ""}
             onChange={(value) => handleImageChange("logoBottom", value)}
           />
+
+          {/* Tamaño de los logos. Los logos se dimensionan por ALTO (ancho
+              automático), así que subir el % los agranda sin deformarlos y sin
+              que el de arriba y el de abajo se descuadren entre sí. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <LogoScaleField
+              label="Tamaño del Logo Superior"
+              value={formData.logoTopScalePct}
+              onChange={(value) => setField("logoTopScalePct", value)}
+            />
+            <LogoScaleField
+              label="Tamaño del Logo Inferior"
+              value={formData.logoBottomScalePct}
+              onChange={(value) => setField("logoBottomScalePct", value)}
+            />
+          </div>
+          <p className="text-xs text-gray-500 -mt-1">
+            100% es el tamaño por defecto. Se aplica en el preview, el resultado, el revelado y la pantalla de carga. La pantalla de captura y la splash tienen su propio diseño de logos y no se ven afectadas.
+          </p>
 
           <ImageUploadField
             label="Marco de Foto"

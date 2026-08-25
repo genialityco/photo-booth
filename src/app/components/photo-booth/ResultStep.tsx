@@ -279,9 +279,9 @@ export default function ResultStep({
             imageSrc={buttonImage}
             colorFrom={event?.splashButtonColorFrom}
             colorTo={event?.splashButtonColorTo}
-            width="clamp(120px, 40vw, 310px)"
+            width="clamp(96px, 30vw, 310px)"
             height="clamp(40px, 8vh, 60px)"
-            className="min-w-[130px]"
+            className="flex-1 basis-0 min-w-0 max-w-[310px]"
             clickEffect={buttonClickEffect}
           />
           <ButtonPrimary
@@ -290,9 +290,9 @@ export default function ResultStep({
             imageSrc={buttonImage}
             colorFrom={event?.splashButtonColorFrom}
             colorTo={event?.splashButtonColorTo}
-            width="clamp(120px, 40vw, 310px)"
+            width="clamp(96px, 30vw, 310px)"
             height="clamp(40px, 8vh, 60px)"
-            className="min-w-[130px]"
+            className="flex-1 basis-0 min-w-0 max-w-[310px]"
             clickEffect={buttonClickEffect}
           />
           {!videoUrl && (
@@ -300,9 +300,9 @@ export default function ResultStep({
               onClick={handlePrint}
               label="IMPRIMIR"
               imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-              width="clamp(120px, 40vw, 310px)"
+              width="clamp(96px, 30vw, 310px)"
               height="clamp(40px, 8vh, 60px)"
-              className="min-w-[130px]"
+              className="flex-1 basis-0 min-w-0 max-w-[310px]"
               clickEffect={buttonClickEffect}
             />
           )}

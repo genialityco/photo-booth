@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import type { StyleProfile } from "@/app/services/admin/styleService";
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
+import {
+  LOADER_LOGO_HEIGHT,
+  scaledLogoStyle,
+} from "@/app/components/photo-booth/logoBarSizing";
 
 // No hay progreso real del backend (el doc de imageTasks solo pasa de
 // "queued" a "done", sin pasos intermedios), así que el anillo sube
@@ -139,7 +143,17 @@ export default function LoaderStep({
             <img
               src={topLogo}
               alt=""
-              className="h-[clamp(2.9rem,8vh,4.6rem)] w-auto max-w-[42vw] object-contain select-none"
+              className="w-auto object-contain select-none"
+              /* Misma escala configurable que el header/footer del wizard, para
+                 que el tamaño elegido en el admin no "salte" al entrar y salir
+                 de la pantalla de carga. El tope de viewport es más chico acá
+                 (46vw) porque los dos logos van lado a lado. */
+              style={scaledLogoStyle({
+                baseHeight: LOADER_LOGO_HEIGHT,
+                baseMaxWidth: "42vw",
+                scalePct: event?.logoTopScalePct,
+                viewportMaxWidth: "46vw",
+              })}
               draggable={false}
             />
           ) : (
@@ -149,7 +163,13 @@ export default function LoaderStep({
             <img
               src={bottomLogo}
               alt=""
-              className="h-[clamp(2.9rem,8vh,4.6rem)] w-auto max-w-[42vw] object-contain select-none"
+              className="w-auto object-contain select-none"
+              style={scaledLogoStyle({
+                baseHeight: LOADER_LOGO_HEIGHT,
+                baseMaxWidth: "42vw",
+                scalePct: event?.logoBottomScalePct,
+                viewportMaxWidth: "46vw",
+              })}
               draggable={false}
             />
           ) : (

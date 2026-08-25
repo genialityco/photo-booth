@@ -73,6 +73,17 @@ export type EventProfile = {
   bgImage?: string;
   logoTop?: string;
   logoBottom?: string;
+  /**
+   * Tamaño del logo superior, en % del tamaño base (100 = el de siempre).
+   * Aplica al header del wizard (preview, resultado, revelado) y al logo
+   * izquierdo de la pantalla de carga. Se acota entre 50 y 250 al renderizar
+   * — ver `clampLogoScale` en components/photo-booth/logoBarSizing.ts. Por
+   * compatibilidad, los eventos sin este campo usan 100.
+   */
+  logoTopScalePct?: number;
+  /** Igual que `logoTopScalePct`, para el logo inferior (footer del wizard y
+   * logo derecho de la pantalla de carga). */
+  logoBottomScalePct?: number;
   frameImage?: string;
   buttonImage?: string;
   loadingPageImage?: string;
@@ -475,6 +486,13 @@ export async function createEventProfile(
       docData.photoAspectRatio = data.photoAspectRatio;
     }
 
+    if (data.logoTopScalePct !== undefined) {
+      docData.logoTopScalePct = data.logoTopScalePct;
+    }
+
+    if (data.logoBottomScalePct !== undefined) {
+      docData.logoBottomScalePct = data.logoBottomScalePct;
+    }
     const docRef = await addDoc(collection(db, COLLECTION), docData);
     return docRef.id;
   } catch (error) {
@@ -607,6 +625,8 @@ export async function updateEventProfile(
     if (data.backgroundAnimation !== undefined) docData.backgroundAnimation = data.backgroundAnimation;
     if (data.paintTimeSeconds !== undefined) docData.paintTimeSeconds = data.paintTimeSeconds;
     if (data.photoAspectRatio !== undefined) docData.photoAspectRatio = data.photoAspectRatio;
+    if (data.logoTopScalePct !== undefined) docData.logoTopScalePct = data.logoTopScalePct;
+    if (data.logoBottomScalePct !== undefined) docData.logoBottomScalePct = data.logoBottomScalePct;
     if (data.mirrorScreenEnabled !== undefined) docData.mirrorScreenEnabled = data.mirrorScreenEnabled;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
