@@ -60,6 +60,16 @@ class RollerConfig:
     # find the right number.
     plane_offset_mm: float = 0.0
 
+    # Filtro grueso en Z (profundidad CRUDA del sensor, mm - distancia real
+    # al Kinect, NO la distancia al plano de pantalla como `dist` abajo):
+    # descarta de entrada cualquier píxel más lejos que esto, antes de
+    # cualquier otro cálculo. Pensado para excluir a alguien caminando de
+    # fondo detrás/lejos de la pantalla, que igual podría colarse en la
+    # franja `in_band` si por casualidad su altura respecto al plano
+    # ajustado cae en rango. Default 1900mm (1.9m) - subilo si el rig
+    # necesita ver más lejos, bajalo para ser más estricto.
+    max_raw_depth_mm: float = 1900.0
+
     # --- Detection thresholds ---
     # These two bound a slab of constant physical thickness in front of the
     # screen (perpendicular distance to the fitted screen plane, in mm - see

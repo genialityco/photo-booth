@@ -12,6 +12,11 @@ import { getPixelDims } from "@/app/components/photo-booth/photoAspectRatio";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
 import { printPhoto } from "@/app/components/photo-booth/printPhoto";
 
+/** Papel postal real cargado en la Canon Selphy CP1500 — debe coincidir con
+ * el `@page { size: ... }` de printPhoto.ts. Usado solo para componer el
+ * canvas de impresión ya a esa proporción (ver handlePrint). */
+const PRINT_PAPER_MM = { w: 100, h: 148 };
+
 type Props = {
   taskId: string;
   aiUrl: string;
@@ -43,6 +48,11 @@ export default function ResultStep({
   const [qrSize, setQrSize] = useState(500);
   const enableFrame = event?.enableFrame ?? style?.enableFrame ?? true;
   const frameSrc = event?.frameImage ?? null;
+  // Logo de auspiciante + texto de contacto "quemados" en la foto resultante
+  // (composeFramedImage.ts) — a diferencia de frameSrc, no dependen de
+  // enableFrame: son branding del evento, independiente del marco decorativo.
+  const brandingLogoSrc = event?.brandingLogoUrl ?? null;
+  const brandingFooterText = event?.brandingFooterText ?? null;
   const aspectRatio = event?.photoAspectRatio;
   const pixelDims = useMemo(() => getPixelDims(aspectRatio), [aspectRatio]);
   // Mide el contenedor real y encoge la foto para que todo (foto + botones)
@@ -81,8 +91,9 @@ export default function ResultStep({
 
     const composeFrame = async () => {
       try {
-        // Si enableFrame está desactivado o no hay frameSrc, mostrar imagen sin marco
-        if (!enableFrame || !frameSrc) {
+        // Si no hay marco NI branding, mostrar la imagen tal cual (evita el
+        // round-trip a canvas cuando no hace falta componer nada).
+        if ((!enableFrame || !frameSrc) && !brandingLogoSrc && !brandingFooterText) {
           setFramedImageUrl(aiUrl);
           return;
         }
@@ -91,6 +102,8 @@ export default function ResultStep({
           aiUrl,
           frameSrc,
           enableFrame,
+          brandingLogoSrc,
+          brandingFooterText,
           width: pixelDims.width,
           height: pixelDims.height,
         });
@@ -102,7 +115,7 @@ export default function ResultStep({
     };
 
     composeFrame();
-  }, [aiUrl, frameSrc, enableFrame, pixelDims.width, pixelDims.height]);
+  }, [aiUrl, frameSrc, enableFrame, brandingLogoSrc, brandingFooterText, pixelDims.width, pixelDims.height]);
 
   useEffect(() => {
     try {
@@ -162,6 +175,8 @@ export default function ResultStep({
         aiUrl,
         frameSrc,
         enableFrame,
+        brandingLogoSrc,
+        brandingFooterText,
         width: pixelDims.width,
         height: pixelDims.height,
       });
@@ -194,12 +209,27 @@ export default function ResultStep({
   const handlePrint = async () => {
     if (videoUrl) return;
     try {
+      // A diferencia de handleDownload/la vista previa (que componen a
+      // pixelDims, la proporción REAL de la foto: 3:4 o cuadrada), acá se
+      // compone directo a la proporción del papel postal de la Selphy
+      // CP1500 (100x148mm — debe coincidir con el `@page` de printPhoto.ts).
+      // Si se compone a pixelDims, printPhoto.ts igual la fuerza a esa
+      // proporción con `object-fit: cover` para llenar la página sin bordes
+      // — pero ese recorte le pasa por encima a TODO lo ya "quemado" en el
+      // canvas (logo, texto de branding, bordes del marco), cortando lo que
+      // haya cerca de los bordes sin que composeFramedCanvas sepa que va a
+      // pasar. Componiendo ya al aspecto del papel, ese segundo recorte no
+      // tiene nada más que hacer y el branding llega completo.
+      const printHeight = 1200;
+      const printWidth = Math.round((printHeight * PRINT_PAPER_MM.w) / PRINT_PAPER_MM.h);
       const canvas = await composeFramedCanvas({
         aiUrl,
         frameSrc,
         enableFrame,
-        width: pixelDims.width,
-        height: pixelDims.height,
+        brandingLogoSrc,
+        brandingFooterText,
+        width: printWidth,
+        height: printHeight,
       });
       const dataUrl = canvas.toDataURL("image/png");
       printPhoto(dataUrl);

@@ -229,8 +229,27 @@ export type EventProfile = {
    * mantienen -9 (comportamiento original).
    */
   splashTitleSkewDeg?: number;
+  /**
+   * Mostrar el título de la splash en mayúsculas. Ojo con la asimetría
+   * respecto de `splashSubtitleUppercase`: el título NUNCA estuvo forzado a
+   * mayúsculas, se mostraba tal cual se escribía. Por eso acá el default es
+   * `false` y se lee como `=== true` — si arrancara activo, un título
+   * deliberadamente en minúsculas (ej. "Desaparece sin dejar huella") pasaría
+   * a gritar en mayúsculas solo por agregar el campo. En los dos casos la
+   * regla de fondo es la misma: no cambiarle el look a un evento ya creado.
+   * Solo aplica al título de TEXTO, no al modo imagen (`splashTitleMode`).
+   */
+  splashTitleUppercase?: boolean;
   splashSubtitle?: string;
   splashSubtitleColor?: string;
+  /**
+   * Mostrar el subtítulo de la splash en mayúsculas. El subtítulo iba forzado
+   * a mayúsculas por código, así que el default es `true` para no cambiarle el
+   * look a los eventos que ya existen: solo un `false` explícito lo respeta
+   * literal, tal cual se escribió en el admin. Se lee siempre como
+   * `!== false`, nunca como `=== true`.
+   */
+  splashSubtitleUppercase?: boolean;
   /** Imagen de la tarjeta central (mascota/logo secundario); sin ella, la tarjeta no se muestra. */
   splashCardImage?: string;
   splashWord1?: string;
@@ -301,6 +320,23 @@ export type EventProfile = {
    * interactivo normal, sin detectar ni reflejar a otras.
    */
   mirrorScreenEnabled?: boolean;
+  /**
+   * Logo de auspiciante/marca del evento, dibujado en la esquina superior
+   * izquierda de la foto RESULTANTE (composeFramedImage.ts) — se ve tanto al
+   * mostrar el resultado (ResultStep) como al descargarla/imprimirla, ya que
+   * las tres rutas comparten esa misma composición en canvas. Distinto de
+   * `logoTop`/`logoBottom` (esos son para el header del wizard durante la
+   * captura, no quedan "quemados" en la foto final). Opcional: sin este
+   * campo no se dibuja nada (comportamiento original).
+   */
+  brandingLogoUrl?: string;
+  /**
+   * Texto centrado en la parte inferior de la foto RESULTANTE (mismo
+   * mecanismo que brandingLogoUrl, ver ahí). Soporta múltiples líneas
+   * separadas por "\n" (ej. sitio web en una línea, contacto en la
+   * siguiente). Opcional: sin este campo no se dibuja nada.
+   */
+  brandingFooterText?: string;
   prompts: string[];
   isActive: boolean;
   screenConfig?: {
@@ -435,7 +471,7 @@ export async function createEventProfile(
     // Image fields to process
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl"];
 
     for (const field of imageFields) {
       const fileData = data[field];
@@ -509,8 +545,10 @@ export async function createEventProfile(
     }
     if (data.splashFreeLayoutEnabled !== undefined) docData.splashFreeLayoutEnabled = data.splashFreeLayoutEnabled;
     if (data.splashLayout !== undefined) docData.splashLayout = data.splashLayout;
+    if (data.splashTitleUppercase !== undefined) docData.splashTitleUppercase = data.splashTitleUppercase;
     if (data.splashSubtitle !== undefined) docData.splashSubtitle = data.splashSubtitle;
     if (data.splashSubtitleColor !== undefined) docData.splashSubtitleColor = data.splashSubtitleColor;
+    if (data.splashSubtitleUppercase !== undefined) docData.splashSubtitleUppercase = data.splashSubtitleUppercase;
     if (data.splashWord1 !== undefined) docData.splashWord1 = data.splashWord1;
     if (data.splashWord1Color !== undefined) docData.splashWord1Color = data.splashWord1Color;
     if (data.splashWord2 !== undefined) docData.splashWord2 = data.splashWord2;
@@ -546,6 +584,10 @@ export async function createEventProfile(
 
     if (data.photoAspectRatio !== undefined) {
       docData.photoAspectRatio = data.photoAspectRatio;
+    }
+
+    if (data.brandingFooterText !== undefined) {
+      docData.brandingFooterText = data.brandingFooterText;
     }
 
     if (data.logoTopScalePct !== undefined) {
@@ -710,8 +752,10 @@ export async function updateEventProfile(
     }
     if (data.splashFreeLayoutEnabled !== undefined) docData.splashFreeLayoutEnabled = data.splashFreeLayoutEnabled;
     if (data.splashLayout !== undefined) docData.splashLayout = data.splashLayout;
+    if (data.splashTitleUppercase !== undefined) docData.splashTitleUppercase = data.splashTitleUppercase;
     if (data.splashSubtitle !== undefined) docData.splashSubtitle = data.splashSubtitle;
     if (data.splashSubtitleColor !== undefined) docData.splashSubtitleColor = data.splashSubtitleColor;
+    if (data.splashSubtitleUppercase !== undefined) docData.splashSubtitleUppercase = data.splashSubtitleUppercase;
     if (data.splashWord1 !== undefined) docData.splashWord1 = data.splashWord1;
     if (data.splashWord1Color !== undefined) docData.splashWord1Color = data.splashWord1Color;
     if (data.splashWord2 !== undefined) docData.splashWord2 = data.splashWord2;
@@ -728,7 +772,7 @@ export async function updateEventProfile(
     // Process image fields
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl"];
     for (const field of imageFields) {
       const fileData = data[field];
       if (fileData === undefined) continue;

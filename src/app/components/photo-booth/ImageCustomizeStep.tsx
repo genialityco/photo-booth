@@ -51,6 +51,7 @@ export default function ImageCustomizeStep({
   onConfirm,
   readOnly = false,
   customizationOverride = null,
+  wide = false,
 }: {
   previewSrc?: string | null;
   buttonImage?: string;
@@ -70,6 +71,10 @@ export default function ImageCustomizeStep({
    * muestra — la decisión es de la tablet líder. */
   readOnly?: boolean;
   customizationOverride?: ImageCustomization | null;
+  /** Relaja los topes de ancho (pensados para tablet, ej.
+   * clamp(340px,65vw,680px)) para aprovechar una pantalla gigante 1920x1080.
+   * Off por defecto (comportamiento original en la tablet). */
+  wide?: boolean;
 }) {
   const [paletteIndex, setPaletteIndex] = useState(0);
   const [texture, setTexture] = useState(TEXTURES[0].value);
@@ -98,6 +103,23 @@ export default function ImageCustomizeStep({
   // (min-h-0 + overflow-y-auto) solo por si una pantalla es muy baja; en la
   // gran mayoría de pantallas no llega a activarse porque el flex-1 les da
   // todo el espacio libre.
+  // En modo `wide` (pantalla gigante) los mismos clamp() en vw quedarían
+  // topeados a un ancho de tablet — se relajan los máximos para aprovechar
+  // 1920px en vez de agrupar todo en el centro con barras vacías.
+  const panelMaxWidth = wide ? "clamp(340px, 48vw, 1200px)" : "clamp(340px, 65vw, 680px)";
+  // La miniatura preserva la proporción real de la foto (getAspectClassName,
+  // ej. 3:4) - a un ancho grande eso da un rectángulo altísimo y angosto
+  // ("se ve muy angosta y muy larga"). En `wide` se usa una forma más
+  // horizontal (4:3, recortando con object-cover, mismo criterio que las
+  // tarjetas de EventPhotoBoothLanding) y se acota por ALTO en vez de ancho,
+  // para que no crezca desproporcionadamente.
+  const previewAspectClass = wide ? "aspect-[4/3]" : getAspectClassName(aspectRatio);
+  const previewSizeStyle: React.CSSProperties = wide
+    ? { height: "clamp(220px, 34vh, 460px)", width: "auto" }
+    : { width: "clamp(209px, 39.6vw, 440px)" };
+  const logoHeightClass = wide ? "h-[clamp(4.5rem,14vh,8rem)]" : "h-[clamp(3.4rem,10vh,5.5rem)]";
+  const paletteSwatchMaxWidth = wide ? "clamp(50px, 12vw, 320px)" : "clamp(50px, 12vw, 190px)";
+
   return (
     <div
       className="w-full h-full flex flex-col items-center overflow-hidden"
@@ -121,7 +143,11 @@ export default function ImageCustomizeStep({
             <img
               src={logoLeftSrc}
               alt=""
-              className="h-[clamp(3.4rem,10vh,5.5rem)] w-auto max-w-[42vw] object-contain select-none"
+              className={
+                wide
+                  ? `${logoHeightClass} w-[24vw] object-fill select-none`
+                  : `${logoHeightClass} w-auto max-w-[42vw] object-contain select-none`
+              }
               draggable={false}
             />
           ) : null}
@@ -129,7 +155,11 @@ export default function ImageCustomizeStep({
             <img
               src={logoRightSrc}
               alt=""
-              className="h-[clamp(3.4rem,10vh,5.5rem)] w-auto max-w-[42vw] object-contain select-none"
+              className={
+                wide
+                  ? `${logoHeightClass} w-[24vw] object-fill select-none`
+                  : `${logoHeightClass} w-auto max-w-[42vw] object-contain select-none`
+              }
               draggable={false}
             />
           ) : null}
@@ -139,17 +169,17 @@ export default function ImageCustomizeStep({
       <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center justify-center gap-[2.5vh] py-2">
         {previewSrc && (
           <div
-            className={`relative ${getAspectClassName(aspectRatio)} rounded-3xl overflow-hidden shadow-2xl border-4 border-white/80 flex-shrink-0`}
-            style={{ width: "clamp(209px, 39.6vw, 440px)" }}
+            className={`relative ${previewAspectClass} rounded-3xl overflow-hidden shadow-2xl border-4 border-white/80 flex-shrink-0`}
+            style={previewSizeStyle}
           >
-            <img src={previewSrc} alt="Vista previa" className="w-full h-full object-cover" />
+            <img src={previewSrc} alt="Vista previa" className={`w-full h-full ${wide ? "object-fill" : "object-cover"}`} />
           </div>
         )}
 
-        <div className="w-full" style={{ maxWidth: "clamp(340px, 65vw, 680px)" }}>
+        <div className="w-full" style={{ maxWidth: panelMaxWidth }}>
           <p
             className="text-white/90 font-bold tracking-widest mb-2"
-            style={{ fontSize: "clamp(0.9rem, 1.8vw, 1.25rem)" }}
+            style={{ fontSize: wide ? "clamp(1.4rem, 2.6vw, 2.1rem)" : "clamp(0.9rem, 1.8vw, 1.25rem)" }}
           >
             PALETA
           </p>
@@ -161,22 +191,22 @@ export default function ImageCustomizeStep({
                 onClick={readOnly ? undefined : () => setPaletteIndex(i)}
                 disabled={readOnly}
                 aria-label={`Paleta ${colors.join(", ")}`}
-                className={`flex-1 aspect-square rounded-2xl transition-transform ${
+                className={`flex-1 ${wide ? "aspect-[3/2]" : "aspect-square"} rounded-2xl transition-transform ${
                   paletteIndex === i ? "ring-4 ring-white scale-110" : "opacity-90 hover:opacity-100"
                 }`}
                 style={{
                   background: paletteStripesBackground(colors),
-                  maxWidth: "clamp(50px, 12vw, 190px)",
+                  maxWidth: paletteSwatchMaxWidth,
                 }}
               />
             ))}
           </div>
         </div>
 
-        <div className="w-full" style={{ maxWidth: "clamp(340px, 65vw, 680px)" }}>
+        <div className="w-full" style={{ maxWidth: panelMaxWidth }}>
           <p
             className="text-white/90 font-bold tracking-widest mb-2"
-            style={{ fontSize: "clamp(0.9rem, 1.8vw, 1.25rem)" }}
+            style={{ fontSize: wide ? "clamp(1.4rem, 2.6vw, 2.1rem)" : "clamp(0.9rem, 1.8vw, 1.25rem)" }}
           >
             TEXTURA
           </p>
@@ -191,9 +221,9 @@ export default function ImageCustomizeStep({
                   texture === t.value ? "bg-black text-white" : "bg-white text-black hover:bg-white/90"
                 }`}
                 style={{
-                  paddingTop: "clamp(0.55rem, 1.3vh, 1.1rem)",
-                  paddingBottom: "clamp(0.55rem, 1.3vh, 1.1rem)",
-                  fontSize: "clamp(0.9rem, 1.8vw, 1.25rem)",
+                  paddingTop: wide ? "clamp(1rem, 2.4vh, 2rem)" : "clamp(0.55rem, 1.3vh, 1.1rem)",
+                  paddingBottom: wide ? "clamp(1rem, 2.4vh, 2rem)" : "clamp(0.55rem, 1.3vh, 1.1rem)",
+                  fontSize: wide ? "clamp(1.3rem, 2.6vw, 2rem)" : "clamp(0.9rem, 1.8vw, 1.25rem)",
                 }}
               >
                 {t.label}
@@ -202,10 +232,10 @@ export default function ImageCustomizeStep({
           </div>
         </div>
 
-        <div className="w-full" style={{ maxWidth: "clamp(340px, 65vw, 680px)" }}>
+        <div className="w-full" style={{ maxWidth: panelMaxWidth }}>
           <p
             className="text-white/90 font-bold tracking-widest mb-2"
-            style={{ fontSize: "clamp(0.9rem, 1.8vw, 1.25rem)" }}
+            style={{ fontSize: wide ? "clamp(1.4rem, 2.6vw, 2.1rem)" : "clamp(0.9rem, 1.8vw, 1.25rem)" }}
           >
             INTENSIDAD
           </p>
@@ -217,13 +247,13 @@ export default function ImageCustomizeStep({
             onChange={readOnly ? undefined : (e) => setIntensity(Number(e.target.value))}
             disabled={readOnly}
             className="w-full accent-red-500"
-            style={{ height: "clamp(10px, 1.4vh, 16px)" }}
+            style={{ height: wide ? "clamp(18px, 2.4vh, 26px)" : "clamp(10px, 1.4vh, 16px)" }}
           />
         </div>
       </div>
 
       {!readOnly && (
-        <div className="w-full flex-shrink-0 pt-2" style={{ maxWidth: "clamp(340px, 65vw, 680px)" }}>
+        <div className="w-full flex-shrink-0 pt-2" style={{ maxWidth: panelMaxWidth }}>
           <ButtonPrimary
             onClick={handleConfirm}
             label="¡LISTO!"

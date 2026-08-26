@@ -6,7 +6,7 @@ import { getStorage } from "firebase-admin/storage";
 import { getFirestore } from "firebase-admin/firestore";
 import { randomUUID } from "crypto";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 import axios from "axios";
 import sharp from "sharp";
 // Inicializa Admin SDK
@@ -184,8 +184,15 @@ async function buildPromptWithBrand(opts: {
   palette?: string[];
   texture?: string;
   intensity?: number;
+  /** "3:4" o "1:1" - se agrega como "--ar {aspectRatio}" al final del
+   * prompt (ver PHOTO_ASPECT_RATIO/GEMINI_ASPECT_RATIO en processImageTask).
+   * Es un refuerzo en TEXTO de lo mismo que ya se pide vía
+   * config.imageConfig.aspectRatio en la llamada a Gemini - no reemplaza esa
+   * config (que sigue siendo lo único con soporte real de la API), es un
+   * empujón adicional para el modelo. */
+  aspectRatio?: string;
 }): Promise<{logoPath: string | undefined, prompt: string, logoPrompt?: string, promptBgImage?: string, objectImage?: string, objectImagePrompt?: string}> {
-  const { brand, color, palette, texture, intensity } = opts || {};
+  const { brand, color, palette, texture, intensity, aspectRatio } = opts || {};
   const branded = await getBrandedPromptCached(brand);
   const basePrompt = branded.basePrompt || DEFAULT_PROMPT;
   const t = branded.colorDirectiveTemplate;
@@ -212,6 +219,10 @@ async function buildPromptWithBrand(opts: {
       lines.push(`- Intensidad del efecto: ${intensityPct}% (100% = lo más marcado posible, 0% = muy sutil).`);
     }
     prompt = prompt + "\n\n" + lines.join("\n");
+  }
+
+  if (aspectRatio) {
+    prompt = prompt + `\n\n--ar ${aspectRatio}`;
   }
 
   return {logoPrompt: branded.logoPrompt, logoPath: branded.logoPath, promptBgImage: branded.promptBgImage, objectImage: branded.objectImage, objectImagePrompt: branded.objectImagePrompt, prompt};
@@ -565,6 +576,15 @@ export const processImageTask = onDocumentCreated(
           palette?: string[];
           texture?: string;
           intensity?: number;
+          // Relación de aspecto pedida para la SALIDA de la IA ("3:4" o
+          // "1:1", ya en el formato que espera Gemini) - escrita por el
+          // cliente al crear la tarea (PhotoBoothWizard.confirmAndProcess),
+          // derivada de event.photoAspectRatio. Se prioriza sobre el
+          // event.photoAspectRatio leído más abajo porque es más directo (sin
+          // el round-trip extra a events) - ese lookup queda como fallback
+          // para tareas viejas o creadas por otro flujo que no mande este
+          // campo.
+          aspectRatio?: string;
         }
       | undefined;
 
@@ -577,6 +597,39 @@ export const processImageTask = onDocumentCreated(
     let GENERATION_TYPE = "IMAGE";
     let BRAND_VIDEO_URL = "";
 
+    // Leer generationType, frameImage y photoAspectRatio del evento si se
+    // provee eventId. "SQUARE" (o sin configurar) es el default histórico;
+    // "3:4" existe para imprimir en la Canon Selphy CP1500 (ver
+    // photoAspectRatio.ts en el frontend) - el frontend ya recorta la foto
+    // de ENTRADA a esa forma antes de mandarla a la IA, pero Gemini no
+    // respeta consistentemente esa forma en la SALIDA (a veces devuelve
+    // 16:9 en vez de 3:4), así que acá se fuerza también en la generación
+    // (GEMINI_ASPECT_RATIO, tomado de data.aspectRatio con prioridad, ver
+    // arriba) y se garantiza con un recorte posterior (ver cropToAspectRatio
+    // más abajo). Calculado ANTES de buildPromptWithBrand para poder
+    // agregarlo también como texto (--ar) al final del prompt.
+    let FRAME_IMAGE_URL = "";
+    let PHOTO_ASPECT_RATIO: "SQUARE" | "3:4" = "SQUARE";
+    if (data?.eventId) {
+      try {
+        const eventSnap = await db.collection("events").doc(data.eventId).get();
+        if (eventSnap.exists) {
+          GENERATION_TYPE = eventSnap.data()?.generationType || "IMAGE";
+          FRAME_IMAGE_URL = eventSnap.data()?.frameImage || "";
+          PHOTO_ASPECT_RATIO = eventSnap.data()?.photoAspectRatio === "3:4" ? "3:4" : "SQUARE";
+        }
+      } catch (e) {
+        console.warn("Error reading event data:", e);
+      }
+    }
+    const GEMINI_ASPECT_RATIO: "3:4" | "1:1" =
+      data?.aspectRatio === "3:4" || data?.aspectRatio === "1:1"
+        ? data.aspectRatio
+        : PHOTO_ASPECT_RATIO === "3:4"
+        ? "3:4"
+        : "1:1";
+    const PHOTO_ASPECT_DIMS = GEMINI_ASPECT_RATIO === "3:4" ? { w: 3, h: 4 } : { w: 1, h: 1 };
+
     if (data?.brand) {
       const promptData = await buildPromptWithBrand({
         brand: data.brand,
@@ -584,6 +637,7 @@ export const processImageTask = onDocumentCreated(
         palette: data.palette,
         texture: data.texture,
         intensity: data.intensity,
+        aspectRatio: GEMINI_ASPECT_RATIO,
       });
       PROMPT = promptData.prompt;
       LOGO_URL = promptData.logoPath || "";
@@ -605,34 +659,6 @@ export const processImageTask = onDocumentCreated(
         console.warn("Error reading brand videoUrl:", e);
       }
     }
-
-    // Leer generationType, frameImage y photoAspectRatio del evento si se
-    // provee eventId. "SQUARE" (o sin configurar) es el default histórico;
-    // "3:4" existe para imprimir en la Canon Selphy CP1500 (ver
-    // photoAspectRatio.ts en el frontend) - el frontend ya recorta la foto
-    // de ENTRADA a esa forma antes de mandarla a la IA, pero Gemini no
-    // respeta consistentemente esa forma en la SALIDA (a veces devuelve
-    // 16:9 en vez de 3:4), así que acá se fuerza también en la generación
-    // (PHOTO_ASPECT_RATIO_GEMINI) y se garantiza con un recorte posterior
-    // (ver cropToAspectRatio más abajo).
-    let FRAME_IMAGE_URL = "";
-    let PHOTO_ASPECT_RATIO: "SQUARE" | "3:4" = "SQUARE";
-    if (data?.eventId) {
-      try {
-        const eventSnap = await db.collection("events").doc(data.eventId).get();
-        if (eventSnap.exists) {
-          GENERATION_TYPE = eventSnap.data()?.generationType || "IMAGE";
-          FRAME_IMAGE_URL = eventSnap.data()?.frameImage || "";
-          PHOTO_ASPECT_RATIO = eventSnap.data()?.photoAspectRatio === "3:4" ? "3:4" : "SQUARE";
-        }
-      } catch (e) {
-        console.warn("Error reading event data:", e);
-      }
-    }
-    const PHOTO_ASPECT_DIMS = PHOTO_ASPECT_RATIO === "3:4" ? { w: 3, h: 4 } : { w: 1, h: 1 };
-    // Gemini's supported aspectRatio values happen to match our own strings
-    // 1:1 for anything else.
-    const GEMINI_ASPECT_RATIO = PHOTO_ASPECT_RATIO === "3:4" ? "3:4" : "1:1";
 
     if (!data?.inputPath) {
       await docRef.update({
@@ -737,7 +763,7 @@ export const processImageTask = onDocumentCreated(
 
        // Agregar imagen del objeto si existe
       if (base64ObjectImage && OBJECT_IMAGE_PROMPT) {
-        parts.push(
+        parts.unshift(
           { text: OBJECT_IMAGE_PROMPT },
           {
             inlineData: {
@@ -786,7 +812,7 @@ export const processImageTask = onDocumentCreated(
       ];
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image",
+        model: "gemini-3.1-flash-image",
         contents: contents,
         // `imageConfig.aspectRatio` no está tipado todavía en esta versión
         // del SDK (@google/genai) - de ahí el `as any` - pero la API REST sí
@@ -797,7 +823,14 @@ export const processImageTask = onDocumentCreated(
         // garantiza la forma final, esto es solo para acercar el resultado
         // del modelo y evitar recortar de más.
         config: {
-          responseModalities: ["Image"],
+          // Modality.IMAGE === "IMAGE" (todo mayúsculas) - un string suelto
+          // con otra capitalización (ej. "Image") es un valor de enum
+          // inválido que hace que el modelo ignore toda esta config,
+          // incluido imageConfig.aspectRatio. TEXT se mantiene habilitado
+          // porque el manejo de errores más abajo depende de poder leer una
+          // respuesta de texto cuando no hay imagen (ver "Sin respuesta de
+          // texto").
+          responseModalities: [Modality.TEXT, Modality.IMAGE],
           imageConfig: { aspectRatio: GEMINI_ASPECT_RATIO },
         } as any,
       });

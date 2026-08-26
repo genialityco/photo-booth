@@ -20,12 +20,17 @@ const PROGRESS_CAP = 92;
 
 export default function LoaderStep({
   brandIdOverride,
+  wide = false,
 }: {
   /** Modo espejo (BoothMirror): id de marca transmitido por el líder, en vez
    * de leerlo de sessionStorage("selectedBrand") — ese valor es por-pestaña,
    * así que la pantalla espejo nunca lo tiene (la selección ocurre en la
    * tablet líder, no acá). */
   brandIdOverride?: string | null;
+  /** Agranda el anillo de progreso y los logos (pensados para tablet, con
+   * topes chicos en vmin/vh) para una pantalla gigante 1920x1080. Off por
+   * defecto (comportamiento original en la tablet). */
+  wide?: boolean;
 } = {}) {
   const [dots, setDots] = useState("");
   const [style, setStyle] = useState<StyleProfile | null>(null);
@@ -128,10 +133,28 @@ export default function LoaderStep({
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - progress / 100);
 
+  // En la pantalla gigante (wide), el video del salvapantallas del evento
+  // reemplaza la imagen de fondo de siempre - mismo criterio que el resto
+  // de las pantallas del espejo (BoothMirror.MirrorBackground).
+  const bgVideoUrl = wide ? event?.screenSaverVideoUrl : null;
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center text-white">
       {/* Fondo */}
-      <div className="absolute inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: `url('${bgUrl}')` }} aria-hidden />
+      {bgVideoUrl ? (
+        <video
+          key={bgVideoUrl}
+          src={bgVideoUrl}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 -z-10 w-full h-full object-cover"
+          aria-hidden
+        />
+      ) : (
+        <div className="absolute inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: `url('${bgUrl}')` }} aria-hidden />
+      )}
       {/* Velo para legibilidad */}
       <div className="absolute inset-0 bg-black/20" />
 
@@ -190,7 +213,11 @@ export default function LoaderStep({
             así queda responsive en cualquier pantalla. */}
         <div
           className="relative"
-          style={{ width: "clamp(125px, 16vmin, 185px)", height: "clamp(125px, 16vmin, 185px)" }}
+          style={
+            wide
+              ? { width: "clamp(180px, 26vmin, 320px)", height: "clamp(180px, 26vmin, 320px)" }
+              : { width: "clamp(125px, 16vmin, 185px)", height: "clamp(125px, 16vmin, 185px)" }
+          }
         >
           <svg
             viewBox={`0 0 ${ringSize} ${ringSize}`}
@@ -230,7 +257,10 @@ export default function LoaderStep({
         <div className="flex flex-col items-center gap-2">
           <h1
             className="text-center font-black uppercase tracking-tight drop-shadow-sm"
-            style={{ fontSize: "clamp(1.75rem, 5vmin, 2.6rem)", color: loadingTitleColor }}
+            style={{
+              fontSize: wide ? "clamp(3rem, 7.5vmin, 4.6rem)" : "clamp(1.75rem, 5vmin, 2.6rem)",
+              color: loadingTitleColor,
+            }}
             role="status"
             aria-live="polite"
           >
@@ -240,7 +270,10 @@ export default function LoaderStep({
           {loadingSubtitle && (
             <p
               className="text-center font-semibold drop-shadow-sm"
-              style={{ fontSize: "clamp(1rem, 2.6vmin, 1.35rem)", color: loadingSubtitleColor }}
+              style={{
+                fontSize: wide ? "clamp(1.6rem, 3.6vmin, 2.2rem)" : "clamp(1rem, 2.6vmin, 1.35rem)",
+                color: loadingSubtitleColor,
+              }}
             >
               {loadingSubtitle}
               {dots}
@@ -249,11 +282,15 @@ export default function LoaderStep({
         </div>
 
         {brandName && (
-          <div className="inline-flex items-center gap-2 bg-white/85 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+          <div
+            className={`inline-flex items-center gap-2 bg-white/85 backdrop-blur-sm rounded-full shadow-lg ${
+              wide ? "px-6 py-3" : "px-4 py-2"
+            }`}
+          >
+            <span className={`rounded-full bg-red-500 animate-pulse flex-shrink-0 ${wide ? "w-3 h-3" : "w-2 h-2"}`} />
             <span
               className="font-semibold text-black"
-              style={{ fontSize: "clamp(0.95rem, 2.3vmin, 1.2rem)" }}
+              style={{ fontSize: wide ? "clamp(1.5rem, 3.2vmin, 2rem)" : "clamp(0.95rem, 2.3vmin, 1.2rem)" }}
             >
               Estilo: {brandName}
             </span>
@@ -265,7 +302,7 @@ export default function LoaderStep({
         className="relative z-20 flex-shrink-0 pb-6 text-white/90 font-bold tracking-[0.2em] uppercase drop-shadow-sm"
         style={{
           paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
-          fontSize: "clamp(0.75rem, 1.8vmin, 1rem)",
+          fontSize: wide ? "clamp(1.2rem, 2.6vmin, 1.7rem)" : "clamp(0.75rem, 1.8vmin, 1rem)",
         }}
       >
         Generando con IA

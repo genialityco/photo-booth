@@ -25,6 +25,7 @@ export default function MediaTapScreen({
   onTap,
   className = "",
   children,
+  videoObjectFit = "contain",
 }: {
   imageUrl?: string;
   /** Tiene prioridad sobre imageUrl si ambos están presentes. */
@@ -36,6 +37,18 @@ export default function MediaTapScreen({
    * después de las capas de media, así que queda arriba en el stacking sin
    * necesitar z-index; debe traer su propio posicionamiento (`absolute`). */
   children?: React.ReactNode;
+  /** "contain" (default): el video se ve completo sin recortar, con una
+   * segunda copia ampliada+difuminada de relleno detrás para no dejar
+   * barras negras (ver comentario de la clase, arriba) - pensado para la
+   * tablet, donde el aspect ratio del video casi nunca coincide con el de
+   * la pantalla. "cover": una sola capa de video, estirada/recortada para
+   * llenar el contenedor de punta a punta, sin la copia de relleno (que
+   * dejaría de tener sentido - "cover" ya no deja huecos que rellenar) -
+   * usado en la pantalla gigante, donde el video (el mismo salvapantallas)
+   * ya se ve así (object-cover) en el resto de las pantallas del espejo, y
+   * mostrarlo acá en "contain" se veía angosto/con letterbox en
+   * comparación. Solo aplica a videoUrl, no a imageUrl. */
+  videoObjectFit?: "contain" | "cover";
 }) {
   const hasMedia = !!(videoUrl || imageUrl);
 
@@ -87,8 +100,14 @@ export default function MediaTapScreen({
       className={`relative w-full h-full overflow-hidden bg-black cursor-pointer ${className}`}
     >
       {/* Fondo de relleno: mismo archivo, ampliado y difuminado, para que no
-          queden barras vacías en los bordes que el contenido real no cubre. */}
+          queden barras vacías en los bordes que el contenido real no cubre.
+          No aplica a video en modo "cover": ahí el contenido real ya llena
+          el contenedor de punta a punta (estirado/recortado), así que no
+          queda ningún borde vacío que esta segunda copia tenga que tapar -
+          tenerla igual sería una capa de video de más, sin ningún efecto
+          visible, solo desperdiciando reproducción. */}
       {hasMedia &&
+        !(videoUrl && videoObjectFit === "cover") &&
         (videoUrl ? (
           <video
             ref={autoplayVideoRef}
@@ -111,12 +130,18 @@ export default function MediaTapScreen({
           />
         ))}
 
-      {/* Contenido real: se ve completo, nunca se recorta. */}
+      {/* Contenido real: en modo "contain" (default) se ve completo, nunca
+          se recorta - en "cover" (pantalla gigante) llena el contenedor de
+          punta a punta, recortando lo que sobre, mismo criterio que el
+          resto de las pantallas del espejo (ver MirrorBackground en
+          BoothMirror.tsx). */}
       {videoUrl ? (
         <video
           ref={autoplayVideoRef}
           src={videoUrl}
-          className="media-tap-video relative w-full h-full object-contain select-none"
+          className={`media-tap-video relative w-full h-full select-none ${
+            videoObjectFit === "cover" ? "object-cover" : "object-contain"
+          }`}
           autoPlay
           loop
           muted

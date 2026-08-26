@@ -71,6 +71,7 @@ export default function KinectRollerRevealStep({
   aspectRatio,
   onRevealed,
   showStatus = true,
+  fillScreen = false,
 }: {
   wsUrl: string;
   aiUrl: string;
@@ -80,6 +81,11 @@ export default function KinectRollerRevealStep({
    * pantalla gigante, donde no aporta nada al público). Visible por defecto
    * para la ruta de prueba. */
   showStatus?: boolean;
+  /** Estira la foto para llenar la pantalla completa (1920x1080 de la
+   * pantalla gigante) en vez de la caja centrada que preserva su
+   * proporción real - mismo criterio que /display (object-fill). Off por
+   * defecto para no afectar /test/rodillo-reveal. */
+  fillScreen?: boolean;
 }) {
   const {
     photoCanvasRef,
@@ -269,16 +275,25 @@ export default function KinectRollerRevealStep({
       </div>
 
       <div
-        className={`relative p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 ${getAspectClassName(aspectRatio)} rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]`}
-        style={{ width: SIZE_IMG, maxWidth: SIZE_IMG }}
+        className={
+          fillScreen
+            ? "absolute inset-0"
+            : `relative p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 ${getAspectClassName(aspectRatio)} rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]`
+        }
+        style={fillScreen ? undefined : { width: SIZE_IMG, maxWidth: SIZE_IMG }}
       >
-        <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/5">
-          <canvas ref={photoCanvasRef} width={canvasWidth} height={canvasHeight} className="absolute inset-0 w-full h-full object-contain" />
+        <div className={fillScreen ? "relative w-full h-full overflow-hidden" : "relative w-full h-full overflow-hidden rounded-xl bg-black/5"}>
+          <canvas
+            ref={photoCanvasRef}
+            width={canvasWidth}
+            height={canvasHeight}
+            className={`absolute inset-0 w-full h-full ${fillScreen ? "object-fill" : "object-contain"}`}
+          />
           <canvas
             ref={veilCanvasRef}
             width={canvasWidth}
             height={canvasHeight}
-            className="absolute inset-0 w-full h-full object-contain"
+            className={`absolute inset-0 w-full h-full ${fillScreen ? "object-fill" : "object-contain"}`}
             style={{
               opacity: revealing ? 0 : 1,
               transition: prefersReducedMotion ? "none" : `opacity ${FADE_OUT_MS}ms ease-out`,
@@ -289,10 +304,14 @@ export default function KinectRollerRevealStep({
 
       <RollerCursor ref={rollerCursorRef} />
 
+      {/* top-right, no bottom-*: la franja de texto inferior (BrandingOverlay
+          en BoothMirror) ocupa todo el ancho abajo con una altura variable
+          según cuánto texto tenga - cualquier posición "bottom" quedaría
+          tapada por esa franja. */}
       <button
         type="button"
         onClick={completeReveal}
-        className="absolute bottom-5 left-5 z-20 bg-black/35 hover:bg-black/50 active:scale-95 backdrop-blur-sm transition-all rounded-full px-4 py-2 text-white/90 hover:text-white font-semibold shadow-lg shadow-black/20"
+        className="absolute top-5 right-5 z-40 bg-black/35 hover:bg-black/50 active:scale-95 backdrop-blur-sm transition-all rounded-full px-4 py-2 text-white/90 hover:text-white font-semibold shadow-lg shadow-black/20"
         style={{ fontSize: "clamp(0.8rem, 2vmin, 0.95rem)" }}
       >
         Saltar

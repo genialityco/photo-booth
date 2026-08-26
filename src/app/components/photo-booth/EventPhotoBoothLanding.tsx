@@ -15,6 +15,8 @@ export default function EventPhotoBoothLanding({
   buttonLabel = "Comenzar",
   readOnly = false,
   selectedBrandOverride = null,
+  wide = false,
+  bgVideoUrl,
 }: {
   event: EventProfile;
   onStart?: (brand?: string, dataProcessingAccepted?: boolean) => void;
@@ -28,6 +30,14 @@ export default function EventPhotoBoothLanding({
   /** Fuerza qué tarjeta aparece seleccionada (modo espejo), en vez de la
    * selección local por defecto (primera marca al cargar). */
   selectedBrandOverride?: string | null;
+  /** Relaja los topes de ancho (pensados para tablet/celular, ej.
+   * max-w-[980px]) para aprovechar una pantalla gigante 1920x1080 en vez de
+   * quedar como una columna angosta centrada con barras vacías a los
+   * costados. Off por defecto (comportamiento original en la tablet). */
+  wide?: boolean;
+  /** Video de fondo (ej. el del salvapantallas del evento) en vez de
+   * `event.bgImage` — usado por BoothMirror. */
+  bgVideoUrl?: string | null;
 }) {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [prompts, setPrompts] = useState<PhotoBoothPrompt[]>([]);
@@ -105,11 +115,16 @@ export default function EventPhotoBoothLanding({
   // pantallas anchas (kiosco/tablet).
   const getGridClass = () => {
     const count = prompts.length;
-    if (count === 1) return "grid-cols-1 max-w-[min(60vw,20rem)]";
-    if (count === 2) return "grid-cols-2 max-w-[min(80vw,32rem)]";
-    if (count === 3) return "grid-cols-3 max-w-[min(90vw,40rem)]";
-    if (count === 4) return "grid-cols-2 sm:grid-cols-4 max-w-[min(90vw,44rem)]";
-    return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-w-[min(95vw,56rem)]";
+    // En modo `wide` (pantalla gigante), los mismos topes en rem quedarían
+    // chicos para 1920px — se relajan (~1.7x) para que las tarjetas usen
+    // más del ancho disponible en vez de quedar agrupadas en el centro.
+    if (count === 1) return wide ? "grid-cols-1 max-w-[min(60vw,46rem)]" : "grid-cols-1 max-w-[min(60vw,20rem)]";
+    if (count === 2) return wide ? "grid-cols-2 max-w-[min(85vw,72rem)]" : "grid-cols-2 max-w-[min(80vw,32rem)]";
+    if (count === 3) return wide ? "grid-cols-3 max-w-[min(92vw,90rem)]" : "grid-cols-3 max-w-[min(90vw,40rem)]";
+    if (count === 4) return wide ? "grid-cols-2 sm:grid-cols-4 max-w-[min(92vw,98rem)]" : "grid-cols-2 sm:grid-cols-4 max-w-[min(90vw,44rem)]";
+    return wide
+      ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-w-[min(96vw,120rem)]"
+      : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-w-[min(95vw,56rem)]";
   };
 
   return (
@@ -120,16 +135,29 @@ export default function EventPhotoBoothLanding({
         paddingBottom: "max(12px, env(safe-area-inset-bottom))",
       }}
     >
-      {/* Background Image */}
-      <div
-        className="fixed inset-0 -z-10 bg-cover bg-center"
-        style={{
-          backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')`,
-        }}
-        aria-hidden
-      />
+      {/* Background: video (ej. salvapantallas del evento) si se pasó, si no la imagen de siempre */}
+      {bgVideoUrl ? (
+        <video
+          key={bgVideoUrl}
+          src={bgVideoUrl}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="fixed inset-0 -z-10 w-full h-full object-cover"
+          aria-hidden
+        />
+      ) : (
+        <div
+          className="fixed inset-0 -z-10 bg-cover bg-center"
+          style={{
+            backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')`,
+          }}
+          aria-hidden
+        />
+      )}
 
-      <div className="mx-auto flex min-h-[100svh] max-w-[980px] flex-col items-center justify-center px-4 sm:px-6 md:px-8">
+      <div className={`mx-auto flex min-h-[100svh] ${wide ? "max-w-[1850px]" : "max-w-[980px]"} flex-col items-center justify-center px-4 sm:px-6 md:px-8`}>
         {/* Logos: uno a cada lado (o centrado si solo hay uno), buen tamaño */}
         <div
           className={`
@@ -144,7 +172,11 @@ export default function EventPhotoBoothLanding({
             <img
               src={event.logoTop}
               alt={event.name}
-              className="h-[clamp(3rem,11vh,6rem)] w-auto max-w-[42vw] object-contain select-none"
+              className={
+                wide
+                  ? "h-[clamp(4.5rem,14vh,8rem)] w-[24vw] object-fill select-none"
+                  : "h-[clamp(3rem,11vh,6rem)] max-w-[42vw] w-auto object-contain select-none"
+              }
               draggable={false}
             />
           )}
@@ -152,7 +184,11 @@ export default function EventPhotoBoothLanding({
             <img
               src={event.logoBottom}
               alt=""
-              className="h-[clamp(3rem,11vh,6rem)] w-auto max-w-[42vw] object-contain select-none"
+              className={
+                wide
+                  ? "h-[clamp(4.5rem,14vh,8rem)] w-[24vw] object-fill select-none"
+                  : "h-[clamp(3rem,11vh,6rem)] max-w-[42vw] w-auto object-contain select-none"
+              }
               draggable={false}
             />
           )}
@@ -189,7 +225,7 @@ export default function EventPhotoBoothLanding({
                       key={prompt.id}
                       onClick={readOnly ? undefined : () => setSelectedBrand(prompt.id)}
                       disabled={readOnly}
-                      className={`relative w-full aspect-square rounded-2xl font-semibold transition-all duration-200 overflow-hidden flex items-center justify-center shadow-lg shadow-black/30 ${
+                      className={`relative w-full ${wide ? "aspect-[16/9]" : "aspect-square"} rounded-2xl font-semibold transition-all duration-200 overflow-hidden flex items-center justify-center shadow-lg shadow-black/30 ${
                         readOnly ? "cursor-default" : ""
                       } ${
                         isSelected
@@ -204,12 +240,17 @@ export default function EventPhotoBoothLanding({
                         </div>
                       )}
 
-                      {/* Imagen */}
+                      {/* Imagen — en `wide` se estira (object-fill) en vez de
+                          recortar (object-cover): la mayoría de estas fotos
+                          son verticales, y recortarlas dentro de la tarjeta
+                          16:9 dejaba ver solo una tira angosta del centro;
+                          estirarlas muestra la imagen completa, aunque se
+                          deforme un poco - mismo criterio que /display. */}
                       {imgSrc && !hasError && (
                         <img
                           src={imgSrc}
                           alt={prompt.brand || "Opción"}
-                          className={`w-full h-full object-cover transition-opacity duration-300 ${
+                          className={`w-full h-full transition-opacity duration-300 ${wide ? "object-fill" : "object-cover"} ${
                             isLoading ? "opacity-0" : "opacity-100"
                           }`}
                           onLoad={() => handleImageLoad(prompt.id)}
@@ -231,8 +272,8 @@ export default function EventPhotoBoothLanding({
                       )}
 
                       {/* Scrim inferior + nombre de la marca - siempre visible */}
-                      <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/75 via-black/25 to-transparent pt-8 pb-2 sm:pb-3 px-2 sm:px-3">
-                        <span className="block text-white text-sm sm:text-base md:text-lg font-bold leading-tight drop-shadow-lg">
+                      <div className={`absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/75 via-black/25 to-transparent px-2 sm:px-3 ${wide ? "pt-10 pb-3 sm:pb-4" : "pt-8 pb-2 sm:pb-3"}`}>
+                        <span className={`block text-white font-bold leading-tight drop-shadow-lg ${wide ? "text-2xl md:text-3xl" : "text-sm sm:text-base md:text-lg"}`}>
                           {displayName}
                         </span>
                       </div>
@@ -300,9 +341,14 @@ export default function EventPhotoBoothLanding({
             colorFrom={event.splashButtonColorFrom}
             colorTo={event.splashButtonColorTo}
             clickEffect={event.buttonClickEffect}
-            width="80%"
-            height="clamp(52px, 8.5vh, 84px)"
-            textClassName="text-lg sm:text-xl md:text-2xl"
+            width={wide ? "55%" : "80%"}
+            height={wide ? "clamp(84px, 12vh, 150px)" : "clamp(52px, 8.5vh, 84px)"}
+            textClassName={wide ? undefined : "text-lg sm:text-xl md:text-2xl"}
+            textStyle={
+              wide
+                ? { fontSize: "clamp(2.6rem, 4.4vw, 4.6rem)", letterSpacing: "0.04em" }
+                : undefined
+            }
           />
         </div>
       </div>
