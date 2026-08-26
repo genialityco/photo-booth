@@ -1,21 +1,32 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import MediaTapScreen from "@/app/components/common/MediaTapScreen";
+import { EventProfile } from "@/app/services/photo-booth/eventService";
+import ScreenSaverSlideshow from "@/app/components/common/ScreenSaverSlideshow";
 
-type ScreenSaverProps = {
-  splashImage?: string;
-  /** Video en loop; si está presente, tiene prioridad sobre splashImage. */
-  videoUrl?: string;
-  inactivityTimeout?: number; // en milisegundos
-};
+/**
+ * Shell del salvapantallas: detecta inactividad y muestra el overlay a
+ * pantalla completa (con animación de entrada/salida) cuando corresponde. El
+ * contenido en sí (loop de media → splash → galería → filtros) lo arma
+ * ScreenSaverSlideshow — ver ese componente para el detalle de cada slide.
+ */
+export default function ScreenSaver({ event }: { event: EventProfile }) {
+  const timeoutMs = (event.screenSaverInactivityTimeoutSec ?? 150) * 1000;
 
-export default function ScreenSaver({
-  splashImage,
-  videoUrl,
-  inactivityTimeout = 15000, // 15 segundos por defecto
-}: ScreenSaverProps) {
-  const media = videoUrl || splashImage;
+  // Candidatos sincrónicos, derivados solo de `event` — alcanza para decidir
+  // si vale la pena activar el overlay. La elegibilidad real de la galería
+  // (que depende de una suscripción en vivo a Firestore) se resuelve dentro
+  // de ScreenSaverSlideshow; acá su toggle solo cuenta como candidato
+  // optimista, sin esperar a saber si ya hay fotos.
+  const hasMedia =
+    !!(event.screenSaverVideoUrl || event.splashImage) &&
+    event.screenSaverMediaSlideEnabled !== false;
+  const hasSplash = event.screenSaverSplashSlideEnabled !== false;
+  const hasGalleryCandidate = event.screenSaverGallerySlideEnabled !== false;
+  const hasFilters =
+    (event.prompts?.length ?? 0) >= 2 && event.screenSaverFiltersSlideEnabled !== false;
+  const hasAnySlideCandidate = hasMedia || hasSplash || hasGalleryCandidate || hasFilters;
+
   const [isActive, setIsActive] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 
@@ -32,17 +43,10 @@ export default function ScreenSaver({
   }, [isActive, isExiting]);
 
   useEffect(() => {
-    if (!media) return;
+    if (!hasAnySlideCandidate) return;
 
     // Eventos que indican actividad del usuario
-    const events = [
-      "mousedown",
-      "mousemove",
-      "keypress",
-      "scroll",
-      "touchstart",
-      "click",
-    ];
+    const domEvents = ["mousedown", "mousemove", "keypress", "scroll", "touchstart", "click"];
 
     let timeoutId: NodeJS.Timeout;
 
@@ -54,30 +58,30 @@ export default function ScreenSaver({
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
           setIsActive(true);
-        }, inactivityTimeout);
+        }, timeoutMs);
       }
     };
 
     // Agregar listeners
-    events.forEach((event) => {
-      window.addEventListener(event, handleUserActivity);
+    domEvents.forEach((domEvent) => {
+      window.addEventListener(domEvent, handleUserActivity);
     });
 
     // Iniciar el timer inicial
     timeoutId = setTimeout(() => {
       setIsActive(true);
-    }, inactivityTimeout);
+    }, timeoutMs);
 
     // Cleanup
     return () => {
       clearTimeout(timeoutId);
-      events.forEach((event) => {
-        window.removeEventListener(event, handleUserActivity);
+      domEvents.forEach((domEvent) => {
+        window.removeEventListener(domEvent, handleUserActivity);
       });
     };
-  }, [media, inactivityTimeout, isActive, handleActivity]);
+  }, [hasAnySlideCandidate, timeoutMs, isActive, handleActivity]);
 
-  if (!media || !isActive) return null;
+  if (!hasAnySlideCandidate || !isActive) return null;
 
   return (
     <div
@@ -85,7 +89,7 @@ export default function ScreenSaver({
         isExiting ? "translate-x-full" : "translate-x-0"
       }`}
     >
-      <MediaTapScreen imageUrl={splashImage} videoUrl={videoUrl} onTap={handleActivity} />
+      <ScreenSaverSlideshow event={event} onExit={handleActivity} />
     </div>
   );
 }

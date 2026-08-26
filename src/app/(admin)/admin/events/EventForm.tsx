@@ -223,6 +223,13 @@ export default function EventForm({
     loadingMediaUrl: event?.loadingMediaUrl || "",
     splashImage: event?.splashImage || "",
     screenSaverVideoUrl: event?.screenSaverVideoUrl || "",
+    screenSaverInactivityTimeoutSec: event?.screenSaverInactivityTimeoutSec,
+    screenSaverSlideDurationSec: event?.screenSaverSlideDurationSec,
+    screenSaverGalleryPhotoIntervalSec: event?.screenSaverGalleryPhotoIntervalSec,
+    screenSaverMediaSlideEnabled: event?.screenSaverMediaSlideEnabled !== false,
+    screenSaverSplashSlideEnabled: event?.screenSaverSplashSlideEnabled !== false,
+    screenSaverGallerySlideEnabled: event?.screenSaverGallerySlideEnabled !== false,
+    screenSaverFiltersSlideEnabled: event?.screenSaverFiltersSlideEnabled !== false,
     loadingMessage: event?.loadingMessage || "Generando imagen",
     loadingSubtitle: event?.loadingSubtitle || "",
     loadingTitleColor: event?.loadingTitleColor || "#ef4444",
@@ -1193,6 +1200,110 @@ export default function EventForm({
             Si se sube un video, tiene prioridad sobre la imagen/gif de arriba y se reproduce en loop en la pantalla
             de inactividad. No afecta la splash inicial.
           </p>
+
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Tiempo de Inactividad antes del Salvapantallas (segundos)
+            </label>
+            <input
+              type="number"
+              min={5}
+              max={3600}
+              value={formData.screenSaverInactivityTimeoutSec ?? ""}
+              onChange={(e) =>
+                setField(
+                  "screenSaverInactivityTimeoutSec",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+              placeholder="150 (por defecto)"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Cuánto tiempo sin actividad en pantalla antes de mostrar el salvapantallas. Vacío = 150 segundos (2.5 min).
+            </p>
+          </div>
+
+          <p className="text-xs sm:text-sm font-medium text-gray-700 -mb-2">
+            El salvapantallas rota en loop entre estas pantallas (cada una se incluye sola si hay contenido, salvo
+            que la apagues acá abajo):
+          </p>
+
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Duración de cada Pantalla del Loop (segundos)
+            </label>
+            <input
+              type="number"
+              min={3}
+              max={120}
+              value={formData.screenSaverSlideDurationSec ?? ""}
+              onChange={(e) =>
+                setField(
+                  "screenSaverSlideDurationSec",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+              placeholder="10 (por defecto)"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Intervalo de Fotos en la Galería (segundos)
+            </label>
+            <input
+              type="number"
+              min={2}
+              max={30}
+              value={formData.screenSaverGalleryPhotoIntervalSec ?? ""}
+              onChange={(e) =>
+                setField(
+                  "screenSaverGalleryPhotoIntervalSec",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+              placeholder="4 (por defecto)"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Cada cuánto cambia de foto la pantalla de galería (fotos ya generadas en el evento), dentro de su turno
+              del loop.
+            </p>
+          </div>
+
+          <ToggleField
+            id="screenSaverMediaSlideEnabled"
+            label="Incluir Video/Imagen de Inactividad en el Loop"
+            description="Se omite automáticamente si no hay video ni imagen configurados arriba."
+            checked={formData.screenSaverMediaSlideEnabled !== false}
+            onChange={(checked) => setField("screenSaverMediaSlideEnabled", checked)}
+          />
+
+          <ToggleField
+            id="screenSaverSplashSlideEnabled"
+            label="Incluir Pantalla de Inicio (splash) en el Loop"
+            description="Muestra una vista previa (no interactiva) de la pantalla de inicio del evento."
+            checked={formData.screenSaverSplashSlideEnabled !== false}
+            onChange={(checked) => setField("screenSaverSplashSlideEnabled", checked)}
+          />
+
+          <ToggleField
+            id="screenSaverGallerySlideEnabled"
+            label="Incluir Galería de Fotos Generadas en el Loop"
+            description="Se omite automáticamente si el evento todavía no tiene fotos generadas."
+            checked={formData.screenSaverGallerySlideEnabled !== false}
+            onChange={(checked) => setField("screenSaverGallerySlideEnabled", checked)}
+          />
+
+          <ToggleField
+            id="screenSaverFiltersSlideEnabled"
+            label="Incluir Presentación de Marcas/Filtros en el Loop"
+            description="Se omite automáticamente si el evento tiene menos de 2 marcas configuradas."
+            checked={formData.screenSaverFiltersSlideEnabled !== false}
+            onChange={(checked) => setField("screenSaverFiltersSlideEnabled", checked)}
+          />
 
           <SelectField
             label="Animación de Fondo"

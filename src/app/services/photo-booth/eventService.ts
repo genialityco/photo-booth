@@ -163,6 +163,31 @@ export type EventProfile = {
    */
   screenSaverVideoUrl?: string;
   /**
+   * Segundos de inactividad antes de mostrar el ScreenSaver. Sin este campo,
+   * se mantienen los 150s (2.5min) originales.
+   */
+  screenSaverInactivityTimeoutSec?: number;
+  /**
+   * Segundos que dura cada pantalla del loop del ScreenSaver (media → splash
+   * → galería → filtros) antes de pasar a la siguiente. Default: 10.
+   */
+  screenSaverSlideDurationSec?: number;
+  /**
+   * Cadencia (segundos) del crossfade interno de la pantalla de galería del
+   * ScreenSaver, entre una foto generada y la siguiente. Default: 4.
+   */
+  screenSaverGalleryPhotoIntervalSec?: number;
+  /**
+   * Interruptores por tipo de pantalla del loop del ScreenSaver — cada una se
+   * incluye automáticamente si hay contenido disponible (ver ScreenSaverSlideshow),
+   * pero puede forzarse apagada acá aunque haya contenido. Por compatibilidad,
+   * sin estos campos las 4 quedan activas (comportamiento por defecto).
+   */
+  screenSaverMediaSlideEnabled?: boolean;
+  screenSaverSplashSlideEnabled?: boolean;
+  screenSaverGallerySlideEnabled?: boolean;
+  screenSaverFiltersSlideEnabled?: boolean;
+  /**
    * Contenido configurable de la pantalla de splash inicial (independiente
    * de `splashImage`/`screenSaverVideoUrl`, que son solo del ScreenSaver).
    * El fondo y el logo superior de esta pantalla reutilizan `bgImage` y
@@ -399,6 +424,10 @@ export async function createEventProfile(
       imageCustomizationEnabled: data.imageCustomizationEnabled === true,
       backgroundAnimation: data.backgroundAnimation || "NONE",
       mirrorScreenEnabled: data.mirrorScreenEnabled !== false,
+      screenSaverMediaSlideEnabled: data.screenSaverMediaSlideEnabled !== false,
+      screenSaverSplashSlideEnabled: data.screenSaverSplashSlideEnabled !== false,
+      screenSaverGallerySlideEnabled: data.screenSaverGallerySlideEnabled !== false,
+      screenSaverFiltersSlideEnabled: data.screenSaverFiltersSlideEnabled !== false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -501,6 +530,18 @@ export async function createEventProfile(
 
     if (data.paintTimeSeconds !== undefined) {
       docData.paintTimeSeconds = data.paintTimeSeconds;
+    }
+
+    if (data.screenSaverInactivityTimeoutSec !== undefined) {
+      docData.screenSaverInactivityTimeoutSec = data.screenSaverInactivityTimeoutSec;
+    }
+
+    if (data.screenSaverSlideDurationSec !== undefined) {
+      docData.screenSaverSlideDurationSec = data.screenSaverSlideDurationSec;
+    }
+
+    if (data.screenSaverGalleryPhotoIntervalSec !== undefined) {
+      docData.screenSaverGalleryPhotoIntervalSec = data.screenSaverGalleryPhotoIntervalSec;
     }
 
     if (data.photoAspectRatio !== undefined) {
@@ -651,6 +692,13 @@ export async function updateEventProfile(
     if (data.logoTopScalePct !== undefined) docData.logoTopScalePct = data.logoTopScalePct;
     if (data.logoBottomScalePct !== undefined) docData.logoBottomScalePct = data.logoBottomScalePct;
     if (data.mirrorScreenEnabled !== undefined) docData.mirrorScreenEnabled = data.mirrorScreenEnabled;
+    if (data.screenSaverInactivityTimeoutSec !== undefined) docData.screenSaverInactivityTimeoutSec = data.screenSaverInactivityTimeoutSec;
+    if (data.screenSaverSlideDurationSec !== undefined) docData.screenSaverSlideDurationSec = data.screenSaverSlideDurationSec;
+    if (data.screenSaverGalleryPhotoIntervalSec !== undefined) docData.screenSaverGalleryPhotoIntervalSec = data.screenSaverGalleryPhotoIntervalSec;
+    if (data.screenSaverMediaSlideEnabled !== undefined) docData.screenSaverMediaSlideEnabled = data.screenSaverMediaSlideEnabled;
+    if (data.screenSaverSplashSlideEnabled !== undefined) docData.screenSaverSplashSlideEnabled = data.screenSaverSplashSlideEnabled;
+    if (data.screenSaverGallerySlideEnabled !== undefined) docData.screenSaverGallerySlideEnabled = data.screenSaverGallerySlideEnabled;
+    if (data.screenSaverFiltersSlideEnabled !== undefined) docData.screenSaverFiltersSlideEnabled = data.screenSaverFiltersSlideEnabled;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
     if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;
