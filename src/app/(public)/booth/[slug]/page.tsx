@@ -146,12 +146,9 @@ export default function EventBoothPage({
 
   return (
     <div className="antialiased h-full w-full relative overflow-hidden">
-      {/* ScreenSaver - se activa después de 15 segundos de inactividad */}
-      <ScreenSaver
-        splashImage={event.splashImage}
-        videoUrl={event.screenSaverVideoUrl}
-        inactivityTimeout={150000}
-      />
+      {/* ScreenSaver - loop de media/splash/galería/filtros tras inactividad
+          (tiempo configurable por evento, 150s por defecto) */}
+      <ScreenSaver event={event} />
 
       {/* Cursor por gestos de mano - activo en toda la app si el evento lo habilita */}
       <HandCursorOverlay enabled={event.handCursorEnabled === true} />

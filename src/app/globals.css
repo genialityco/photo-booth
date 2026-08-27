@@ -57,9 +57,35 @@
   font-display: swap;
 }
 
+/* Plus Jakarta Sans: fuente VARIABLE (un solo archivo cubre todo el eje de
+   peso), por eso `font-weight` declara el rango 200-800 en vez de un valor
+   suelto — así font-light/normal/semibold/bold/extrabold interpolan del mismo
+   archivo sin descargas extra ni pesos sintéticos. La cursiva vive en un
+   archivo aparte y entra sola cuando el texto es itálico.
+   Los archivos venían de Google Fonts como "PlusJakartaSans[wght].ttf". Se les
+   quitaron los corchetes al nombre: son caracteres reservados en una URL y,
+   aunque el server de desarrollo los sirve igual, es un punto de falla
+   innecesario en CDNs/proxies — y un @font-face que apunta a un 404 se ve
+   exactamente como "la fuente no carga". */
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/font/PlusJakartaSans-Variable.ttf") format("truetype");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/font/PlusJakartaSans-Italic-Variable.ttf") format("truetype");
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+}
+
 @theme {
   --font-azo: "Azo Sans", sans-serif;
   --font-selima: "Selima", cursive;
+  --font-jakarta: "Plus Jakarta Sans", sans-serif;
 }
 
 :root {

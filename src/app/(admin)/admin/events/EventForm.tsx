@@ -223,6 +223,13 @@ export default function EventForm({
     loadingMediaUrl: event?.loadingMediaUrl || "",
     splashImage: event?.splashImage || "",
     screenSaverVideoUrl: event?.screenSaverVideoUrl || "",
+    screenSaverInactivityTimeoutSec: event?.screenSaverInactivityTimeoutSec,
+    screenSaverSlideDurationSec: event?.screenSaverSlideDurationSec,
+    screenSaverGalleryPhotoIntervalSec: event?.screenSaverGalleryPhotoIntervalSec,
+    screenSaverMediaSlideEnabled: event?.screenSaverMediaSlideEnabled !== false,
+    screenSaverSplashSlideEnabled: event?.screenSaverSplashSlideEnabled !== false,
+    screenSaverGallerySlideEnabled: event?.screenSaverGallerySlideEnabled !== false,
+    screenSaverFiltersSlideEnabled: event?.screenSaverFiltersSlideEnabled !== false,
     loadingMessage: event?.loadingMessage || "Generando imagen",
     loadingSubtitle: event?.loadingSubtitle || "",
     loadingTitleColor: event?.loadingTitleColor || "#ef4444",
@@ -248,10 +255,17 @@ export default function EventForm({
     splashTitle: event?.splashTitle || "",
     splashTitleColor: event?.splashTitleColor || "#E4032E",
     splashTitleMode: event?.splashTitleMode || "TEXT",
+    // `=== true` acá y `!== false` en el subtítulo: ver la nota en
+    // EventProfile.splashTitleUppercase — el punto de partida de cada texto es
+    // distinto, así que el default que "no cambia nada" también lo es.
+    splashTitleUppercase: event?.splashTitleUppercase === true,
     splashTitleSkewDeg: event?.splashTitleSkewDeg ?? -9,
     splashTitleImage: event?.splashTitleImage || "",
     splashSubtitle: event?.splashSubtitle || "",
     splashSubtitleColor: event?.splashSubtitleColor || "#2B2118",
+    // `!== false`, no `=== true`: sin el campo (eventos ya creados) el toggle
+    // arranca activo, que es como se venían viendo.
+    splashSubtitleUppercase: event?.splashSubtitleUppercase !== false,
     splashCardImage: event?.splashCardImage || "",
     splashWord1: event?.splashWord1 || "",
     splashWord1Color: event?.splashWord1Color || "#1FB6C4",
@@ -819,6 +833,15 @@ export default function EventForm({
                     ))}
                   </SelectField>
                 </div>
+                <div className="mt-2">
+                  <ToggleField
+                    id="splashTitleUppercase"
+                    label="Título en mayúsculas"
+                    description="Desactivado (por defecto) el título sale literal, tal cual lo escribiste. Actívalo para forzarlo TODO EN MAYÚSCULAS. No aplica si el título es una imagen."
+                    checked={formData.splashTitleUppercase === true}
+                    onChange={(checked) => setField("splashTitleUppercase", checked)}
+                  />
+                </div>
                 <div className="flex items-center gap-3 mt-2">
                   <label htmlFor="splashTitleSkewDeg" className="text-sm text-gray-700">
                     Inclinación del título
@@ -874,6 +897,15 @@ export default function EventForm({
                     </option>
                   ))}
                 </SelectField>
+              </div>
+              <div className="mt-2">
+                <ToggleField
+                  id="splashSubtitleUppercase"
+                  label="Subtítulo en mayúsculas"
+                  description="Activado (por defecto) muestra el subtítulo TODO EN MAYÚSCULAS, sin importar cómo se haya escrito. Desactivalo para que salga literal, tal cual lo escribiste acá arriba."
+                  checked={formData.splashSubtitleUppercase !== false}
+                  onChange={(checked) => setField("splashSubtitleUppercase", checked)}
+                />
               </div>
             </div>
 
@@ -1039,9 +1071,11 @@ export default function EventForm({
                   titleText: formData.splashTitle || "TU ROSTRO,\nTU ARTE",
                   titleColor: formData.splashTitleColor || "#E4032E",
                   titleFontCss: resolveSplashFont(formData.splashTitleFont, "title"),
+                  titleUppercase: formData.splashTitleUppercase === true,
                   subtitleText: formData.splashSubtitle || "Conviértete en una obra de arte",
                   subtitleColor: formData.splashSubtitleColor || "#2B2118",
                   subtitleFontCss: resolveSplashFont(formData.splashSubtitleFont, "subtitle"),
+                  subtitleUppercase: formData.splashSubtitleUppercase !== false,
                   word1Text: formData.splashWord1 || "ARTE",
                   word1Color: formData.splashWord1Color || "#1FB6C4",
                   word2Text: formData.splashWord2 || "COLOR",
@@ -1225,6 +1259,110 @@ export default function EventForm({
             Si se sube un video, tiene prioridad sobre la imagen/gif de arriba y se reproduce en loop en la pantalla
             de inactividad. No afecta la splash inicial.
           </p>
+
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Tiempo de Inactividad antes del Salvapantallas (segundos)
+            </label>
+            <input
+              type="number"
+              min={5}
+              max={3600}
+              value={formData.screenSaverInactivityTimeoutSec ?? ""}
+              onChange={(e) =>
+                setField(
+                  "screenSaverInactivityTimeoutSec",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+              placeholder="150 (por defecto)"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Cuánto tiempo sin actividad en pantalla antes de mostrar el salvapantallas. Vacío = 150 segundos (2.5 min).
+            </p>
+          </div>
+
+          <p className="text-xs sm:text-sm font-medium text-gray-700 -mb-2">
+            El salvapantallas rota en loop entre estas pantallas (cada una se incluye sola si hay contenido, salvo
+            que la apagues acá abajo):
+          </p>
+
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Duración de cada Pantalla del Loop (segundos)
+            </label>
+            <input
+              type="number"
+              min={3}
+              max={120}
+              value={formData.screenSaverSlideDurationSec ?? ""}
+              onChange={(e) =>
+                setField(
+                  "screenSaverSlideDurationSec",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+              placeholder="10 (por defecto)"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+              Intervalo de Fotos en la Galería (segundos)
+            </label>
+            <input
+              type="number"
+              min={2}
+              max={30}
+              value={formData.screenSaverGalleryPhotoIntervalSec ?? ""}
+              onChange={(e) =>
+                setField(
+                  "screenSaverGalleryPhotoIntervalSec",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+              placeholder="4 (por defecto)"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Cada cuánto cambia de foto la pantalla de galería (fotos ya generadas en el evento), dentro de su turno
+              del loop.
+            </p>
+          </div>
+
+          <ToggleField
+            id="screenSaverMediaSlideEnabled"
+            label="Incluir Video/Imagen de Inactividad en el Loop"
+            description="Se omite automáticamente si no hay video ni imagen configurados arriba."
+            checked={formData.screenSaverMediaSlideEnabled !== false}
+            onChange={(checked) => setField("screenSaverMediaSlideEnabled", checked)}
+          />
+
+          <ToggleField
+            id="screenSaverSplashSlideEnabled"
+            label="Incluir Pantalla de Inicio (splash) en el Loop"
+            description="Muestra una vista previa (no interactiva) de la pantalla de inicio del evento."
+            checked={formData.screenSaverSplashSlideEnabled !== false}
+            onChange={(checked) => setField("screenSaverSplashSlideEnabled", checked)}
+          />
+
+          <ToggleField
+            id="screenSaverGallerySlideEnabled"
+            label="Incluir Galería de Fotos Generadas en el Loop"
+            description="Se omite automáticamente si el evento todavía no tiene fotos generadas."
+            checked={formData.screenSaverGallerySlideEnabled !== false}
+            onChange={(checked) => setField("screenSaverGallerySlideEnabled", checked)}
+          />
+
+          <ToggleField
+            id="screenSaverFiltersSlideEnabled"
+            label="Incluir Presentación de Marcas/Filtros en el Loop"
+            description="Se omite automáticamente si el evento tiene menos de 2 marcas configuradas."
+            checked={formData.screenSaverFiltersSlideEnabled !== false}
+            onChange={(checked) => setField("screenSaverFiltersSlideEnabled", checked)}
+          />
 
           <SelectField
             label="Animación de Fondo"

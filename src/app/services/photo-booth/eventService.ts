@@ -163,6 +163,31 @@ export type EventProfile = {
    */
   screenSaverVideoUrl?: string;
   /**
+   * Segundos de inactividad antes de mostrar el ScreenSaver. Sin este campo,
+   * se mantienen los 150s (2.5min) originales.
+   */
+  screenSaverInactivityTimeoutSec?: number;
+  /**
+   * Segundos que dura cada pantalla del loop del ScreenSaver (media → splash
+   * → galería → filtros) antes de pasar a la siguiente. Default: 10.
+   */
+  screenSaverSlideDurationSec?: number;
+  /**
+   * Cadencia (segundos) del crossfade interno de la pantalla de galería del
+   * ScreenSaver, entre una foto generada y la siguiente. Default: 4.
+   */
+  screenSaverGalleryPhotoIntervalSec?: number;
+  /**
+   * Interruptores por tipo de pantalla del loop del ScreenSaver — cada una se
+   * incluye automáticamente si hay contenido disponible (ver ScreenSaverSlideshow),
+   * pero puede forzarse apagada acá aunque haya contenido. Por compatibilidad,
+   * sin estos campos las 4 quedan activas (comportamiento por defecto).
+   */
+  screenSaverMediaSlideEnabled?: boolean;
+  screenSaverSplashSlideEnabled?: boolean;
+  screenSaverGallerySlideEnabled?: boolean;
+  screenSaverFiltersSlideEnabled?: boolean;
+  /**
    * Contenido configurable de la pantalla de splash inicial (independiente
    * de `splashImage`/`screenSaverVideoUrl`, que son solo del ScreenSaver).
    * El fondo y el logo superior de esta pantalla reutilizan `bgImage` y
@@ -204,8 +229,27 @@ export type EventProfile = {
    * mantienen -9 (comportamiento original).
    */
   splashTitleSkewDeg?: number;
+  /**
+   * Mostrar el título de la splash en mayúsculas. Ojo con la asimetría
+   * respecto de `splashSubtitleUppercase`: el título NUNCA estuvo forzado a
+   * mayúsculas, se mostraba tal cual se escribía. Por eso acá el default es
+   * `false` y se lee como `=== true` — si arrancara activo, un título
+   * deliberadamente en minúsculas (ej. "Desaparece sin dejar huella") pasaría
+   * a gritar en mayúsculas solo por agregar el campo. En los dos casos la
+   * regla de fondo es la misma: no cambiarle el look a un evento ya creado.
+   * Solo aplica al título de TEXTO, no al modo imagen (`splashTitleMode`).
+   */
+  splashTitleUppercase?: boolean;
   splashSubtitle?: string;
   splashSubtitleColor?: string;
+  /**
+   * Mostrar el subtítulo de la splash en mayúsculas. El subtítulo iba forzado
+   * a mayúsculas por código, así que el default es `true` para no cambiarle el
+   * look a los eventos que ya existen: solo un `false` explícito lo respeta
+   * literal, tal cual se escribió en el admin. Se lee siempre como
+   * `!== false`, nunca como `=== true`.
+   */
+  splashSubtitleUppercase?: boolean;
   /** Imagen de la tarjeta central (mascota/logo secundario); sin ella, la tarjeta no se muestra. */
   splashCardImage?: string;
   splashWord1?: string;
@@ -416,6 +460,10 @@ export async function createEventProfile(
       imageCustomizationEnabled: data.imageCustomizationEnabled === true,
       backgroundAnimation: data.backgroundAnimation || "NONE",
       mirrorScreenEnabled: data.mirrorScreenEnabled !== false,
+      screenSaverMediaSlideEnabled: data.screenSaverMediaSlideEnabled !== false,
+      screenSaverSplashSlideEnabled: data.screenSaverSplashSlideEnabled !== false,
+      screenSaverGallerySlideEnabled: data.screenSaverGallerySlideEnabled !== false,
+      screenSaverFiltersSlideEnabled: data.screenSaverFiltersSlideEnabled !== false,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -497,8 +545,10 @@ export async function createEventProfile(
     }
     if (data.splashFreeLayoutEnabled !== undefined) docData.splashFreeLayoutEnabled = data.splashFreeLayoutEnabled;
     if (data.splashLayout !== undefined) docData.splashLayout = data.splashLayout;
+    if (data.splashTitleUppercase !== undefined) docData.splashTitleUppercase = data.splashTitleUppercase;
     if (data.splashSubtitle !== undefined) docData.splashSubtitle = data.splashSubtitle;
     if (data.splashSubtitleColor !== undefined) docData.splashSubtitleColor = data.splashSubtitleColor;
+    if (data.splashSubtitleUppercase !== undefined) docData.splashSubtitleUppercase = data.splashSubtitleUppercase;
     if (data.splashWord1 !== undefined) docData.splashWord1 = data.splashWord1;
     if (data.splashWord1Color !== undefined) docData.splashWord1Color = data.splashWord1Color;
     if (data.splashWord2 !== undefined) docData.splashWord2 = data.splashWord2;
@@ -518,6 +568,18 @@ export async function createEventProfile(
 
     if (data.paintTimeSeconds !== undefined) {
       docData.paintTimeSeconds = data.paintTimeSeconds;
+    }
+
+    if (data.screenSaverInactivityTimeoutSec !== undefined) {
+      docData.screenSaverInactivityTimeoutSec = data.screenSaverInactivityTimeoutSec;
+    }
+
+    if (data.screenSaverSlideDurationSec !== undefined) {
+      docData.screenSaverSlideDurationSec = data.screenSaverSlideDurationSec;
+    }
+
+    if (data.screenSaverGalleryPhotoIntervalSec !== undefined) {
+      docData.screenSaverGalleryPhotoIntervalSec = data.screenSaverGalleryPhotoIntervalSec;
     }
 
     if (data.photoAspectRatio !== undefined) {
@@ -672,6 +734,13 @@ export async function updateEventProfile(
     if (data.logoTopScalePct !== undefined) docData.logoTopScalePct = data.logoTopScalePct;
     if (data.logoBottomScalePct !== undefined) docData.logoBottomScalePct = data.logoBottomScalePct;
     if (data.mirrorScreenEnabled !== undefined) docData.mirrorScreenEnabled = data.mirrorScreenEnabled;
+    if (data.screenSaverInactivityTimeoutSec !== undefined) docData.screenSaverInactivityTimeoutSec = data.screenSaverInactivityTimeoutSec;
+    if (data.screenSaverSlideDurationSec !== undefined) docData.screenSaverSlideDurationSec = data.screenSaverSlideDurationSec;
+    if (data.screenSaverGalleryPhotoIntervalSec !== undefined) docData.screenSaverGalleryPhotoIntervalSec = data.screenSaverGalleryPhotoIntervalSec;
+    if (data.screenSaverMediaSlideEnabled !== undefined) docData.screenSaverMediaSlideEnabled = data.screenSaverMediaSlideEnabled;
+    if (data.screenSaverSplashSlideEnabled !== undefined) docData.screenSaverSplashSlideEnabled = data.screenSaverSplashSlideEnabled;
+    if (data.screenSaverGallerySlideEnabled !== undefined) docData.screenSaverGallerySlideEnabled = data.screenSaverGallerySlideEnabled;
+    if (data.screenSaverFiltersSlideEnabled !== undefined) docData.screenSaverFiltersSlideEnabled = data.screenSaverFiltersSlideEnabled;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
     if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;
@@ -683,8 +752,10 @@ export async function updateEventProfile(
     }
     if (data.splashFreeLayoutEnabled !== undefined) docData.splashFreeLayoutEnabled = data.splashFreeLayoutEnabled;
     if (data.splashLayout !== undefined) docData.splashLayout = data.splashLayout;
+    if (data.splashTitleUppercase !== undefined) docData.splashTitleUppercase = data.splashTitleUppercase;
     if (data.splashSubtitle !== undefined) docData.splashSubtitle = data.splashSubtitle;
     if (data.splashSubtitleColor !== undefined) docData.splashSubtitleColor = data.splashSubtitleColor;
+    if (data.splashSubtitleUppercase !== undefined) docData.splashSubtitleUppercase = data.splashSubtitleUppercase;
     if (data.splashWord1 !== undefined) docData.splashWord1 = data.splashWord1;
     if (data.splashWord1Color !== undefined) docData.splashWord1Color = data.splashWord1Color;
     if (data.splashWord2 !== undefined) docData.splashWord2 = data.splashWord2;
