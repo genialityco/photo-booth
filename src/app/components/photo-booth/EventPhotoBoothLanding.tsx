@@ -8,6 +8,7 @@ import {
   type PhotoBoothPrompt,
 } from "@/app/services/photo-booth/brandService";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
+import TopLogosBar from "@/app/components/photo-booth/TopLogosBar";
 
 export default function EventPhotoBoothLanding({
   event,
@@ -153,40 +154,11 @@ export default function EventPhotoBoothLanding({
 
       <div className={`mx-auto flex h-full ${wide ? "max-w-[1850px]" : "max-w-[980px]"} flex-col items-center justify-center px-4 sm:px-6 md:px-8`}>
         {/* Logos: uno a cada lado (o centrado si solo hay uno), buen tamaño */}
-        <div
-          className={`
-    relative z-5 flex-shrink-0 w-full
-    flex items-center gap-4
-    ${event.logoTop && event.logoBottom ? "justify-between" : "justify-center"}
-    pt-[max(1.5rem,env(safe-area-inset-top))]
-    pb-2 sm:pb-3 md:pb-4
-  `}
-        >
-          {event.logoTop && (
-            <img
-              src={event.logoTop}
-              alt={event.name}
-              className={
-                wide
-                  ? "h-[clamp(4.5rem,14vh,8rem)] w-[24vw] object-fill select-none"
-                  : "h-[clamp(3rem,11vh,6rem)] max-w-[42vw] w-auto object-contain select-none"
-              }
-              draggable={false}
-            />
-          )}
-          {event.logoBottom && (
-            <img
-              src={event.logoBottom}
-              alt=""
-              className={
-                wide
-                  ? "h-[clamp(4.5rem,14vh,8rem)] w-[24vw] object-fill select-none"
-                  : "h-[clamp(3rem,11vh,6rem)] max-w-[42vw] w-auto object-contain select-none"
-              }
-              draggable={false}
-            />
-          )}
-        </div>
+        <TopLogosBar
+          event={event}
+          wide={wide}
+          className="pt-[max(1.5rem,env(safe-area-inset-top))] pb-2 sm:pb-3 md:pb-4"
+        />
 
         {/* Title */}
         {/* <h1 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl md:text-4xl font-black text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] tracking-wide uppercase bg-gradient-to-r from-white via-yellow-100 to-white bg-clip-text text-transparent animate-pulse">

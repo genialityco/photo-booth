@@ -12,6 +12,8 @@ import EventPhotoBoothLanding from "@/app/components/photo-booth/EventPhotoBooth
 import ImageCustomizeStep from "@/app/components/photo-booth/ImageCustomizeStep";
 import LoaderStep from "@/app/components/photo-booth/LoaderStep";
 import QrTag from "@/app/components/photo-booth/QrTag";
+import RevealStep from "@/app/components/photo-booth/RevealStep";
+import TopLogosBar from "@/app/components/photo-booth/TopLogosBar";
 import KinectRollerRevealStep from "@/app/components/photo-booth/reveal/KinectRollerRevealStep";
 import LiveSessionStatusBadge from "@/app/components/photo-booth/LiveSessionStatusBadge";
 
@@ -174,9 +176,10 @@ function MirrorStage({ event, children }: { event: EventProfile; children: React
 /** Espejo de ResultStep, pero a diferencia de esa pantalla en la tablet, acá
  * la foto se estira para llenar toda la pantalla gigante (mismo criterio que
  * /display, ver comentario en el "preview" de BoothMirror) en vez de
- * mantener su proporción real. Mismo QR (sello en la esquina / expandido),
- * dirigido por `showQr` transmitido por el líder en vez de un click propio:
- * acá es de solo lectura, refleja lo que el líder decide mostrar. */
+ * mantener su proporción real. El QR queda siempre como sello en la esquina
+ * (nunca expandido) — expandirlo solo tiene sentido para quien está frente
+ * al tablet escaneándolo con su celular, así que se ignora a propósito el
+ * `showQr` que transmite el líder en vez de reflejarlo acá. */
 function ResultView({
   event,
   taskId,
@@ -281,6 +284,13 @@ function ResultView({
         />
       )}
 
+      {/* Logos superiores, mismo layout que la pantalla de selección de
+          filtro (EventPhotoBoothLanding) — para que el resultado en la
+          pantalla espejo mantenga la misma identidad de marca arriba. */}
+      <div className="absolute top-0 inset-x-0 z-30 px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-2 sm:pb-3 md:pb-4">
+        <TopLogosBar event={event} wide />
+      </div>
+
       <BrandingOverlay event={event} />
 
       {surveyUrl && (
@@ -348,6 +358,62 @@ function KinectRevealView({
         aspectRatio={event.photoAspectRatio}
         showStatus={false}
         fillScreen
+        onRevealed={() => reportRevealDone(taskId)}
+      />
+      <BrandingOverlay event={event} />
+    </div>
+  );
+}
+
+/** Revelado con la mano REAL (MediaPipe) para revealEffect="HAND_WIPE" (el
+ * default) cuando hay pantalla espejo habilitada — el mismo PC que maneja
+ * esta pantalla gigante tiene una cámara propia (montada arriba, apuntando a
+ * las manos) para detectar el gesto, así que a diferencia de la tablet (que
+ * solo captura la foto) acá SÍ hay alguien revelándola de verdad. Igual que
+ * KinectRevealView, espera a que la imagen generada esté lista antes de
+ * montar el velo, y avisa al líder vía `reportRevealDone` cuando termina.
+ * Sin pantalla espejo (kiosco de un solo dispositivo), este componente nunca
+ * se monta — el tablet revela localmente, ver PhotoBoothWizard. */
+function HandRevealMirrorView({
+  event,
+  taskId,
+  reportRevealDone,
+  result,
+  error,
+}: {
+  event: EventProfile;
+  taskId: string | null;
+  reportRevealDone: (taskId: string) => void;
+  /** Ver mismo comentario en ResultView/KinectRevealView — recibido desde
+   * BoothMirror en vez de suscribirse acá. */
+  result: TaskResult | null;
+  error: string | null;
+}) {
+  const mediaSrc = result?.url;
+
+  if (!taskId || error) {
+    return (
+      <FullBleedMessage
+        event={event}
+        title="No se pudo cargar el resultado"
+        subtitle={error || "Falta el identificador de la tarea."}
+      />
+    );
+  }
+
+  if (!mediaSrc) return <LoaderStep wide />;
+
+  return (
+    <div className="fixed inset-0 bg-black">
+      <RevealStep
+        key={taskId}
+        aiUrl={mediaSrc}
+        videoUrl={result?.videoUrl}
+        frameSrc={event.frameImage ?? null}
+        enableFrame={event.enableFrame ?? true}
+        handTrackingEnabled={event.handRevealEnabled === true}
+        paintTimeSeconds={event.paintTimeSeconds}
+        aspectRatio={event.photoAspectRatio}
         onRevealed={() => reportRevealDone(taskId)}
       />
       <BrandingOverlay event={event} />
@@ -452,14 +518,18 @@ export default function BoothMirror({
       case "loading":
         return <LoaderStep brandIdOverride={state.brand} wide />;
 
-      case "reveal":
+      case "reveal": {
         // revealEffect="KINECT_ROLLER": la pantalla gigante ES el Kinect, así
         // que acá SÍ hay alguien tocándola de verdad — se revela con el
-        // rodillo real y se le avisa al líder cuando termina. Para cualquier
-        // otro revealEffect (mano/rodillo virtual con webcam), quien gesticula
-        // está frente a la tablet, no acá, así que solo se muestra un mensaje
-        // hasta que el líder reporte "result".
-        if (event.revealEffect === "KINECT_ROLLER") {
+        // rodillo real y se le avisa al líder cuando termina.
+        // revealEffect="HAND_WIPE" (default): el PC que maneja esta pantalla
+        // gigante tiene su propia cámara (MediaPipe) apuntando a las manos —
+        // mismo trato, la foto en negro se revela ACÁ, no en la tablet (que
+        // solo capturó la foto). Para ROLLER/ROLLER_COLOR, quien gesticula
+        // sigue estando frente a la tablet, así que ahí sí solo se muestra un
+        // mensaje hasta que el líder reporte "result".
+        const revealEffect = event.revealEffect ?? "HAND_WIPE";
+        if (revealEffect === "KINECT_ROLLER") {
           return (
             <KinectRevealView
               event={event}
@@ -470,14 +540,29 @@ export default function BoothMirror({
             />
           );
         }
+        if (revealEffect === "HAND_WIPE") {
+          return (
+            <HandRevealMirrorView
+              event={event}
+              taskId={state.taskId}
+              reportRevealDone={reportRevealDone}
+              result={taskResult}
+              error={taskError}
+            />
+          );
+        }
         return <FullBleedMessage event={event} title="Revelando foto…" />;
+      }
 
       case "result":
         return (
           <ResultView
             event={event}
             taskId={state.taskId}
-            showQr={state.showQr}
+            // El QR agrandado es solo para quien está frente al tablet
+            // (quiere escanearlo con su celular) — la pantalla espejo nunca
+            // lo expande, aunque el líder lo tenga expandido en su pantalla.
+            showQr={false}
             result={taskResult}
             error={taskError}
           />

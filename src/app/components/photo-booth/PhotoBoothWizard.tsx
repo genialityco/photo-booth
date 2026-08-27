@@ -110,17 +110,25 @@ export default function PhotoBoothWizard({
   const rawUploadRef = useRef<Promise<{ url: string; path: string }> | null>(null);
   const [style, setStyle] = useState<StyleProfile | null>(null);
 
-  // revealEffect="KINECT_ROLLER": el revelado ocurre en la pantalla gigante
-  // (BoothMirror + Kinect real), no acá — esta tab solo espera a que la
-  // pantalla espejo reporte terminado el revelado de ESTA foto (comparando
-  // taskId, no un booleano suelto, para no adelantarse con el de una ronda
-  // anterior) y recién ahí avanza a "result".
+  // revealEffect="KINECT_ROLLER" siempre, y revealEffect="HAND_WIPE" (default)
+  // cuando hay pantalla espejo habilitada: el revelado ocurre en la pantalla
+  // gigante (BoothMirror + cámara con MediaPipe apuntando a las manos, o
+  // Kinect real), no acá — esta tab solo espera a que la pantalla espejo
+  // reporte terminado el revelado de ESTA foto (comparando taskId, no un
+  // booleano suelto, para no adelantarse con el de una ronda anterior) y
+  // recién ahí avanza a "result". Sin pantalla espejo (kiosco de un solo
+  // dispositivo), HAND_WIPE se revela acá mismo con la cámara/dedo del tablet
+  // — ver la rama del render más abajo.
+  const revealedByMirror =
+    eventData?.revealEffect === "KINECT_ROLLER" ||
+    ((eventData?.revealEffect ?? "HAND_WIPE") === "HAND_WIPE" && eventData?.mirrorScreenEnabled !== false);
+
   useEffect(() => {
     if (step !== "reveal") return;
-    if (eventData?.revealEffect !== "KINECT_ROLLER") return;
+    if (!revealedByMirror) return;
     if (!taskId || !remoteRevealedTaskId) return;
     if (remoteRevealedTaskId === taskId) setStep("result");
-  }, [step, eventData?.revealEffect, taskId, remoteRevealedTaskId]);
+  }, [step, revealedByMirror, taskId, remoteRevealedTaskId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -825,6 +833,25 @@ export default function PhotoBoothWizard({
                         no llega a reportar "listo" (falla de red, backend
                         caído, etc.), el operador puede tocar acá para forzar
                         el avance a "result" sin esperar a remoteRevealedTaskId. */}
+                    <button
+                      type="button"
+                      onClick={() => setStep("result")}
+                      aria-label="Revelar manualmente"
+                      className="absolute bottom-0 right-0 w-20 h-20 opacity-0"
+                    />
+                  </>
+                ) : (eventData?.revealEffect ?? "HAND_WIPE") === "HAND_WIPE" && eventData?.mirrorScreenEnabled !== false ? (
+                  <>
+                    <div className="flex flex-col items-center justify-center gap-4 text-center px-6">
+                      <p className="text-white text-xl sm:text-2xl font-semibold drop-shadow-sm">
+                        Revelando tu foto en la pantalla grande…
+                      </p>
+                      <p className="text-white/70 text-base max-w-sm">
+                        Mueve tu mano frente a la cámara de la pantalla grande para descubrirla ahí. Cuando termines, esta pantalla continúa sola.
+                      </p>
+                    </div>
+                    {/* Mismo rescate invisible que KINECT_ROLLER (ver arriba),
+                        por si la pantalla espejo nunca reporta revealedTaskId. */}
                     <button
                       type="button"
                       onClick={() => setStep("result")}

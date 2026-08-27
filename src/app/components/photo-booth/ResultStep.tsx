@@ -10,12 +10,6 @@ import QrTag from "@/app/components/photo-booth/QrTag";
 import { composeFramedCanvas, composeFramedImageDataUrl } from "@/app/components/photo-booth/composeFramedImage";
 import { getPixelDims } from "@/app/components/photo-booth/photoAspectRatio";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
-import { printPhoto } from "@/app/components/photo-booth/printPhoto";
-
-/** Papel postal real cargado en la Canon Selphy CP1500 — debe coincidir con
- * el `@page { size: ... }` de printPhoto.ts. Usado solo para componer el
- * canvas de impresión ya a esa proporción (ver handlePrint). */
-const PRINT_PAPER_MM = { w: 100, h: 148 };
 
 type Props = {
   taskId: string;
@@ -202,43 +196,6 @@ export default function ResultStep({
     }
   };
 
-  // === Imprimir (ej. Canon Selphy CP1500 configurada como impresora
-  // predeterminada del kiosco): abre una ventana con la foto compuesta y
-  // dispara el diálogo de impresión nativo del navegador — ver printPhoto.ts
-  // (compartido con (public)/print/page.tsx). No aplica a eventos con video. ===
-  const handlePrint = async () => {
-    if (videoUrl) return;
-    try {
-      // A diferencia de handleDownload/la vista previa (que componen a
-      // pixelDims, la proporción REAL de la foto: 3:4 o cuadrada), acá se
-      // compone directo a la proporción del papel postal de la Selphy
-      // CP1500 (100x148mm — debe coincidir con el `@page` de printPhoto.ts).
-      // Si se compone a pixelDims, printPhoto.ts igual la fuerza a esa
-      // proporción con `object-fit: cover` para llenar la página sin bordes
-      // — pero ese recorte le pasa por encima a TODO lo ya "quemado" en el
-      // canvas (logo, texto de branding, bordes del marco), cortando lo que
-      // haya cerca de los bordes sin que composeFramedCanvas sepa que va a
-      // pasar. Componiendo ya al aspecto del papel, ese segundo recorte no
-      // tiene nada más que hacer y el branding llega completo.
-      const printHeight = 1200;
-      const printWidth = Math.round((printHeight * PRINT_PAPER_MM.w) / PRINT_PAPER_MM.h);
-      const canvas = await composeFramedCanvas({
-        aiUrl,
-        frameSrc,
-        enableFrame,
-        brandingLogoSrc,
-        brandingFooterText,
-        width: printWidth,
-        height: printHeight,
-      });
-      const dataUrl = canvas.toDataURL("image/png");
-      printPhoto(dataUrl);
-    } catch (err) {
-      console.error("Error preparando la impresión:", err);
-      alert("No se pudo preparar la foto para imprimir. Inténtalo nuevamente.");
-    }
-  };
-
   return (
     <div
       className="w-full h-full flex flex-col items-center justify-center px-3 sm:px-4 overflow-hidden"
@@ -325,17 +282,6 @@ export default function ResultStep({
             className="flex-1 basis-0 min-w-0 max-w-[310px]"
             clickEffect={buttonClickEffect}
           />
-          {!videoUrl && (
-            <ButtonPrimary
-              onClick={handlePrint}
-              label="IMPRIMIR"
-              imageSrc={buttonImage || "/Colombia4.0/BOTON-COMENZAR.png"}
-              width="clamp(96px, 30vw, 310px)"
-              height="clamp(40px, 8vh, 60px)"
-              className="flex-1 basis-0 min-w-0 max-w-[310px]"
-              clickEffect={buttonClickEffect}
-            />
-          )}
         </div>
       </main>
     </div>
