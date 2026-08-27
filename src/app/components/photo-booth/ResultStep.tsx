@@ -212,58 +212,71 @@ export default function ResultStep({
           className="relative flex-1 min-h-0 w-full flex items-center justify-center"
         >
           <div
-            className="relative p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]"
+            className="relative"
             style={
               boxDims
                 ? { width: boxDims.width, height: boxDims.height }
                 : { maxWidth: "100%", maxHeight: "100%" }
             }
           >
-            <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/5">
-              {videoUrl ? (
-                <video
-                  src={videoUrl}
-                  className="absolute inset-0 w-full h-full object-contain"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                />
-              ) : (
-                // Loop de desintegración/rearmado mientras se muestra el
-                // resultado: la foto se arma desde el "suelo" (borde
-                // inferior), se mantiene nítida, se desintegra en píxeles
-                // que caen, se mantiene caída y vuelve a armarse — ver
-                // PixelateImage.
-                <PixelateImage
-                  src={framedImageUrl || aiUrl}
-                  alt="Imagen generada por IA"
-                  className="absolute inset-0 w-full h-full object-contain select-none"
-                  loop
-                  gridCols={26}
-                  reassembleMs={1000}
-                  holdSharpMs={2500}
-                  disintegrateMs={900}
-                  holdFallenMs={400}
-                />
-              )}
-
-              <button
-                type="button"
-                onClick={() => onShowQrChange(!showQr)}
-                aria-label={showQr ? "Volver a la foto" : "Mostrar código QR para descargar la foto"}
-                className={`absolute rounded-xl transition-all duration-300 ease-out ${
-                  showQr
-                    ? "inset-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
-                    : "bottom-2 right-2 sm:bottom-3 sm:right-3 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10 active:scale-95"
-                }`}
+            {/* El halo ya no es CSS: PixelateImage dibuja un marco emisivo
+                con bloom real (EffectComposer + UnrealBloomPass) adentro de
+                su propio canvas — ver ese componente. */}
+            <div className="relative z-10 w-full h-full">
+              <div
+                className="relative w-full h-full p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 rounded-2xl shadow-[0_10px_14px_-6px_rgba(0,0,0,0.45),0_35px_60px_-15px_rgba(0,0,0,0.6)]"
               >
-                <QrTag
-                  value={surveyAI}
-                  size={showQr ? qrSize : Math.max(48, Math.min(88, (boxDims?.width ?? 240) * 0.22))}
-                  label={showQr ? "Escanea para descargar tu foto en tu celular" : undefined}
-                />
-              </button>
+                <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/5">
+                  {videoUrl ? (
+                    <video
+                      src={videoUrl}
+                      className="absolute inset-0 w-full h-full object-contain"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    // Loop de explosión/rearmado en partículas mientras se
+                    // muestra el resultado: la foto se arma, se mantiene
+                    // nítida, se disuelve en una nube de puntos (todavía
+                    // quieta), recién ahí estalla (alejándose del centro,
+                    // varios saliendo hacia la cámara), se mantiene dispersa
+                    // y vuelve a armarse — ver PixelateImage. Respeta
+                    // prefers-reduced-motion por su cuenta (queda nítida y
+                    // quieta).
+                    <PixelateImage
+                      src={framedImageUrl || aiUrl}
+                      alt="Imagen generada por IA"
+                      className="absolute inset-0 w-full h-full object-contain select-none"
+                      loop
+                      gridCols={80}
+                      reassembleMs={1800}
+                      holdSharpMs={2500}
+                      dissolveMs={500}
+                      disintegrateMs={2800}
+                      holdFallenMs={700}
+                    />
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => onShowQrChange(!showQr)}
+                    aria-label={showQr ? "Volver a la foto" : "Mostrar código QR para descargar la foto"}
+                    className={`absolute rounded-xl transition-all duration-300 ease-out ${
+                      showQr
+                        ? "inset-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
+                        : "bottom-2 right-2 sm:bottom-3 sm:right-3 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10 active:scale-95"
+                    }`}
+                  >
+                    <QrTag
+                      value={surveyAI}
+                      size={showQr ? qrSize : Math.max(48, Math.min(88, (boxDims?.width ?? 240) * 0.22))}
+                      label={showQr ? "Escanea para descargar tu foto en tu celular" : undefined}
+                    />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
