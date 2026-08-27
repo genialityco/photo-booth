@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useMemo, useEffect, useState } from "react";
@@ -7,6 +6,7 @@ import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import QrTag from "@/app/components/photo-booth/QrTag";
+import PixelateImage from "@/app/components/photo-booth/PixelateImage";
 import { composeFramedCanvas, composeFramedImageDataUrl } from "@/app/components/photo-booth/composeFramedImage";
 import { getPixelDims } from "@/app/components/photo-booth/photoAspectRatio";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
@@ -230,11 +230,21 @@ export default function ResultStep({
                   playsInline
                 />
               ) : (
-                <img
+                // Loop de desintegración/rearmado mientras se muestra el
+                // resultado: la foto se arma desde el "suelo" (borde
+                // inferior), se mantiene nítida, se desintegra en píxeles
+                // que caen, se mantiene caída y vuelve a armarse — ver
+                // PixelateImage.
+                <PixelateImage
                   src={framedImageUrl || aiUrl}
                   alt="Imagen generada por IA"
                   className="absolute inset-0 w-full h-full object-contain select-none"
-                  draggable={false}
+                  loop
+                  gridCols={26}
+                  reassembleMs={1000}
+                  holdSharpMs={2500}
+                  disintegrateMs={900}
+                  holdFallenMs={400}
                 />
               )}
 
