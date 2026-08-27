@@ -147,8 +147,13 @@ export default function EventBoothPage({
   return (
     <div className="antialiased h-full w-full relative overflow-hidden">
       {/* ScreenSaver - loop de media/splash/galería/filtros tras inactividad
-          (tiempo configurable por evento, 150s por defecto) */}
-      <ScreenSaver event={event} />
+          (tiempo configurable por evento, 150s por defecto). `activityKey`
+          combina la fase de esta página con el paso interno del wizard
+          (transmittedState.phase, actualizado vía onLiveState) para que cada
+          cambio de paso — incluida la espera de generación/revelado, donde
+          el usuario no toca la pantalla — cuente como actividad y reinicie
+          el reloj de inactividad. */}
+      <ScreenSaver event={event} activityKey={`${phase}:${transmittedState.phase ?? ""}`} />
 
       {/* Cursor por gestos de mano - activo en toda la app si el evento lo habilita */}
       <HandCursorOverlay enabled={event.handCursorEnabled === true} />
