@@ -13,6 +13,7 @@ import ImageCustomizeStep from "@/app/components/photo-booth/ImageCustomizeStep"
 import LoaderStep from "@/app/components/photo-booth/LoaderStep";
 import QrTag from "@/app/components/photo-booth/QrTag";
 import RevealStep from "@/app/components/photo-booth/RevealStep";
+import TopLogosBar from "@/app/components/photo-booth/TopLogosBar";
 import KinectRollerRevealStep from "@/app/components/photo-booth/reveal/KinectRollerRevealStep";
 import LiveSessionStatusBadge from "@/app/components/photo-booth/LiveSessionStatusBadge";
 
@@ -175,9 +176,10 @@ function MirrorStage({ event, children }: { event: EventProfile; children: React
 /** Espejo de ResultStep, pero a diferencia de esa pantalla en la tablet, acá
  * la foto se estira para llenar toda la pantalla gigante (mismo criterio que
  * /display, ver comentario en el "preview" de BoothMirror) en vez de
- * mantener su proporción real. Mismo QR (sello en la esquina / expandido),
- * dirigido por `showQr` transmitido por el líder en vez de un click propio:
- * acá es de solo lectura, refleja lo que el líder decide mostrar. */
+ * mantener su proporción real. El QR queda siempre como sello en la esquina
+ * (nunca expandido) — expandirlo solo tiene sentido para quien está frente
+ * al tablet escaneándolo con su celular, así que se ignora a propósito el
+ * `showQr` que transmite el líder en vez de reflejarlo acá. */
 function ResultView({
   event,
   taskId,
@@ -281,6 +283,13 @@ function ResultView({
           className="absolute inset-0 w-full h-full object-fill"
         />
       )}
+
+      {/* Logos superiores, mismo layout que la pantalla de selección de
+          filtro (EventPhotoBoothLanding) — para que el resultado en la
+          pantalla espejo mantenga la misma identidad de marca arriba. */}
+      <div className="absolute top-0 inset-x-0 z-30 px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-2 sm:pb-3 md:pb-4">
+        <TopLogosBar event={event} wide />
+      </div>
 
       <BrandingOverlay event={event} />
 
@@ -550,7 +559,10 @@ export default function BoothMirror({
           <ResultView
             event={event}
             taskId={state.taskId}
-            showQr={state.showQr}
+            // El QR agrandado es solo para quien está frente al tablet
+            // (quiere escanearlo con su celular) — la pantalla espejo nunca
+            // lo expande, aunque el líder lo tenga expandido en su pantalla.
+            showQr={false}
             result={taskResult}
             error={taskError}
           />

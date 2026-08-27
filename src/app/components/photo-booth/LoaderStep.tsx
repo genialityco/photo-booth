@@ -6,6 +6,9 @@ import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
 import {
   LOADER_LOGO_HEIGHT,
+  LOADER_LOGO_WIDE_HEIGHT,
+  LOADER_LOGO_WIDE_WIDTH,
+  clampLogoScale,
   scaledLogoStyle,
 } from "@/app/components/photo-booth/logoBarSizing";
 
@@ -174,17 +177,26 @@ export default function LoaderStep({
             <img
               src={topLogo}
               alt=""
-              className="w-auto object-contain select-none"
+              className={`select-none ${wide ? "object-fill" : "w-auto object-contain"}`}
               /* Misma escala configurable que el header/footer del wizard, para
                  que el tamaño elegido en el admin no "salte" al entrar y salir
-                 de la pantalla de carga. El tope de viewport es más chico acá
-                 (46vw) porque los dos logos van lado a lado. */
-              style={scaledLogoStyle({
-                baseHeight: LOADER_LOGO_HEIGHT,
-                baseMaxWidth: "42vw",
-                scalePct: event?.logoTopScalePct,
-                viewportMaxWidth: "46vw",
-              })}
+                 de la pantalla de carga. En `wide` (pantalla gigante), ancho
+                 fijo + object-fill igual que TopLogosBar (pantalla de filtro)
+                 en vez de un tope de ancho con object-contain — si no, quedaba
+                 angosta en comparación. */
+              style={
+                wide
+                  ? {
+                      height: `calc(${LOADER_LOGO_WIDE_HEIGHT} * ${clampLogoScale(event?.logoTopScalePct) / 100})`,
+                      width: `calc(${LOADER_LOGO_WIDE_WIDTH} * ${clampLogoScale(event?.logoTopScalePct) / 100})`,
+                    }
+                  : scaledLogoStyle({
+                      baseHeight: LOADER_LOGO_HEIGHT,
+                      baseMaxWidth: "42vw",
+                      scalePct: event?.logoTopScalePct,
+                      viewportMaxWidth: "46vw",
+                    })
+              }
               draggable={false}
             />
           ) : null}
@@ -192,13 +204,20 @@ export default function LoaderStep({
             <img
               src={bottomLogo}
               alt=""
-              className="w-auto object-contain select-none"
-              style={scaledLogoStyle({
-                baseHeight: LOADER_LOGO_HEIGHT,
-                baseMaxWidth: "42vw",
-                scalePct: event?.logoBottomScalePct,
-                viewportMaxWidth: "46vw",
-              })}
+              className={`select-none ${wide ? "object-fill" : "w-auto object-contain"}`}
+              style={
+                wide
+                  ? {
+                      height: `calc(${LOADER_LOGO_WIDE_HEIGHT} * ${clampLogoScale(event?.logoBottomScalePct) / 100})`,
+                      width: `calc(${LOADER_LOGO_WIDE_WIDTH} * ${clampLogoScale(event?.logoBottomScalePct) / 100})`,
+                    }
+                  : scaledLogoStyle({
+                      baseHeight: LOADER_LOGO_HEIGHT,
+                      baseMaxWidth: "42vw",
+                      scalePct: event?.logoBottomScalePct,
+                      viewportMaxWidth: "46vw",
+                    })
+              }
               draggable={false}
             />
           ) : null}
@@ -215,7 +234,7 @@ export default function LoaderStep({
           className="relative"
           style={
             wide
-              ? { width: "clamp(180px, 26vmin, 320px)", height: "clamp(180px, 26vmin, 320px)" }
+              ? { width: "clamp(220px, 32vmin, 380px)", height: "clamp(220px, 32vmin, 380px)" }
               : { width: "clamp(125px, 16vmin, 185px)", height: "clamp(125px, 16vmin, 185px)" }
           }
         >

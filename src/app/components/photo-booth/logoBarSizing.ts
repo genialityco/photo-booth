@@ -29,6 +29,14 @@ export const LOGO_BAR_PADDING = "clamp(0.35rem, 1.6vh, 1.25rem)";
  * arriba y otro abajo. */
 export const LOADER_LOGO_HEIGHT = "clamp(2.9rem, 8vh, 4.6rem)";
 
+/** Alto/ancho de los logos de LoaderStep en modo `wide` (pantalla gigante) —
+ * mismo tratamiento "ancho" que TopLogosBar en modo wide (ancho fijo +
+ * object-fill, en vez de solo un tope de ancho con object-contain), para que
+ * la pantalla de carga se vea con la misma identidad que la de selección de
+ * filtro en vez de quedar angosta en comparación. */
+export const LOADER_LOGO_WIDE_HEIGHT = "clamp(4.5rem, 14vh, 8rem)";
+export const LOADER_LOGO_WIDE_WIDTH = "24vw";
+
 /** Tope de ancho base del logo superior (uno solo, normalmente la marca). */
 export const LOGO_BAR_TOP_MAX_WIDTH = "min(70vw, 300px)";
 
