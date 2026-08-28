@@ -40,7 +40,13 @@ export default function ScreenSaver({
   const hasGalleryCandidate = event.screenSaverGallerySlideEnabled !== false;
   const hasFilters =
     (event.prompts?.length ?? 0) >= 2 && event.screenSaverFiltersSlideEnabled !== false;
-  const hasAnySlideCandidate = hasMedia || hasSplash || hasGalleryCandidate || hasFilters;
+  // Mismo criterio optimista que la galería: si el evento la activó, cuenta
+  // como candidata acá aunque todavía no se sepa si hay fotos (eso lo resuelve
+  // ScreenSaverSlideshow). Sin esto, un evento con SOLO esta pantalla activada
+  // nunca llegaría a mostrar el salvapantallas.
+  const hasFolderCandidate = event.screenSaverFolderSlideEnabled === true;
+  const hasAnySlideCandidate =
+    hasMedia || hasSplash || hasGalleryCandidate || hasFilters || hasFolderCandidate;
 
   const [isActive, setIsActive] = useState(false);
   const [isExiting, setIsExiting] = useState(false);

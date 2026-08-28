@@ -32,6 +32,19 @@ import VideoUploadField from "./VideoUploadField";
 import HeaderLogoEditor from "./HeaderLogoEditor";
 import SplashLayoutEditor from "./SplashLayoutEditor";
 
+/** Los seis textos fijos de la animación editorial, en el orden en que se ven
+ * en pantalla (fila de arriba y fila de abajo). Los placeholders son los
+ * ejemplos de la referencia editorial: una sugerencia de qué escribir, NO un
+ * valor por defecto — el campo vacío se traduce en una esquina sin texto. */
+const EDITORIAL_TEXT_FIELDS = [
+  { key: "topLeft", placeholder: "SATURDAY", hint: "Arriba izquierda" },
+  { key: "topCenter", placeholder: "CURATED INSPIRATION", hint: "Arriba centro" },
+  { key: "topRight", placeholder: "FOR YOU", hint: "Arriba derecha" },
+  { key: "bottomLeft", placeholder: "BEAUTY FOR EVERYONE", hint: "Abajo izquierda" },
+  { key: "bottomCenter", placeholder: "INSPIRING YOU TO INSPIRE OTHERS", hint: "Abajo centro" },
+  { key: "bottomRight", placeholder: "SAVES", hint: "Abajo derecha" },
+] as const;
+
 /** Sección colapsable: agrupa campos relacionados bajo un título con ícono. */
 function AccordionSection({
   title,
@@ -230,6 +243,15 @@ export default function EventForm({
     screenSaverSplashSlideEnabled: event?.screenSaverSplashSlideEnabled !== false,
     screenSaverGallerySlideEnabled: event?.screenSaverGallerySlideEnabled !== false,
     screenSaverFiltersSlideEnabled: event?.screenSaverFiltersSlideEnabled !== false,
+    // Apagada salvo que el evento la pida: es una pantalla nueva y no debe
+    // aparecer sola en el screensaver de los eventos ya existentes.
+    screenSaverFolderSlideEnabled: event?.screenSaverFolderSlideEnabled === true,
+    // Sin valor guardado, la carpeta: es la animación que ya corrían los
+    // eventos que activaron esta pantalla antes de que existiera la editorial.
+    screenSaverAnimationType: event?.screenSaverAnimationType || "FOLDER",
+    screenSaverEditorialTexts: event?.screenSaverEditorialTexts || {},
+    screenSaverFolderLabel: event?.screenSaverFolderLabel || "",
+    screenSaverFolderLogo: event?.screenSaverFolderLogo || "",
     loadingMessage: event?.loadingMessage || "Generando imagen",
     loadingSubtitle: event?.loadingSubtitle || "",
     loadingTitleColor: event?.loadingTitleColor || "#ef4444",
@@ -1388,6 +1410,104 @@ export default function EventForm({
             checked={formData.screenSaverFiltersSlideEnabled !== false}
             onChange={(checked) => setField("screenSaverFiltersSlideEnabled", checked)}
           />
+
+          <ToggleField
+            id="screenSaverFolderSlideEnabled"
+            label="Incluir Animación de Fotos en el Loop"
+            description="Turno con una animación hecha con las fotos ya generadas en el evento. Cada pasada toma fotos distintas, repartidas entre las marcas. Se omite si el evento todavía no tiene fotos generadas. Cuál de las animaciones corre se elige abajo."
+            checked={formData.screenSaverFolderSlideEnabled === true}
+            onChange={(checked) => setField("screenSaverFolderSlideEnabled", checked)}
+          />
+
+          {formData.screenSaverFolderSlideEnabled === true && (
+            <div className="space-y-4 pl-3 border-l-2 border-blue-100">
+              <SelectField
+                label="Animación"
+                value={formData.screenSaverAnimationType || "FOLDER"}
+                onChange={(v) =>
+                  setField("screenSaverAnimationType", v as "FOLDER" | "EDITORIAL")
+                }
+                helperText='La duración de la secuencia es la del turno configurado arriba ("Duración de cada pantalla"): con turnos cortos se ve más apurada.'
+              >
+                <option value="FOLDER">Carpeta de fotos (fondo claro)</option>
+                <option value="EDITORIAL">Tablero editorial (fondo negro)</option>
+              </SelectField>
+
+              {(formData.screenSaverAnimationType || "FOLDER") === "FOLDER" && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Una carpeta que un cursor abre, de la que sale una pila con fotos del evento
+                    pasándose como tarjetas, y que cierra con el logo del evento.
+                  </p>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Etiqueta de la carpeta
+                  </label>
+                  <input
+                    type="text"
+                    name="screenSaverFolderLabel"
+                    value={formData.screenSaverFolderLabel || ""}
+                    onChange={handleChange}
+                    placeholder={formData.name || "Nombre del evento"}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Texto debajo de la carpeta al arrancar la animación. Vacío = el nombre del
+                    evento.
+                  </p>
+
+                  <div className="mt-4">
+                    <ImageUploadField
+                      label="Logo del cierre de la animación"
+                      value={formData.screenSaverFolderLogo || ""}
+                      onChange={(value) => handleImageChange("screenSaverFolderLogo", value)}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Se muestra al final de la secuencia. Si no subes nada se usa el Logo Superior
+                      del evento. Conviene subir uno aparte cuando el Logo Superior está pensado
+                      para fondo oscuro: esta pantalla va sobre fondo claro.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {formData.screenSaverAnimationType === "EDITORIAL" && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Tablero vertical tipo Pinterest sobre fondo negro: las fotos suben en cuatro
+                    columnas a velocidades distintas mientras la cámara hace un zoom lento con
+                    inclinación, y cierra fundiendo a negro. Los textos de los bordes quedan fijos.
+                  </p>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Textos fijos de los bordes
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {EDITORIAL_TEXT_FIELDS.map(({ key, placeholder, hint }) => (
+                      <input
+                        key={key}
+                        type="text"
+                        value={formData.screenSaverEditorialTexts?.[key] || ""}
+                        onChange={(e) =>
+                          setField("screenSaverEditorialTexts", {
+                            ...(formData.screenSaverEditorialTexts || {}),
+                            [key]: e.target.value,
+                          })
+                        }
+                        placeholder={placeholder}
+                        aria-label={hint}
+                        title={hint}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Tres arriba (izquierda, centro, derecha) y tres abajo, en el mismo orden. Se
+                    muestran en mayúsculas. El que dejes vacío no se muestra, y si los dejas todos
+                    vacíos la animación va sin textos. Los ejemplos grises son solo una sugerencia.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           <SelectField
             label="Animación de Fondo"

@@ -6,10 +6,14 @@ import SplashScreen from "@/app/components/photo-booth/SplashScreen";
 import EventPhotoBoothLanding from "@/app/components/photo-booth/EventPhotoBoothLanding";
 import MediaTapScreen from "@/app/components/common/MediaTapScreen";
 import ScreenSaverGallery from "@/app/components/common/ScreenSaverGallery";
+import ScreenSaverPhotoFolder from "@/app/components/common/ScreenSaverPhotoFolder";
+import ScreenSaverEditorialGrid from "@/app/components/common/ScreenSaverEditorialGrid";
 
 const NOOP = () => {};
 
-type SlideType = "media" | "splash" | "gallery" | "filters";
+/** "animation" es el turno de la pantalla animada; cuál de las dos animaciones
+ * corre ahí lo decide `event.screenSaverAnimationType`. */
+type SlideType = "media" | "splash" | "gallery" | "filters" | "animation";
 
 /**
  * Rotador de pantallas del ScreenSaver: cicla media → splash → galería →
@@ -27,6 +31,7 @@ export default function ScreenSaverSlideshow({
   onExit: () => void;
 }) {
   const [galleryHasPhotos, setGalleryHasPhotos] = useState(false);
+  const [animationHasPhotos, setAnimationHasPhotos] = useState(false);
 
   const mediaEligible =
     !!(event.screenSaverVideoUrl || event.splashImage) &&
@@ -35,6 +40,11 @@ export default function ScreenSaverSlideshow({
   const galleryEligible = event.screenSaverGallerySlideEnabled !== false && galleryHasPhotos;
   const filtersEligible =
     (event.prompts?.length ?? 0) >= 2 && event.screenSaverFiltersSlideEnabled !== false;
+  // `=== true`, no `!== false`: pantalla nueva, apagada salvo que el evento la
+  // pida expresamente — ver screenSaverFolderSlideEnabled en eventService.
+  const animationEnabled = event.screenSaverFolderSlideEnabled === true;
+  const animationEligible = animationEnabled && animationHasPhotos;
+  const animationType = event.screenSaverAnimationType || "FOLDER";
 
   const slides = useMemo<SlideType[]>(() => {
     const list: SlideType[] = [];
@@ -42,8 +52,9 @@ export default function ScreenSaverSlideshow({
     if (splashEligible) list.push("splash");
     if (galleryEligible) list.push("gallery");
     if (filtersEligible) list.push("filters");
+    if (animationEligible) list.push("animation");
     return list;
-  }, [mediaEligible, splashEligible, galleryEligible, filtersEligible]);
+  }, [mediaEligible, splashEligible, galleryEligible, filtersEligible, animationEligible]);
 
   const [activeSlide, setActiveSlide] = useState<SlideType | null>(null);
   const slidesRef = useRef(slides);
@@ -97,6 +108,43 @@ export default function ScreenSaverSlideshow({
       {filtersEligible && activeSlide === "filters" && (
         <div className="pointer-events-none absolute inset-0 animate-fadeIn">
           <EventPhotoBoothLanding event={event} readOnly />
+        </div>
+      )}
+
+      {/* Una sola instancia, montada mientras el evento tenga la pantalla
+          activada — igual que la galería (ver abajo): así hace su consulta una
+          vez y ya sabe si tiene fotos antes de que le toque el turno. Gatearla
+          por `animationEligible` la remontaría (y volvería a consultar) apenas
+          `animationHasPhotos` pasa a true. `active` le avisa cuándo está al
+          frente: la secuencia se congela mientras no lo está y arranca desde
+          el principio cuando le toca, en vez de aparecer empezada. */}
+      {animationEnabled && (
+        <div
+          className={`pointer-events-none absolute inset-0 transition-opacity duration-700 ${
+            activeSlide === "animation" ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          {animationType === "EDITORIAL" ? (
+            <ScreenSaverEditorialGrid
+              eventId={event.id}
+              promptIds={event.prompts}
+              active={activeSlide === "animation"}
+              durationSec={event.screenSaverSlideDurationSec ?? 10}
+              texts={event.screenSaverEditorialTexts}
+              onPhotosChange={(count) => setAnimationHasPhotos(count > 0)}
+            />
+          ) : (
+            <ScreenSaverPhotoFolder
+              eventId={event.id}
+              promptIds={event.prompts}
+              aspectRatio={event.photoAspectRatio}
+              active={activeSlide === "animation"}
+              durationSec={event.screenSaverSlideDurationSec ?? 10}
+              label={event.screenSaverFolderLabel?.trim() || event.name}
+              logoUrl={event.screenSaverFolderLogo?.trim() || event.logoTop}
+              onPhotosChange={(count) => setAnimationHasPhotos(count > 0)}
+            />
+          )}
         </div>
       )}
 

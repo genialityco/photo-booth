@@ -188,6 +188,60 @@ export type EventProfile = {
   screenSaverGallerySlideEnabled?: boolean;
   screenSaverFiltersSlideEnabled?: boolean;
   /**
+   * Pantalla de "carpeta de fotos" (`ScreenSaverPhotoFolder`): secuencia de
+   * motion graphics sobre fondo claro — una carpeta 3D que un cursor abre,
+   * de la que sale una pila de fotos del evento que se van pasando como
+   * tarjetas, y que cierra con el logo del evento.
+   *
+   * A diferencia de las cuatro de arriba, esta arranca APAGADA por defecto
+   * (se lee como `=== true`, no como `!== false`): es una pantalla nueva y
+   * meterla sola en la rotación de todos los eventos ya existentes les
+   * cambiaría el screensaver sin que nadie lo haya pedido.
+   */
+  screenSaverFolderSlideEnabled?: boolean;
+  /**
+   * QUÉ animación corre en ese turno del loop. El interruptor de arriba decide
+   * si la pantalla animada entra en la rotación; este campo, cuál de las
+   * animaciones se ve:
+   *
+   * - `FOLDER`: la carpeta de fotos (`ScreenSaverPhotoFolder`), sobre fondo
+   *   claro, con etiqueta y logo de cierre.
+   * - `EDITORIAL`: el tablero editorial (`ScreenSaverEditorialGrid`), sobre
+   *   fondo negro, con las fotos en cuadrícula tipo Pinterest subiendo con
+   *   paralaje y textos fijos en los bordes.
+   *
+   * Sin este campo se asume `FOLDER`: es la que ya tenían configurada los
+   * eventos que activaron la pantalla antes de que existiera la editorial.
+   */
+  screenSaverAnimationType?: "FOLDER" | "EDITORIAL";
+  /**
+   * Textos fijos de los bordes de la animación editorial. Los que queden
+   * vacíos no se muestran (y si no hay ninguno, la franja entera desaparece):
+   * el tablero se ve sin texto en vez de con un texto de ejemplo.
+   */
+  screenSaverEditorialTexts?: {
+    topLeft?: string;
+    topCenter?: string;
+    topRight?: string;
+    bottomLeft?: string;
+    bottomCenter?: string;
+    bottomRight?: string;
+  };
+  /**
+   * Texto de la etiqueta de la carpeta (el "Important Folder" del original).
+   * Sin este campo se usa el nombre del evento. Solo aplica a la animación
+   * `FOLDER`.
+   */
+  screenSaverFolderLabel?: string;
+  /**
+   * Logo del cierre de esa secuencia. Sin este campo se usa `logoTop` (el
+   * logo superior del evento), que es lo que hacía siempre: existe para poder
+   * cerrar con una versión distinta —normalmente el logo en positivo sobre
+   * claro, ya que esta pantalla va sobre fondo blanco y el `logoTop` de
+   * varios eventos está pensado para fondo oscuro.
+   */
+  screenSaverFolderLogo?: string;
+  /**
    * Contenido configurable de la pantalla de splash inicial (independiente
    * de `splashImage`/`screenSaverVideoUrl`, que son solo del ScreenSaver).
    * El fondo y el logo superior de esta pantalla reutilizan `bgImage` y
@@ -481,6 +535,8 @@ export async function createEventProfile(
       screenSaverSplashSlideEnabled: data.screenSaverSplashSlideEnabled !== false,
       screenSaverGallerySlideEnabled: data.screenSaverGallerySlideEnabled !== false,
       screenSaverFiltersSlideEnabled: data.screenSaverFiltersSlideEnabled !== false,
+      screenSaverFolderSlideEnabled: data.screenSaverFolderSlideEnabled === true,
+      screenSaverAnimationType: data.screenSaverAnimationType || "FOLDER",
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
@@ -488,7 +544,7 @@ export async function createEventProfile(
     // Image fields to process
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl", "screenSaverFolderLogo"];
 
     for (const field of imageFields) {
       const fileData = data[field];
@@ -599,6 +655,15 @@ export async function createEventProfile(
 
     if (data.screenSaverGalleryPhotoIntervalSec !== undefined) {
       docData.screenSaverGalleryPhotoIntervalSec = data.screenSaverGalleryPhotoIntervalSec;
+    }
+    if (data.screenSaverFolderLabel !== undefined) {
+      docData.screenSaverFolderLabel = data.screenSaverFolderLabel;
+    }
+    if (data.screenSaverFolderLogo !== undefined) {
+      docData.screenSaverFolderLogo = data.screenSaverFolderLogo;
+    }
+    if (data.screenSaverEditorialTexts !== undefined) {
+      docData.screenSaverEditorialTexts = data.screenSaverEditorialTexts;
     }
 
     if (data.photoAspectRatio !== undefined) {
@@ -760,6 +825,11 @@ export async function updateEventProfile(
     if (data.screenSaverSplashSlideEnabled !== undefined) docData.screenSaverSplashSlideEnabled = data.screenSaverSplashSlideEnabled;
     if (data.screenSaverGallerySlideEnabled !== undefined) docData.screenSaverGallerySlideEnabled = data.screenSaverGallerySlideEnabled;
     if (data.screenSaverFiltersSlideEnabled !== undefined) docData.screenSaverFiltersSlideEnabled = data.screenSaverFiltersSlideEnabled;
+    if (data.screenSaverFolderSlideEnabled !== undefined) docData.screenSaverFolderSlideEnabled = data.screenSaverFolderSlideEnabled;
+    if (data.screenSaverAnimationType !== undefined) docData.screenSaverAnimationType = data.screenSaverAnimationType;
+    if (data.screenSaverFolderLabel !== undefined) docData.screenSaverFolderLabel = data.screenSaverFolderLabel;
+    if (data.screenSaverFolderLogo !== undefined) docData.screenSaverFolderLogo = data.screenSaverFolderLogo;
+    if (data.screenSaverEditorialTexts !== undefined) docData.screenSaverEditorialTexts = data.screenSaverEditorialTexts;
     if (data.screenConfig !== undefined) docData.screenConfig = data.screenConfig;
     if (data.splashTitle !== undefined) docData.splashTitle = data.splashTitle;
     if (data.splashTitleColor !== undefined) docData.splashTitleColor = data.splashTitleColor;
@@ -793,7 +863,7 @@ export async function updateEventProfile(
     // Process image fields
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl", "screenSaverFolderLogo"];
     for (const field of imageFields) {
       const fileData = data[field];
       if (fileData === undefined) continue;
