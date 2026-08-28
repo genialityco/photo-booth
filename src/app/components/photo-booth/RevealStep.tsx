@@ -8,6 +8,7 @@ import {
   subscribeHandTrackingStatus,
 } from "@/app/components/common/hand-cursor/handTrackingStore";
 import { FADE_OUT_MS, type Point, useRevealVeil } from "@/app/components/photo-booth/reveal/useRevealVeil";
+import HandCursor3D, { type HandCursorHandle } from "@/app/components/photo-booth/reveal/HandCursor3D";
 import { getAspectClassName, getRevealBoxWidthCss, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
 
 export default function RevealStep({
@@ -59,6 +60,7 @@ export default function RevealStep({
   const lastHandPointRef = useRef<Point | null>(null);
   const lastPointerPointRef = useRef<Point | null>(null);
   const pointerActiveRef = useRef(false);
+  const handCursorRef = useRef<HandCursorHandle | null>(null);
 
   const [handTrackingReady, setHandTrackingReady] = useState(false);
   const [handTrackingError, setHandTrackingError] = useState(false);
@@ -106,8 +108,14 @@ export default function RevealStep({
 
       if (!frame.visible) {
         lastHandPointRef.current = null;
+        handCursorRef.current?.setTransform(0, 0, false);
         return;
       }
+
+      // Mueve la mano virtual 3D al mismo punto de pantalla que se usa para
+      // borrar el velo, así "donde se ve la mano" es exactamente "donde se
+      // revela" — igual criterio que RollerCursor con el rodillo.
+      handCursorRef.current?.setTransform(frame.screenX, frame.screenY, true);
 
       // Convierte la posición en pantalla (misma que usa el cursor global) a
       // coordenadas locales del canvas, para que "donde se ve el cursor" sea
@@ -211,6 +219,12 @@ export default function RevealStep({
           />
         </div>
       )}
+
+      {/* Mano virtual 3D: sigue la posición de la mano real detectada por la
+          cámara (mismo punto donde se borra el velo) — ver HandCursor3D. Solo
+          tiene sentido con tracking por cámara activo; con el fallback
+          táctil no hay ninguna mano "real" que seguir. */}
+      {handTrackingEnabled && !handTrackingError && <HandCursor3D ref={handCursorRef} />}
 
       <button
         type="button"

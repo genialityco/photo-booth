@@ -47,6 +47,15 @@ function toDate(v: TaskItem["createdAt"]) {
   }
 }
 
+// Clave de día calendario LOCAL (yyyy-mm-dd) — mismo formato que devuelve un
+// <input type="date">, para poder comparar directo contra `selectedDate`.
+function toLocalDateKey(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 async function downloadAs(filename: string, url: string, frameUrl: string = "") {
   try {
     // Cargar imagen original
@@ -381,6 +390,9 @@ export default function AdminList() {
   const [searchingEvents, setSearchingEvents] = useState(false);
   const listRef = useRef<HTMLDivElement>(null); // 👈 agregar
 
+  // Date filtering (día calendario local, formato yyyy-mm-dd de <input type="date">)
+  const [selectedDate, setSelectedDate] = useState<string>("");
+
   // Brand filtering
   const [brands, setBrands] = useState<PhotoBoothPrompt[]>([]);
   const [selectedBrandId, setSelectedBrandId] = useState<string>("");
@@ -528,14 +540,21 @@ export default function AdminList() {
     if (selectedBrandId) {
       result = result.filter((it: any) => it.brand === selectedBrandId);
     }
-    
+    // Apply date filter if selected (día calendario local)
+    if (selectedDate) {
+      result = result.filter((it) => {
+        const d = toDate(it.createdAt);
+        return !!d && toLocalDateKey(d) === selectedDate;
+      });
+    }
+
     return result;
-  }, [items, selectedEventId, selectedBrandId]);
+  }, [items, selectedEventId, selectedBrandId, selectedDate]);
 
   // Reset to first page when filters change
   useEffect(() => {
     setPage(1);
-  }, [selectedEventId, selectedBrandId]);
+  }, [selectedEventId, selectedBrandId, selectedDate]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const paginated = filtered.slice(
@@ -645,7 +664,7 @@ const handleNext = () => {
   return (
     <section className="w-full">
       {/* Filters Row */}
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Event Filter Dropdown with Search */}
         <div className="flex flex-col gap-2">
           <label className="font-semibold text-sm">Filtrar por Evento</label>
@@ -833,6 +852,34 @@ const handleNext = () => {
             )}
           </div>
         </div>
+
+        {/* Date Filter */}
+        <div className="flex flex-col gap-2">
+          <label className="font-semibold text-sm">Filtrar por Día</label>
+          <div className="flex gap-2 items-start">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="flex-1 px-3 py-2 rounded-lg border border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            />
+            {selectedDate && (
+              <button
+                onClick={() => setSelectedDate("")}
+                className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Conteo del filtro aplicado */}
+      <div className="mb-4 text-sm font-semibold text-neutral-700">
+        {selectedDate
+          ? `${filtered.length} imagen${filtered.length === 1 ? "" : "es"} el ${selectedDate}`
+          : `${filtered.length} imagen${filtered.length === 1 ? "" : "es"} en total`}
       </div>
 
       {/* Barra de acciones */}

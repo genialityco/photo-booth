@@ -107,15 +107,30 @@ function FullBleedMessage({
   event,
   title,
   subtitle,
+  /** Estira la tarjeta del mensaje — la pantalla gigante de algunos eventos
+   * (p. ej. Tito Pabón) deforma la imagen y el texto se ve "aplanado", así
+   * que se contrarresta con un scale > 1. La escala mayor va en X para que
+   * quede más ancho. */
+  stretchX = 1.2,
+  stretchY = 1.6,
 }: {
   event: EventProfile;
   title: string;
   subtitle?: string;
+  stretchX?: number;
+  stretchY?: number;
 }) {
   return (
     <div className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden">
       <MirrorBackground event={event} />
-      <div className="relative z-10 bg-black/60 backdrop-blur-sm rounded-2xl px-12 py-10 text-center max-w-4xl mx-4">
+      <div
+        className="relative z-10 bg-black/60 backdrop-blur-sm rounded-2xl px-12 py-10 text-center max-w-4xl mx-4"
+        style={
+          stretchX !== 1 || stretchY !== 1
+            ? { transform: `scale(${stretchX}, ${stretchY})`, transformOrigin: "center" }
+            : undefined
+        }
+      >
         <p className="text-white font-semibold" style={{ fontSize: "clamp(1.75rem, 4vw, 3.25rem)" }}>{title}</p>
         {subtitle && (
           <p className="text-white/70 mt-4" style={{ fontSize: "clamp(1.1rem, 2vw, 1.75rem)" }}>{subtitle}</p>
@@ -453,7 +468,7 @@ export default function BoothMirror({
 
   const content = (() => {
     if (!state || isStale) {
-      return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" />;
+      return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" stretchX={1.6} stretchY={1.2} />;
     }
 
     switch (state.phase) {
@@ -569,7 +584,7 @@ export default function BoothMirror({
         );
 
       default:
-        return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" />;
+        return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" stretchX={1.6} stretchY={1.2} />;
     }
   })();
 
