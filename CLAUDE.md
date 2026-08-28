@@ -6,7 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "Magic Camera" (`package.json` name) — a Next.js 15 (App Router) photo booth application for branded events. Attendees take a photo, an AI (OpenAI or Gemini, depending on deployment target) transforms it into a themed portrait, and the result is shown on a screen/mosaic display and can be printed or shared via QR code. Firebase (Firestore + Storage) is the backing store; heavy image generation runs in Firebase Cloud Functions, not in Next.js API routes.
 
-The app is deployed to **Netlify** (see `netlify.toml`), while the background image-processing pipeline is deployed separately to **Firebase Cloud Functions** (see `functions/`). These are two independently deployed codebases sharing one Firestore project.
+Three independently deployed pieces share one Firestore project:
+- the Next.js app → **Netlify** (`netlify.toml`),
+- the background image-processing pipeline → **Firebase Cloud Functions** (`functions/`),
+- an optional Python service → **the on-site PC** (`kinect-roller-backend/`), only for events that reveal the photo with a real paint roller tracked by a Kinect v2.
 
 ## Commands
 
@@ -28,7 +31,21 @@ npm run shell            # build + firebase functions:shell (interactive invocat
 npm run deploy            # firebase deploy --only functions
 npm run logs              # firebase functions:log
 ```
-There is no test suite in this repo (no test runner configured).
+Note `functions`' `lint` script is `echo "Skipping lint"` — the `predeploy` hooks in `firebase.json` run it, but it checks nothing. Only `tsc` (via `build`) actually gates a functions deploy.
+
+`kinect-roller-backend/` is a **Python** project (Kinect v2 + OpenCV + WebSocket), run by hand on the PC driving the big screen — never deployed with the other two. See its own README for the full setup; the everyday commands are:
+```bash
+cd kinect-roller-backend
+python -m venv .venv && .venv/Scripts/activate   # Windows-only project (pykinect2)
+pip install -r requirements.txt
+python patch_pykinect2.py    # re-run after every reinstall of pykinect2
+
+python -m src.main --calibrate-bg   # calibrate the empty-screen depth background first
+python -m src.main --debug           # run with the debug window
+python -m src.main --mock --debug  # no Kinect: synthetic roller, for frontend work
+```
+
+There is no test suite in this repo (no test runner configured). To exercise the roller-reveal frontend against the Python backend without going through a whole booth session, use the harness route `/test/rodillo-reveal?src=<image-url>&ws=<ws-url>`.
 
 ## Environment & credentials
 
@@ -51,10 +68,38 @@ This is the most important thing to understand before touching capture/result co
 2. On confirm, the client uploads the framed photo as a data URL to `POST /api/storage/upload` (Next.js route, Firebase Admin SDK), which returns a public Storage download URL + path.
 3. The client then writes a document directly to the `imageTasks` Firestore collection (`status: "queued"`, `inputPath`, `eventId`, `brand`, `color`, ...) — it does **not** call a Cloud Function HTTP endpoint for this path.
 4. A Firestore-triggered Cloud Function, `processImageTask` (`onDocumentCreated` on `imageTasks/{taskId}` in `functions/src/index.ts`), picks up the doc, resolves the event's brand prompt from `photo_booth_prompts`, calls the Gemini API (`gemini-2.5-flash-image`, via a `GEMINI_API_KEY` Firebase secret) with the input image (+ optional logo / background / object composition images pulled from that brand config), saves the output PNG to Storage, and updates the doc to `status: "done"` with a `url`. If the event's `generationType` is `BGVIDEO`, it additionally posts to an external compositing service (`https://videobg.geniality.com.co/composite-video`) and stores a `videoUrl`.
-5. The client (`PhotoBoothWizard.tsx`) is subscribed to that same Firestore doc via `onSnapshot`; once `status === "done"` it moves to the `reveal` step (an interactive `RevealStep`/`RollerRevealStep` animation, chosen by the event's `revealEffect`: `NONE | HAND_WIPE | ROLLER | ROLLER_COLOR`) and then to `result` — unless `revealEffect` is `NONE`, which skips straight to `result`.
+5. The client (`PhotoBoothWizard.tsx`) is subscribed to that same Firestore doc via `onSnapshot`; once `status === "done"` it moves to the `reveal` step (an interactive `RevealStep`/`RollerRevealStep` animation, chosen by the event's `revealEffect`: `NONE | HAND_WIPE | ROLLER | ROLLER_COLOR | KINECT_ROLLER`) and then to `result` — unless `revealEffect` is `NONE`, which skips straight to `result`.
 6. `display/[slug]` and `mosaic/[slug]` independently subscribe to `imageTasks` (filtered by `eventId`, `status == "done"`) to drive the live event screen and the Three.js photo-mosaic wall (`MosaicCanvas.tsx`).
 
 There is also a legacy/simpler path (`src/app/api/generate/route.ts` + `processGoatShotHttp` in `functions/src/index.ts`) that calls OpenAI's `images/edits` endpoint directly and returns synchronously instead of going through the `imageTasks` async pipeline. Prefer the Firestore/Gemini path described above for new work unless you have a specific reason to use the synchronous OpenAI path.
+
+### Two-screen sessions: leader vs. mirror
+
+`booth/[slug]` is opened on **both** the attendee's tablet and (optionally) a big screen — the same URL, same component. `useBoothLiveSession` elects the first tab to claim the event as **leader** (Firestore transaction on `boothLiveSessions/{eventId}`, refreshed by a 5s heartbeat; 30s without one and the leader is considered gone). Every other tab becomes a **mirror** and renders `BoothMirror.tsx` instead of `PhotoBoothWizard.tsx`.
+
+The leader broadcasts its wizard step and payload (`phase`, `taskId`, `brand`, `previewUrl`, `customization`, `showQr`) into that doc; the mirror only reflects it. The one field written *back* by the mirror is `revealedTaskId`: with `revealEffect: "KINECT_ROLLER"` — and with the default `HAND_WIPE` whenever `mirrorScreenEnabled !== false` — the reveal does not happen on the tablet at all. The tablet parks on a "revealing on the big screen" message and waits for the mirror to report that *this* `taskId` was revealed. Both branches keep an invisible rescue button (bottom-right of the reveal step) so an operator can force the step forward when the mirror never reports.
+
+So: changing anything in the wizard's `reveal`/`result` steps usually means changing the matching view in `BoothMirror.tsx` too, and a "nothing happens after the photo generates" bug is more often a broken live session than a broken pipeline.
+
+This is separate from `display/[slug]` and `mosaic/[slug]`, which are passive screens subscribed straight to `imageTasks` — they know nothing about live sessions.
+
+### Firestore collections
+
+`events` (event config, `eventService.ts`), `imageTasks` (one doc per photo: the async job *and* the archive of results), `photo_booth_prompts` (per-brand AI prompt config), `boothLiveSessions` (one doc per event, leader/mirror sync). Note `printJobsService.ts` reads `imageTasks` despite its name and `PrintJob` type — there is no separate print-jobs collection.
+
+### How event config reaches components
+
+Config crosses component boundaries through `sessionStorage`, not only through props — know which before assuming a value is available:
+- `booth/[slug]` writes `currentEvent` (the raw `EventProfile`) on load; `PhotoBoothWizard` also writes `photoBoothStyle` (that event normalized into the legacy `StyleProfile` shape). `LoaderStep`, `ResultStep` and `SurveyClient` read those keys directly rather than receiving props.
+- `selectedBrand` / `selectedColor` carry the attendee's choice from the landing screen into the wizard and the Cloud Function payload.
+- Values read from `sessionStorage` can be **stale** (the event was edited in the admin after the tab was opened) and are **per-tab** (a mirror screen never has `selectedBrand`, since the choice happened on the tablet). Components that matter take an explicit prop override — e.g. `LoaderStep`'s `eventOverride`/`brandIdOverride` — and fall back to the cache.
+- `/survey` (the page behind the download QR) is the exception that cannot use any of this: it is opened by scanning the QR on the attendee's **phone**, a different device entirely. Everything it needs travels in the URL that `ResultStep`/`BoothMirror` build — `src`, `kind`, `filename`, `frameUrl`, `eventId` — and it re-fetches the event from Firestore. Adding anything event-specific to that page means adding a query param on both builders.
+
+### Kiosk shell and shared sizing
+
+`src/app/layout.tsx` locks the whole app to `h-dvh overflow-hidden` (it is a kiosk, not a scrolling site). A page taller than the viewport is silently cut off with no scrollbar — pages that can overflow (`/survey` on a phone) must scroll in their own `overflow-y-auto` container.
+
+Event logo sizing lives in `components/photo-booth/logoBarSizing.ts` (base heights/widths + `scaledLogoStyle`/`scaledWideLogoStyle`, which apply the event's `logoTopScalePct`/`logoBottomScalePct`). Every booth screen that draws `logoTop`/`logoBottom` goes through it — hardcoding a Tailwind height class instead silently ignores the size the admin configured. `SplashScreen` is the deliberate exception: it has its own free-positioning layout editor (`SplashLayoutEditor.tsx`).
 
 ### Branding / prompts model
 
@@ -76,9 +121,10 @@ It has its own `tsconfig.json`, `package.json`, and dependency tree (`firebase-a
 
 ### Firebase project
 
-Default Firebase project alias is `lenovo-experiences` (`.firebaserc`), and `firebase.json` only declares the `functions` codebase (no hosting/firestore rules deploy config here) with lint+build as `predeploy` steps.
+Default Firebase project alias is `lenovo-experiences` (`.firebaserc`), and `firebase.json` only declares the `functions` codebase (no hosting/firestore rules deploy config here) with lint+build as `predeploy` steps. Firestore security rules are **not** in this repo, so read/write permissions can only be checked in the Firebase console — worth remembering, since public pages (`booth`, `display`, `survey`) read `events`/`imageTasks` straight from the client with no auth.
 
 ### Other notes
 
 - The `qr` API route (`src/app/api/qr/route.ts`, `_store.ts`) keeps generated QR payloads in an in-process `Map` on `globalThis` with a 30-minute TTL — this does **not** survive across serverless instances/cold starts on Netlify, so don't rely on it for durability.
+- The Kinect roller reveal talks to the Python backend over a plain WebSocket, `NEXT_PUBLIC_KINECT_WS_URL` (default `ws://localhost:8765`, see `BoothMirror.tsx`). It must be `localhost`: an https page is blocked from opening `ws://` to any other LAN address (mixed content), so the Python service has to run on the very PC showing the big screen.
 - Several server routes (`storage/upload`, `functions/src/index.ts`) contain multiple fallback strategies for locating credentials/config (file → Secret Manager → env vars → base64 env var). When debugging "credentials not found" issues, check all of these in order rather than assuming a single source of truth.

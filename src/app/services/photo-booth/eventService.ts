@@ -272,6 +272,23 @@ export type EventProfile = {
   /** Aplica en conjunto a splashWord1 y splashWord2. */
   splashWordsFont?: string;
   /**
+   * Negrita del título de la splash. El título nunca fijó un peso (usaba el
+   * propio de la fuente), así que el default es `false` — solo un `true`
+   * explícito lo pone en negrita. Se lee como `=== true`.
+   */
+  splashTitleBold?: boolean;
+  /**
+   * Negrita del subtítulo. Acá es al revés que en el título: el subtítulo iba
+   * con `font-weight: 800` fijo por código, así que el default es `true` para
+   * no cambiarle el look a los eventos existentes — se lee como `!== false`.
+   *
+   * Desactivarlo importa de verdad con fuentes que traen un solo peso (Anton,
+   * Selima): forzarles 800 hace que el navegador sintetice la negrita (faux
+   * bold) y la fuente elegida se vea deformada, como si no se hubiera
+   * aplicado.
+   */
+  splashSubtitleBold?: boolean;
+  /**
    * Si está activado y `splashVideoUrl` está configurado, la splash inicial
    * reemplaza toda la coreografía animada (logo, título, subtítulo, tarjeta,
    * palabras) por un video de fondo en loop; la barra de carga y el botón
@@ -561,6 +578,8 @@ export async function createEventProfile(
     if (data.splashTitleFont !== undefined) docData.splashTitleFont = data.splashTitleFont;
     if (data.splashSubtitleFont !== undefined) docData.splashSubtitleFont = data.splashSubtitleFont;
     if (data.splashWordsFont !== undefined) docData.splashWordsFont = data.splashWordsFont;
+    if (data.splashTitleBold !== undefined) docData.splashTitleBold = data.splashTitleBold;
+    if (data.splashSubtitleBold !== undefined) docData.splashSubtitleBold = data.splashSubtitleBold;
 
     if (data.screenConfig !== undefined) {
       docData.screenConfig = data.screenConfig;
@@ -768,6 +787,8 @@ export async function updateEventProfile(
     if (data.splashTitleFont !== undefined) docData.splashTitleFont = data.splashTitleFont;
     if (data.splashSubtitleFont !== undefined) docData.splashSubtitleFont = data.splashSubtitleFont;
     if (data.splashWordsFont !== undefined) docData.splashWordsFont = data.splashWordsFont;
+    if (data.splashTitleBold !== undefined) docData.splashTitleBold = data.splashTitleBold;
+    if (data.splashSubtitleBold !== undefined) docData.splashSubtitleBold = data.splashSubtitleBold;
 
     // Process image fields
     // "imageFields": el mismo mecanismo genérico (por content-type) también

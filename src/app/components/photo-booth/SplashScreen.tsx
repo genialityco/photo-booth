@@ -283,6 +283,12 @@ export default function SplashScreen({
     event.splashSubtitleUppercase !== false ? "uppercase" : "none";
   const titleTransform = event.splashTitleUppercase === true ? "uppercase" : "none";
   const subtitleFont = resolveSplashFont(event.splashSubtitleFont, "subtitle");
+  // Negrita configurable por evento. El subtítulo iba con 800 fijo, así que
+  // sin el campo se mantiene en 800; el título nunca fijó peso, así que sin el
+  // campo sigue con el propio de la fuente (undefined = no se escribe la
+  // propiedad). Ver splashTitleBold/splashSubtitleBold en eventService.
+  const titleWeight = event.splashTitleBold === true ? 800 : undefined;
+  const subtitleWeight = event.splashSubtitleBold === false ? 400 : 800;
   const wordsFont = resolveSplashFont(event.splashWordsFont, "title");
 
   // Sin fallback a "ARTE"/"COLOR": si el evento no configuró la palabra (o la
@@ -464,7 +470,7 @@ export default function SplashScreen({
     const titleNode = (
       <div
         className="flex flex-col items-center"
-        style={titleIsImage ? undefined : { gap: 2, fontFamily: titleFont }}
+        style={titleIsImage ? undefined : { gap: 2, fontFamily: titleFont, fontWeight: titleWeight }}
       >
         {titleIsImage ? (
           <img
@@ -515,7 +521,7 @@ export default function SplashScreen({
         className="splash-anim-subtitle text-center"
         style={{
           fontFamily: subtitleFont,
-          fontWeight: 800,
+          fontWeight: subtitleWeight,
           fontSize: "3.85cqw",
           letterSpacing: "0.6px",
           textTransform: subtitleTransform,
@@ -993,7 +999,7 @@ export default function SplashScreen({
 
         <div
           className="flex flex-col items-center splash-area-title"
-          style={titleIsImage ? undefined : { gap: 2, fontFamily: titleFont }}
+          style={titleIsImage ? undefined : { gap: 2, fontFamily: titleFont, fontWeight: titleWeight }}
         >
           {titleIsImage ? (
             <img
@@ -1042,7 +1048,7 @@ export default function SplashScreen({
           className="splash-anim-subtitle text-center splash-area-subtitle"
           style={{
             fontFamily: subtitleFont,
-            fontWeight: 800,
+            fontWeight: subtitleWeight,
             fontSize: "clamp(0.95rem, 4vmin, 1.6rem)",
             letterSpacing: "0.6px",
             textTransform: subtitleTransform,

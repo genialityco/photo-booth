@@ -6,10 +6,8 @@ import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
 import {
   LOADER_LOGO_HEIGHT,
-  LOADER_LOGO_WIDE_HEIGHT,
-  LOADER_LOGO_WIDE_WIDTH,
-  clampLogoScale,
   scaledLogoStyle,
+  scaledWideLogoStyle,
 } from "@/app/components/photo-booth/logoBarSizing";
 
 // No hay progreso real del backend (el doc de imageTasks solo pasa de
@@ -23,6 +21,7 @@ const PROGRESS_CAP = 92;
 
 export default function LoaderStep({
   brandIdOverride,
+  eventOverride,
   wide = false,
 }: {
   /** Modo espejo (BoothMirror): id de marca transmitido por el líder, en vez
@@ -30,6 +29,11 @@ export default function LoaderStep({
    * así que la pantalla espejo nunca lo tiene (la selección ocurre en la
    * tablet líder, no acá). */
   brandIdOverride?: string | null;
+  /** Config del evento pasada por el padre (wizard / pantalla espejo). Tiene
+   * prioridad sobre `sessionStorage("currentEvent")`, que puede estar viejo si
+   * el evento se editó en el admin después de abrir la pestaña — es lo que
+   * hacía que el tamaño de logos configurado no se viera acá. */
+  eventOverride?: EventProfile | null;
   /** Agranda el anillo de progreso y los logos (pensados para tablet, con
    * topes chicos en vmin/vh) para una pantalla gigante 1920x1080. Off por
    * defecto (comportamiento original en la tablet). */
@@ -37,7 +41,8 @@ export default function LoaderStep({
 } = {}) {
   const [dots, setDots] = useState("");
   const [style, setStyle] = useState<StyleProfile | null>(null);
-  const [event, setEvent] = useState<EventProfile | null>(null);
+  const [cachedEvent, setCachedEvent] = useState<EventProfile | null>(null);
+  const event = eventOverride ?? cachedEvent;
   const [brandName, setBrandName] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
 
@@ -57,7 +62,7 @@ export default function LoaderStep({
       let data = sessionStorage.getItem("currentEvent");
       if (data) {
         const parsed = JSON.parse(data);
-        setEvent(parsed);
+        setCachedEvent(parsed);
         // Usar el evento como estilo si está disponible
         setStyle(parsed);
       } else {
@@ -120,7 +125,10 @@ export default function LoaderStep({
   const loadingPercentColor = event?.loadingPercentColor || "#000000";
 
   // Controlar si mostrar logos basado en la configuración del evento
-  const showLogos = event?.showLogosInLoader !== false && style !== null;
+  // `style !== null` era la única señal de "ya cargó la config"; con
+  // `eventOverride` el padre la pasa directo, así que ese caso también cuenta.
+  const showLogos =
+    event?.showLogosInLoader !== false && (style !== null || event !== null);
 
   const topLogo = showLogos
     ? (event?.logoTop || style?.logoLoadingTop || style?.logoLandingTop || null)
@@ -186,10 +194,7 @@ export default function LoaderStep({
                  angosta en comparación. */
               style={
                 wide
-                  ? {
-                      height: `calc(${LOADER_LOGO_WIDE_HEIGHT} * ${clampLogoScale(event?.logoTopScalePct) / 100})`,
-                      width: `calc(${LOADER_LOGO_WIDE_WIDTH} * ${clampLogoScale(event?.logoTopScalePct) / 100})`,
-                    }
+                  ? scaledWideLogoStyle({ scalePct: event?.logoTopScalePct })
                   : scaledLogoStyle({
                       baseHeight: LOADER_LOGO_HEIGHT,
                       baseMaxWidth: "42vw",
@@ -207,10 +212,7 @@ export default function LoaderStep({
               className={`select-none ${wide ? "object-fill" : "w-auto object-contain"}`}
               style={
                 wide
-                  ? {
-                      height: `calc(${LOADER_LOGO_WIDE_HEIGHT} * ${clampLogoScale(event?.logoBottomScalePct) / 100})`,
-                      width: `calc(${LOADER_LOGO_WIDE_WIDTH} * ${clampLogoScale(event?.logoBottomScalePct) / 100})`,
-                    }
+                  ? scaledWideLogoStyle({ scalePct: event?.logoBottomScalePct })
                   : scaledLogoStyle({
                       baseHeight: LOADER_LOGO_HEIGHT,
                       baseMaxWidth: "42vw",

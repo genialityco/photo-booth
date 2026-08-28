@@ -258,8 +258,11 @@ function ResultView({
         url.searchParams.set("frameUrl", frameSrc);
       }
     }
+    // Ver ResultStep: /survey se abre en el celular del asistente, así que el
+    // evento viaja en la URL (es lo único que le permite mostrar sus logos).
+    url.searchParams.set("eventId", event.id);
     return url.toString();
-  }, [origin, taskId, result?.url, result?.videoUrl, enableFrame, frameSrc]);
+  }, [origin, taskId, result?.url, result?.videoUrl, enableFrame, frameSrc, event.id]);
 
   const mediaSrc = result?.videoUrl || result?.url;
 
@@ -273,7 +276,7 @@ function ResultView({
     );
   }
 
-  if (!mediaSrc) return <LoaderStep wide />;
+  if (!mediaSrc) return <LoaderStep eventOverride={event} wide />;
 
   // Igual que /display (object-fill): la foto/video llena los 1920x1080 de
   // la pantalla gigante de punta a punta, sin mantener su proporción real
@@ -362,7 +365,7 @@ function KinectRevealView({
     );
   }
 
-  if (!mediaSrc) return <LoaderStep wide />;
+  if (!mediaSrc) return <LoaderStep eventOverride={event} wide />;
 
   return (
     <div className="fixed inset-0">
@@ -416,7 +419,7 @@ function HandRevealMirrorView({
     );
   }
 
-  if (!mediaSrc) return <LoaderStep wide />;
+  if (!mediaSrc) return <LoaderStep eventOverride={event} wide />;
 
   return (
     <div className="fixed inset-0 bg-black">
@@ -524,6 +527,8 @@ export default function BoothMirror({
               readOnly
               logoLeftSrc={event.logoTop}
               logoRightSrc={event.logoBottom}
+              logoLeftScalePct={event.logoTopScalePct}
+              logoRightScalePct={event.logoBottomScalePct}
               aspectRatio={event.photoAspectRatio}
               wide
             />
@@ -531,7 +536,7 @@ export default function BoothMirror({
         );
 
       case "loading":
-        return <LoaderStep brandIdOverride={state.brand} wide />;
+        return <LoaderStep brandIdOverride={state.brand} eventOverride={event} wide />;
 
       case "reveal": {
         // revealEffect="KINECT_ROLLER": la pantalla gigante ES el Kinect, así

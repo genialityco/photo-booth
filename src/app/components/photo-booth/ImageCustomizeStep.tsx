@@ -5,6 +5,12 @@ import React, { useEffect, useState } from "react";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import { getAspectClassName, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
+import {
+  CUSTOMIZE_LOGO_HEIGHT,
+  CUSTOMIZE_LOGO_MAX_WIDTH,
+  scaledLogoStyle,
+  scaledWideLogoStyle,
+} from "@/app/components/photo-booth/logoBarSizing";
 
 // Cada opción es una PALETA de varios colores (no un color plano). Debe
 // coincidir con TEXTURE_LABELS en functions/src/index.ts (mismos "value" de
@@ -47,6 +53,8 @@ export default function ImageCustomizeStep({
   buttonClickEffect,
   logoLeftSrc,
   logoRightSrc,
+  logoLeftScalePct,
+  logoRightScalePct,
   aspectRatio,
   onConfirm,
   readOnly = false,
@@ -63,6 +71,10 @@ export default function ImageCustomizeStep({
    * configuraciones. */
   logoLeftSrc?: string;
   logoRightSrc?: string;
+  /** Tamaño configurado en el admin (`logoTopScalePct`/`logoBottomScalePct`
+   * del evento), en % del tamaño base. Sin valor = 100 = el de siempre. */
+  logoLeftScalePct?: number;
+  logoRightScalePct?: number;
   /** Relación de aspecto de la foto. "SQUARE" (default) = comportamiento original. */
   aspectRatio?: PhotoAspectRatio;
   onConfirm: (value: ImageCustomization) => void;
@@ -117,7 +129,21 @@ export default function ImageCustomizeStep({
   const previewSizeStyle: React.CSSProperties = wide
     ? { height: "clamp(220px, 34vh, 460px)", width: "auto" }
     : { width: "clamp(209px, 39.6vw, 440px)" };
-  const logoHeightClass = wide ? "h-[clamp(4.5rem,14vh,8rem)]" : "h-[clamp(3.4rem,10vh,5.5rem)]";
+  // Tamaño de los logos: base fija + el % configurado en el evento (mismo
+  // criterio que el header/footer del wizard y la pantalla de carga; antes era
+  // una clase de alto fija y el valor del admin no se aplicaba acá).
+  const logoClassName = wide
+    ? "object-fill select-none"
+    : "h-auto w-auto object-contain select-none";
+  const logoStyleFor = (scalePct?: number) =>
+    wide
+      ? scaledWideLogoStyle({ scalePct })
+      : scaledLogoStyle({
+          baseHeight: CUSTOMIZE_LOGO_HEIGHT,
+          baseMaxWidth: CUSTOMIZE_LOGO_MAX_WIDTH,
+          scalePct,
+          viewportMaxWidth: "46vw",
+        });
   const paletteSwatchMaxWidth = wide ? "clamp(50px, 12vw, 320px)" : "clamp(50px, 12vw, 190px)";
 
   return (
@@ -143,11 +169,8 @@ export default function ImageCustomizeStep({
             <img
               src={logoLeftSrc}
               alt=""
-              className={
-                wide
-                  ? `${logoHeightClass} w-[24vw] object-fill select-none`
-                  : `${logoHeightClass} w-auto max-w-[42vw] object-contain select-none`
-              }
+              className={logoClassName}
+              style={logoStyleFor(logoLeftScalePct)}
               draggable={false}
             />
           ) : null}
@@ -155,11 +178,8 @@ export default function ImageCustomizeStep({
             <img
               src={logoRightSrc}
               alt=""
-              className={
-                wide
-                  ? `${logoHeightClass} w-[24vw] object-fill select-none`
-                  : `${logoHeightClass} w-auto max-w-[42vw] object-contain select-none`
-              }
+              className={logoClassName}
+              style={logoStyleFor(logoRightScalePct)}
               draggable={false}
             />
           ) : null}

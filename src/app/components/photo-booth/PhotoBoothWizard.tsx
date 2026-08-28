@@ -613,6 +613,17 @@ export default function PhotoBoothWizard({
     return trimmed || null;
   };
 
+  // Tamaño de logos configurado en el admin. `eventData` es la fuente normal
+  // (booth/[slug] lo pasa como prop), pero por la ruta legacy `?styleId=` el
+  // wizard solo tiene `style`, que en esa ruta es el EventProfile crudo leído
+  // de sessionStorage("currentEvent") — de ahí el fallback, si no el tamaño
+  // elegido se perdía en todas las pantallas de ese flujo.
+  const cachedEventConfig = style as unknown as Partial<EventProfile> | null;
+  const logoTopScalePct =
+    eventData?.logoTopScalePct ?? cachedEventConfig?.logoTopScalePct;
+  const logoBottomScalePct =
+    eventData?.logoBottomScalePct ?? cachedEventConfig?.logoBottomScalePct;
+
   const topLogoSrc = style
     ? usableLogo(
         step === "loading"
@@ -695,6 +706,8 @@ export default function PhotoBoothWizard({
               viewStyle={eventData?.captureViewStyle}
               logoLeftSrc={style ? style.logoCaptureTop || style.logoLandingTop : "/genilaty_smart_led_logo.png"}
               logoRightSrc={style ? style.logoCaptureBottom || style.logoLandingBottom : "genilaty_smart_led_logo.png"}
+              logoLeftScalePct={logoTopScalePct}
+              logoRightScalePct={logoBottomScalePct}
               backgroundSrc={bgUrl}
               aspectRatio={eventData?.photoAspectRatio}
             />
@@ -710,7 +723,7 @@ export default function PhotoBoothWizard({
             animate="animate"
             exit="exit"
           >
-            <LoaderStep />
+            <LoaderStep eventOverride={eventData ?? null} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -759,7 +772,7 @@ export default function PhotoBoothWizard({
               style={scaledLogoStyle({
                 baseHeight: LOGO_BAR_HEIGHT,
                 baseMaxWidth: LOGO_BAR_TOP_MAX_WIDTH,
-                scalePct: eventData?.logoTopScalePct,
+                scalePct: logoTopScalePct,
               })}
               draggable={false}
             />
@@ -828,6 +841,8 @@ export default function PhotoBoothWizard({
                   buttonClickEffect={eventData?.buttonClickEffect}
                   logoLeftSrc={style?.logoLandingTop}
                   logoRightSrc={style?.logoLandingBottom}
+                  logoLeftScalePct={logoTopScalePct}
+                  logoRightScalePct={logoBottomScalePct}
                   onConfirm={handleCustomizeConfirmed}
                   aspectRatio={eventData?.photoAspectRatio}
                 />
@@ -960,7 +975,7 @@ export default function PhotoBoothWizard({
               style={scaledLogoStyle({
                 baseHeight: LOGO_BAR_HEIGHT,
                 baseMaxWidth: LOGO_BAR_BOTTOM_MAX_WIDTH,
-                scalePct: eventData?.logoBottomScalePct,
+                scalePct: logoBottomScalePct,
               })}
               draggable={false}
             />

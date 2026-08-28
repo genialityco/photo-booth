@@ -88,3 +88,41 @@ export function scaledLogoStyle({
     maxWidth: `min(${viewportMaxWidth}, calc(${baseMaxWidth} * ${k}))`,
   };
 }
+
+/** Alto/ancho de los logos de TopLogosBar (pantalla de selección de filtro y
+ * pantalla espejo) en modo normal — el modo `wide` reusa los `LOADER_LOGO_WIDE_*`
+ * de arriba, que ya son exactamente los mismos valores. */
+export const TOP_BAR_LOGO_HEIGHT = "clamp(3rem, 11vh, 6rem)";
+export const TOP_BAR_LOGO_MAX_WIDTH = "42vw";
+
+/** Alto de los logos del header de CaptureStep. El `50%` es relativo a la
+ * banda reservada arriba (CAPTURE_HEADER_RESERVE), por eso va acá como string
+ * y no como rem fijo. */
+export const CAPTURE_LOGO_HEIGHT = "clamp(2.5rem, 50%, 4rem)";
+export const CAPTURE_LOGO_MAX_WIDTH = "35vw";
+
+/** Alto de los logos de ImageCustomizeStep (los dos juntos arriba). */
+export const CUSTOMIZE_LOGO_HEIGHT = "clamp(3.4rem, 10vh, 5.5rem)";
+export const CUSTOMIZE_LOGO_MAX_WIDTH = "42vw";
+
+/**
+ * Estilo del `<img>` de un logo en las pantallas "wide" (pantalla gigante),
+ * donde el logo se estira a un ancho fijo con `object-fill` en vez de
+ * limitarse con `object-contain`. Alto y ancho escalan juntos para que el
+ * logo no se deforme al cambiar el tamaño configurado en el admin.
+ */
+export function scaledWideLogoStyle({
+  baseHeight = LOADER_LOGO_WIDE_HEIGHT,
+  baseWidth = LOADER_LOGO_WIDE_WIDTH,
+  scalePct,
+}: {
+  baseHeight?: string;
+  baseWidth?: string;
+  scalePct?: number;
+} = {}): CSSProperties {
+  const k = clampLogoScale(scalePct) / 100;
+  return {
+    height: `calc(${baseHeight} * ${k})`,
+    width: `calc(${baseWidth} * ${k})`,
+  };
+}

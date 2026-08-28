@@ -73,9 +73,16 @@ export default function ResultStep({
         url.searchParams.set("frameUrl", frameSrc);
       }
     }
-    
+
+    // El QR se escanea desde el celular del asistente — otro dispositivo, sin
+    // el sessionStorage del kiosco — así que la identidad del evento viaja en
+    // la URL para que /survey pueda mostrar los logos del evento.
+    if (event?.id) {
+      url.searchParams.set("eventId", event.id);
+    }
+
     return url.toString();
-  }, [origin, aiUrl, videoUrl, taskId, enableFrame, frameSrc]);
+  }, [origin, aiUrl, videoUrl, taskId, enableFrame, frameSrc, event?.id]);
 
   // === Componer imagen con marco (para preview en pantalla) ===
   const [framedImageUrl, setFramedImageUrl] = useState<string>("");

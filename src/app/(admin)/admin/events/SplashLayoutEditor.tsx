@@ -50,12 +50,18 @@ export type SplashLayoutPreviewData = {
   titleText: string;
   titleColor: string;
   titleFontCss: string;
+  /** Peso del título/subtítulo, ya resuelto por EventForm igual que en
+   * SplashScreen (`undefined` = el propio de la fuente). El preview mide el
+   * ancho del texto para posicionarlo, y el peso cambia ese ancho, así que
+   * tiene que coincidir con el render real. */
+  titleFontWeight?: number;
   titleUppercase: boolean;
   titleIsImage: boolean;
   titleImage: string;
   subtitleText: string;
   subtitleColor: string;
   subtitleFontCss: string;
+  subtitleFontWeight?: number;
   subtitleUppercase: boolean;
   word1Text: string;
   word1Color: string;
@@ -410,6 +416,7 @@ function ElementPreview({
         <div
           style={{
             fontFamily: preview.titleFontCss,
+            fontWeight: preview.titleFontWeight,
             fontSize: 22,
             lineHeight: 1,
             textTransform: preview.titleUppercase ? "uppercase" : "none",
@@ -426,7 +433,7 @@ function ElementPreview({
         <div
           style={{
             fontFamily: preview.subtitleFontCss,
-            fontWeight: 800,
+            fontWeight: preview.subtitleFontWeight,
             fontSize: 10,
             // Sigue el mismo toggle que el subtítulo real en SplashScreen — si
             // no, el preview mentiría sobre cómo se va a ver.

@@ -3,11 +3,21 @@
 
 import React from "react";
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
+import {
+  TOP_BAR_LOGO_HEIGHT,
+  TOP_BAR_LOGO_MAX_WIDTH,
+  scaledLogoStyle,
+  scaledWideLogoStyle,
+} from "@/app/components/photo-booth/logoBarSizing";
 
 /** Fila de logos superiores del evento (`logoTop`/`logoBottom`) — uno a cada
  * lado, o centrado si solo hay uno. Compartida entre EventPhotoBoothLanding
  * (pantalla de selección de filtro) y BoothMirror (pantalla de resultado en
- * la pantalla espejo), para que ambas usen exactamente el mismo layout. */
+ * la pantalla espejo), para que ambas usen exactamente el mismo layout.
+ *
+ * El tamaño sale de `logoTopScalePct`/`logoBottomScalePct` del evento (igual
+ * que el header/footer del wizard y la pantalla de carga): antes eran clases
+ * fijas, así que el valor elegido en el admin no se veía acá. */
 export default function TopLogosBar({
   event,
   wide = false,
@@ -20,8 +30,18 @@ export default function TopLogosBar({
   if (!event.logoTop && !event.logoBottom) return null;
 
   const logoClassName = wide
-    ? "h-[clamp(4.5rem,14vh,8rem)] w-[24vw] object-fill select-none"
-    : "h-[clamp(3rem,11vh,6rem)] max-w-[42vw] w-auto object-contain select-none";
+    ? "object-fill select-none"
+    : "h-auto w-auto object-contain select-none";
+
+  const styleFor = (scalePct?: number) =>
+    wide
+      ? scaledWideLogoStyle({ scalePct })
+      : scaledLogoStyle({
+          baseHeight: TOP_BAR_LOGO_HEIGHT,
+          baseMaxWidth: TOP_BAR_LOGO_MAX_WIDTH,
+          scalePct,
+          viewportMaxWidth: "46vw",
+        });
 
   return (
     <div
@@ -30,10 +50,22 @@ export default function TopLogosBar({
       } ${className}`}
     >
       {event.logoTop && (
-        <img src={event.logoTop} alt={event.name} className={logoClassName} draggable={false} />
+        <img
+          src={event.logoTop}
+          alt={event.name}
+          className={logoClassName}
+          style={styleFor(event.logoTopScalePct)}
+          draggable={false}
+        />
       )}
       {event.logoBottom && (
-        <img src={event.logoBottom} alt="" className={logoClassName} draggable={false} />
+        <img
+          src={event.logoBottom}
+          alt=""
+          className={logoClassName}
+          style={styleFor(event.logoBottomScalePct)}
+          draggable={false}
+        />
       )}
     </div>
   );

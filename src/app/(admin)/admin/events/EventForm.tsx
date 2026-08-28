@@ -278,6 +278,11 @@ export default function EventForm({
     splashButtonColorTo: event?.splashButtonColorTo || "#C40024",
     splashTitleFont: event?.splashTitleFont || "default",
     splashSubtitleFont: event?.splashSubtitleFont || "default",
+    // Defaults asimétricos a propósito, para no cambiarle el look a los
+    // eventos ya creados: el título nunca fijó peso (false) y el subtítulo iba
+    // con 800 fijo (true). Ver splashTitleBold/splashSubtitleBold.
+    splashTitleBold: event?.splashTitleBold === true,
+    splashSubtitleBold: event?.splashSubtitleBold !== false,
     splashWordsFont: event?.splashWordsFont || "default",
     captureBeforeFilter: event?.captureBeforeFilter === true,
     captureViewStyle: event?.captureViewStyle || "CLASSIC",
@@ -539,7 +544,7 @@ export default function EventForm({
             />
           </div>
           <p className="text-xs text-gray-500 -mt-1">
-            100% es el tamaño por defecto. Se aplica en el preview, el resultado, el revelado y la pantalla de carga. La pantalla de captura y la splash tienen su propio diseño de logos y no se ven afectadas.
+            100% es el tamaño por defecto. Se aplica en todas las pantallas del flujo: selección de marca, captura, preview, personalización, carga, revelado y resultado (también en la pantalla espejo). La splash tiene su propio editor de logos y no se ve afectada.
           </p>
 
           <ImageUploadField
@@ -835,6 +840,15 @@ export default function EventForm({
                 </div>
                 <div className="mt-2">
                   <ToggleField
+                    id="splashTitleBold"
+                    label="Título en negrita"
+                    description="Desactivado (por defecto) el título usa el grosor propio de la fuente elegida. Actívalo para forzarlo en negrita. Ojo con fuentes de un solo grosor (Anton, Selima): ahí el navegador la simula y el texto se ve deformado."
+                    checked={formData.splashTitleBold === true}
+                    onChange={(checked) => setField("splashTitleBold", checked)}
+                  />
+                </div>
+                <div className="mt-2">
+                  <ToggleField
                     id="splashTitleUppercase"
                     label="Título en mayúsculas"
                     description="Desactivado (por defecto) el título sale literal, tal cual lo escribiste. Actívalo para forzarlo TODO EN MAYÚSCULAS. No aplica si el título es una imagen."
@@ -897,6 +911,15 @@ export default function EventForm({
                     </option>
                   ))}
                 </SelectField>
+              </div>
+              <div className="mt-2">
+                <ToggleField
+                  id="splashSubtitleBold"
+                  label="Subtítulo en negrita"
+                  description="Activado (por defecto) porque el subtítulo siempre salió en negrita. Desactivalo para verlo con el grosor propio de la fuente: con Anton o Selima (un solo grosor) es la única forma de que la fuente elegida se vea como es, sin la negrita simulada del navegador."
+                  checked={formData.splashSubtitleBold !== false}
+                  onChange={(checked) => setField("splashSubtitleBold", checked)}
+                />
               </div>
               <div className="mt-2">
                 <ToggleField
@@ -1071,10 +1094,12 @@ export default function EventForm({
                   titleText: formData.splashTitle || "TU ROSTRO,\nTU ARTE",
                   titleColor: formData.splashTitleColor || "#E4032E",
                   titleFontCss: resolveSplashFont(formData.splashTitleFont, "title"),
+                  titleFontWeight: formData.splashTitleBold === true ? 800 : undefined,
                   titleUppercase: formData.splashTitleUppercase === true,
                   subtitleText: formData.splashSubtitle || "Conviértete en una obra de arte",
                   subtitleColor: formData.splashSubtitleColor || "#2B2118",
                   subtitleFontCss: resolveSplashFont(formData.splashSubtitleFont, "subtitle"),
+                  subtitleFontWeight: formData.splashSubtitleBold === false ? 400 : 800,
                   subtitleUppercase: formData.splashSubtitleUppercase !== false,
                   word1Text: formData.splashWord1 || "ARTE",
                   word1Color: formData.splashWord1Color || "#1FB6C4",

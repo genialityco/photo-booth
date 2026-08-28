@@ -4,8 +4,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { StyleProfile } from "@/app/services/admin/styleService";
 import { useSearchParams } from "next/navigation";
+import TopLogosBar from "@/app/components/photo-booth/TopLogosBar";
+import {
+  getEventProfileById,
+  type EventProfile,
+} from "@/app/services/photo-booth/eventService";
 // ⬇️ Ya no guardamos en base, así que puedes comentar/retirar estos imports si no se usan
 // import { createSurveyRecord, createSurveyRecordQuick } from "../services/surveyServices";
 
@@ -21,6 +25,11 @@ export default function SurveyClient() {
   const kind = (sp.get("kind") as "raw" | "framed" | "video") || undefined;
   const filenameFromQS = sp.get("filename") || undefined;
   const frameUrlFromQS = sp.get("frameUrl") || undefined;
+  /** Evento que generó la foto — lo pone ResultStep/BoothMirror al armar el QR.
+   * Es la única forma de saberlo acá: esta página se abre en el celular del
+   * asistente, donde no existe el sessionStorage del kiosco. */
+  const eventIdFromQS = sp.get("eventId") || undefined;
+  const [event, setEvent] = useState<EventProfile | null>(null);
   const [photo, setPhoto] = useState<string>("");
   const [loadingPhoto, setLoadingPhoto] = useState(true);
   const [err, setErr] = useState<string>("");
@@ -40,6 +49,39 @@ export default function SurveyClient() {
   const [downloadHref, setDownloadHref] = useState<string>("");
   const [downloadName, setDownloadName] = useState<string>("");
   const revokeRef = useRef<null | (() => void)>(null);
+
+  // Logos del evento (los mismos `logoTop`/`logoBottom` del booth, con el
+  // tamaño configurado en el admin). Por `eventId` de la URL cuando el QR es
+  // nuevo; si no, se cae al evento cacheado — que solo existe si esta página
+  // se abrió en el mismo dispositivo del kiosco, no al escanear el QR.
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      if (eventIdFromQS) {
+        try {
+          const ev = await getEventProfileById(eventIdFromQS);
+          if (active && ev) {
+            setEvent(ev);
+            return;
+          }
+        } catch {
+          // sin evento no se muestran logos, pero la descarga sigue andando
+        }
+      }
+
+      try {
+        const cached = sessionStorage.getItem("currentEvent");
+        if (cached && active) setEvent(JSON.parse(cached));
+      } catch {
+        // json inválido → ignorar silenciosamente
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [eventIdFromQS]);
 
   const suggestedName = useMemo(() => {
     if (filenameFromQS) return filenameFromQS;
@@ -242,8 +284,23 @@ useEffect(() => {
   */
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center py-8 px-4">
+    /* `h-full overflow-y-auto` (no `min-h-screen`): el layout raíz envuelve
+       todo en un contenedor `h-dvh overflow-hidden`, así que una página más
+       alta que la pantalla se cortaba sin poder scrollear — en un celular eso
+       dejaba el botón de descarga fuera de vista. */
+    <div className="relative h-full w-full overflow-y-auto flex flex-col items-center py-8 px-4">
+      {/* Fondo del evento + velo, igual que el resto del booth. Sin esto la
+          página quedaba con su texto blanco sobre el fondo blanco del body. */}
+      <div
+        className="fixed inset-0 -z-10 bg-cover bg-center bg-neutral-900"
+        style={event?.bgImage ? { backgroundImage: `url('${event.bgImage}')` } : undefined}
+        aria-hidden
+      />
+      <div className="fixed inset-0 -z-10 bg-black/50" aria-hidden />
+
       <div className="w-full max-w-3xl">
+        {event && <TopLogosBar event={event} className="mb-6 px-2" />}
+
         <header className="text-center mb-6">
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
             Descarga tu imagen 📸

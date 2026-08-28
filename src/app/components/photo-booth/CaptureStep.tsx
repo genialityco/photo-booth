@@ -10,6 +10,11 @@ import ShutterButton from "@/app/components/common/ShutterButton";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import CaptureViewfinderOverlay from "@/app/components/photo-booth/CaptureViewfinderOverlay";
 import { getAspectDims, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
+import {
+  CAPTURE_LOGO_HEIGHT,
+  CAPTURE_LOGO_MAX_WIDTH,
+  scaledLogoStyle,
+} from "@/app/components/photo-booth/logoBarSizing";
 
 /** Recorte "cover" centrado: el rectángulo más grande con la relación w:h pedida que entra en un video sourceW x sourceH. */
 function coverCropSize(sourceW: number, sourceH: number, ratio?: PhotoAspectRatio | null) {
@@ -47,6 +52,8 @@ export default function CaptureStep({
   viewStyle = "CLASSIC",
   logoLeftSrc,
   logoRightSrc,
+  logoLeftScalePct,
+  logoRightScalePct,
   backgroundSrc,
   aspectRatio,
 }: {
@@ -60,6 +67,10 @@ export default function CaptureStep({
   /** Logos chicos en la fila inferior, a los costados del disparador. */
   logoLeftSrc?: string;
   logoRightSrc?: string;
+  /** Tamaño configurado en el admin (`logoTopScalePct`/`logoBottomScalePct`
+   * del evento), en % del tamaño base. Sin valor = 100 = el de siempre. */
+  logoLeftScalePct?: number;
+  logoRightScalePct?: number;
   /** Fondo detrás del cuadro de cámara (la imagen de fondo configurada del evento). */
   backgroundSrc?: string;
   /** Relación de aspecto de la foto capturada. "SQUARE" (default) = comportamiento original. Solo aplica cuando no hay marco (el marco manda su propia forma). */
@@ -277,7 +288,16 @@ export default function CaptureStep({
           <img
             src={logoLeftSrc}
             alt=""
-            className="h-[clamp(2.5rem,50%,4rem)] w-auto max-w-[35vw] object-contain select-none"
+            className="h-auto w-auto object-contain select-none"
+            /* Mismo tamaño configurable que el resto del wizard: antes el alto
+               era una clase fija, así que el % elegido en el admin no llegaba
+               a esta pantalla. */
+            style={scaledLogoStyle({
+              baseHeight: CAPTURE_LOGO_HEIGHT,
+              baseMaxWidth: CAPTURE_LOGO_MAX_WIDTH,
+              scalePct: logoLeftScalePct,
+              viewportMaxWidth: "45vw",
+            })}
             draggable={false}
           />
         ) : null}
@@ -286,7 +306,13 @@ export default function CaptureStep({
           <img
             src={logoRightSrc}
             alt=""
-            className="h-[clamp(2.5rem,50%,4rem)] w-auto max-w-[35vw] object-contain select-none"
+            className="h-auto w-auto object-contain select-none"
+            style={scaledLogoStyle({
+              baseHeight: CAPTURE_LOGO_HEIGHT,
+              baseMaxWidth: CAPTURE_LOGO_MAX_WIDTH,
+              scalePct: logoRightScalePct,
+              viewportMaxWidth: "45vw",
+            })}
             draggable={false}
           />
         ) : null}
