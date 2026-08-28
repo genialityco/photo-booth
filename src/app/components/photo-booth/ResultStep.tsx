@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useMemo, useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import type { StyleProfile } from "@/app/services/admin/styleService";
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
@@ -37,6 +38,7 @@ export default function ResultStep({
   onShowQrChange,
 }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const reduceMotion = useReducedMotion();
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [event, setEvent] = useState<EventProfile | null>(null);
   const [qrSize, setQrSize] = useState(500);
@@ -209,52 +211,161 @@ export default function ResultStep({
             sombra en capas, mismo tratamiento que el resto del wizard. */}
         <div
           ref={containerRef}
-          className="relative flex-1 min-h-0 w-full flex items-center justify-center"
+          className="relative flex-1 min-h-0 w-full flex items-center justify-center p-5 sm:p-8"
+          style={{ perspective: "1200px" }}
         >
+          {/* El padding de este contenedor es lo que le deja aire al bloom y al
+              recorrido del flote. `boxDims` sale del `contentRect` del
+              ResizeObserver, que NO incluye el padding, así que la foto se
+              achica sola para dejar ese margen: sin eso el halo se cortaría
+              contra el borde de la caja del wizard, que va con
+              overflow-hidden, y el corte duro se ve peor que no tener halo.
+              Subir el padding = más halo y más recorrido, foto más chica. */}
           <div
-            className="relative p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]"
+            className="relative"
             style={
               boxDims
                 ? { width: boxDims.width, height: boxDims.height }
                 : { maxWidth: "100%", maxHeight: "100%" }
             }
           >
-            <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/5">
-              {videoUrl ? (
-                <video
-                  src={videoUrl}
-                  className="absolute inset-0 w-full h-full object-contain"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                />
-              ) : (
-                <img
-                  src={framedImageUrl || aiUrl}
-                  alt="Imagen generada por IA"
-                  className="absolute inset-0 w-full h-full object-contain select-none"
-                  draggable={false}
-                />
-              )}
+            {/* BLOOM en dos capas, las dos hechas con la propia foto ampliada y
+                desenfocada. Al salir de la imagen misma, el halo toma sus
+                colores y cambia con cada foto sin tener que calcular nada.
 
-              <button
-                type="button"
-                onClick={() => onShowQrChange(!showQr)}
-                aria-label={showQr ? "Volver a la foto" : "Mostrar código QR para descargar la foto"}
-                className={`absolute rounded-xl transition-all duration-300 ease-out ${
-                  showQr
-                    ? "inset-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
-                    : "bottom-2 right-2 sm:bottom-3 sm:right-3 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10 active:scale-95"
-                }`}
+                Van FUERA del wrapper que flota, a propósito: quedándose
+                quietas mientras la tarjeta se mueve por encima se genera un
+                paralaje (la foto se despega del halo) que es lo que vende la
+                sensación de que está suspendida. Si el halo se moviera con la
+                tarjeta parecería pegado y el efecto se pierde.
+
+                Se usa siempre la imagen (`aiUrl`) incluso en los eventos con
+                video: es el mismo contenido y evita dos <video> más
+                decodificando en paralelo, que en las tablets del kiosco se
+                nota. El blur es caro pero se pinta una vez y queda cacheado
+                como textura; lo que se anima encima es opacity/scale, que el
+                compositor resuelve en GPU. Si en el hardware del evento se
+                viera con tirones, lo primero que hay que sacar es el `scale`
+                de la capa ancha (el blur se re-rasteriza al escalar en algunos
+                navegadores) — con solo la opacidad el efecto se sostiene. */}
+            <motion.img
+              aria-hidden
+              src={framedImageUrl || aiUrl}
+              alt=""
+              draggable={false}
+              className="pointer-events-none select-none absolute inset-0 w-full h-full object-cover rounded-[3rem] blur-3xl saturate-[2] brightness-110"
+              animate={
+                reduceMotion
+                  ? { opacity: 0.7, scale: 1.2 }
+                  : { opacity: [0.6, 0.85, 0.6], scale: [1.16, 1.26, 1.16] }
+              }
+              transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <motion.img
+              aria-hidden
+              src={framedImageUrl || aiUrl}
+              alt=""
+              draggable={false}
+              className="pointer-events-none select-none absolute inset-0 w-full h-full object-cover rounded-[2rem] blur-2xl saturate-[1.8]"
+              animate={reduceMotion ? { opacity: 0.6 } : { opacity: [0.5, 0.78, 0.5] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            />
+
+            {/* Sombra de apoyo: acompaña la deriva horizontal de la tarjeta y
+                va en contrafase con el flote (se encoge y se aclara cuando la
+                foto sube). Es lo que hace leer el movimiento como "flota" y no
+                como "se desplaza"; sin ella el mismo recorrido parece un
+                glitch de layout. Se posiciona con `left-[12.5%]` en vez de
+                `left-1/2 -translate-x-1/2` porque framer escribe el `transform`
+                completo del elemento y pisaría la utilidad de Tailwind. */}
+            {!reduceMotion && (
+              <motion.div
+                aria-hidden
+                className="pointer-events-none absolute left-[12.5%] -bottom-4 h-3 w-3/4 rounded-[50%] bg-black/55 blur-md"
+                animate={{
+                  scaleX: [1, 0.82, 0.92, 0.8, 1],
+                  opacity: [0.6, 0.24, 0.42, 0.2, 0.6],
+                  x: [0, 7, -5, 4, 0],
+                }}
+                transition={{
+                  scaleX: { duration: 9, repeat: Infinity, ease: "easeInOut" },
+                  opacity: { duration: 9, repeat: Infinity, ease: "easeInOut" },
+                  x: { duration: 11, repeat: Infinity, ease: "easeInOut" },
+                }}
+              />
+            )}
+
+            {/* Flote "dinámico": en vez de un sube-y-baja, cada eje tiene su
+                propia duración y son números primos entre sí (7/9/11/13/15/17).
+                El patrón compuesto tarda muchísimo en repetirse, así que a la
+                vista nunca se lee como un loop — es la diferencia entre "la
+                foto está animada" y "la foto flota". Todo es transform puro
+                (+ la `perspective` del contenedor para que rotateX/rotateY den
+                profundidad real), o sea que se compone en GPU sin repintar. */}
+            <motion.div
+              className="relative z-10 w-full h-full"
+              animate={
+                reduceMotion
+                  ? undefined
+                  : {
+                      y: [0, -14, -6, -16, 0],
+                      x: [0, 7, -5, 4, 0],
+                      rotateZ: [0, 0.7, -0.6, 0.4, 0],
+                      rotateY: [0, 2.2, -1.8, 1.2, 0],
+                      rotateX: [0, -1.4, 1.2, -0.8, 0],
+                      scale: [1, 1.015, 1.005, 1.02, 1],
+                    }
+              }
+              transition={{
+                y: { duration: 9, repeat: Infinity, ease: "easeInOut" },
+                x: { duration: 11, repeat: Infinity, ease: "easeInOut" },
+                rotateZ: { duration: 13, repeat: Infinity, ease: "easeInOut" },
+                rotateY: { duration: 15, repeat: Infinity, ease: "easeInOut" },
+                rotateX: { duration: 17, repeat: Infinity, ease: "easeInOut" },
+                scale: { duration: 7, repeat: Infinity, ease: "easeInOut" },
+              }}
+            >
+              <div
+                className="relative w-full h-full p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 rounded-2xl shadow-[0_8px_10px_-6px_rgba(0,0,0,0.4),0_25px_45px_-12px_rgba(0,0,0,0.55)]"
               >
-                <QrTag
-                  value={surveyAI}
-                  size={showQr ? qrSize : Math.max(48, Math.min(88, (boxDims?.width ?? 240) * 0.22))}
-                  label={showQr ? "Escanea para descargar tu foto en tu celular" : undefined}
-                />
-              </button>
-            </div>
+                <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/5">
+                  {videoUrl ? (
+                    <video
+                      src={videoUrl}
+                      className="absolute inset-0 w-full h-full object-contain"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={framedImageUrl || aiUrl}
+                      alt="Imagen generada por IA"
+                      className="absolute inset-0 w-full h-full object-contain select-none"
+                      draggable={false}
+                    />
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => onShowQrChange(!showQr)}
+                    aria-label={showQr ? "Volver a la foto" : "Mostrar código QR para descargar la foto"}
+                    className={`absolute rounded-xl transition-all duration-300 ease-out ${
+                      showQr
+                        ? "inset-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
+                        : "bottom-2 right-2 sm:bottom-3 sm:right-3 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10 active:scale-95"
+                    }`}
+                  >
+                    <QrTag
+                      value={surveyAI}
+                      size={showQr ? qrSize : Math.max(48, Math.min(88, (boxDims?.width ?? 240) * 0.22))}
+                      label={showQr ? "Escanea para descargar tu foto en tu celular" : undefined}
+                    />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
 

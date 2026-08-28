@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { EventProfile } from "@/app/services/photo-booth/eventService";
 import ScreenSaverSlideshow from "@/app/components/common/ScreenSaverSlideshow";
 
@@ -10,7 +10,22 @@ import ScreenSaverSlideshow from "@/app/components/common/ScreenSaverSlideshow";
  * contenido en sí (loop de media → splash → galería → filtros) lo arma
  * ScreenSaverSlideshow — ver ese componente para el detalle de cada slide.
  */
-export default function ScreenSaver({ event }: { event: EventProfile }) {
+export default function ScreenSaver({
+  event,
+  activityKey,
+}: {
+  event: EventProfile;
+  /** Cambia con cada paso relevante del flujo (splash/landing/wizard y, ya
+   * dentro del wizard, cada paso interno: capture/preview/.../result).
+   * Cada cambio cuenta como actividad y reinicia el timer, igual que un
+   * toque real — necesario porque durante la generación de IA y el
+   * revelado el usuario puede pasar bastante tiempo sin tocar la pantalla
+   * (esperando) y aun así seguir "activo" viendo el flujo, no inactivo. Sin
+   * esto el salvapantalla podía saltar a los pocos segundos de llegar al
+   * resultado, porque el reloj de inactividad seguía corriendo desde el
+   * último toque real (ej. confirmar el preview), bastante antes. */
+  activityKey?: string;
+}) {
   const timeoutMs = (event.screenSaverInactivityTimeoutSec ?? 150) * 1000;
 
   // Candidatos sincrónicos, derivados solo de `event` — alcanza para decidir
@@ -29,9 +44,15 @@ export default function ScreenSaver({ event }: { event: EventProfile }) {
 
   const [isActive, setIsActive] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  // Ref en vez de depender del estado `isActive`: así `resetIdleTimer` no
+  // necesita recrearse (ni el efecto de listeners DOM reengancharse) cada vez
+  // que el salvapantalla entra/sale.
+  const isActiveRef = useRef(isActive);
+  isActiveRef.current = isActive;
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handleActivity = useCallback(() => {
-    if (isActive && !isExiting) {
+    if (isActiveRef.current) {
       // Iniciar animación de salida
       setIsExiting(true);
       // Después de la animación, ocultar completamente
@@ -40,7 +61,15 @@ export default function ScreenSaver({ event }: { event: EventProfile }) {
         setIsExiting(false);
       }, 500); // Duración de la animación
     }
-  }, [isActive, isExiting]);
+  }, []);
+
+  // Reinicia el reloj de inactividad — usado tanto por los listeners DOM
+  // reales como por los cambios de `activityKey` (actividad "programática").
+  const resetIdleTimer = useCallback(() => {
+    clearTimeout(timeoutRef.current);
+    if (isActiveRef.current) handleActivity();
+    timeoutRef.current = setTimeout(() => setIsActive(true), timeoutMs);
+  }, [timeoutMs, handleActivity]);
 
   useEffect(() => {
     if (!hasAnySlideCandidate) return;
@@ -48,38 +77,29 @@ export default function ScreenSaver({ event }: { event: EventProfile }) {
     // Eventos que indican actividad del usuario
     const domEvents = ["mousedown", "mousemove", "keypress", "scroll", "touchstart", "click"];
 
-    let timeoutId: NodeJS.Timeout;
-
-    const handleUserActivity = () => {
-      if (isActive) {
-        handleActivity();
-      } else {
-        // Resetear el timer
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-          setIsActive(true);
-        }, timeoutMs);
-      }
-    };
-
-    // Agregar listeners
     domEvents.forEach((domEvent) => {
-      window.addEventListener(domEvent, handleUserActivity);
+      window.addEventListener(domEvent, resetIdleTimer);
     });
 
     // Iniciar el timer inicial
-    timeoutId = setTimeout(() => {
-      setIsActive(true);
-    }, timeoutMs);
+    resetIdleTimer();
 
     // Cleanup
     return () => {
-      clearTimeout(timeoutId);
+      clearTimeout(timeoutRef.current);
       domEvents.forEach((domEvent) => {
-        window.removeEventListener(domEvent, handleUserActivity);
+        window.removeEventListener(domEvent, resetIdleTimer);
       });
     };
-  }, [hasAnySlideCandidate, timeoutMs, isActive, handleActivity]);
+  }, [hasAnySlideCandidate, resetIdleTimer]);
+
+  // Actividad programática: cada vez que cambia el paso del flujo (ver doc de
+  // `activityKey`), cuenta como si el usuario hubiera interactuado.
+  useEffect(() => {
+    if (!hasAnySlideCandidate) return;
+    resetIdleTimer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityKey]);
 
   if (!hasAnySlideCandidate || !isActive) return null;
 

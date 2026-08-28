@@ -109,28 +109,22 @@ export default function EventPhotoBoothLanding({
   // Determinar si el botón debe estar habilitado
   const isStartEnabled = !event.dataProcessingText || dataProcessingAccepted;
 
-  // Determina columnas y ancho máximo del grid según la cantidad de brands.
-  // Las cards ya no tienen tamaño fijo en px: ocupan el 100% de su celda de
-  // grid (aspect-square), así que crecen o encogen con la pantalla. El
-  // max-width por cantidad solo evita que 1-2 opciones queden gigantes en
-  // pantallas anchas (kiosco/tablet).
+  // Grid fijo de 2 columnas (2 filtros por fila) sin importar la cantidad de
+  // brands, para que las tarjetas se vean más grandes; si no entran todas en
+  // pantalla, el contenedor de abajo hace scroll vertical en vez de achicar
+  // las tarjetas o agregar más columnas. Con una sola opción se usa 1
+  // columna centrada (caso raro: esta pantalla solo se muestra cuando hay
+  // más de una brand para elegir).
   const getGridClass = () => {
-    const count = prompts.length;
-    // En modo `wide` (pantalla gigante), los mismos topes en rem quedarían
-    // chicos para 1920px — se relajan (~1.7x) para que las tarjetas usen
-    // más del ancho disponible en vez de quedar agrupadas en el centro.
-    if (count === 1) return wide ? "grid-cols-1 max-w-[min(60vw,46rem)]" : "grid-cols-1 max-w-[min(60vw,20rem)]";
-    if (count === 2) return wide ? "grid-cols-2 max-w-[min(85vw,72rem)]" : "grid-cols-2 max-w-[min(80vw,32rem)]";
-    if (count === 3) return wide ? "grid-cols-3 max-w-[min(92vw,90rem)]" : "grid-cols-3 max-w-[min(90vw,40rem)]";
-    if (count === 4) return wide ? "grid-cols-2 sm:grid-cols-4 max-w-[min(92vw,98rem)]" : "grid-cols-2 sm:grid-cols-4 max-w-[min(90vw,44rem)]";
-    return wide
-      ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-w-[min(96vw,120rem)]"
-      : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-w-[min(95vw,56rem)]";
+    if (prompts.length === 1) {
+      return wide ? "grid-cols-1 max-w-[min(60vw,46rem)]" : "grid-cols-1 max-w-[min(60vw,20rem)]";
+    }
+    return wide ? "grid-cols-2 max-w-[min(90vw,80rem)]" : "grid-cols-2 max-w-[min(96vw,46rem)]";
   };
 
   return (
     <div
-      className="relative min-h-[100svh] w-full overflow-hidden"
+      className="relative h-[100svh] w-full overflow-hidden"
       style={{
         paddingTop: "max(12px, env(safe-area-inset-top))",
         paddingBottom: "max(12px, env(safe-area-inset-bottom))",
@@ -158,7 +152,7 @@ export default function EventPhotoBoothLanding({
         />
       )}
 
-      <div className={`mx-auto flex min-h-[100svh] ${wide ? "max-w-[1850px]" : "max-w-[980px]"} flex-col items-center justify-center px-4 sm:px-6 md:px-8`}>
+      <div className={`mx-auto flex h-full ${wide ? "max-w-[1850px]" : "max-w-[980px]"} flex-col items-center justify-center px-4 sm:px-6 md:px-8`}>
         {/* Logos: uno a cada lado (o centrado si solo hay uno), buen tamaño */}
         <TopLogosBar
           event={event}
@@ -171,8 +165,12 @@ export default function EventPhotoBoothLanding({
           {event.name}
         </h1> */}
 
-        {/* Selection Panels - Centered and Scrollable */}
-        <div className="flex-1 w-full flex items-center justify-center py-4">
+        {/* Selection Panels - Centered and Scrollable. `min-h-0` es necesario
+            para que, dentro del flex-col de altura fija de arriba, este
+            `flex-1` pueda encogerse a su espacio disponible en vez de crecer
+            con el contenido — sin eso `overflow-y-auto` nunca llega a
+            activarse aunque el grid (2 columnas fijas) no entre completo. */}
+        <div className="flex-1 w-full min-h-0 flex items-center justify-center py-4 overflow-y-auto">
           {/* Brand Selection */}
           <div className="w-full flex flex-col items-center">
             {loadingPrompts ? (
@@ -181,7 +179,7 @@ export default function EventPhotoBoothLanding({
               </div>
             ) : prompts.length > 0 ? (
               <div
-                className={`grid gap-4 sm:gap-5 md:gap-6 w-full mx-auto ${getGridClass()}`}
+                className={`grid gap-5 sm:gap-6 md:gap-7 w-full mx-auto ${getGridClass()}`}
               >
                 {prompts.map((prompt) => {
                   const imgSrc = prompt.imageUrl || prompt.logoPath;
@@ -245,7 +243,7 @@ export default function EventPhotoBoothLanding({
 
                       {/* Scrim inferior + nombre de la marca - siempre visible */}
                       <div className={`absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/75 via-black/25 to-transparent px-2 sm:px-3 ${wide ? "pt-10 pb-3 sm:pb-4" : "pt-8 pb-2 sm:pb-3"}`}>
-                        <span className={`block text-white font-bold leading-tight drop-shadow-lg ${wide ? "text-2xl md:text-3xl" : "text-sm sm:text-base md:text-lg"}`}>
+                        <span className={`block text-white font-bold leading-tight drop-shadow-lg ${wide ? "text-2xl md:text-3xl" : "text-base sm:text-lg md:text-xl"}`}>
                           {displayName}
                         </span>
                       </div>

@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import EventPhotoBoothLanding from "@/app/components/photo-booth/EventPhotoBoothLanding";
 import CaptureStep from "@/app/components/photo-booth/CaptureStep";
 import PreviewStep from "@/app/components/photo-booth/PreviewStep";
@@ -13,6 +13,7 @@ import RollerRevealStep from "@/app/components/photo-booth/reveal/RollerRevealSt
 import { ROLLER_MODEL_PATH } from "@/app/components/photo-booth/reveal/RollerCursor";
 import ResultStep from "@/app/components/photo-booth/ResultStep";
 import ImageCustomizeStep, { type ImageCustomization } from "@/app/components/photo-booth/ImageCustomizeStep";
+import { LOGO_BAR_VARIANTS, stepVariantsFor } from "@/app/components/photo-booth/stepTransitions";
 import { getStyleProfileById } from "@/app/services/admin/styleService";
 import type { StyleProfile } from "@/app/services/admin/styleService";
 import {
@@ -580,29 +581,27 @@ export default function PhotoBoothWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, taskId, brand, customization, rawUrl, framedUrl, showQr]);
 
-  // Crossfade puro entre pasos (solo opacidad, sin y/scale), por dos motivos:
+  // Cada paso trae su propia transición de entrada/salida (ver
+  // `stepTransitions.ts`, que documenta el criterio de cada una). Dos cosas
+  // que valen para todas y que conviene no romper:
   //
-  // 1) Con `mode="wait"` la salida terminaba ANTES de que entrara el paso
-  //    siguiente: quedaba ~0.35s de contenedor vacío en el que el fondo y los
-  //    logos YA habían cambiado (viven fuera del AnimatePresence). Se veía
-  //    como si el loader se montara primero y recién después se cayera el
-  //    preview. Ahora los dos pasos coexisten superpuestos (`absolute
-  //    inset-0`) y se cruzan en opacidad, sin hueco intermedio.
+  // 1) Los pasos NO se turnan: `AnimatePresence` va sin `mode="wait"` y los
+  //    pasos conviven superpuestos (`absolute inset-0` en la caja de
+  //    contenido, `fixed inset-0` los de pantalla completa). Con
+  //    `mode="wait"` la salida terminaba ANTES de que entrara el siguiente y
+  //    quedaba ~0.35s de contenedor vacío en el que el fondo y los logos YA
+  //    habían cambiado (viven fuera del AnimatePresence): se veía como si el
+  //    loader se montara primero y recién después se cayera el preview.
   //
-  // 2) Un transform activo (y/scale) crea un containing block, así que el
-  //    `fixed inset-0` de LoaderStep quedaba anclado a la caja del wizard
-  //    durante la animación y saltaba a pantalla completa al terminar — el
-  //    mismo motivo por el que CaptureStep se renderiza fuera de este
-  //    AnimatePresence. Animando solo opacidad no hay containing block y el
-  //    loader cubre el viewport desde el primer frame.
-  const stepVariants = {
-    initial: { opacity: 0 },
-    animate: { opacity: 1, pointerEvents: "auto" as const },
-    // El paso que sale sigue montado durante el cruce: se desactivan sus
-    // eventos para que no se pueda tocar un botón que ya está desapareciendo.
-    exit: { opacity: 0, pointerEvents: "none" as const },
-  };
-  const stepTransition = { duration: 0.28, ease: [0.4, 0, 0.2, 1] as const };
+  // 2) Las transiciones usan transforms, y un transform activo crea un
+  //    containing block. Por eso los pasos que renderizan un hijo
+  //    `fixed inset-0` (filter, capture, loading) se animan dentro de un
+  //    wrapper que también es `fixed inset-0`: la caja de referencia termina
+  //    siendo idéntica al viewport y el hijo no salta de tamaño al terminar
+  //    la animación. Si esos wrappers volvieran a estar acotados por
+  //    `boxSize`, el loader se vería del tamaño de la caja durante la
+  //    transición y pegaría un salto a pantalla completa al final.
+  const reduceMotion = useReducedMotion();
 
   // Los campos de logo del admin se guardan como "" cuando no se sube nada.
   // Pasar eso a `src` no solo dispara el warning de React ("An empty string was
@@ -646,40 +645,75 @@ export default function PhotoBoothWizard({
 
   return (
     <div className="relative h-full w-full overflow-hidden flex flex-col">
-      {/* Paso "filter" (captura primero): pantalla completa propia (fondo,
-          logos, grilla de marcas y consentimiento), igual que la landing
-          normal pero mostrada después del preview en vez de antes de la
-          captura. Cubre todo el wizard mientras está activa. */}
-      {step === "filter" && eventData && (
-        <div className="fixed inset-0 z-40">
-          <EventPhotoBoothLanding
-            event={eventData}
-            onStart={handleFilterSelected}
-            buttonLabel="Generar la magia"
-          />
-        </div>
-      )}
-      {/* Paso "capture": cámara a pantalla completa. Se renderiza fuera del
-          AnimatePresence de abajo a propósito: ese contenedor está acotado por
-          `boxSize` y la cámara necesita el viewport entero, sin heredar
-          márgenes ni recortes del box de contenido. (Históricamente además
-          había que evitar el containing block que creaba el transform de la
-          transición; hoy el crossfade es solo opacidad, pero mantener la
-          cámara fuera sigue siendo lo correcto por el encuadre.) */}
-      {step === "capture" && (
-        <CaptureStep
-          mirror={mirror}
-          onCaptured={handleCaptured}
-          frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
-          buttonImage={eventData?.buttonImage}
-          buttonClickEffect={eventData?.buttonClickEffect}
-          viewStyle={eventData?.captureViewStyle}
-          logoLeftSrc={style ? style.logoCaptureTop || style.logoLandingTop : "/genilaty_smart_led_logo.png"}
-          logoRightSrc={style ? style.logoCaptureBottom || style.logoLandingBottom : "genilaty_smart_led_logo.png"}
-          backgroundSrc={bgUrl}
-          aspectRatio={eventData?.photoAspectRatio}
-        />
-      )}
+      {/* Pasos a pantalla completa: selección de filtro, cámara y loader.
+          Van en su propio AnimatePresence, fuera de la caja de contenido de
+          más abajo, por dos motivos:
+
+          - Necesitan el viewport entero. La caja de contenido está acotada
+            por `boxSize` y les recortaría el encuadre (la cámara sobre todo).
+          - Los tres renderizan un hijo `fixed inset-0`, y la animacion usa
+            transforms: cada wrapper crea un containing block, así que el hijo
+            se ancla al wrapper. Siendo el wrapper también `fixed inset-0`, esa
+            caja coincide con el viewport y no hay salto al terminar.
+
+          Este AnimatePresence y el de la caja de contenido corren en paralelo,
+          así que un paso de acá cruza en opacidad con uno de alla sin hueco
+          intermedio (cámara -> preview, preview -> loader, loader -> result). */}
+      <AnimatePresence initial={false}>
+        {step === "filter" && eventData && (
+          <motion.div
+            key="filter"
+            className="fixed inset-0 z-40"
+            variants={stepVariantsFor("filter", reduceMotion)}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <EventPhotoBoothLanding
+              event={eventData}
+              onStart={handleFilterSelected}
+              buttonLabel="Generar la magia"
+            />
+          </motion.div>
+        )}
+
+        {step === "capture" && (
+          <motion.div
+            key="capture"
+            className="fixed inset-0 z-30"
+            variants={stepVariantsFor("capture", reduceMotion)}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <CaptureStep
+              mirror={mirror}
+              onCaptured={handleCaptured}
+              frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
+              buttonImage={eventData?.buttonImage}
+              buttonClickEffect={eventData?.buttonClickEffect}
+              viewStyle={eventData?.captureViewStyle}
+              logoLeftSrc={style ? style.logoCaptureTop || style.logoLandingTop : "/genilaty_smart_led_logo.png"}
+              logoRightSrc={style ? style.logoCaptureBottom || style.logoLandingBottom : "genilaty_smart_led_logo.png"}
+              backgroundSrc={bgUrl}
+              aspectRatio={eventData?.photoAspectRatio}
+            />
+          </motion.div>
+        )}
+
+        {step === "loading" && (
+          <motion.div
+            key="loading"
+            className="fixed inset-0 z-50"
+            variants={stepVariantsFor("loading", reduceMotion)}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <LoaderStep />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Fondo full-screen. Va con su propio crossfade porque `bgUrl` depende
           del paso: sin esto el fondo cambiaba de golpe en el mismo frame en
@@ -704,27 +738,34 @@ export default function PhotoBoothWizard({
           despejada para la cámara. En "customize" tampoco: los dos logos
           (arriba y abajo) se muestran juntos arriba dentro de
           ImageCustomizeStep, para liberar espacio vertical y evitar scroll. */}
-      {step !== "capture" && step !== "customize" && topLogoSrc && (
-        <div
-          className="relative z-5 flex-shrink-0 flex justify-center items-center px-4"
-          style={{
-            paddingTop: `max(${LOGO_BAR_PADDING}, env(safe-area-inset-top))`,
-            paddingBottom: LOGO_BAR_PADDING,
-          }}
-        >
-          <img
-            src={topLogoSrc}
-            alt="Logo"
-            className="block w-auto object-contain select-none"
-            style={scaledLogoStyle({
-              baseHeight: LOGO_BAR_HEIGHT,
-              baseMaxWidth: LOGO_BAR_TOP_MAX_WIDTH,
-              scalePct: eventData?.logoTopScalePct,
-            })}
-            draggable={false}
-          />
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {step !== "capture" && step !== "customize" && topLogoSrc && (
+          <motion.div
+            key="top-logo-bar"
+            className="relative z-5 flex-shrink-0 flex justify-center items-center px-4"
+            style={{
+              paddingTop: `max(${LOGO_BAR_PADDING}, env(safe-area-inset-top))`,
+              paddingBottom: LOGO_BAR_PADDING,
+            }}
+            variants={LOGO_BAR_VARIANTS}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <img
+              src={topLogoSrc}
+              alt="Logo"
+              className="block w-auto object-contain select-none"
+              style={scaledLogoStyle({
+                baseHeight: LOGO_BAR_HEIGHT,
+                baseMaxWidth: LOGO_BAR_TOP_MAX_WIDTH,
+                scalePct: eventData?.logoTopScalePct,
+              })}
+              draggable={false}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* CONTENT: Contenedor del contenido (capture, preview, result) */}
       <div className="relative z-20 flex-1 flex items-center justify-center overflow-hidden px-0 sm:px-4 w-full">
@@ -749,11 +790,10 @@ export default function PhotoBoothWizard({
               <motion.div
                 key="preview"
                 className="absolute inset-0 flex items-center justify-center"
-                variants={stepVariants}
+                variants={stepVariantsFor("preview", reduceMotion)}
                 initial="initial"
                 animate="animate"
                 exit="exit"
-                transition={stepTransition}
               >
                 <PreviewStep
                   framedShot={framedShot}
@@ -775,11 +815,10 @@ export default function PhotoBoothWizard({
               <motion.div
                 key="customize"
                 className="absolute inset-0 flex items-center justify-center"
-                variants={stepVariants}
+                variants={stepVariantsFor("customize", reduceMotion)}
                 initial="initial"
                 animate="animate"
                 exit="exit"
-                transition={stepTransition}
               >
                 <ImageCustomizeStep
                   previewSrc={rawShot || framedShot}
@@ -795,29 +834,14 @@ export default function PhotoBoothWizard({
               </motion.div>
             )}
 
-            {step === "loading" && (
-              <motion.div
-                key="loading"
-                className="absolute inset-0 z-50"
-                variants={stepVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={stepTransition}
-              >
-                <LoaderStep />
-              </motion.div>
-            )}
-
             {step === "reveal" && framedShot && aiUrl && (
               <motion.div
                 key="reveal"
                 className="absolute inset-0 flex items-center justify-center"
-                variants={stepVariants}
+                variants={stepVariantsFor("reveal", reduceMotion)}
                 initial="initial"
                 animate="animate"
                 exit="exit"
-                transition={stepTransition}
               >
                 {eventData?.revealEffect === "KINECT_ROLLER" ? (
                   <>
@@ -891,11 +915,10 @@ export default function PhotoBoothWizard({
               <motion.div
                 key="result"
                 className="absolute inset-0 flex items-center justify-center"
-                variants={stepVariants}
+                variants={stepVariantsFor("result", reduceMotion)}
                 initial="initial"
                 animate="animate"
                 exit="exit"
-                transition={stepTransition}
               >
                 <ResultStep
                   taskId={taskId!}
@@ -916,27 +939,34 @@ export default function PhotoBoothWizard({
       {/* FOOTER: Logo inferior — fijo, siempre visible. En "capture" no se
           renderiza: el logo va dentro de CaptureStep, al costado del
           disparador. En "customize" tampoco: ver nota del HEADER arriba. */}
-      {step !== "capture" && step !== "customize" && bottomLogoSrc && (
-        <div
-          className="relative z-5 flex-shrink-0 flex justify-center items-center px-4 pointer-events-none"
-          style={{
-            paddingTop: LOGO_BAR_PADDING,
-            paddingBottom: `max(${LOGO_BAR_PADDING}, env(safe-area-inset-bottom))`,
-          }}
-        >
-          <img
-            src={bottomLogoSrc}
-            alt="Logos Footer"
-            className="block w-auto object-contain select-none"
-            style={scaledLogoStyle({
-              baseHeight: LOGO_BAR_HEIGHT,
-              baseMaxWidth: LOGO_BAR_BOTTOM_MAX_WIDTH,
-              scalePct: eventData?.logoBottomScalePct,
-            })}
-            draggable={false}
-          />
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {step !== "capture" && step !== "customize" && bottomLogoSrc && (
+          <motion.div
+            key="bottom-logo-bar"
+            className="relative z-5 flex-shrink-0 flex justify-center items-center px-4 pointer-events-none"
+            style={{
+              paddingTop: LOGO_BAR_PADDING,
+              paddingBottom: `max(${LOGO_BAR_PADDING}, env(safe-area-inset-bottom))`,
+            }}
+            variants={LOGO_BAR_VARIANTS}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            <img
+              src={bottomLogoSrc}
+              alt="Logos Footer"
+              className="block w-auto object-contain select-none"
+              style={scaledLogoStyle({
+                baseHeight: LOGO_BAR_HEIGHT,
+                baseMaxWidth: LOGO_BAR_BOTTOM_MAX_WIDTH,
+                scalePct: eventData?.logoBottomScalePct,
+              })}
+              draggable={false}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
