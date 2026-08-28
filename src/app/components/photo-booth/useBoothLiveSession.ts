@@ -47,6 +47,14 @@ export type BoothLiveState = {
    * la pantalla espejo lo refleja en vez de tener su propio toggle. */
   showQr: boolean;
   /**
+   * Si el salvapantallas está abierto en el líder. La pantalla espejo no
+   * corre su propio reloj de inactividad — nadie la toca, así que su única
+   * noción de "actividad" es lo que hace el líder — así que lo refleja desde
+   * acá: tanto la activación por inactividad como la manual (mantener
+   * presionado el logo, ver ScreenSaver) llegan por el mismo camino.
+   */
+  screenSaverActive: boolean;
+  /**
    * Escrito por la pantalla ESPEJO (no el líder) cuando el revelado con
    * rodillo real + Kinect en la pantalla gigante termina —
    * revealEffect="KINECT_ROLLER" no revela nada en el tablet, así que el
@@ -198,6 +206,10 @@ export function useBoothLiveSession(
               customization: sameDevice ? data?.customization ?? null : null,
               previewUrl: sameDevice ? data?.previewUrl ?? null : null,
               showQr: sameDevice ? data?.showQr ?? false : false,
+              // Siempre false al reclamar: una tablet que recarga vuelve con
+              // el flujo en marcha, no con el salvapantallas encima (y el
+              // propio ScreenSaver lo re-transmite apenas monta).
+              screenSaverActive: false,
               revealedTaskId: sameDevice ? data?.revealedTaskId ?? null : null,
             });
             return true;

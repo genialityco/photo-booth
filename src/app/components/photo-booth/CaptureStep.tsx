@@ -288,7 +288,10 @@ export default function CaptureStep({
           <img
             src={logoLeftSrc}
             alt=""
-            className="h-auto w-auto object-contain select-none"
+            /* `pointer-events-auto` sobre la imagen (el header sigue siendo
+               pointer-events-none): habilita el botón oculto del
+               salvapantallas — ver ScreenSaver. */
+            className="h-auto w-auto object-contain select-none pointer-events-auto"
             /* Mismo tamaño configurable que el resto del wizard: antes el alto
                era una clase fija, así que el % elegido en el admin no llegaba
                a esta pantalla. */
@@ -306,7 +309,10 @@ export default function CaptureStep({
           <img
             src={logoRightSrc}
             alt=""
-            className="h-auto w-auto object-contain select-none"
+            /* `pointer-events-auto` sobre la imagen (el header sigue siendo
+               pointer-events-none): habilita el botón oculto del
+               salvapantallas — ver ScreenSaver. */
+            className="h-auto w-auto object-contain select-none pointer-events-auto"
             style={scaledLogoStyle({
               baseHeight: CAPTURE_LOGO_HEIGHT,
               baseMaxWidth: CAPTURE_LOGO_MAX_WIDTH,

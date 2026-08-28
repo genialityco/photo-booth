@@ -16,6 +16,7 @@ import RevealStep from "@/app/components/photo-booth/RevealStep";
 import TopLogosBar from "@/app/components/photo-booth/TopLogosBar";
 import KinectRollerRevealStep from "@/app/components/photo-booth/reveal/KinectRollerRevealStep";
 import LiveSessionStatusBadge from "@/app/components/photo-booth/LiveSessionStatusBadge";
+import ScreenSaver from "@/app/components/common/ScreenSaver";
 
 const NOOP = () => {};
 const NOOP_CUSTOMIZE = (_value: ImageCustomization) => {};
@@ -596,6 +597,14 @@ export default function BoothMirror({
   return (
     <>
       {content}
+
+      {/* Salvapantallas espejado: en modo pasivo (ver prop `mirrorActive`),
+          abre y cierra siguiendo al líder — tanto por inactividad como por el
+          botón oculto del logo. Con el líder caído (`isStale`) se cierra y
+          deja ver el mensaje de "Esperando actividad…", en vez de quedar
+          congelado sobre una pantalla que ya no refleja nada. */}
+      <ScreenSaver event={event} mirrorActive={!isStale && state?.screenSaverActive === true} />
+
       <LiveSessionStatusBadge
         role="mirror"
         connected={connected}

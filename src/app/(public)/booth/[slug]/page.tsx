@@ -153,7 +153,13 @@ export default function EventBoothPage({
           cambio de paso — incluida la espera de generación/revelado, donde
           el usuario no toca la pantalla — cuente como actividad y reinicie
           el reloj de inactividad. */}
-      <ScreenSaver event={event} activityKey={`${phase}:${transmittedState.phase ?? ""}`} />
+      <ScreenSaver
+        event={event}
+        activityKey={`${phase}:${transmittedState.phase ?? ""}`}
+        /* Se transmite para que la pantalla espejo entre y salga junto con la
+           tablet — ella no mide inactividad propia (nadie la toca). */
+        onActiveChange={(active) => trackedBroadcast({ screenSaverActive: active })}
+      />
 
       {/* Cursor por gestos de mano - activo en toda la app si el evento lo habilita */}
       <HandCursorOverlay enabled={event.handCursorEnabled === true} />

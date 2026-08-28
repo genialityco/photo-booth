@@ -971,7 +971,10 @@ export default function PhotoBoothWizard({
             <img
               src={bottomLogoSrc}
               alt="Logos Footer"
-              className="block w-auto object-contain select-none"
+              /* `pointer-events-auto` sobre la imagen (la barra sigue siendo
+                 pointer-events-none): es el botón oculto que abre el
+                 salvapantallas al mantenerlo presionado — ver ScreenSaver. */
+              className="block w-auto object-contain select-none pointer-events-auto"
               style={scaledLogoStyle({
                 baseHeight: LOGO_BAR_HEIGHT,
                 baseMaxWidth: LOGO_BAR_BOTTOM_MAX_WIDTH,
