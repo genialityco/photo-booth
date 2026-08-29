@@ -117,9 +117,11 @@ export default function EventPhotoBoothLanding({
   // más de una brand para elegir).
   const getGridClass = () => {
     if (prompts.length === 1) {
-      return wide ? "grid-cols-1 max-w-[min(60vw,46rem)]" : "grid-cols-1 max-w-[min(60vw,20rem)]";
+      return wide ? "grid-cols-1 max-w-[min(38vw,28rem)]" : "grid-cols-1 max-w-[min(60vw,20rem)]";
     }
-    return wide ? "grid-cols-2 max-w-[min(90vw,80rem)]" : "grid-cols-2 max-w-[min(96vw,46rem)]";
+    // En espejo (`wide`) las tarjetas van más chicas y el contenedor recorta
+    // lo que sobre (overflow-hidden), en vez de crecer/scrollear.
+    return wide ? "grid-cols-2 max-w-[min(58vw,52rem)]" : "grid-cols-2 max-w-[min(96vw,46rem)]";
   };
 
   return (
@@ -170,7 +172,7 @@ export default function EventPhotoBoothLanding({
             `flex-1` pueda encogerse a su espacio disponible en vez de crecer
             con el contenido — sin eso `overflow-y-auto` nunca llega a
             activarse aunque el grid (2 columnas fijas) no entre completo. */}
-        <div className="flex-1 w-full min-h-0 flex items-center justify-center py-4 overflow-y-auto">
+        <div className={`flex-1 w-full min-h-0 flex items-center justify-center py-4 ${wide ? "overflow-hidden" : "overflow-y-auto"}`}>
           {/* Brand Selection */}
           <div className="w-full flex flex-col items-center">
             {loadingPrompts ? (
