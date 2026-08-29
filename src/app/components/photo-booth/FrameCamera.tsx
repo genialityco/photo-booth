@@ -65,7 +65,9 @@ export default function FrameCamera({
   mirror = true,
   backgroundSrc,
   aspectRatio,
+  facingMode = "user",
   onReady,
+  onCamerasChange,
   children,
 }: {
   frameSrc?: string | null;
@@ -74,13 +76,22 @@ export default function FrameCamera({
   backgroundSrc?: string;
   /** Relación de aspecto del cuadro de cámara/foto. "SQUARE" (default) = comportamiento original. */
   aspectRatio?: PhotoAspectRatio;
+  /** Cámara a usar: "user" (frontal, default) o "environment" (trasera). Al
+   * cambiar, se vuelve a pedir el stream. */
+  facingMode?: "user" | "environment";
   onReady?: (api: { getVideoEl: () => HTMLVideoElement | null }) => void;
+  /** Cuántas cámaras de video tiene el dispositivo — se usa para mostrar (o no)
+   * el botón de cambio de cámara. Solo se sabe con certeza DESPUÉS de que el
+   * usuario dio permiso, así que llega por callback y no por prop. */
+  onCamerasChange?: (count: number) => void;
   /** Overlay opcional (ej. guía de encuadre) renderizado DENTRO del cuadro nítido, en el mismo tamaño/posición. */
   children?: React.ReactNode;
 }) {
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const onCamerasChangeRef = useRef(onCamerasChange);
+  onCamerasChangeRef.current = onCamerasChange;
 
   // Polyfill sin `any`
   function ensureGetUserMedia(): boolean {
@@ -134,18 +145,56 @@ export default function FrameCamera({
           streamRef.current = null;
         }
 
-        // CAMBIO CLAVE: Configuración más compatible para móviles
-        const constraints: MediaStreamConstraints = {
-          audio: false,
-          video: {
-            facingMode: "user",
-            // Reducir resolución inicial - muchos móviles fallan con resoluciones forzadas, ideal 1080
-            width: { ideal: 1080 },
-            height: { ideal: 1080 },
-          },
+        // Configuración compatible con móviles. Se prueban varias combinaciones
+        // en orden porque en Android el cambio de cámara falla seguido:
+        //  - `{ exact: facingMode }` — la única forma en muchos Android de
+        //    forzar de verdad la cámara trasera (con `ideal` el navegador
+        //    suele devolver igual la frontal y el "cambio" no hace nada).
+        //  - `{ ideal: facingMode }` — para los que rechazan `exact` (típico
+        //    en webcams de escritorio, que ni reportan facingMode).
+        //  - sin `facingMode` — último recurso: al menos que haya imagen.
+        // Para la frontal (caso inicial, en todos lados) se prueba `ideal`
+        // primero para no pagar un intento fallido de más en escritorio; para
+        // la trasera manda `exact`, que es lo que Android necesita.
+        const baseVideo: MediaTrackConstraints = {
+          width: { ideal: 1080 },
+          height: { ideal: 1080 },
         };
+        const attempts: MediaTrackConstraints[] =
+          facingMode === "environment"
+            ? [
+                { ...baseVideo, facingMode: { exact: facingMode } },
+                { ...baseVideo, facingMode: { ideal: facingMode } },
+                baseVideo,
+              ]
+            : [
+                { ...baseVideo, facingMode: { ideal: facingMode } },
+                { ...baseVideo, facingMode: { exact: facingMode } },
+                baseVideo,
+              ];
 
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        let stream: MediaStream | null = null;
+        let lastErr: unknown = null;
+        for (const video of attempts) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: false, video });
+            break;
+          } catch (attemptErr) {
+            lastErr = attemptErr;
+            // Estos errores no los arregla probar con otras constraints.
+            const name = attemptErr instanceof Error ? attemptErr.name : "";
+            if (
+              name === "NotAllowedError" ||
+              name === "PermissionDeniedError" ||
+              name === "NotReadableError" ||
+              name === "TrackStartError"
+            ) {
+              break;
+            }
+          }
+        }
+
+        if (!stream) throw lastErr ?? new Error("No se pudo abrir la cámara.");
 
         if (!mounted) {
           stream.getTracks().forEach((t) => t.stop());
@@ -153,6 +202,20 @@ export default function FrameCamera({
         }
 
         streamRef.current = stream;
+
+        // Con el permiso ya dado, `enumerateDevices` trae la lista real de
+        // cámaras — recién ahí se sabe si tiene sentido ofrecer el botón de
+        // cambio de cámara.
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          if (mounted) {
+            onCamerasChangeRef.current?.(
+              devices.filter((d) => d.kind === "videoinput").length
+            );
+          }
+        } catch {
+          /* enumerateDevices puede no estar: se deja el botón como estaba */
+        }
 
         // CAMBIO CLAVE: Asignar srcObject ANTES de play()
         if (videoRef.current) {
@@ -222,7 +285,7 @@ export default function FrameCamera({
         videoRef.current.srcObject = null;
       }
     };
-  }, []);
+  }, [facingMode]);
 
   useEffect(() => {
     onReady?.({ getVideoEl: () => videoRef.current });

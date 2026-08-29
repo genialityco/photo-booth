@@ -42,6 +42,23 @@ function DecorativeCameraButton({ icon: Icon }: { icon: React.ComponentType<{ cl
   );
 }
 
+/** Botón de cambio de cámara (frontal ↔ trasera). Solo se muestra cuando el
+ * dispositivo tiene más de una cámara; si no, en su lugar va el ícono
+ * decorativo. */
+function SwitchCameraButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label="Cambiar cámara"
+      className="flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/35 backdrop-blur-sm border border-white/30 text-white/85 transition active:scale-95 disabled:opacity-40"
+    >
+      <FaSyncAlt className="w-[45%] h-[45%]" />
+    </button>
+  );
+}
+
 export default function CaptureStep({
   // 👇 sin marco por defecto
   frameSrc = null,
@@ -79,6 +96,13 @@ export default function CaptureStep({
 }) {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
+
+  // Cámara en uso + cuántas hay. La trasera nunca se muestra espejada (el
+  // espejo es solo para que la persona se vea "como en un espejo" con la
+  // frontal), así que el flag efectivo depende de la cámara activa.
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [cameraCount, setCameraCount] = useState(0);
+  const effectiveMirror = mirror && facingMode === "user";
 
   const videoElRef = useRef<HTMLVideoElement | null>(null);
 
@@ -224,7 +248,7 @@ export default function CaptureStep({
         frame: frameImg,
         targetW: w,
         targetH: h,
-        mirror,
+        mirror: effectiveMirror,
       });
       console.log("Capture with frame:", { w, h });
     } else {
@@ -240,7 +264,7 @@ export default function CaptureStep({
         frame: null,
         targetW,
         targetH,
-        mirror,
+        mirror: effectiveMirror,
       });
       console.log("Capture without frame");
     }
@@ -251,7 +275,7 @@ export default function CaptureStep({
       video.videoHeight || 1080,
       aspectRatio,
     );
-    const raw = captureRawSquare({ video, targetW: rawW, targetH: rawH, mirror });
+    const raw = captureRawSquare({ video, targetW: rawW, targetH: rawH, mirror: effectiveMirror });
 
     setFlash(true);
     setTimeout(() => setFlash(false), 120);
@@ -263,10 +287,12 @@ export default function CaptureStep({
     <div className="fixed inset-0 z-30 overflow-hidden">
       <FrameCamera
         frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
-        mirror={mirror}
+        mirror={effectiveMirror}
         backgroundSrc={backgroundSrc}
         aspectRatio={aspectRatio}
+        facingMode={facingMode}
         onReady={onReady}
+        onCamerasChange={setCameraCount}
       >
         {viewStyle === "VIEWFINDER" && <CaptureViewfinderOverlay />}
       </FrameCamera>
@@ -375,7 +401,16 @@ export default function CaptureStep({
       >
         <div className="grid grid-cols-3 items-center w-full h-full py-2">
           <div className="flex justify-start items-center h-full">
-            <DecorativeCameraButton icon={FaSyncAlt} />
+            {cameraCount >= 2 ? (
+              <SwitchCameraButton
+                onClick={() =>
+                  setFacingMode((m) => (m === "user" ? "environment" : "user"))
+                }
+                disabled={countdown !== null}
+              />
+            ) : (
+              <DecorativeCameraButton icon={FaSyncAlt} />
+            )}
           </div>
           <div className="flex justify-center items-center h-full">
             <ShutterButton

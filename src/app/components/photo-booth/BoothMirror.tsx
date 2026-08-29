@@ -17,6 +17,7 @@ import TopLogosBar from "@/app/components/photo-booth/TopLogosBar";
 import KinectRollerRevealStep from "@/app/components/photo-booth/reveal/KinectRollerRevealStep";
 import LiveSessionStatusBadge from "@/app/components/photo-booth/LiveSessionStatusBadge";
 import ScreenSaver from "@/app/components/common/ScreenSaver";
+import ScreenSaverEditorialGrid from "@/app/components/common/ScreenSaverEditorialGrid";
 
 const NOOP = () => {};
 const NOOP_CUSTOMIZE = (_value: ImageCustomization) => {};
@@ -137,6 +138,38 @@ function FullBleedMessage({
           <p className="text-white/70 mt-4" style={{ fontSize: "clamp(1.1rem, 2vw, 1.75rem)" }}>{subtitle}</p>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Pantalla de inactividad del espejo: cuando no hay un líder activo (`!state`
+ * o `isStale`) se muestra el "Tablero editorial" del salvapantallas en loop
+ * permanente en vez del cartel de "Esperando actividad…". El propio
+ * ScreenSaverEditorialGrid ya reencadena cada pasada con otras fotos, así que
+ * no hace falta nada extra para que sea continuo. Si el evento todavía no
+ * tiene fotos generadas (o mientras se cargan), cae al cartel de siempre. */
+function MirrorIdleScreen({ event }: { event: EventProfile }) {
+  const [hasPhotos, setHasPhotos] = useState(false);
+
+  return (
+    <div className="fixed inset-0 bg-black">
+      <ScreenSaverEditorialGrid
+        eventId={event.id}
+        promptIds={event.prompts}
+        active
+        durationSec={event.screenSaverSlideDurationSec ?? 10}
+        texts={event.screenSaverEditorialTexts}
+        onPhotosChange={(count) => setHasPhotos(count > 0)}
+      />
+      {!hasPhotos && (
+        <FullBleedMessage
+          event={event}
+          title={event.name}
+          subtitle="Esperando actividad…"
+          stretchX={1.6}
+          stretchY={1.2}
+        />
+      )}
     </div>
   );
 }
@@ -472,7 +505,7 @@ export default function BoothMirror({
 
   const content = (() => {
     if (!state || isStale) {
-      return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" stretchX={1.6} stretchY={1.2} />;
+      return <MirrorIdleScreen event={event} />;
     }
 
     switch (state.phase) {
@@ -590,7 +623,7 @@ export default function BoothMirror({
         );
 
       default:
-        return <FullBleedMessage event={event} title={event.name} subtitle="Esperando actividad…" stretchX={1.6} stretchY={1.2} />;
+        return <MirrorIdleScreen event={event} />;
     }
   })();
 
