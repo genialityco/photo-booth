@@ -110,6 +110,7 @@ export default function ScreenSaverEditorialGrid({
   active = true,
   durationSec = 15,
   texts,
+  cardWiden = 1,
   onPhotosChange,
 }: {
   eventId: string;
@@ -124,6 +125,11 @@ export default function ScreenSaverEditorialGrid({
   durationSec?: number;
   /** Textos fijos de los bordes. Los que vengan vacíos no se muestran. */
   texts?: EditorialTexts;
+  /** Ensancha las tarjetas (y por lo tanto el recorte visible de cada foto):
+   * la proporción alto/ancho se divide por este factor. 1 = como la referencia
+   * (tablet vertical); >1 achata las tarjetas para que las fotos se lean mejor
+   * en una pantalla apaisada. */
+  cardWiden?: number;
   /** Mismo contrato que ScreenSaverGallery: le avisa al rotador si esta
    * pantalla tiene contenido, para no darle el turno a un tablero vacío. */
   onPhotosChange?: (count: number) => void;
@@ -336,7 +342,8 @@ export default function ScreenSaverEditorialGrid({
                        si no el salto del loop cae en otra altura y se ve. */
                     style={{
                       aspectRatio: `1 / ${
-                        CARD_RATIOS[(colIndex * 3 + (i % CARDS_PER_COLUMN)) % CARD_RATIOS.length]
+                        CARD_RATIOS[(colIndex * 3 + (i % CARDS_PER_COLUMN)) % CARD_RATIOS.length] /
+                        (cardWiden || 1)
                       }`,
                     }}
                   >

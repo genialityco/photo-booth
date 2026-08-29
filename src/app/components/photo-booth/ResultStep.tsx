@@ -226,9 +226,9 @@ export default function ResultStep({
                 : { maxWidth: "100%", maxHeight: "100%" }
             }
           >
-            {/* El halo ya no es CSS: PixelateImage dibuja un marco emisivo
-                con bloom real (EffectComposer + UnrealBloomPass) adentro de
-                su propio canvas — ver ese componente. */}
+            {/* PixelateImage renderiza la foto en su propio canvas WebGL (efecto
+                de partículas + bloom sobre la explosión). Sin marco ni halo:
+                la foto en reposo se ve limpia. */}
             <div className="relative z-10 w-full h-full">
               <div
                 className="relative w-full h-full p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 rounded-2xl shadow-[0_10px_14px_-6px_rgba(0,0,0,0.45),0_35px_60px_-15px_rgba(0,0,0,0.6)]"

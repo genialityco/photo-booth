@@ -159,6 +159,9 @@ function MirrorIdleScreen({ event }: { event: EventProfile }) {
         active
         durationSec={event.screenSaverSlideDurationSec ?? 10}
         texts={event.screenSaverEditorialTexts}
+        // La pantalla gigante es apaisada: se ensanchan las tarjetas para que
+        // las fotos se lean mejor que con la proporción vertical original.
+        cardWiden={1.35}
         onPhotosChange={(count) => setHasPhotos(count > 0)}
       />
       {!hasPhotos && (

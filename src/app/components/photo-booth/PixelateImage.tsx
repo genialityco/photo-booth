@@ -10,39 +10,9 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 
-// Acento cian "HUD/holograma" — mismo criterio que el resto del wizard.
+// Acento cian "HUD/holograma" — solo tiñe las partículas mientras están en
+// movimiento (ver uGlow); la foto en reposo queda con sus colores reales.
 const ACCENT_COLOR = new THREE.Color(0x5eeaff);
-// Mismo tono, pero con componentes >1 (HDR): así el marco queda muy por
-// encima del threshold del bloom sin importar cómo se calibre, sin que una
-// zona blanca de la foto en sí (que nunca pasa de 1.0) dispare bloom sin
-// querer.
-const FRAME_EMISSIVE_COLOR = ACCENT_COLOR.clone().multiplyScalar(2.4);
-
-/** Perímetro de un rectángulo con esquinas redondeadas, centrado en el
- * origen — usado tanto para el marco (con un agujero, como un anillo) como
- * si hiciera falta cualquier otra forma con el mismo criterio. */
-function roundedRectPath(shape: THREE.Shape | THREE.Path, w: number, h: number, r: number) {
-  const x = -w / 2;
-  const y = -h / 2;
-  shape.moveTo(x + r, y);
-  shape.lineTo(x + w - r, y);
-  shape.absarc(x + w - r, y + r, r, -Math.PI / 2, 0, false);
-  shape.lineTo(x + w, y + h - r);
-  shape.absarc(x + w - r, y + h - r, r, 0, Math.PI / 2, false);
-  shape.lineTo(x + r, y + h);
-  shape.absarc(x + r, y + h - r, r, Math.PI / 2, Math.PI, false);
-  shape.lineTo(x, y + r);
-  shape.absarc(x + r, y + r, r, Math.PI, Math.PI * 1.5, false);
-}
-
-// Cuánto se agranda el marco emisivo respecto de la foto (proporcional a
-// cada dimensión, no un valor absoluto — así no rompe el aspect ratio).
-// Tiene que ser menor a FRUSTUM_MARGIN (la cámara se aleja ese tanto extra)
-// para que quede aire real entre el borde del marco y el borde del canvas:
-// sin ese margen extra, el sangrado del bloom se cortaría de golpe justo en
-// el borde en vez de desvanecerse.
-const FRAME_MARGIN = 0.09;
-const FRUSTUM_MARGIN = 0.15;
 
 const VERTEX_SHADER = /* glsl */ `
   attribute vec3 aExplode;
@@ -110,13 +80,9 @@ const REVEAL_MS = 400;
  * iteraba cada bloque en JS.
  *
  * Bloom real de post-procesado (`EffectComposer` + `UnrealBloomPass`, no un
- * truco de shader ni un blur de CSS): un marco emisivo con esquinas
- * redondeadas alrededor de toda la foto (reemplaza el halo que antes se
- * hacía con un `<div>` desenfocado por CSS) y las partículas más brillantes
- * de la explosión "sangran" luz de verdad hacia sus vecinos. El marco usa
- * un color con componentes >1 (HDR) para quedar siempre muy por encima del
- * threshold del bloom, así nunca dispara bloom por accidente en zonas
- * blancas de la foto en sí (que no pasan de 1.0).
+ * truco de shader ni un blur de CSS): las partículas más brillantes de la
+ * explosión "sangran" luz de verdad hacia sus vecinos. La foto en reposo no
+ * lleva ningún marco ni halo — se ve con sus colores reales, limpia.
  *
  * Con `loop`, el ciclo completo (arma → se mantiene nítida → se disuelve en
  * partículas quieta → explota → se mantiene dispersa → vuelve a armarse) se
@@ -172,7 +138,6 @@ export default function PixelateImage({
     let animId: number | null = null;
     let points: THREE.Points | null = null;
     let photoMesh: THREE.Mesh | null = null;
-    let frameMesh: THREE.Mesh | null = null;
 
     const prefersReducedMotion =
       typeof window !== "undefined" &&
@@ -192,7 +157,7 @@ export default function PixelateImage({
     const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
 
     // Post-procesado: render normal + bloom real sobre lo que sea brillante
-    // (el marco emisivo y los núcleos de las partículas en explosión).
+    // (los núcleos de las partículas en explosión).
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
     const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.9, 0.55, 0.82);
@@ -200,13 +165,10 @@ export default function PixelateImage({
     composer.addPass(new OutputPass());
 
     let worldH = 1;
-    // Cuánto más grande que la foto es el frustum visible (zoom-out extra) —
-    // 0 = llena el canvas exacto (como antes); con el marco emisivo hace
-    // falta algo de aire alrededor de la foto para que el marco y el
-    // sangrado del bloom tengan dónde dibujarse sin que el propio borde del
-    // canvas los corte de golpe. Se fija cuando carga la imagen (ver
-    // FRUSTUM_MARGIN más abajo); antes de eso vale 0 (sin efecto).
-    let frustumMargin = 0;
+    // El frustum visible llena el canvas exacto (equivalente a object-contain):
+    // el contenedor ya viene con el aspect de la foto (useFitAspectBox en
+    // ResultStep). Sin margen extra porque ya no hay marco emisivo alrededor.
+    const frustumMargin = 0;
 
     const resize = () => {
       const w = mount.clientWidth || 1;
@@ -343,42 +305,6 @@ export default function PixelateImage({
       photoMesh.renderOrder = 1; // por encima de las partículas durante el crossfade
       scene.add(photoMesh);
 
-      // La cámara se aleja un poco más que el marco (FRUSTUM_MARGIN >
-      // FRAME_MARGIN) — así queda una franja de canvas vacío entre el borde
-      // del marco y el borde real del canvas, donde el bloom puede
-      // desvanecerse en vez de cortarse de golpe.
-      frustumMargin = FRUSTUM_MARGIN;
-
-      // Marco emisivo alrededor de toda la foto — reemplaza el halo que
-      // antes era un <div> con `filter: blur()` por CSS. Es un anillo (forma
-      // exterior con un agujero interior, mismas esquinas redondeadas) así
-      // que solo el borde brilla, no toda la tarjeta. El margen es
-      // proporcional a cada dimensión por separado (no un valor absoluto
-      // compartido), para no deformar el aspect ratio del marco.
-      const outerPadW = worldW * FRAME_MARGIN;
-      const outerPadH = worldH * FRAME_MARGIN;
-      const thickness = Math.min(outerPadW, outerPadH) * 1.3;
-      const radius = Math.min(worldW, worldH) * 0.1;
-      const frameShape = new THREE.Shape();
-      roundedRectPath(frameShape, worldW + outerPadW * 2, worldH + outerPadH * 2, radius + Math.min(outerPadW, outerPadH));
-      const frameHole = new THREE.Path();
-      roundedRectPath(
-        frameHole,
-        worldW + outerPadW * 2 - thickness * 2,
-        worldH + outerPadH * 2 - thickness * 2,
-        Math.max(0.001, radius + Math.min(outerPadW, outerPadH) - thickness)
-      );
-      frameShape.holes.push(frameHole);
-      const frameMaterial = new THREE.MeshBasicMaterial({
-        color: FRAME_EMISSIVE_COLOR,
-        transparent: true,
-        opacity: 1,
-        toneMapped: false,
-      });
-      frameMesh = new THREE.Mesh(new THREE.ShapeGeometry(frameShape), frameMaterial);
-      frameMesh.position.z = -0.01; // apenas detrás del plano de la foto/partículas
-      scene.add(frameMesh);
-
       resize();
     };
     img.src = src;
@@ -479,13 +405,6 @@ export default function PixelateImage({
       if (photoMesh) {
         (photoMesh.material as THREE.MeshBasicMaterial).opacity = photoReveal;
       }
-      if (frameMesh) {
-        // El marco siempre está presente (a diferencia del borde de las
-        // partículas, que se apaga casi del todo en reposo) — es lo que le
-        // da presencia constante a la tarjeta; se pone más intenso mientras
-        // hay movimiento.
-        (frameMesh.material as THREE.MeshBasicMaterial).opacity = 0.55 + glow * 0.45;
-      }
 
       composer.render();
     };
@@ -505,10 +424,6 @@ export default function PixelateImage({
         const photoMat = photoMesh.material as THREE.MeshBasicMaterial;
         photoMat.map?.dispose();
         photoMat.dispose();
-      }
-      if (frameMesh) {
-        frameMesh.geometry.dispose();
-        (frameMesh.material as THREE.MeshBasicMaterial).dispose();
       }
       bloomPass.dispose();
       composer.dispose();
