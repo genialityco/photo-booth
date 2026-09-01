@@ -337,11 +337,17 @@ function ResultView({
 
       {surveyUrl && (
         <div
-          className={`absolute rounded-xl transition-all duration-300 ease-out ${
+          className={`absolute z-40 rounded-xl transition-all duration-300 ease-out ${
             showQr
-              ? "inset-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
+              ? // Agrandado: solo una franja inferior CENTRADA, del ancho del
+                // QR (no todo el ancho de la pantalla) — a diferencia del
+                // tablet, acá nadie necesita verlo más grande que eso, y
+                // taparía el resultado que el resto de la gente sigue
+                // mirando.
+                "left-1/2 -translate-x-1/2 bottom-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
               : "bottom-4 right-4 sm:bottom-6 sm:right-6 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10"
           }`}
+          style={showQr ? { width: qrSize + 32, height: "42vh" } : undefined}
         >
           <QrTag
             value={surveyUrl}
@@ -601,10 +607,10 @@ export default function BoothMirror({
           <ResultView
             event={event}
             taskId={state.taskId}
-            // El QR agrandado es solo para quien está frente al tablet
-            // (quiere escanearlo con su celular) — la pantalla espejo nunca
-            // lo expande, aunque el líder lo tenga expandido en su pantalla.
-            showQr={false}
+            // Refleja el toggle del líder: cuando alguien toca el QR en el
+            // tablet, la pantalla espejo también lo agranda (cubriendo solo
+            // la franja inferior, ver ResultView, para no tapar la foto).
+            showQr={state.showQr === true}
             result={taskResult}
             error={taskError}
           />
