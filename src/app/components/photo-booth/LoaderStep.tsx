@@ -144,28 +144,10 @@ export default function LoaderStep({
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - progress / 100);
 
-  // En la pantalla gigante (wide), el video del salvapantallas del evento
-  // reemplaza la imagen de fondo de siempre - mismo criterio que el resto
-  // de las pantallas del espejo (BoothMirror.MirrorBackground).
-  const bgVideoUrl = wide ? event?.screenSaverVideoUrl : null;
-
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center text-white">
       {/* Fondo */}
-      {bgVideoUrl ? (
-        <video
-          key={bgVideoUrl}
-          src={bgVideoUrl}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 -z-10 w-full h-full object-cover"
-          aria-hidden
-        />
-      ) : (
-        <div className="absolute inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: `url('${bgUrl}')` }} aria-hidden />
-      )}
+      <div className="absolute inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: `url('${bgUrl}')` }} aria-hidden />
       {/* Velo para legibilidad */}
       <div className="absolute inset-0 bg-black/20" />
 
