@@ -11,6 +11,7 @@ import SplashScreen from "@/app/components/photo-booth/SplashScreen";
 import EventPhotoBoothLanding from "@/app/components/photo-booth/EventPhotoBoothLanding";
 import ImageCustomizeStep from "@/app/components/photo-booth/ImageCustomizeStep";
 import LoaderStep from "@/app/components/photo-booth/LoaderStep";
+import PreviewStep from "@/app/components/photo-booth/PreviewStep";
 import QrTag from "@/app/components/photo-booth/QrTag";
 import RevealStep from "@/app/components/photo-booth/RevealStep";
 import TopLogosBar from "@/app/components/photo-booth/TopLogosBar";
@@ -521,21 +522,16 @@ export default function BoothMirror({
         if (!state.previewUrl) {
           return <FullBleedMessage event={event} title="Confirmando foto en otro dispositivo" />;
         }
-        // A diferencia del resto del wizard (donde la foto mantiene su forma
-        // real dentro de una caja), acá se estira para llenar los 1920x1080
-        // de la pantalla gigante de punta a punta - mismo criterio que
-        // /display (object-fill), en vez de PreviewStep/MirrorStage (que
-        // preservarían la proporción y dejarían barras negras a los costados
-        // en una pantalla ancha).
         return (
-          <div className="fixed inset-0 bg-black">
-            <img
-              key={state.previewUrl}
-              src={state.previewUrl}
-              alt="Vista previa"
-              className="absolute inset-0 w-full h-full object-fill"
+          <MirrorStage event={event}>
+            <PreviewStep
+              framedShot={state.previewUrl}
+              rawShot={state.previewUrl}
+              onRetake={NOOP}
+              readOnly
+              aspectRatio={event.photoAspectRatio}
             />
-          </div>
+          </MirrorStage>
         );
 
       case "customize":
