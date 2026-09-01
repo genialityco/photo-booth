@@ -77,25 +77,13 @@ function useTaskResult(taskId: string | null | undefined): {
 
 /** Fondo full-bleed compartido por las pantallas del espejo que NO están ya
  * 100% cubiertas por una foto/canvas propio ("result"/"reveal" con Kinect no
- * lo usan - no habría nada de fondo visible detrás igual): el video del
- * salvapantallas configurado en el evento (`screenSaverVideoUrl`, la misma
- * pantalla de inactividad de la tablet) tiene prioridad; si no hay video,
- * cae a la imagen de fondo (`bgImage`) de siempre. */
+ * lo usan - no habría nada de fondo visible detrás igual): siempre la imagen
+ * de fondo configurada en el evento (`bgImage`). El video de inactividad
+ * (`screenSaverVideoUrl`) NO va acá — ese es contenido del salvapantallas
+ * real (`<ScreenSaver mirrorActive .../>` más abajo), que ya es un overlay a
+ * pantalla completa cuando está activo; usarlo también como fondo acá lo
+ * dejaba tapando el fondo configurado todo el tiempo, activo o no. */
 function MirrorBackground({ event }: { event: EventProfile }) {
-  if (event.screenSaverVideoUrl) {
-    return (
-      <video
-        key={event.screenSaverVideoUrl}
-        src={event.screenSaverVideoUrl}
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="fixed inset-0 -z-10 w-full h-full object-cover"
-        aria-hidden
-      />
-    );
-  }
   return (
     <div
       className="fixed inset-0 -z-10 bg-cover bg-center"
@@ -513,7 +501,7 @@ export default function BoothMirror({
 
     switch (state.phase) {
       case "splash":
-        return <SplashScreen event={event} onStart={NOOP} wide bgVideoUrl={event.screenSaverVideoUrl} />;
+        return <SplashScreen event={event} onStart={NOOP} wide />;
 
       case "landing":
       case "filter":
@@ -523,7 +511,6 @@ export default function BoothMirror({
             readOnly
             selectedBrandOverride={state.brand}
             wide
-            bgVideoUrl={event.screenSaverVideoUrl}
           />
         );
 
