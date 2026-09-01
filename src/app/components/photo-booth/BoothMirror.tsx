@@ -148,9 +148,8 @@ function MirrorIdleScreen({ event }: { event: EventProfile }) {
         active
         durationSec={event.screenSaverSlideDurationSec ?? 10}
         texts={event.screenSaverEditorialTexts}
-        // La pantalla gigante es apaisada: se ensanchan las tarjetas para que
-        // las fotos se lean mejor que con la proporción vertical original.
-        cardWiden={1.35}
+        // Pantalla espejo vertical (1080x1920): sin ensanchar, mismas
+        // tarjetas que la referencia tablet (cardWiden default = 1).
         onPhotosChange={(count) => setHasPhotos(count > 0)}
       />
       {!hasPhotos && (
@@ -198,11 +197,10 @@ function BrandingOverlay({ event }: { event: EventProfile }) {
   );
 }
 
-/** Fondo full-bleed detrás de "customize" (el único caso que la usa - a
- * diferencia de "preview"/"result"/"reveal", que estiran la foto edge-to-edge,
- * ImageCustomizeStep es un panel de controles, no una foto, así que acá solo
- * se le da el ancho completo de la pantalla y que sus propios topes internos
- * (`wide`) decidan cuánto ocupar). */
+/** Fondo full-bleed detrás de "preview"/"customize" — ImageCustomizeStep es
+ * un panel de controles, no una foto, así que acá solo se le da el ancho
+ * completo de la pantalla y que sus propios topes internos decidan cuánto
+ * ocupar. */
 function MirrorStage({ event, children }: { event: EventProfile; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden">
@@ -214,12 +212,11 @@ function MirrorStage({ event, children }: { event: EventProfile; children: React
   );
 }
 
-/** Espejo de ResultStep, pero a diferencia de esa pantalla en la tablet, acá
- * la foto se estira para llenar toda la pantalla gigante (mismo criterio que
- * /display, ver comentario en el "preview" de BoothMirror) en vez de
- * mantener su proporción real. El QR queda siempre como sello en la esquina
- * (nunca expandido) — expandirlo solo tiene sentido para quien está frente
- * al tablet escaneándolo con su celular, así que se ignora a propósito el
+/** Espejo de ResultStep — misma proporción real de la foto/video (object-
+ * contain) que en la tablet, adaptada a la pantalla espejo vertical
+ * (1080x1920). El QR queda siempre como sello en la esquina (nunca
+ * expandido) — expandirlo solo tiene sentido para quien está frente al
+ * tablet escaneándolo con su celular, así que se ignora a propósito el
  * `showQr` que transmite el líder en vez de reflejarlo acá. */
 function ResultView({
   event,
@@ -302,11 +299,12 @@ function ResultView({
     );
   }
 
-  if (!mediaSrc) return <LoaderStep eventOverride={event} wide />;
+  if (!mediaSrc) return <LoaderStep eventOverride={event} />;
 
-  // Igual que /display (object-fill): la foto/video llena los 1920x1080 de
-  // la pantalla gigante de punta a punta, sin mantener su proporción real
-  // (a diferencia de ResultStep en la tablet, donde sí importa preservarla).
+  // Pantalla espejo vertical (1080x1920): object-contain, igual que
+  // ResultStep en la tablet — se mantiene la proporción real de la
+  // foto/video (con mate negro a los costados si hace falta) en vez de
+  // estirarla para llenar el rectángulo.
   return (
     <div className="fixed inset-0 bg-black">
       {result?.videoUrl ? (
@@ -317,14 +315,14 @@ function ResultView({
           loop
           muted
           playsInline
-          className="absolute inset-0 w-full h-full object-fill"
+          className="absolute inset-0 w-full h-full object-contain"
         />
       ) : (
         <img
           key={result?.url}
           src={result?.url}
           alt="Resultado"
-          className="absolute inset-0 w-full h-full object-fill"
+          className="absolute inset-0 w-full h-full object-contain"
         />
       )}
 
@@ -332,7 +330,7 @@ function ResultView({
           filtro (EventPhotoBoothLanding) — para que el resultado en la
           pantalla espejo mantenga la misma identidad de marca arriba. */}
       <div className="absolute top-0 inset-x-0 z-30 px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-2 sm:pb-3 md:pb-4">
-        <TopLogosBar event={event} wide />
+        <TopLogosBar event={event} />
       </div>
 
       <BrandingOverlay event={event} />
@@ -391,7 +389,7 @@ function KinectRevealView({
     );
   }
 
-  if (!mediaSrc) return <LoaderStep eventOverride={event} wide />;
+  if (!mediaSrc) return <LoaderStep eventOverride={event} />;
 
   return (
     <div className="fixed inset-0">
@@ -445,7 +443,7 @@ function HandRevealMirrorView({
     );
   }
 
-  if (!mediaSrc) return <LoaderStep eventOverride={event} wide />;
+  if (!mediaSrc) return <LoaderStep eventOverride={event} />;
 
   return (
     <div className="fixed inset-0 bg-black">
@@ -502,16 +500,21 @@ export default function BoothMirror({
 
     switch (state.phase) {
       case "splash":
-        return <SplashScreen event={event} onStart={NOOP} wide />;
+        // Sin `wide`: mismo diseño que la tablet líder en la pantalla
+        // espejo vertical.
+        return <SplashScreen event={event} onStart={NOOP} />;
 
       case "landing":
       case "filter":
+        // Sin `wide`: esta pantalla espejo es vertical (1080x1920), como la
+        // tablet líder — se usa el mismo diseño/proporciones de origen
+        // (tarjetas aspect-square, max-w-[1200px]) en vez del layout pensado
+        // para una pantalla gigante apaisada 1920x1080.
         return (
           <EventPhotoBoothLanding
             event={event}
             readOnly
             selectedBrandOverride={state.brand}
-            wide
           />
         );
 
@@ -550,13 +553,12 @@ export default function BoothMirror({
               logoLeftScalePct={event.logoTopScalePct}
               logoRightScalePct={event.logoBottomScalePct}
               aspectRatio={event.photoAspectRatio}
-              wide
             />
           </MirrorStage>
         );
 
       case "loading":
-        return <LoaderStep brandIdOverride={state.brand} eventOverride={event} wide />;
+        return <LoaderStep brandIdOverride={state.brand} eventOverride={event} />;
 
       case "reveal": {
         // revealEffect="KINECT_ROLLER": la pantalla gigante ES el Kinect, así
