@@ -32,7 +32,7 @@ export default function EventPhotoBoothLanding({
    * selección local por defecto (primera marca al cargar). */
   selectedBrandOverride?: string | null;
   /** Relaja los topes de ancho (pensados para tablet/celular, ej.
-   * max-w-[980px]) para aprovechar una pantalla gigante 1920x1080 en vez de
+   * max-w-[1200px]) para aprovechar una pantalla gigante 1920x1080 en vez de
    * quedar como una columna angosta centrada con barras vacías a los
    * costados. Off por defecto (comportamiento original en la tablet). */
   wide?: boolean;
@@ -117,11 +117,16 @@ export default function EventPhotoBoothLanding({
   // más de una brand para elegir).
   const getGridClass = () => {
     if (prompts.length === 1) {
-      return wide ? "grid-cols-1 max-w-[min(38vw,28rem)]" : "grid-cols-1 max-w-[min(60vw,20rem)]";
+      return wide ? "grid-cols-1 max-w-[min(38vw,28rem)]" : "grid-cols-1 max-w-[min(70vw,28rem)]";
     }
     // En espejo (`wide`) las tarjetas van más chicas y el contenedor recorta
     // lo que sobre (overflow-hidden), en vez de crecer/scrollear.
-    return wide ? "grid-cols-2 max-w-[min(58vw,52rem)]" : "grid-cols-2 max-w-[min(96vw,46rem)]";
+    // En tablet, el tope en rem (antes 46rem/736px) se quedaba corto en
+    // dispositivos verticales anchos (ej. 1080px): dejaba ~300px de margen
+    // sin usar a los costados y las tarjetas se veían chicas — 62rem/992px
+    // deja que aprovechen casi todo el ancho en esos equipos sin desbordar
+    // en tablets angostas (ahí sigue mandando el 96vw).
+    return wide ? "grid-cols-2 max-w-[min(58vw,52rem)]" : "grid-cols-2 max-w-[min(96vw,62rem)]";
   };
 
   return (
@@ -154,7 +159,7 @@ export default function EventPhotoBoothLanding({
         />
       )}
 
-      <div className={`mx-auto flex h-full ${wide ? "max-w-[1850px]" : "max-w-[980px]"} flex-col items-center justify-center px-4 sm:px-6 md:px-8`}>
+      <div className={`mx-auto flex h-full ${wide ? "max-w-[1850px]" : "max-w-[1200px]"} flex-col items-center justify-center px-4 sm:px-6 md:px-8`}>
         {/* Logos: uno a cada lado (o centrado si solo hay uno), buen tamaño */}
         <TopLogosBar
           event={event}
