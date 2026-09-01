@@ -214,10 +214,10 @@ function MirrorStage({ event, children }: { event: EventProfile; children: React
 
 /** Espejo de ResultStep — misma proporción real de la foto/video (object-
  * contain) que en la tablet, adaptada a la pantalla espejo vertical
- * (1080x1920). El QR queda siempre como sello en la esquina (nunca
- * expandido) — expandirlo solo tiene sentido para quien está frente al
- * tablet escaneándolo con su celular, así que se ignora a propósito el
- * `showQr` que transmite el líder en vez de reflejarlo acá. */
+ * (1080x1920). El QR arranca como sello en la esquina, reflejando el
+ * `showQr` que transmite el líder, pero también se puede tocar ACÁ (alguien
+ * parado frente a la pantalla gigante) para expandirlo localmente — ver
+ * estado propio `localShowQr` más abajo. */
 function ResultView({
   event,
   taskId,
@@ -239,6 +239,16 @@ function ResultView({
   error: string | null;
 }) {
   const [qrSize, setQrSize] = useState(400);
+
+  // Expandido localmente al tocar el QR en ESTA pantalla, independiente del
+  // toggle del líder — se re-sincroniza con `showQr` cada vez que el líder lo
+  // cambia (así, si alguien lo cerró acá pero el líder lo vuelve a abrir en
+  // el tablet, la pantalla espejo lo refleja igual), pero un click local
+  // también lo abre/cierra sin depender de que el líder haga lo mismo.
+  const [localShowQr, setLocalShowQr] = useState(showQr);
+  useEffect(() => {
+    setLocalShowQr(showQr);
+  }, [showQr]);
 
   // Si no hay `taskId` en absoluto (no debería pasar en "result", pero por
   // las dudas) o la suscripción tarda demasiado, mostrar algo explicable en
@@ -336,25 +346,28 @@ function ResultView({
       <BrandingOverlay event={event} />
 
       {surveyUrl && (
-        <div
+        <button
+          type="button"
+          onClick={() => setLocalShowQr((v) => !v)}
+          aria-label={localShowQr ? "Achicar el código QR" : "Agrandar el código QR"}
           className={`absolute z-40 rounded-xl transition-all duration-300 ease-out ${
-            showQr
+            localShowQr
               ? // Agrandado: solo una franja inferior CENTRADA, del ancho del
                 // QR (no todo el ancho de la pantalla) — a diferencia del
                 // tablet, acá nadie necesita verlo más grande que eso, y
                 // taparía el resultado que el resto de la gente sigue
                 // mirando.
                 "left-1/2 -translate-x-1/2 bottom-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
-              : "bottom-4 right-4 sm:bottom-6 sm:right-6 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10"
+              : "bottom-4 right-4 sm:bottom-6 sm:right-6 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10 active:scale-95"
           }`}
-          style={showQr ? { width: qrSize + 32, height: "42vh" } : undefined}
+          style={localShowQr ? { width: qrSize + 32, height: "42vh" } : undefined}
         >
           <QrTag
             value={surveyUrl}
-            size={showQr ? qrSize : 96}
-            label={showQr ? "Escanea para descargar tu foto en tu celular" : undefined}
+            size={localShowQr ? qrSize : 96}
+            label={localShowQr ? "Escanea para descargar tu foto en tu celular" : undefined}
           />
-        </div>
+        </button>
       )}
     </div>
   );
