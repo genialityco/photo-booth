@@ -29,6 +29,12 @@ import {
   scaledLogoStyle,
 } from "@/app/components/photo-booth/logoBarSizing";
 import { useSearchParams } from "next/navigation";
+import { uploadCapturedPhoto } from "@/app/components/photo-booth/photoUpload";
+import { downscaleDataUrl } from "@/app/components/photo-booth/imageResize";
+import {
+  captureQualityFor,
+  previewUploadQualityFor,
+} from "@/app/components/photo-booth/lowBandwidthMode";
 import { db } from "@/firebaseConfig";
 import {
   collection,
@@ -41,68 +47,20 @@ import {
 import { event } from "firebase-functions/v1/analytics";
 import type { BoothLiveState } from "@/app/components/photo-booth/useBoothLiveSession";
 
-const UPLOAD_MAX_ATTEMPTS = 5;
 const CONFIRM_MAX_AUTO_RETRIES = 3;
-// En una conexión colgada (no simplemente caída) el navegador puede tardar
-// mucho más que esto en rendirse solo — sin este límite, el backoff entre
-// intentos de uploadCapturedPhoto es teórico: un solo intento podía comerse
-// varios minutos antes de siquiera fallar y pasar al siguiente.
-const UPLOAD_TIMEOUT_MS = 10000;
 
-async function uploadOnce(
-  dataUrl: string,
-  desiredPath: string
-): Promise<{ url: string; path: string }> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
-  try {
-    const res = await fetch("/api/storage/upload", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dataUrl, desiredPath }),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
-      throw new Error(errorData.error || `Upload failed with status ${res.status}`);
-    }
-    const data = await res.json();
-    return { url: data.url, path: data.path };
-  } catch (e) {
-    if (e instanceof Error && e.name === "AbortError") {
-      throw new Error("Upload timed out");
-    }
-    throw e;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-/** Sube un data: URL a Storage vía la ruta existente. Compartida entre la
- * subida temprana (apenas se captura, para que la pantalla espejo tenga algo
- * que mostrar) y confirmAndProcess (que reutiliza esa misma subida en vez de
- * repetirla). Con backoff exponencial: en eventos con wifi débil, un solo
- * intento (o un único reintento manual) se agotaba fácil y tiraba a todo el
- * flujo de generación de vuelta a preview. */
-async function uploadCapturedPhoto(
-  dataUrl: string,
-  desiredPath: string,
-  maxAttempts = UPLOAD_MAX_ATTEMPTS
-): Promise<{ url: string; path: string }> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      return await uploadOnce(dataUrl, desiredPath);
-    } catch (e) {
-      lastError = e;
-      if (attempt < maxAttempts - 1) {
-        const delayMs = Math.min(1000 * 2 ** attempt, 8000);
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-      }
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error("Upload failed");
-}
+/**
+ * Cuánto se espera a que la escritura del doc de `imageTasks` llegue al
+ * servidor antes de considerarla fallida.
+ *
+ * Hace falta un reloj propio porque `setDoc` no avisa: el SDK de Firestore
+ * encola la escritura localmente y su promesa solo resuelve con el ACK del
+ * servidor — sin red no rechaza NUNCA. La señal real es el snapshot: el
+ * listener dispara al instante con la escritura pendiente
+ * (`metadata.hasPendingWrites === true`, compensación de latencia) y vuelve a
+ * disparar con `false` recién cuando el servidor la confirmó.
+ */
+const TASK_WRITE_ACK_TIMEOUT_MS = 30_000;
 
 export default function PhotoBoothWizard({
   mirror = true,
@@ -140,7 +98,7 @@ export default function PhotoBoothWizard({
   const [aiUrl, setAiUrl] = useState<string | null>(null);
   const [aiVideoUrl, setAiVideoUrl] = useState<string | null>(null);
   const [framedUrl, setFramedUrl] = useState<string | null>(null);
-  const [rawUrl, setRawUrl] = useState<string | null>(null);
+  const [mirrorPreviewUrl, setMirrorPreviewUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [brand, setBrand] = useState<string | null>(null);
   const [color, setColor] = useState<string | null>(null);
@@ -153,11 +111,30 @@ export default function PhotoBoothWizard({
     stalled: boolean;
   } | null>(null);
   const unsubRef = useRef<() => void | undefined>(undefined);
+  // Reintento automático de confirmAndProcess programado. Se guarda para
+  // poder cancelarlo: sin esto, un reset (salvapantallas, botón de rescate,
+  // "tomar otra foto") dejaba el timer vivo y unos segundos después la
+  // closure vieja — con el `framedShot` de la sesión anterior todavía
+  // capturado — devolvía la pantalla a "loading" sola.
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Reloj que vigila que la escritura del doc llegue al servidor (ver
+  // TASK_WRITE_ACK_TIMEOUT_MS).
+  const writeWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Permite abortar las subidas en vuelo cuando se reinicia el flujo, en vez
+  // de dejarlas peleando por el enlace mientras el siguiente asistente ya
+  // está tomando su foto.
+  const uploadAbortRef = useRef<AbortController | null>(null);
   // Subidas tempranas disparadas en handleCaptured (ver más abajo) —
   // confirmAndProcess las espera en vez de volver a subir la misma foto.
   const framedUploadRef = useRef<Promise<{ url: string; path: string }> | null>(null);
-  const rawUploadRef = useRef<Promise<{ url: string; path: string }> | null>(null);
+  const mirrorPreviewUploadRef = useRef<Promise<{ url: string; path: string }> | null>(null);
   const [style, setStyle] = useState<StyleProfile | null>(null);
+
+  // El modo ahorro de datos llega ya APLICADO sobre el evento: la página del
+  // booth deriva el EventProfile con applyLowBandwidth, así que revealEffect,
+  // handRevealEnabled, etc. vienen resueltos. Lo único que queda por decidir
+  // acá es cuánto comprimir lo que se sube — ver lowBandwidthMode.ts.
+  const lowBandwidth = eventData?.lowBandwidthMode === true;
 
   // revealEffect="KINECT_ROLLER" siempre, y revealEffect="HAND_WIPE" (default)
   // cuando hay pantalla espejo habilitada: el revelado ocurre en la pantalla
@@ -383,18 +360,44 @@ export default function PhotoBoothWizard({
       .slice(2, 10)}_${Date.now().toString(36)}`;
     setTaskId(newTaskId);
 
-    const framedPromise = uploadCapturedPhoto(payload.framed, `tasks/${newTaskId}/input.jpg`);
+    uploadAbortRef.current?.abort();
+    const abort = new AbortController();
+    uploadAbortRef.current = abort;
+
+    const framedPromise = uploadCapturedPhoto(
+      payload.framed,
+      `tasks/${newTaskId}/input.jpg`,
+      { signal: abort.signal }
+    );
     framedUploadRef.current = framedPromise;
     framedPromise
       .then((res) => setFramedUrl(res.url))
       .catch((e) => console.error("[PhotoBoothWizard] Early framed upload failed:", e));
 
-    if (payload.raw) {
-      const rawPromise = uploadCapturedPhoto(payload.raw, `tasks/${newTaskId}/raw.jpg`);
-      rawUploadRef.current = rawPromise;
-      rawPromise
-        .then((res) => setRawUrl(res.url))
-        .catch((e) => console.error("[PhotoBoothWizard] Early raw upload failed:", e));
+    // Copia sin marco para la pantalla espejo, y SOLO para eso: es lo único
+    // que la mira. Se sube reescalada (y no se sube en absoluto si el evento
+    // no usa pantalla espejo) porque mandarla a resolución completa duplicaba
+    // los bytes de la captura compitiendo con la subida que sí importa — la
+    // que va a la IA — justo en el enlace lento que se quiere aliviar. La
+    // copia local (`rawShot`) sigue en calidad completa: nunca sale del
+    // dispositivo.
+    if (payload.raw && eventData?.mirrorScreenEnabled !== false) {
+      const previewQuality = previewUploadQualityFor(lowBandwidth);
+      const previewPromise = downscaleDataUrl(
+        payload.raw,
+        previewQuality.maxSide,
+        previewQuality.quality
+      ).then((small) =>
+        uploadCapturedPhoto(small, `tasks/${newTaskId}/preview.jpg`, {
+          signal: abort.signal,
+        })
+      );
+      mirrorPreviewUploadRef.current = previewPromise;
+      previewPromise
+        .then((res) => setMirrorPreviewUrl(res.url))
+        .catch((e) =>
+          console.error("[PhotoBoothWizard] Early mirror preview upload failed:", e)
+        );
     }
   };
 
@@ -442,6 +445,19 @@ export default function PhotoBoothWizard({
     void confirmAndProcess(value);
   };
 
+  /** Cancela el reintento programado y el reloj de la escritura. Se llama
+   * antes de cada intento nuevo y en cada salida del flujo de generación. */
+  const clearGenerationTimers = () => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+    if (writeWatchdogRef.current) {
+      clearTimeout(writeWatchdogRef.current);
+      writeWatchdogRef.current = null;
+    }
+  };
+
   // `attempt` solo lo pasa la propia función al reintentarse — no forma
   // parte de la llamada normal (customize/filter confirmados).
   const confirmAndProcess = async (
@@ -453,8 +469,29 @@ export default function PhotoBoothWizard({
     // se llama justo después de setCustomization (batching de React), así
     // que se acepta el valor fresco como override.
     const finalCustomization = customizationOverride ?? customization;
+    clearGenerationTimers();
     setStep("loading");
     setGenerationRetry(attempt > 0 ? { attempt, stalled: false } : null);
+
+    /** Ruta común de fallo de conexión: reintenta la operación entera sin
+     * recapturar (la foto ya tomada sigue en memoria) y, agotados los
+     * reintentos automáticos, ofrece el botón manual sin resetear el flujo.
+     * Antes esto era un alert() + volver a "preview", que obligaba al
+     * asistente a repetir filtro y personalización. */
+    const handleConnectionFailure = (e: unknown) => {
+      console.error("[PhotoBoothWizard] Error in confirmAndProcess:", e);
+      clearGenerationTimers();
+      if (attempt < CONFIRM_MAX_AUTO_RETRIES) {
+        const delayMs = Math.min(2000 * 2 ** attempt, 10000);
+        retryTimerRef.current = setTimeout(() => {
+          retryTimerRef.current = null;
+          void confirmAndProcess(finalCustomization ?? undefined, attempt + 1);
+        }, delayMs);
+      } else {
+        setGenerationRetry({ attempt, stalled: true });
+      }
+    };
+
     try {
       // handleCaptured ya generó el taskId y disparó la subida en cuanto se
       // tomó la foto (para que la pantalla espejo tuviera algo que mostrar
@@ -476,16 +513,86 @@ export default function PhotoBoothWizard({
         inputPath = uploaded.path;
       } catch {
         // La subida temprana falló (ej. corte de red momentáneo) — un
-        // intento fresco acá, ya con sus propios reintentos con backoff.
+        // intento fresco acá, ya con sus propios reintentos con backoff. El
+        // resultado reemplaza la promesa rechazada, así un reintento
+        // posterior no vuelve a caer por este mismo camino.
         const uploaded = await uploadCapturedPhoto(framedShot, `tasks/${newTaskId}/input.jpg`);
+        framedUploadRef.current = Promise.resolve(uploaded);
         framedDownloadUrl = uploaded.url;
         inputPath = uploaded.path;
       }
 
       setFramedUrl(framedDownloadUrl);
 
-      // 2) Crear doc en Firestore - El trigger processImageTask lo procesará
       const taskRef = doc(collection(db, "imageTasks"), newTaskId);
+
+      // 2) Suscripción ANTES de escribir el doc, y sin bloquear en la
+      //    escritura.
+      //
+      //    `setDoc` solo resuelve con el ACK del servidor: sin red el SDK
+      //    encola la escritura localmente y la promesa queda pendiente para
+      //    siempre, no rechaza. Esperarla acá era el peor caso posible —
+      //    ninguna excepción, así que ni reintento ni aviso ni botón: el
+      //    loader quedaba colgado; y como el listener se registraba DESPUÉS
+      //    del await, cuando la red volvía el doc sí se creaba y la Cloud
+      //    Function generaba la foto, pero esta pantalla nunca se enteraba.
+      //
+      //    Suscribirse primero es seguro: un listener sobre un doc que aún no
+      //    existe es válido y dispara con snapshot vacío (se ignora abajo).
+      //    `includeMetadataChanges` es lo que hace visible el momento en que
+      //    la escritura pasa de local a confirmada por el servidor.
+      if (unsubRef.current) {
+        unsubRef.current();
+        unsubRef.current = undefined;
+      }
+      unsubRef.current = onSnapshot(
+        taskRef,
+        { includeMetadataChanges: true },
+        async (snap) => {
+          // El doc existe en el servidor => la escritura llegó => hay
+          // conexión. Recién ahí se apaga el reloj de la escritura.
+          if (snap.exists() && !snap.metadata.hasPendingWrites) {
+            if (writeWatchdogRef.current) {
+              clearTimeout(writeWatchdogRef.current);
+              writeWatchdogRef.current = null;
+            }
+            setGenerationRetry(null);
+          }
+
+          const data = snap.data();
+          if (!data) return;
+
+          if (data.status === "error") {
+            console.error("Task error:", data?.error || "unknown");
+            clearGenerationTimers();
+            setGenerationRetry(null);
+            setStep("preview");
+            return;
+          }
+
+          if (data.status === "done" && data.url) {
+            console.log(
+              "[PhotoBoothWizard] Task completed with result URL:",
+              data.url,
+            );
+            clearGenerationTimers();
+            setGenerationRetry(null);
+            setAiUrl(data.url as string);
+            if (data.videoUrl) setAiVideoUrl(data.videoUrl as string);
+            // Por compatibilidad, eventos sin revealEffect configurado usan el
+            // efecto original (borrar el velo con la mano).
+            const revealEffect = eventData?.revealEffect ?? "HAND_WIPE";
+            setStep(revealEffect === "NONE" ? "result" : "reveal");
+            try {
+              await updateDoc(taskRef, { finishedAt: serverTimestamp() });
+            } catch {}
+            if (unsubRef.current) {
+              unsubRef.current();
+              unsubRef.current = undefined;
+            }
+          }
+        }
+      );
 
       // Usar el brand/color del estado si existen, si no del sessionStorage
       const promptId =
@@ -495,7 +602,7 @@ export default function PhotoBoothWizard({
         null;
       const finalColor =
         color || sessionStorage.getItem("selectedColor") || null;
-      
+
       // Leer aceptación de tratamiento de datos
       const dataProcessingAccepted = sessionStorage.getItem("dataProcessingAccepted") === "true";
 
@@ -530,7 +637,19 @@ export default function PhotoBoothWizard({
         finalColor,
       });
 
-      await setDoc(taskRef, {
+      // 3) La escritura se dispara sin esperarla (ver arriba). Quien decide
+      //    si llegó o no es el reloj: si el snapshot no confirma la escritura
+      //    a tiempo, se trata como fallo de conexión. El `catch` de acá solo
+      //    cubre errores reales de permisos/validación, que reintentar no
+      //    arregla.
+      writeWatchdogRef.current = setTimeout(() => {
+        writeWatchdogRef.current = null;
+        handleConnectionFailure(
+          new Error("La foto no llegó al servidor (sin confirmación de escritura)")
+        );
+      }, TASK_WRITE_ACK_TIMEOUT_MS);
+
+      void setDoc(taskRef, {
         status: "queued",
         inputPath,
         framedPath: inputPath,
@@ -554,62 +673,11 @@ export default function PhotoBoothWizard({
         taskId: newTaskId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
-
-      // 3) Suscripción hasta "done"
-      if (unsubRef.current) {
-        unsubRef.current();
-        unsubRef.current = undefined;
-      }
-      unsubRef.current = onSnapshot(taskRef, async (snap) => {
-        const data = snap.data();
-        if (!data) return;
-
-        if (data.status === "error") {
-          console.error("Task error:", data?.error || "unknown");
-          setGenerationRetry(null);
-          setStep("preview");
-          return;
-        }
-
-        if (data.status === "done" && data.url) {
-          console.log(
-            "[PhotoBoothWizard] Task completed with result URL:",
-            data.url,
-          );
-          setGenerationRetry(null);
-          setAiUrl(data.url as string);
-          if (data.videoUrl) setAiVideoUrl(data.videoUrl as string);
-          // Por compatibilidad, eventos sin revealEffect configurado usan el
-          // efecto original (borrar el velo con la mano).
-          const revealEffect = eventData?.revealEffect ?? "HAND_WIPE";
-          setStep(revealEffect === "NONE" ? "result" : "reveal");
-          try {
-            await updateDoc(taskRef, { finishedAt: serverTimestamp() });
-          } catch {}
-          if (unsubRef.current) {
-            unsubRef.current();
-            unsubRef.current = undefined;
-          }
-        }
+      }).catch((e) => {
+        console.error("[PhotoBoothWizard] imageTasks write rejected:", e);
       });
     } catch (e) {
-      console.error("[PhotoBoothWizard] Error in confirmAndProcess:", e);
-      // Antes esto era alert() + setStep("preview"): con wifi débil (varios
-      // eventos lo sufrían) la subida agotaba su único reintento y el
-      // attendee terminaba de vuelta en preview, teniendo que repetir
-      // filtro/personalización — la foto ya tomada seguía intacta en
-      // memoria, así que reintentar toda la operación (sin recapturar) es
-      // seguro. Solo tras agotar los reintentos automáticos se ofrece un
-      // botón manual, quedándose en el loader en vez de resetear el flujo.
-      if (attempt < CONFIRM_MAX_AUTO_RETRIES) {
-        const delayMs = Math.min(2000 * 2 ** attempt, 10000);
-        setTimeout(() => {
-          void confirmAndProcess(finalCustomization ?? undefined, attempt + 1);
-        }, delayMs);
-      } else {
-        setGenerationRetry({ attempt, stalled: true });
-      }
+      handleConnectionFailure(e);
     }
   };
 
@@ -618,6 +686,20 @@ export default function PhotoBoothWizard({
   };
 
   const resetAll = () => {
+    // Cortar todo lo que pudiera seguir corriendo de la sesión anterior ANTES
+    // de decidir a dónde volver: un reintento programado que sobreviva al
+    // reset ejecuta su closure vieja (con el `framedShot` ya descartado
+    // todavía capturado) y devuelve la pantalla a "loading" sola unos
+    // segundos después; y las subidas en vuelo seguirían peleando por el
+    // enlace mientras el siguiente asistente toma su foto.
+    clearGenerationTimers();
+    uploadAbortRef.current?.abort();
+    uploadAbortRef.current = null;
+    if (unsubRef.current) {
+      unsubRef.current();
+      unsubRef.current = undefined;
+    }
+
     // Si hay una función onReset (desde EventBoothPage con múltiples brands), llamarla para volver a la selección de brand
     if (onReset) {
       onReset();
@@ -630,15 +712,29 @@ export default function PhotoBoothWizard({
     setAiUrl(null);
     setAiVideoUrl(null);
     setFramedUrl(null);
-    setRawUrl(null);
+    setMirrorPreviewUrl(null);
     setTaskId(null);
     setCustomization(null);
     setShowQr(false);
     setGenerationRetry(null);
     framedUploadRef.current = null;
-    rawUploadRef.current = null;
+    mirrorPreviewUploadRef.current = null;
     setStep("capture");
   };
+
+  // Al desmontar (cambio de evento, salir del booth) no debe quedar nada
+  // programado: un reintento pendiente llamaría a setState sobre un
+  // componente muerto, y una subida en vuelo seguiría ocupando el enlace.
+  useEffect(() => {
+    return () => {
+      clearGenerationTimers();
+      uploadAbortRef.current?.abort();
+      if (unsubRef.current) {
+        unsubRef.current();
+        unsubRef.current = undefined;
+      }
+    };
+  }, []);
 
   // Notifica a la pantalla espejo (si la hay) cada vez que cambia algo que
   // afecta lo que debería estar mostrando — ver useBoothLiveSession/BoothMirror.
@@ -649,11 +745,11 @@ export default function PhotoBoothWizard({
       taskId,
       brand,
       customization,
-      previewUrl: rawUrl || framedUrl || null,
+      previewUrl: mirrorPreviewUrl || framedUrl || null,
       showQr,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, taskId, brand, customization, rawUrl, framedUrl, showQr]);
+  }, [step, taskId, brand, customization, mirrorPreviewUrl, framedUrl, showQr]);
 
   // Cada paso trae su propia transición de entrada/salida (ver
   // `stepTransitions.ts`, que documenta el criterio de cada una). Dos cosas
@@ -784,6 +880,7 @@ export default function PhotoBoothWizard({
               logoRightScalePct={logoBottomScalePct}
               backgroundSrc={bgUrl}
               aspectRatio={eventData?.photoAspectRatio}
+              captureQuality={captureQualityFor(lowBandwidth)}
             />
           </motion.div>
         )}

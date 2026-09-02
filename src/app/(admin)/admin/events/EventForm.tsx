@@ -264,6 +264,7 @@ export default function EventForm({
     dataProcessingText: event?.dataProcessingText || "",
     generationType: event?.generationType || "IMAGE",
     buttonClickEffect: event?.buttonClickEffect || "NONE",
+    lowBandwidthMode: event?.lowBandwidthMode === true,
     handCursorEnabled: event?.handCursorEnabled === true,
     handRevealEnabled: event?.handRevealEnabled === true,
     revealEffect: event?.revealEffect || "HAND_WIPE",
@@ -699,6 +700,14 @@ export default function EventForm({
             <option value="ROLLER_COLOR">Rodillo: blanco y negro a color</option>
             <option value="KINECT_ROLLER">Rodillo Kinect (pantalla gigante)</option>
           </SelectField>
+
+          <ToggleField
+            id="lowBandwidthMode"
+            label="Modo ahorro de datos (sedes con wifi lento)"
+            description="Apaga de una sola vez todo lo que pesa en red durante la sesión: el revelado con rodillo (que descarga ~49 MB de modelos en plena sesión, compitiendo con la subida de la foto) pasa a 'Borrar el velo con la mano', se desactiva la detección de manos por cámara (~20 MB de MediaPipe), se quitan los videos de fondo y del salvapantallas, y la foto se sube más liviana (1080 px). De paso apaga las animaciones y el confeti, que no gastan datos pero traban las tablets lentas. Se puede activar también en sitio, desde el punto discreto de la esquina inferior izquierda del booth, o agregando ?lite=1 a la URL."
+            checked={formData.lowBandwidthMode === true}
+            onChange={(checked) => setField("lowBandwidthMode", checked)}
+          />
 
           <ToggleField
             id="handCursorEnabled"

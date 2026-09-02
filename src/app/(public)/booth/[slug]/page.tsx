@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { getEventProfileBySlug, EventProfile } from "@/app/services/photo-booth/eventService";
@@ -15,6 +16,12 @@ import { useBoothLiveSession } from "@/app/components/photo-booth/useBoothLiveSe
 import type { BoothLiveState } from "@/app/components/photo-booth/useBoothLiveSession";
 import BoothMirror from "@/app/components/photo-booth/BoothMirror";
 import LiveSessionStatusBadge from "@/app/components/photo-booth/LiveSessionStatusBadge";
+import DataSaverBadge from "@/app/components/photo-booth/DataSaverBadge";
+import {
+  applyLowBandwidth,
+  resolveLowBandwidth,
+  setLowBandwidthPreference,
+} from "@/app/components/photo-booth/lowBandwidthMode";
 
 export default function EventBoothPage({
   params,
@@ -22,7 +29,9 @@ export default function EventBoothPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = React.use(params);
+  const searchParams = useSearchParams();
   const [event, setEvent] = useState<EventProfile | null>(null);
+  const [lowBandwidth, setLowBandwidth] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<"splash" | "landing" | "wizard">("landing");
@@ -51,6 +60,13 @@ export default function EventBoothPage({
           return;
         }
         setEvent(eventData);
+        // El modo ahorro puede venir del evento (admin), de la URL (?lite=1)
+        // o de lo que el operador haya elegido en esta pantalla — ver
+        // lowBandwidthMode.ts. Se guarda en `currentEvent` la config CRUDA a
+        // propósito: el modo es una decisión de esta pantalla y este enlace,
+        // no del evento, y ese cache lo leen también pantallas que corren en
+        // otro dispositivo.
+        setLowBandwidth(resolveLowBandwidth(eventData, searchParams));
         // Store event config in sessionStorage for PhotoBoothWizard to access
         sessionStorage.setItem("currentEvent", JSON.stringify(eventData));
 
@@ -75,6 +91,7 @@ export default function EventBoothPage({
     };
 
     loadEvent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   // Determina si este tab es la tablet interactiva ("leader") o una pantalla
@@ -85,6 +102,22 @@ export default function EventBoothPage({
     event?.id ?? null,
     event?.mirrorScreenEnabled !== false
   );
+
+  // El evento con el modo ahorro de datos ya aplicado. Es el que se pasa
+  // hacia abajo (wizard, espejo, salvapantallas, fondo animado) para que todo
+  // lo que ya lee `event.revealEffect` / `event.handCursorEnabled` / etc.
+  // quede cubierto sin enterarse siquiera de que existe el modo — ver
+  // lowBandwidthMode.ts. Memoizado porque devuelve un objeto nuevo y varios
+  // hijos tienen efectos que dependen del evento.
+  const effectiveEvent = useMemo(
+    () => (event ? applyLowBandwidth(event, lowBandwidth) : null),
+    [event, lowBandwidth]
+  );
+
+  const toggleLowBandwidth = (next: boolean) => {
+    setLowBandwidthPreference(next);
+    setLowBandwidth(next);
+  };
 
   // Espeja localmente lo último transmitido por `broadcast` (que solo manda
   // el partial, no el estado completo) para poder mostrarlo en
@@ -123,26 +156,36 @@ export default function EventBoothPage({
     );
   }
 
+  // Después del guard de arriba `event` ya no es null; `effectiveEvent` solo
+  // lo era mientras el evento cargaba.
+  const shownEvent = effectiveEvent ?? event;
+
   if (liveSession.role === "pending") {
     return <div className="fixed inset-0 bg-black" />;
   }
 
   if (liveSession.role === "mirror") {
+    // La pantalla espejo también lleva el interruptor: es la que descarga
+    // MediaPipe cuando el revelado corre acá, y suele estar en la misma red
+    // mala que la tablet.
     return (
-      <BoothMirror
-        event={event}
-        state={liveSession.state}
-        isStale={liveSession.isStale}
-        connected={liveSession.connected}
-        reportRevealDone={liveSession.reportRevealDone}
-      />
+      <>
+        <BoothMirror
+          event={shownEvent}
+          state={liveSession.state}
+          isStale={liveSession.isStale}
+          connected={liveSession.connected}
+          reportRevealDone={liveSession.reportRevealDone}
+        />
+        <DataSaverBadge enabled={lowBandwidth} onChange={toggleLowBandwidth} />
+      </>
     );
   }
 
   // "Volver a la selección" solo tiene sentido si hay una fase "landing" a la
   // que volver: no aplica con una sola brand, ni con captura primero (ahí la
   // selección de filtro vive dentro del wizard, no como fase de esta página).
-  const canReturnToLanding = !skipBrandSelection && event.captureBeforeFilter !== true;
+  const canReturnToLanding = !skipBrandSelection && shownEvent.captureBeforeFilter !== true;
 
   return (
     <div className="antialiased h-full w-full relative overflow-hidden">
@@ -154,7 +197,7 @@ export default function EventBoothPage({
           el usuario no toca la pantalla — cuente como actividad y reinicie
           el reloj de inactividad. */}
       <ScreenSaver
-        event={event}
+        event={shownEvent}
         activityKey={`${phase}:${transmittedState.phase ?? ""}`}
         /* Se transmite para que la pantalla espejo entre y salga junto con la
            tablet — ella no mide inactividad propia (nadie la toca). */
@@ -162,20 +205,20 @@ export default function EventBoothPage({
       />
 
       {/* Cursor por gestos de mano - activo en toda la app si el evento lo habilita */}
-      <HandCursorOverlay enabled={event.handCursorEnabled === true} />
+      <HandCursorOverlay enabled={shownEvent.handCursorEnabled === true} />
 
       {/* Fondo persistente: evita que se vea un flash sin fondo durante las
           transiciones entre fases (todas usan su propio fondo "fixed", que se
           desmonta/monta con el AnimatePresence). */}
       <div
         className="fixed inset-0 -z-20 bg-cover bg-center"
-        style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')` }}
+        style={{ backgroundImage: `url('${shownEvent.bgImage || "/images/placeholder.png"}')` }}
         aria-hidden
       />
 
       {/* Animación de fondo opcional (ej. esferas de colores), configurable
           por evento — sin animación por defecto. */}
-      <BackgroundAnimation type={event.backgroundAnimation} />
+      <BackgroundAnimation type={shownEvent.backgroundAnimation} />
 
       <AnimatePresence mode="wait" initial={false}>
         {phase === "splash" && (
@@ -188,9 +231,9 @@ export default function EventBoothPage({
             transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
           >
             <SplashScreen
-              event={event}
+              event={shownEvent}
               onStart={() => {
-                const skipLanding = skipBrandSelection || event.captureBeforeFilter === true;
+                const skipLanding = skipBrandSelection || shownEvent.captureBeforeFilter === true;
                 setPhase(skipLanding ? "wizard" : "landing");
               }}
             />
@@ -207,7 +250,7 @@ export default function EventBoothPage({
             transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
           >
             <EventPhotoBoothLanding
-              event={event}
+              event={shownEvent}
               onStart={(brand, dataProcessingAccepted) => {
                 // Guardar brand en sessionStorage para que PhotoBoothWizard lo use
                 if (brand) sessionStorage.setItem("selectedBrand", brand);
@@ -233,7 +276,7 @@ export default function EventBoothPage({
             <PhotoBoothWizard
               mirror
               boxSize={boxSize}
-              eventData={event}
+              eventData={shownEvent}
               onReset={canReturnToLanding ? () => setPhase("landing") : undefined}
               onLiveState={trackedBroadcast}
               remoteRevealedTaskId={liveSession.role === "leader" ? liveSession.remoteRevealedTaskId : null}
@@ -241,6 +284,8 @@ export default function EventBoothPage({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DataSaverBadge enabled={lowBandwidth} onChange={toggleLowBandwidth} />
 
       <LiveSessionStatusBadge
         role="leader"

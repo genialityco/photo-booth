@@ -368,6 +368,19 @@ export type EventProfile = {
    */
   backgroundAnimation?: "NONE" | "FLOATING_ORBS";
   /**
+   * "Modo ahorro de datos": para sedes con wifi malo. Apaga de un solo lugar
+   * todo lo que pesa en red durante la sesión — el revelado con rodillo y sus
+   * ~49 MB de modelos ONNX, MediaPipe para las manos (~20 MB), los videos de
+   * fondo/salvapantallas — y baja la resolución de la foto que se sube; de
+   * paso apaga las animaciones, que no gastan red pero traban las tablets.
+   * Se puede forzar en sitio con `?lite=1` o con el botón discreto de la
+   * pantalla del booth, sin tocar el evento. Ver
+   * components/photo-booth/lowBandwidthMode.ts, que es donde vive el detalle
+   * de qué apaga cada cosa. Por compatibilidad, los eventos sin este campo lo
+   * tienen apagado.
+   */
+  lowBandwidthMode?: boolean;
+  /**
    * Tiempo máximo (segundos) que se le da a la persona para "pintar"/revelar
    * la foto (borrar el velo con la mano o el rodillo) antes de avanzar
    * automáticamente al resultado. Por compatibilidad, los eventos sin este
@@ -530,6 +543,7 @@ export async function createEventProfile(
       captureViewStyle: data.captureViewStyle || "CLASSIC",
       imageCustomizationEnabled: data.imageCustomizationEnabled === true,
       backgroundAnimation: data.backgroundAnimation || "NONE",
+      lowBandwidthMode: data.lowBandwidthMode === true,
       mirrorScreenEnabled: data.mirrorScreenEnabled !== false,
       screenSaverMediaSlideEnabled: data.screenSaverMediaSlideEnabled !== false,
       screenSaverSplashSlideEnabled: data.screenSaverSplashSlideEnabled !== false,
@@ -813,6 +827,7 @@ export async function updateEventProfile(
     if (data.captureViewStyle !== undefined) docData.captureViewStyle = data.captureViewStyle;
     if (data.imageCustomizationEnabled !== undefined) docData.imageCustomizationEnabled = data.imageCustomizationEnabled;
     if (data.backgroundAnimation !== undefined) docData.backgroundAnimation = data.backgroundAnimation;
+    if (data.lowBandwidthMode !== undefined) docData.lowBandwidthMode = data.lowBandwidthMode;
     if (data.paintTimeSeconds !== undefined) docData.paintTimeSeconds = data.paintTimeSeconds;
     if (data.photoAspectRatio !== undefined) docData.photoAspectRatio = data.photoAspectRatio;
     if (data.logoTopScalePct !== undefined) docData.logoTopScalePct = data.logoTopScalePct;

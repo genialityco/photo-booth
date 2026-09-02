@@ -10,6 +10,7 @@ import ShutterButton from "@/app/components/common/ShutterButton";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import CaptureViewfinderOverlay from "@/app/components/photo-booth/CaptureViewfinderOverlay";
 import { getAspectDims, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
+import { CAPTURE_NORMAL, type CaptureQuality } from "@/app/components/photo-booth/lowBandwidthMode";
 import {
   CAPTURE_LOGO_HEIGHT,
   CAPTURE_LOGO_MAX_WIDTH,
@@ -73,6 +74,7 @@ export default function CaptureStep({
   logoRightScalePct,
   backgroundSrc,
   aspectRatio,
+  captureQuality = CAPTURE_NORMAL,
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
@@ -92,6 +94,12 @@ export default function CaptureStep({
   backgroundSrc?: string;
   /** Relación de aspecto de la foto capturada. "SQUARE" (default) = comportamiento original. Solo aplica cuando no hay marco (el marco manda su propia forma). */
   aspectRatio?: PhotoAspectRatio;
+  /** Tope de tamaño y calidad JPEG de la foto que se sube. Por defecto, el
+   * tamaño nativo del marco a q0.9; el modo ahorro de datos lo baja — ver
+   * lowBandwidthMode.ts. NO afecta a `raw`, que se queda en calidad completa
+   * porque nunca sale del dispositivo (es lo que se ve en pantalla durante
+   * preview/personalización). */
+  captureQuality?: CaptureQuality;
   onCaptured: (payload: { framed: string; raw: string }) => void;
 }) {
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -249,6 +257,8 @@ export default function CaptureStep({
         targetW: w,
         targetH: h,
         mirror: effectiveMirror,
+        maxSide: captureQuality.maxSide,
+        quality: captureQuality.quality,
       });
       console.log("Capture with frame:", { w, h });
     } else {
@@ -265,6 +275,8 @@ export default function CaptureStep({
         targetW,
         targetH,
         mirror: effectiveMirror,
+        maxSide: captureQuality.maxSide,
+        quality: captureQuality.quality,
       });
       console.log("Capture without frame");
     }

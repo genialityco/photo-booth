@@ -95,6 +95,14 @@ Config crosses component boundaries through `sessionStorage`, not only through p
 - Values read from `sessionStorage` can be **stale** (the event was edited in the admin after the tab was opened) and are **per-tab** (a mirror screen never has `selectedBrand`, since the choice happened on the tablet). Components that matter take an explicit prop override — e.g. `LoaderStep`'s `eventOverride`/`brandIdOverride` — and fall back to the cache.
 - `/survey` (the page behind the download QR) is the exception that cannot use any of this: it is opened by scanning the QR on the attendee's **phone**, a different device entirely. Everything it needs travels in the URL that `ResultStep`/`BoothMirror` build — `src`, `kind`, `filename`, `frameUrl`, `eventId` — and it re-fetches the event from Firestore. Adding anything event-specific to that page means adding a query param on both builders.
 
+### Low-bandwidth ("modo ahorro de datos") mode
+
+Events are often held on bad venue wifi, and the booth's expensive downloads happen *during* a session, competing with the photo upload: the `ROLLER`/`ROLLER_COLOR` reveal prefetches `public/ort/*.wasm` (24 MB + 13 MB) and `public/models/rodillo-detector/best.onnx` (12 MB), and hand tracking pulls MediaPipe (`hand_landmarker.task` 7.8 MB + `vision_wasm_internal.wasm` 11.7 MB).
+
+`components/photo-booth/lowBandwidthMode.ts` is the single place that decides what gets turned off. The mechanism to know: rather than threading a flag through a dozen components, `booth/[slug]` derives an `EventProfile` with `applyLowBandwidth(event, on)` and passes *that* down to everything (wizard, `BoothMirror`, `ScreenSaver`, `BackgroundAnimation`, `HandCursorOverlay`). Anything that already reads `event.revealEffect` / `event.handCursorEnabled` / `event.screenSaverVideoUrl` is covered for free — so new heavy features should be expressed as an `EventProfile` field and switched off there, not with a separate flag.
+
+The mode is on when any of these say so, in priority order: `?lite=1` in the URL, the `sessionStorage` preference set by `DataSaverBadge` (the discreet dot at bottom-left, next to `LiveSessionStatusBadge`), or `event.lowBandwidthMode` from the admin. `applyLowBandwidth` keeps `lowBandwidthMode: true` on the derived event, which is how `PhotoBoothWizard` still knows to compress the capture (`captureQualityFor`/`previewUploadQualityFor`).
+
 ### Kiosk shell and shared sizing
 
 `src/app/layout.tsx` locks the whole app to `h-dvh overflow-hidden` (it is a kiosk, not a scrolling site). A page taller than the viewport is silently cut off with no scrollbar — pages that can overflow (`/survey` on a phone) must scroll in their own `overflow-y-auto` container.
