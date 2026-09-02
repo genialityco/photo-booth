@@ -49,5 +49,9 @@ export default function captureWithFrame({
   }
 
   if (frame) ctx.drawImage(frame, 0, 0, targetW, targetH);
-  return canvas.toDataURL("image/png", 1);
+  // JPEG en vez de PNG sin comprimir: en conexiones lentas (varios eventos
+  // en sitios con wifi débil) un PNG de varios MB en un solo POST era lo que
+  // hacía que la subida se cayera durante la generación. Calidad 0.9 es
+  // visualmente indistinguible para una foto y pesa una fracción del PNG.
+  return canvas.toDataURL("image/jpeg", 0.9);
 }

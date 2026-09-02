@@ -42,5 +42,7 @@ export default function captureRawSquare({
     ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, targetW, targetH);
   }
 
-  return canvas.toDataURL("image/png", 1);
+  // Ver comentario en captureWithFrame.ts: JPEG en vez de PNG para que la
+  // subida no se caiga en conexiones lentas.
+  return canvas.toDataURL("image/jpeg", 0.9);
 }

@@ -41,25 +41,67 @@ import {
 import { event } from "firebase-functions/v1/analytics";
 import type { BoothLiveState } from "@/app/components/photo-booth/useBoothLiveSession";
 
-/** Sube un data: URL a Storage vía la ruta existente. Compartida entre la
- * subida temprana (apenas se captura, para que la pantalla espejo tenga algo
- * que mostrar) y confirmAndProcess (que reutiliza esa misma subida en vez de
- * repetirla). */
-async function uploadCapturedPhoto(
+const UPLOAD_MAX_ATTEMPTS = 5;
+const CONFIRM_MAX_AUTO_RETRIES = 3;
+// En una conexión colgada (no simplemente caída) el navegador puede tardar
+// mucho más que esto en rendirse solo — sin este límite, el backoff entre
+// intentos de uploadCapturedPhoto es teórico: un solo intento podía comerse
+// varios minutos antes de siquiera fallar y pasar al siguiente.
+const UPLOAD_TIMEOUT_MS = 10000;
+
+async function uploadOnce(
   dataUrl: string,
   desiredPath: string
 ): Promise<{ url: string; path: string }> {
-  const res = await fetch("/api/storage/upload", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ dataUrl, desiredPath }),
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(errorData.error || `Upload failed with status ${res.status}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  try {
+    const res = await fetch("/api/storage/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dataUrl, desiredPath }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
+      throw new Error(errorData.error || `Upload failed with status ${res.status}`);
+    }
+    const data = await res.json();
+    return { url: data.url, path: data.path };
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") {
+      throw new Error("Upload timed out");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  const data = await res.json();
-  return { url: data.url, path: data.path };
+}
+
+/** Sube un data: URL a Storage vía la ruta existente. Compartida entre la
+ * subida temprana (apenas se captura, para que la pantalla espejo tenga algo
+ * que mostrar) y confirmAndProcess (que reutiliza esa misma subida en vez de
+ * repetirla). Con backoff exponencial: en eventos con wifi débil, un solo
+ * intento (o un único reintento manual) se agotaba fácil y tiraba a todo el
+ * flujo de generación de vuelta a preview. */
+async function uploadCapturedPhoto(
+  dataUrl: string,
+  desiredPath: string,
+  maxAttempts = UPLOAD_MAX_ATTEMPTS
+): Promise<{ url: string; path: string }> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await uploadOnce(dataUrl, desiredPath);
+    } catch (e) {
+      lastError = e;
+      if (attempt < maxAttempts - 1) {
+        const delayMs = Math.min(1000 * 2 ** attempt, 8000);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Upload failed");
 }
 
 export default function PhotoBoothWizard({
@@ -104,6 +146,12 @@ export default function PhotoBoothWizard({
   const [color, setColor] = useState<string | null>(null);
   const [customization, setCustomization] = useState<ImageCustomization | null>(null);
   const [showQr, setShowQr] = useState(false);
+  // Estado de reintento de confirmAndProcess (subida + doc de Firestore) en
+  // conexiones lentas/inestables — ver comentario en confirmAndProcess.
+  const [generationRetry, setGenerationRetry] = useState<{
+    attempt: number;
+    stalled: boolean;
+  } | null>(null);
   const unsubRef = useRef<() => void | undefined>(undefined);
   // Subidas tempranas disparadas en handleCaptured (ver más abajo) —
   // confirmAndProcess las espera en vez de volver a subir la misma foto.
@@ -335,14 +383,14 @@ export default function PhotoBoothWizard({
       .slice(2, 10)}_${Date.now().toString(36)}`;
     setTaskId(newTaskId);
 
-    const framedPromise = uploadCapturedPhoto(payload.framed, `tasks/${newTaskId}/input.png`);
+    const framedPromise = uploadCapturedPhoto(payload.framed, `tasks/${newTaskId}/input.jpg`);
     framedUploadRef.current = framedPromise;
     framedPromise
       .then((res) => setFramedUrl(res.url))
       .catch((e) => console.error("[PhotoBoothWizard] Early framed upload failed:", e));
 
     if (payload.raw) {
-      const rawPromise = uploadCapturedPhoto(payload.raw, `tasks/${newTaskId}/raw.png`);
+      const rawPromise = uploadCapturedPhoto(payload.raw, `tasks/${newTaskId}/raw.jpg`);
       rawUploadRef.current = rawPromise;
       rawPromise
         .then((res) => setRawUrl(res.url))
@@ -394,13 +442,19 @@ export default function PhotoBoothWizard({
     void confirmAndProcess(value);
   };
 
-  const confirmAndProcess = async (customizationOverride?: ImageCustomization) => {
+  // `attempt` solo lo pasa la propia función al reintentarse — no forma
+  // parte de la llamada normal (customize/filter confirmados).
+  const confirmAndProcess = async (
+    customizationOverride?: ImageCustomization,
+    attempt = 0
+  ) => {
     if (!framedShot) return;
     // El estado `customization` puede no haberse actualizado todavía cuando
     // se llama justo después de setCustomization (batching de React), así
     // que se acepta el valor fresco como override.
     const finalCustomization = customizationOverride ?? customization;
     setStep("loading");
+    setGenerationRetry(attempt > 0 ? { attempt, stalled: false } : null);
     try {
       // handleCaptured ya generó el taskId y disparó la subida en cuanto se
       // tomó la foto (para que la pantalla espejo tuviera algo que mostrar
@@ -417,13 +471,13 @@ export default function PhotoBoothWizard({
       try {
         const uploaded = framedUploadRef.current
           ? await framedUploadRef.current
-          : await uploadCapturedPhoto(framedShot, `tasks/${newTaskId}/input.png`);
+          : await uploadCapturedPhoto(framedShot, `tasks/${newTaskId}/input.jpg`);
         framedDownloadUrl = uploaded.url;
         inputPath = uploaded.path;
       } catch {
         // La subida temprana falló (ej. corte de red momentáneo) — un
-        // reintento acá antes de rendirse.
-        const uploaded = await uploadCapturedPhoto(framedShot, `tasks/${newTaskId}/input.png`);
+        // intento fresco acá, ya con sus propios reintentos con backoff.
+        const uploaded = await uploadCapturedPhoto(framedShot, `tasks/${newTaskId}/input.jpg`);
         framedDownloadUrl = uploaded.url;
         inputPath = uploaded.path;
       }
@@ -513,6 +567,7 @@ export default function PhotoBoothWizard({
 
         if (data.status === "error") {
           console.error("Task error:", data?.error || "unknown");
+          setGenerationRetry(null);
           setStep("preview");
           return;
         }
@@ -522,6 +577,7 @@ export default function PhotoBoothWizard({
             "[PhotoBoothWizard] Task completed with result URL:",
             data.url,
           );
+          setGenerationRetry(null);
           setAiUrl(data.url as string);
           if (data.videoUrl) setAiVideoUrl(data.videoUrl as string);
           // Por compatibilidad, eventos sin revealEffect configurado usan el
@@ -539,9 +595,26 @@ export default function PhotoBoothWizard({
       });
     } catch (e) {
       console.error("[PhotoBoothWizard] Error in confirmAndProcess:", e);
-      alert(`Error: ${e instanceof Error ? e.message : "Unknown error"}`);
-      setStep("preview");
+      // Antes esto era alert() + setStep("preview"): con wifi débil (varios
+      // eventos lo sufrían) la subida agotaba su único reintento y el
+      // attendee terminaba de vuelta en preview, teniendo que repetir
+      // filtro/personalización — la foto ya tomada seguía intacta en
+      // memoria, así que reintentar toda la operación (sin recapturar) es
+      // seguro. Solo tras agotar los reintentos automáticos se ofrece un
+      // botón manual, quedándose en el loader en vez de resetear el flujo.
+      if (attempt < CONFIRM_MAX_AUTO_RETRIES) {
+        const delayMs = Math.min(2000 * 2 ** attempt, 10000);
+        setTimeout(() => {
+          void confirmAndProcess(finalCustomization ?? undefined, attempt + 1);
+        }, delayMs);
+      } else {
+        setGenerationRetry({ attempt, stalled: true });
+      }
     }
+  };
+
+  const retryGenerationNow = () => {
+    void confirmAndProcess(customization ?? undefined, 0);
   };
 
   const resetAll = () => {
@@ -561,6 +634,7 @@ export default function PhotoBoothWizard({
     setTaskId(null);
     setCustomization(null);
     setShowQr(false);
+    setGenerationRetry(null);
     framedUploadRef.current = null;
     rawUploadRef.current = null;
     setStep("capture");
@@ -724,6 +798,44 @@ export default function PhotoBoothWizard({
             exit="exit"
           >
             <LoaderStep eventOverride={eventData ?? null} />
+
+            {/* Reintento de conexión (subida/creación del task en Firestore),
+                sin resetear el flujo ni perder la foto ya tomada — ver
+                confirmAndProcess. z-[60] para quedar por encima del z-50 del
+                propio LoaderStep. */}
+            {generationRetry && !generationRetry.stalled && (
+              <div className="fixed inset-x-0 bottom-24 z-[60] flex justify-center px-6">
+                <div className="rounded-full bg-black/70 text-white text-sm font-semibold px-5 py-2 backdrop-blur-sm">
+                  Reconectando…
+                </div>
+              </div>
+            )}
+
+            {generationRetry?.stalled && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-6">
+                <div className="max-w-sm w-full rounded-2xl bg-white text-black p-6 flex flex-col items-center gap-4 text-center shadow-xl">
+                  <p className="font-bold text-lg">Problemas de conexión</p>
+                  <p className="text-sm text-black/70">
+                    No pudimos conectar para generar tu imagen. Tu foto sigue
+                    lista, solo intenta de nuevo.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={retryGenerationNow}
+                    className="w-full rounded-full bg-red-500 text-white font-bold py-3 active:scale-95 transition"
+                  >
+                    Reintentar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetAll}
+                    className="text-sm font-semibold text-black/50 underline"
+                  >
+                    Cancelar y tomar otra foto
+                  </button>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
