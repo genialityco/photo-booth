@@ -424,9 +424,14 @@ async function downloadAndConvertLogo(
     console.log("Downloading logo from URL:", logoUrl);
     
     // Descargar el archivo
-    const response = await axios.get(logoUrl, { 
+    const response = await axios.get(logoUrl, {
         responseType: "arraybuffer", // Importante para manejar archivos binarios
         maxContentLength: 10 * 1024 * 1024, // Limitar tamaño de descarga a 10MB
+        // Sin timeout, una URL externa lenta (logo/fondo alojado fuera de
+        // Firebase) bloquea toda la generación hasta el timeout de la función.
+        // 20 s es de sobra para una imagen de <=10MB; si no llega, seguimos
+        // sin ese asset (el catch de abajo devuelve null).
+        timeout: 20_000,
     });
 
     const logoFileBuf = Buffer.from(response.data as ArrayBuffer);
@@ -555,6 +560,11 @@ export const processImageTask = onDocumentCreated(
     region: "us-central1",
     timeoutSeconds: 540,
     memory: "1GiB",
+    // Mantener 1 instancia caliente durante los eventos: sin esto casi cada
+    // foto arranca un contenedor frío (init de Node + sharp + @google/genai),
+    // varios segundos que se suman al tiempo visible en la pantalla de carga.
+    // Bajar a 0 fuera de eventos para no pagar la instancia ociosa.
+    minInstances: 1,
     secrets: [GEMINI_API_KEY],
   },
   async (event) => {
@@ -687,40 +697,34 @@ export const processImageTask = onDocumentCreated(
 
       const base64Image = Buffer.from(bytes).toString("base64");
 
-      // 2) Descargar logo desde URL si existe
+      // 2) Descargar logo, objeto y fondo del prompt en paralelo (antes eran
+      //    tres `await` en serie: la suma de las tres latencias se veía entera
+      //    en la pantalla de carga). Cada una ya tolera fallos por su cuenta
+      //    (downloadAndConvertLogo devuelve null).
       let base64Logo: string | null = null;
       let logoMime = "image/png";
-      
-      if (LOGO_URL) {
-        const logoData = await downloadAndConvertLogo(LOGO_URL);
-        if (logoData) {
-            base64Logo = logoData.base64;
-            logoMime = logoData.mime;
-        }
-      }
-
-      // 2c) Descargar imagen del objeto si existe
       let base64ObjectImage: string | null = null;
       let objectImageMime = "image/png";
-      
-      if (OBJECT_IMAGE_URL) {
-        const objData = await downloadAndConvertLogo(OBJECT_IMAGE_URL);
-        if (objData) {
-            base64ObjectImage = objData.base64;
-            objectImageMime = objData.mime;
-        }
-      }
-
-      // 2b) Descargar imagen de fondo del prompt si existe
       let base64PromptBg: string | null = null;
       let promptBgMime = "image/png";
-      
-      if (PROMPT_BG_IMAGE_URL) {
-        const bgData = await downloadAndConvertLogo(PROMPT_BG_IMAGE_URL);
-        if (bgData) {
-            base64PromptBg = bgData.base64;
-            promptBgMime = bgData.mime;
-        }
+
+      const [logoData, objData, bgData] = await Promise.all([
+        LOGO_URL ? downloadAndConvertLogo(LOGO_URL) : Promise.resolve(null),
+        OBJECT_IMAGE_URL ? downloadAndConvertLogo(OBJECT_IMAGE_URL) : Promise.resolve(null),
+        PROMPT_BG_IMAGE_URL ? downloadAndConvertLogo(PROMPT_BG_IMAGE_URL) : Promise.resolve(null),
+      ]);
+
+      if (logoData) {
+        base64Logo = logoData.base64;
+        logoMime = logoData.mime;
+      }
+      if (objData) {
+        base64ObjectImage = objData.base64;
+        objectImageMime = objData.mime;
+      }
+      if (bgData) {
+        base64PromptBg = bgData.base64;
+        promptBgMime = bgData.mime;
       }
 
       

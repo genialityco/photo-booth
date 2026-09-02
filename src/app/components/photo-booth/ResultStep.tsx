@@ -243,26 +243,36 @@ export default function ResultStep({
                       muted
                       playsInline
                     />
-                  ) : (
-                    // Loop de explosión/rearmado en partículas mientras se
-                    // muestra el resultado: la foto se arma, se mantiene
-                    // nítida, se disuelve en una nube de puntos (todavía
-                    // quieta), recién ahí estalla (alejándose del centro,
-                    // varios saliendo hacia la cámara), se mantiene dispersa
-                    // y vuelve a armarse — ver PixelateImage. Respeta
-                    // prefers-reduced-motion por su cuenta (queda nítida y
-                    // quieta).
+                  ) : framedImageUrl ? (
+                    // Explosión/rearmado en partículas UNA sola vez, al
+                    // aparecer el resultado: la nube de puntos converge desde
+                    // la explosión, arma la foto y se queda nítida y quieta
+                    // (sin `loop`, no se vuelve a disolver ni a estallar) —
+                    // ver PixelateImage. Respeta prefers-reduced-motion por su
+                    // cuenta (queda nítida y quieta).
+                    //
+                    // Se monta recién cuando `framedImageUrl` está listo (no
+                    // con `aiUrl` de fallback): así el efecto corre una sola
+                    // vez, ya sobre la imagen final compuesta con marco, y no
+                    // se vuelve a disparar cuando termina de componerse (el
+                    // cambio de `src` remonta el canvas y reinicia la
+                    // animación).
                     <PixelateImage
-                      src={framedImageUrl || aiUrl}
+                      src={framedImageUrl}
                       alt="Imagen generada por IA"
                       className="absolute inset-0 w-full h-full object-contain select-none"
-                      loop
                       gridCols={80}
                       reassembleMs={1800}
-                      holdSharpMs={2500}
-                      dissolveMs={500}
-                      disintegrateMs={2800}
-                      holdFallenMs={700}
+                    />
+                  ) : (
+                    // Ventana corta mientras se compone el marco: foto estática
+                    // sin efecto, para no mostrar negro ni arrancar la
+                    // animación dos veces.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={aiUrl}
+                      alt="Imagen generada por IA"
+                      className="absolute inset-0 w-full h-full object-contain select-none"
                     />
                   )}
 
