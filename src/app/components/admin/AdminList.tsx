@@ -209,12 +209,48 @@ function useFramedURL(it: {
 }
 
 /* ================== Card por ítem ================== */
-function AdminItemCard({ it }: { it: TaskItem }) {
+function AdminItemCard({
+  it,
+  onDeleted,
+}: {
+  it: TaskItem;
+  onDeleted: (id: string) => void;
+}) {
   const framedResolvedUrl = useFramedURL({
     framedUrl: it.framedUrl,
     framedPath: it.framedPath,
     inputPath: it.inputPath,
   });
+
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Borra el doc de imageTasks + sus archivos de Storage. El onSnapshot de la
+  // lista quita la card sola, pero se avisa igual al padre por si el snapshot
+  // tarda en llegar.
+  async function handleDelete() {
+    if (
+      !confirm(
+        `¿Eliminar definitivamente esta foto (${it.id})? También se borran sus archivos de Storage.`
+      )
+    )
+      return;
+
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/imageTasks/${encodeURIComponent(it.id)}`, {
+        method: "DELETE",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.details || body?.error || "Error al eliminar");
+      onDeleted(it.id);
+    } catch (err) {
+      console.error("Error eliminando la foto:", err);
+      setDeleteError(err instanceof Error ? err.message : "Error al eliminar");
+      setDeleting(false);
+    }
+  }
 
   const created = toDate(it.createdAt);
   const updated = toDate(it.updatedAt);
@@ -229,7 +265,7 @@ function AdminItemCard({ it }: { it: TaskItem }) {
         <div className="font-bold text-lg">
           <code className="font-mono">{it.id}</code>
         </div>
-        <div className="text-sm">
+        <div className="text-sm flex items-center gap-2">
           <span
             className={[
               "inline-flex items-center px-2 py-0.5 rounded-full font-semibold",
@@ -244,8 +280,22 @@ function AdminItemCard({ it }: { it: TaskItem }) {
           >
             {it.status || "queued"}
           </span>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            title="Eliminar esta foto"
+            className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+          >
+            {deleting ? "Eliminando…" : "🗑️ Eliminar"}
+          </button>
         </div>
       </header>
+
+      {deleteError && (
+        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          {deleteError}
+        </p>
+      )}
 
       <dl className="text-sm grid grid-cols-1 md:grid-cols-3 gap-2">
         <div>
@@ -557,6 +607,13 @@ export default function AdminList() {
   }, [selectedEventId, selectedBrandId, selectedDate]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+
+  // Al borrar el último ítem de la última página hay que retroceder, si no la
+  // vista queda vacía sin resultados que mostrar.
+  useEffect(() => {
+    setPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
+
   const paginated = filtered.slice(
     (page - 1) * itemsPerPage,
     page * itemsPerPage
@@ -570,6 +627,12 @@ const handleNext = () => {
   setPage((p) => Math.min(totalPages, p + 1));
   listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
+
+  // Quita la foto borrada de la lista al instante; el onSnapshot confirma
+  // después (y si el doc ya no existe, no vuelve a aparecer).
+  const handleDeleted = (id: string) => {
+    setItems((prev) => prev.filter((it) => it.id !== id));
+  };
 
   /* ============ Descargar TODO en un solo ZIP (todas o solo página) ============ */
   const [downloadingAll, setDownloadingAll] = useState(false);
@@ -917,7 +980,7 @@ const handleNext = () => {
         )}
 
         {paginated.map((it) => (
-          <AdminItemCard key={it.id} it={it} />
+          <AdminItemCard key={it.id} it={it} onDeleted={handleDeleted} />
         ))}
       </div>
 

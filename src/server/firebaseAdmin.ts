@@ -54,8 +54,29 @@ const getServiceAccount = () => {
   }
 };
 
+// El bucket se resuelve con la misma cadena de fallbacks que usan
+// `api/storage/upload` y `api/photos`: `FIREBASE_STORAGE_BUCKET` solo está
+// documentada para Netlify y no existe en los `.env` locales, así que sin
+// fallback el SDK arranca sin bucket y `.bucket()` revienta con
+// "Bucket name not specified or invalid".
+function getStorageBucket() {
+  return (
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+    `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "lenovo-experiences"}.appspot.com`
+  );
+}
+
 export function getAdminApp() {
   if (app) return app;
+
+  // Si otro route ya inicializó la app default (`api/photos`,
+  // `api/storage/upload` lo hacen con su propia cadena de credenciales), se
+  // reutiliza — no hace falta volver a resolver el service account acá.
+  if (admin.apps.length) {
+    app = admin.app();
+    return app;
+  }
 
   const serviceAccount = getServiceAccount();
   if (!serviceAccount) {
@@ -66,7 +87,7 @@ export function getAdminApp() {
   try {
     app = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+      storageBucket: getStorageBucket(),
     });
     console.log("✓ Firebase Admin SDK inicializado exitosamente");
   } catch (err) {
@@ -83,6 +104,8 @@ export function getAdminServices() {
     throw new Error("Firebase Admin no inicializado. Configura FIREBASE_SERVICE_ACCOUNT");
   }
   const db = admin.firestore(a);
-  const bucket = admin.storage(a).bucket();
+  // Nombre explícito: si la app default la inicializó otro route, su
+  // storageBucket puede venir vacío y `.bucket()` sin argumento falla.
+  const bucket = admin.storage(a).bucket(getStorageBucket());
   return { admin, db, bucket };
 }
