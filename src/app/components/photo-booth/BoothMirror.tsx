@@ -214,20 +214,19 @@ function MirrorStage({ event, children }: { event: EventProfile; children: React
 
 /** Espejo de ResultStep — misma proporción real de la foto/video (object-
  * contain) que en la tablet, adaptada a la pantalla espejo vertical
- * (1080x1920). El QR arranca como sello en la esquina, reflejando el
- * `showQr` que transmite el líder, pero también se puede tocar ACÁ (alguien
- * parado frente a la pantalla gigante) para expandirlo localmente — ver
- * estado propio `localShowQr` más abajo. */
+ * (1080x1920). El QR arranca siempre como sello en la esquina y se agranda
+ * SOLO al tocarlo en ESTA pantalla: quien está parado frente a la pantalla
+ * gigante decide por sí mismo si quiere verlo grande, así que el `showQr`
+ * que transmite el líder se ignora a propósito acá (ver estado propio
+ * `localShowQr` más abajo). */
 function ResultView({
   event,
   taskId,
-  showQr,
   result,
   error,
 }: {
   event: EventProfile;
   taskId: string | null;
-  showQr: boolean;
   /** Recibido desde BoothMirror (suscripción a imageTasks/{taskId} arrancada
    * desde "loading", no acá) — con revealEffect="NONE" la fase salta directo
    * de "loading" a "result" sin ningún paso intermedio que le dé tiempo a
@@ -240,15 +239,14 @@ function ResultView({
 }) {
   const [qrSize, setQrSize] = useState(400);
 
-  // Expandido localmente al tocar el QR en ESTA pantalla, independiente del
-  // toggle del líder — se re-sincroniza con `showQr` cada vez que el líder lo
-  // cambia (así, si alguien lo cerró acá pero el líder lo vuelve a abrir en
-  // el tablet, la pantalla espejo lo refleja igual), pero un click local
-  // también lo abre/cierra sin depender de que el líder haga lo mismo.
-  const [localShowQr, setLocalShowQr] = useState(showQr);
+  // Expandido/achicado ÚNICAMENTE por un toque en esta misma pantalla: no
+  // depende en nada del toggle del líder. Solo se reinicia (achicado) cuando
+  // cambia la foto, para que la siguiente sesión no arranque con el QR de la
+  // anterior abierto.
+  const [localShowQr, setLocalShowQr] = useState(false);
   useEffect(() => {
-    setLocalShowQr(showQr);
-  }, [showQr]);
+    setLocalShowQr(false);
+  }, [taskId]);
 
   // Si no hay `taskId` en absoluto (no debería pasar en "result", pero por
   // las dudas) o la suscripción tarda demasiado, mostrar algo explicable en
@@ -264,7 +262,10 @@ function ResultView({
     const updateQrSize = () => {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      setQrSize(Math.min(Math.max(280, vw * 0.38), vh * 0.36, 480));
+      // El último tope (vw * 0.78) es para que la tarjeta ampliada nunca
+      // sea más ancha que la pantalla en ventanas angostas (el QR lleva
+      // padding lateral propio).
+      setQrSize(Math.min(Math.max(280, vw * 0.38), vh * 0.36, vw * 0.78, 480));
     };
     updateQrSize();
     window.addEventListener("resize", updateQrSize);
@@ -345,29 +346,53 @@ function ResultView({
 
       <BrandingOverlay event={event} />
 
+      {/* Sello chico y tarjeta ampliada son DOS elementos siempre montados que
+          se cruzan con opacidad + escala, en vez de un solo nodo que cambia de
+          esquina a centro: animar `left`/`right`/`width` entre esos dos anclajes
+          no interpola (salta de golpe), mientras que transform+opacity sí da una
+          transición suave y sin repintar la foto de fondo. */}
       {surveyUrl && (
-        <button
-          type="button"
-          onClick={() => setLocalShowQr((v) => !v)}
-          aria-label={localShowQr ? "Achicar el código QR" : "Agrandar el código QR"}
-          className={`absolute z-40 rounded-xl transition-all duration-300 ease-out ${
-            localShowQr
-              ? // Agrandado: solo una franja inferior CENTRADA, del ancho del
-                // QR (no todo el ancho de la pantalla) — a diferencia del
-                // tablet, acá nadie necesita verlo más grande que eso, y
-                // taparía el resultado que el resto de la gente sigue
-                // mirando.
-                "left-1/2 -translate-x-1/2 bottom-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
-              : "bottom-4 right-4 sm:bottom-6 sm:right-6 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10 active:scale-95"
-          }`}
-          style={localShowQr ? { width: qrSize + 32, height: "42vh" } : undefined}
-        >
-          <QrTag
-            value={surveyUrl}
-            size={localShowQr ? qrSize : 96}
-            label={localShowQr ? "Escanea para descargar tu foto en tu celular" : undefined}
-          />
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => setLocalShowQr(true)}
+            aria-label="Agrandar el código QR"
+            aria-hidden={localShowQr}
+            tabIndex={localShowQr ? -1 : 0}
+            className={`absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 rounded-2xl bg-white p-2 shadow-lg ring-1 ring-black/10 origin-bottom-right transition-all duration-300 ease-out ${
+              localShowQr
+                ? "opacity-0 scale-75 pointer-events-none"
+                : "opacity-100 scale-100 active:scale-95"
+            }`}
+          >
+            <QrTag value={surveyUrl} size={112} />
+          </button>
+
+          {/* Ampliado: tarjeta centrada sobre el borde inferior, con alto
+             SEGÚN SU CONTENIDO (nada de 42vh fijo, que dejaba media franja
+             blanca vacía debajo del QR) y despegada del borde para que se lea
+             como tarjeta y no como un recorte de la pantalla. */}
+          <button
+            type="button"
+            onClick={() => setLocalShowQr(false)}
+            aria-label="Achicar el código QR"
+            aria-hidden={!localShowQr}
+            tabIndex={localShowQr ? 0 : -1}
+            className={`absolute left-1/2 bottom-[6vh] z-40 flex flex-col items-center gap-4 rounded-3xl bg-white px-7 py-7 shadow-2xl ring-1 ring-black/10 origin-bottom transition-all duration-300 ease-out ${
+              localShowQr
+                ? "opacity-100 scale-100 -translate-x-1/2 translate-y-0"
+                : "opacity-0 scale-90 -translate-x-1/2 translate-y-8 pointer-events-none"
+            }`}
+          >
+            <QrTag value={surveyUrl} size={qrSize} />
+            <span
+              className="max-w-[85%] text-center font-semibold leading-tight text-black/80"
+              style={{ fontSize: "clamp(1rem, 2.2vw, 1.6rem)" }}
+            >
+              Escanea para descargar tu foto en tu celular
+            </span>
+          </button>
+        </>
       )}
     </div>
   );
@@ -620,10 +645,6 @@ export default function BoothMirror({
           <ResultView
             event={event}
             taskId={state.taskId}
-            // Refleja el toggle del líder: cuando alguien toca el QR en el
-            // tablet, la pantalla espejo también lo agranda (cubriendo solo
-            // la franja inferior, ver ResultView, para no tapar la foto).
-            showQr={state.showQr === true}
             result={taskResult}
             error={taskError}
           />
