@@ -17,9 +17,9 @@ import {
  *
  * Es una vista pública/compartible: vive FUERA del grupo de rutas `(admin)`, así
  * que no arrastra el <Sidebar/> del panel ni ninguna navegación de admin. Solo
- * deja ver y descargar las fotos y filtrar por las marcas de ese evento —
- * `AdminList` corre en modo `readOnly` (sin botón de eliminar) y sin filtro por
- * día ni selector de evento.
+ * deja ver y descargar las fotos y filtrar por marca (las de ese evento) o por
+ * día — `AdminList` corre en modo `readOnly` (sin botón de eliminar) y con el
+ * evento fijo (sin selector de evento).
  *
  * El layout raíz bloquea el scroll global (`overflow-hidden`), por eso esta
  * página abre su propio contenedor con scroll vertical.
@@ -69,14 +69,13 @@ export default function EventPhotosPage({
             </h1>
             <p className="text-sm text-neutral-600 mt-1 mb-6">
               Fotos generadas para este evento. Puedes filtrar por marca del
-              evento.
+              evento o por día.
             </p>
 
             <AdminList
               lockedEventId={event.id}
               lockedEventName={event.name}
               brandOptions={brands}
-              hideDateFilter
               readOnly
             />
           </>
