@@ -787,6 +787,29 @@ export async function getEventProfileBySlug(
 }
 
 /**
+ * Igual que `getEventProfileBySlug` pero SIN filtrar por `isActive` — para
+ * vistas de admin (ej. `/admin/events/[slug]/images`) donde hay que poder abrir
+ * también eventos pausados/inactivos.
+ */
+export async function getEventProfileBySlugAnyStatus(
+  slug: string
+): Promise<EventProfile | null> {
+  try {
+    const q = query(collection(db, COLLECTION), where("slug", "==", slug));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    const doc = snapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as EventProfile;
+  } catch (error) {
+    console.error("Error getting event profile by slug (any status):", error);
+    throw error;
+  }
+}
+
+/**
  * Update event profile
  */
 export async function updateEventProfile(

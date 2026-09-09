@@ -1,6 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+
+/**
+ * Rutas donde NO se fuerza pantalla completa: el panel de administración y la
+ * galería de fotos por evento (`/event-photos/[slug]`). Son vistas de
+ * escritorio/gestión, no la cabina — ahí el fullscreen molesta. El resto de la
+ * app (cabina, pantallas de evento, landing) mantiene el comportamiento kiosco.
+ */
+const NO_FULLSCREEN_PREFIXES = ["/admin", "/event-photos"];
 
 /**
  * Complemento del PWA: cuando la app NO se abrió como app instalada (pestaña
@@ -26,7 +35,14 @@ import { useEffect } from "react";
  * un no-op — usar la PWA instalada.
  */
 export default function FullscreenManager() {
+  const pathname = usePathname();
+  const disabled = NO_FULLSCREEN_PREFIXES.some(
+    (p) => pathname === p || pathname?.startsWith(`${p}/`)
+  );
+
   useEffect(() => {
+    if (disabled) return; // vistas de admin / galería: sin fullscreen forzado
+
     const el = document.documentElement as HTMLElement & {
       webkitRequestFullscreen?: () => Promise<void> | void;
     };
@@ -90,7 +106,7 @@ export default function FullscreenManager() {
       document.removeEventListener("fullscreenchange", onFullscreenChange);
       document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
     };
-  }, []);
+  }, [disabled]);
 
   return null;
 }

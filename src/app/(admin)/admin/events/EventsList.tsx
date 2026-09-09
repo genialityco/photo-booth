@@ -224,7 +224,15 @@ export default function EventsList() {
 
                 {/* Action Buttons */}
                 <div className="ml-4 flex flex-col gap-2 flex-shrink-0">
-                  <div className="flex gap-2 justify-end">
+                  <div className="flex gap-2 justify-end flex-wrap">
+                    <button
+                      onClick={() => {
+                        window.open(`/event-photos/${event.slug}`, "_blank");
+                      }}
+                      className="px-3 py-2 bg-teal-100 text-teal-700 rounded hover:bg-teal-200 text-sm font-medium"
+                    >
+                      Imágenes
+                    </button>
                     <button
                       onClick={() => {
                         window.location.href = `/admin/events/${event.id}/screen`;

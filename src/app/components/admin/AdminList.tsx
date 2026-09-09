@@ -212,9 +212,11 @@ function useFramedURL(it: {
 function AdminItemCard({
   it,
   onDeleted,
+  readOnly = false,
 }: {
   it: TaskItem;
   onDeleted: (id: string) => void;
+  readOnly?: boolean;
 }) {
   const framedResolvedUrl = useFramedURL({
     framedUrl: it.framedUrl,
@@ -280,14 +282,16 @@ function AdminItemCard({
           >
             {it.status || "queued"}
           </span>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            title="Eliminar esta foto"
-            className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
-          >
-            {deleting ? "Eliminando…" : "🗑️ Eliminar"}
-          </button>
+          {!readOnly && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              title="Eliminar esta foto"
+              className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+            >
+              {deleting ? "Eliminando…" : "🗑️ Eliminar"}
+            </button>
+          )}
         </div>
       </header>
 
@@ -424,18 +428,44 @@ function AdminItemCard({
 }
 
 /* ================== Componente principal ================== */
-export default function AdminList() {
+/**
+ * Props opcionales para acotar la lista a un solo evento (ver
+ * `/admin/events/[id]/images`). Sin props funciona igual que siempre: selector
+ * de evento libre y marcas recientes/buscables. Con `lockedEventId` el filtro
+ * de evento queda fijo y oculto, y con `brandOptions` el selector de marca solo
+ * ofrece las marcas de ese evento (`event.prompts`).
+ */
+type AdminListProps = {
+  lockedEventId?: string;
+  lockedEventName?: string;
+  brandOptions?: PhotoBoothPrompt[];
+  /** Oculta el filtro por día — deja solo el de marca. */
+  hideDateFilter?: boolean;
+  /** Solo lectura: oculta el botón de eliminar de cada foto. */
+  readOnly?: boolean;
+};
+
+export default function AdminList({
+  lockedEventId,
+  lockedEventName,
+  brandOptions,
+  hideDateFilter = false,
+  readOnly = false,
+}: AdminListProps = {}) {
+  const eventLocked = !!lockedEventId;
+  const brandsLocked = Array.isArray(brandOptions);
+
   const [items, setItems] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const itemsPerPage = 5;
-  
+
 
   // Event filtering
   const [events, setEvents] = useState<EventProfile[]>([]);
-  const [selectedEventId, setSelectedEventId] = useState<string>("");
+  const [selectedEventId, setSelectedEventId] = useState<string>(lockedEventId ?? "");
   const [eventSearch, setEventSearch] = useState("");
-  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [loadingEvents, setLoadingEvents] = useState(!eventLocked);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchingEvents, setSearchingEvents] = useState(false);
   const listRef = useRef<HTMLDivElement>(null); // 👈 agregar
@@ -444,18 +474,28 @@ export default function AdminList() {
   const [selectedDate, setSelectedDate] = useState<string>("");
 
   // Brand filtering
-  const [brands, setBrands] = useState<PhotoBoothPrompt[]>([]);
+  const [brands, setBrands] = useState<PhotoBoothPrompt[]>(brandOptions ?? []);
   const [selectedBrandId, setSelectedBrandId] = useState<string>("");
   const [brandSearch, setBrandSearch] = useState("");
-  const [loadingBrands, setLoadingBrands] = useState(true);
+  const [loadingBrands, setLoadingBrands] = useState(!brandsLocked);
   const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
   const [searchingBrands, setSearchingBrands] = useState(false);
+
+  // Mantener sincronizado el evento fijo si cambia la prop, y reflejar las
+  // marcas del evento cuando llegan/cambian.
+  useEffect(() => {
+    if (lockedEventId) setSelectedEventId(lockedEventId);
+  }, [lockedEventId]);
+  useEffect(() => {
+    if (brandOptions) setBrands(brandOptions);
+  }, [brandOptions]);
 
   const baseCol = useMemo(() => collection(db, "imageTasks"), []);
   const unsubRef = useRef<undefined | (() => void)>(undefined);
 
   // Load recent events
   useEffect(() => {
+    if (eventLocked) return; // el evento viene fijo por prop
     const loadEvents = async () => {
       try {
         setLoadingEvents(true);
@@ -468,10 +508,11 @@ export default function AdminList() {
       }
     };
     loadEvents();
-  }, []);
+  }, [eventLocked]);
 
   // Load recent brands
   useEffect(() => {
+    if (brandsLocked) return; // las marcas vienen dadas por prop (las del evento)
     const loadBrands = async () => {
       try {
         setLoadingBrands(true);
@@ -484,10 +525,11 @@ export default function AdminList() {
       }
     };
     loadBrands();
-  }, []);
+  }, [brandsLocked]);
 
   // Search events when user types
   useEffect(() => {
+    if (eventLocked) return;
     const searchEventsDebounced = async () => {
       if (!eventSearch.trim()) {
         // Reset to recent events when search is empty
@@ -509,10 +551,11 @@ export default function AdminList() {
 
     const timeoutId = setTimeout(searchEventsDebounced, 300);
     return () => clearTimeout(timeoutId);
-  }, [eventSearch]);
+  }, [eventSearch, eventLocked]);
 
   // Search brands when user types
   useEffect(() => {
+    if (brandsLocked) return;
     const searchBrandsDebounced = async () => {
       if (!brandSearch.trim()) {
         // Reset to recent brands when search is empty
@@ -534,7 +577,7 @@ export default function AdminList() {
 
     const timeoutId = setTimeout(searchBrandsDebounced, 300);
     return () => clearTimeout(timeoutId);
-  }, [brandSearch]);
+  }, [brandSearch, brandsLocked]);
 
   // Load all tasks in real-time
   useEffect(() => {
@@ -731,6 +774,11 @@ const handleNext = () => {
         {/* Event Filter Dropdown with Search */}
         <div className="flex flex-col gap-2">
           <label className="font-semibold text-sm">Filtrar por Evento</label>
+          {eventLocked ? (
+            <div className="w-full px-3 py-2 rounded-lg border border-neutral-300 bg-neutral-100 text-neutral-700 font-medium truncate">
+              {lockedEventName || "Evento fijo"}
+            </div>
+          ) : (
           <div className="flex gap-2 items-start">
             <div className="flex-1 relative event-dropdown-container">
               {/* Dropdown Button */}
@@ -819,6 +867,7 @@ const handleNext = () => {
               </button>
             )}
           </div>
+          )}
         </div>
 
         {/* Brand Filter Dropdown with Search */}
@@ -843,20 +892,22 @@ const handleNext = () => {
               {/* Dropdown Menu */}
               {brandDropdownOpen && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-300 rounded-lg shadow-lg">
-                  {/* Search Input */}
-                  <div className="p-2 border-b border-neutral-200">
-                    <input
-                      type="text"
-                      placeholder="Buscar marca..."
-                      value={brandSearch}
-                      onChange={(e) => setBrandSearch(e.target.value)}
-                      className="w-full px-3 py-2 rounded border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 text-sm"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    {searchingBrands && (
-                      <div className="text-xs text-neutral-500 mt-1">Buscando...</div>
-                    )}
-                  </div>
+                  {/* Search Input — solo cuando las marcas no vienen fijas del evento */}
+                  {!brandsLocked && (
+                    <div className="p-2 border-b border-neutral-200">
+                      <input
+                        type="text"
+                        placeholder="Buscar marca..."
+                        value={brandSearch}
+                        onChange={(e) => setBrandSearch(e.target.value)}
+                        className="w-full px-3 py-2 rounded border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      {searchingBrands && (
+                        <div className="text-xs text-neutral-500 mt-1">Buscando...</div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Options List */}
                   <div className="max-h-60 overflow-y-auto">
@@ -894,7 +945,9 @@ const handleNext = () => {
                       ))
                     ) : (
                       <div className="px-3 py-2 text-neutral-500 text-sm">
-                        No se encontraron marcas
+                        {brandsLocked
+                          ? "Este evento no tiene marcas configuradas"
+                          : "No se encontraron marcas"}
                       </div>
                     )}
                   </div>
@@ -917,25 +970,27 @@ const handleNext = () => {
         </div>
 
         {/* Date Filter */}
-        <div className="flex flex-col gap-2">
-          <label className="font-semibold text-sm">Filtrar por Día</label>
-          <div className="flex gap-2 items-start">
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-lg border border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-neutral-900"
-            />
-            {selectedDate && (
-              <button
-                onClick={() => setSelectedDate("")}
-                className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold"
-              >
-                Limpiar
-              </button>
-            )}
+        {!hideDateFilter && (
+          <div className="flex flex-col gap-2">
+            <label className="font-semibold text-sm">Filtrar por Día</label>
+            <div className="flex gap-2 items-start">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="flex-1 px-3 py-2 rounded-lg border border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              />
+              {selectedDate && (
+                <button
+                  onClick={() => setSelectedDate("")}
+                  className="px-3 py-2 rounded-lg bg-neutral-200 text-neutral-900 font-semibold"
+                >
+                  Limpiar
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Conteo del filtro aplicado */}
@@ -980,7 +1035,12 @@ const handleNext = () => {
         )}
 
         {paginated.map((it) => (
-          <AdminItemCard key={it.id} it={it} onDeleted={handleDeleted} />
+          <AdminItemCard
+            key={it.id}
+            it={it}
+            onDeleted={handleDeleted}
+            readOnly={readOnly}
+          />
         ))}
       </div>
 
