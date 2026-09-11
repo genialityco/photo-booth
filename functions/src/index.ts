@@ -564,7 +564,7 @@ export const processImageTask = onDocumentCreated(
     // foto arranca un contenedor frío (init de Node + sharp + @google/genai),
     // varios segundos que se suman al tiempo visible en la pantalla de carga.
     // Bajar a 0 fuera de eventos para no pagar la instancia ociosa.
-    minInstances: 1,
+    //minInstances: 1,
     secrets: [GEMINI_API_KEY],
   },
   async (event) => {
