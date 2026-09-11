@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FaImages, FaTag, FaBars, FaTimes, FaCalendar } from "react-icons/fa";
+import { FaImages, FaTag, FaBars, FaTimes, FaCalendar, FaChartBar } from "react-icons/fa";
 import { useState } from "react";
 
 const Sidebar = () => {
@@ -12,6 +12,7 @@ const Sidebar = () => {
     { name: "ImageView", href: "/admin/imageview", icon: FaImages },
     { name: "Brand", href: "/admin/brand", icon: FaTag },
     { name: "Events", href: "/admin/events", icon: FaCalendar },
+    { name: "Reportes", href: "/admin/reportes", icon: FaChartBar },
   ];
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((v) => !v);

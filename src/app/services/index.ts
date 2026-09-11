@@ -5,6 +5,7 @@ export * from './photo-booth/brandService';
 export * from './photo-booth/eventService';
 export * from './photo-booth/printJobsService';
 export * from './photo-booth/surveyServices';
+export * from './photo-booth/usageReportService';
 
 // Admin Services
 export * from './admin/styleService';
