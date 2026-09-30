@@ -178,6 +178,41 @@ body {
   .bg-orb-float { animation: none !important; }
 }
 
+/* Animación de fondo "estrellas arriba" (BackgroundAnimation TOP_STARS).
+   Cada estrella titila entre un mínimo y su opacidad máxima (--star-max,
+   menor cuanto más abajo está); las fugaces cruzan la franja superior en
+   diagonal y pasan la mayor parte del ciclo invisibles. */
+@keyframes starTwinkle {
+  0%, 100% { opacity: calc(var(--star-max, 1) * 0.25); transform: scale(0.8); }
+  50% { opacity: var(--star-max, 1); transform: scale(1); }
+}
+.bg-star-twinkle {
+  animation-name: starTwinkle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes shootingStar {
+  0% { opacity: 0; transform: rotate(20deg) translateX(0); }
+  2% { opacity: 1; }
+  9% { opacity: 0; transform: rotate(20deg) translateX(35vw); }
+  100% { opacity: 0; transform: rotate(20deg) translateX(35vw); }
+}
+.bg-shooting-star {
+  width: 120px;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(to left, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
+  opacity: 0;
+  transform-origin: left center;
+  animation-name: shootingStar;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-star-twinkle { animation: none !important; opacity: var(--star-max, 1); }
+  .bg-shooting-star { display: none; }
+}
+
 /* Videos a pantalla completa de MediaTapScreen (SplashScreen/ScreenSaver):
    cuando el autoplay muted no arranca en iOS (p. ej. Modo de Bajo Consumo,
    que lo bloquea sin alternativa por JS), WebKit dibuja su propio botón de

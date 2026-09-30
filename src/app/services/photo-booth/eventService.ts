@@ -365,8 +365,10 @@ export type EventProfile = {
    * Animación de fondo detrás de toda la app (landing, wizard, resultado).
    * "NONE" (o sin este campo, comportamiento original) = sin animación.
    * "FLOATING_ORBS" = esferas de colores flotando lentamente de fondo.
+   * "TOP_STARS" = estrellas titilando (y alguna fugaz) solo en la parte
+   * superior del fondo.
    */
-  backgroundAnimation?: "NONE" | "FLOATING_ORBS";
+  backgroundAnimation?: "NONE" | "FLOATING_ORBS" | "TOP_STARS";
   /**
    * "Modo ahorro de datos": para sedes con wifi malo. Apaga de un solo lugar
    * todo lo que pesa en red durante la sesión — el revelado con rodillo y sus

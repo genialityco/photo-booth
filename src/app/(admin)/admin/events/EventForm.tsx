@@ -1521,11 +1521,12 @@ export default function EventForm({
           <SelectField
             label="Animación de Fondo"
             value={formData.backgroundAnimation || "NONE"}
-            onChange={(v) => setField("backgroundAnimation", v as "NONE" | "FLOATING_ORBS")}
-            helperText='Se muestra detrás de toda la app (selección de marca, cámara, resultado). "Esferas de colores" agrega formas difuminadas de colores derivando lentamente de fondo.'
+            onChange={(v) => setField("backgroundAnimation", v as "NONE" | "FLOATING_ORBS" | "TOP_STARS")}
+            helperText='Se muestra detrás de toda la app (selección de marca, cámara, resultado). "Esferas de colores" agrega formas difuminadas de colores derivando lentamente de fondo. "Estrellas arriba" dibuja estrellas titilando (y alguna fugaz) en la parte superior — ocupan los 2/3 superiores; luce mejor sobre fondos oscuros.'
           >
             <option value="NONE">Sin animación (actual)</option>
             <option value="FLOATING_ORBS">Esferas de colores flotando</option>
+            <option value="TOP_STARS">Estrellas en la parte superior</option>
           </SelectField>
         </AccordionSection>
 
