@@ -105,6 +105,12 @@ export type EventProfile = {
   loadingProgressTrackColor?: string;
   /** Color (hex) del número de porcentaje dentro del anillo. Default "#000000". */
   loadingPercentColor?: string;
+  /**
+   * Animación de progreso de la pantalla de carga. "RING" (o sin este campo,
+   * comportamiento original) = anillo con porcentaje. "ROCKET" = cohete
+   * despegando con fuego (RocketLoader.tsx).
+   */
+  loadingEffect?: "RING" | "ROCKET";
   showLogosInLoader?: boolean;
   enableFrame?: boolean;
   dataProcessingText?: string;
@@ -539,6 +545,7 @@ export async function createEventProfile(
       prompts: Array.isArray(data.prompts) ? data.prompts : [],
       isActive: data.isActive !== false,
       showLogosInLoader: data.showLogosInLoader !== false,
+      loadingEffect: data.loadingEffect || "RING",
       enableFrame: data.enableFrame !== false,
       dataProcessingText: data.dataProcessingText || "",
       generationType: data.generationType || "IMAGE",
@@ -847,6 +854,7 @@ export async function updateEventProfile(
     if (data.loadingProgressTrackColor !== undefined) docData.loadingProgressTrackColor = data.loadingProgressTrackColor;
     if (data.loadingPercentColor !== undefined) docData.loadingPercentColor = data.loadingPercentColor;
     if (data.showLogosInLoader !== undefined) docData.showLogosInLoader = data.showLogosInLoader;
+    if (data.loadingEffect !== undefined) docData.loadingEffect = data.loadingEffect;
     if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
     if (data.dataProcessingText !== undefined) docData.dataProcessingText = data.dataProcessingText;
     if (data.generationType !== undefined) docData.generationType = data.generationType;

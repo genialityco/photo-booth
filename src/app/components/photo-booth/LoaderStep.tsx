@@ -5,6 +5,7 @@ import type { StyleProfile } from "@/app/services/admin/styleService";
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
 import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
+import RocketLoader from "@/app/components/photo-booth/RocketLoader";
 import {
   LOADER_LOGO_HEIGHT,
   scaledLogoStyle,
@@ -124,6 +125,8 @@ export default function LoaderStep({
   const loadingProgressColor = event?.loadingProgressColor || "#ef4444";
   const loadingProgressTrackColor = event?.loadingProgressTrackColor || "rgba(0,0,0,0.15)";
   const loadingPercentColor = event?.loadingPercentColor || "#000000";
+  // "RING" (default, el anillo de siempre) o "ROCKET" (cohete despegando).
+  const loadingEffect = event?.loadingEffect || "RING";
 
   // Controlar si mostrar logos basado en la configuración del evento
   // `style !== null` era la única señal de "ya cargó la config"; con
@@ -214,52 +217,63 @@ export default function LoaderStep({
 
       {/* Contenido central */}
       <div className="relative z-20 flex-1 min-h-0 w-full flex flex-col items-center justify-center gap-5 px-6">
-        {/* Anillo de progreso (simulado — el backend no reporta % real).
-            El viewBox usa unidades fijas (ringSize) solo para la matemática
-            del círculo; el tamaño visual real lo da el wrapper con clamp(),
-            así queda responsive en cualquier pantalla. */}
-        <div
-          className="relative"
-          style={
-            wide
-              ? { width: "clamp(220px, 32vmin, 380px)", height: "clamp(220px, 32vmin, 380px)" }
-              : { width: "clamp(125px, 16vmin, 185px)", height: "clamp(125px, 16vmin, 185px)" }
-          }
-        >
-          <svg
-            viewBox={`0 0 ${ringSize} ${ringSize}`}
-            className="-rotate-90 w-full h-full"
+        {loadingEffect === "ROCKET" ? (
+          <RocketLoader
+            progress={progress}
+            progressCap={PROGRESS_CAP}
+            percentColor={loadingPercentColor}
+            wide={wide}
+          />
+        ) : (
+          <>
+          {/* Anillo de progreso (simulado — el backend no reporta % real).
+              El viewBox usa unidades fijas (ringSize) solo para la matemática
+              del círculo; el tamaño visual real lo da el wrapper con clamp(),
+              así queda responsive en cualquier pantalla. */}
+          <div
+            className="relative"
+            style={
+              wide
+                ? { width: "clamp(220px, 32vmin, 380px)", height: "clamp(220px, 32vmin, 380px)" }
+                : { width: "clamp(125px, 16vmin, 185px)", height: "clamp(125px, 16vmin, 185px)" }
+            }
           >
-            <circle
-              cx={ringSize / 2}
-              cy={ringSize / 2}
-              r={radius}
-              fill="none"
-              stroke={loadingProgressTrackColor}
-              strokeWidth={strokeWidth}
-            />
-            <circle
-              cx={ringSize / 2}
-              cy={ringSize / 2}
-              r={radius}
-              fill="none"
-              stroke={loadingProgressColor}
-              strokeWidth={strokeWidth}
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={dashOffset}
-              style={{ transition: "stroke-dashoffset 0.2s linear" }}
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span
-              className="font-black drop-shadow-sm"
-              style={{ fontSize: "clamp(1.7rem, 4.5vmin, 2.5rem)", color: loadingPercentColor }}
+            <svg
+              viewBox={`0 0 ${ringSize} ${ringSize}`}
+              className="-rotate-90 w-full h-full"
             >
-              {progress}%
-            </span>
+              <circle
+                cx={ringSize / 2}
+                cy={ringSize / 2}
+                r={radius}
+                fill="none"
+                stroke={loadingProgressTrackColor}
+                strokeWidth={strokeWidth}
+              />
+              <circle
+                cx={ringSize / 2}
+                cy={ringSize / 2}
+                r={radius}
+                fill="none"
+                stroke={loadingProgressColor}
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={dashOffset}
+                style={{ transition: "stroke-dashoffset 0.2s linear" }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span
+                className="font-black drop-shadow-sm"
+                style={{ fontSize: "clamp(1.7rem, 4.5vmin, 2.5rem)", color: loadingPercentColor }}
+              >
+                {progress}%
+              </span>
+            </div>
           </div>
-        </div>
+          </>
+        )}
 
         <div className="flex flex-col items-center gap-2">
           <h1

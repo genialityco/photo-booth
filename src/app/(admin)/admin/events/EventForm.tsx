@@ -260,6 +260,7 @@ export default function EventForm({
     loadingProgressTrackColor: event?.loadingProgressTrackColor || "",
     loadingPercentColor: event?.loadingPercentColor || "#000000",
     showLogosInLoader: event?.showLogosInLoader !== false,
+    loadingEffect: event?.loadingEffect || "RING",
     enableFrame: event?.enableFrame !== false,
     dataProcessingText: event?.dataProcessingText || "",
     generationType: event?.generationType || "IMAGE",
@@ -1152,6 +1153,16 @@ export default function EventForm({
 
         {/* Pantalla 2: Carga (Loading) — se muestra mientras se genera la imagen */}
         <AccordionSection title="Pantalla 2 · Carga (Loading)" icon={FaDesktop}>
+          <SelectField
+            label="Efecto de Carga"
+            value={formData.loadingEffect || "RING"}
+            onChange={(v) => setField("loadingEffect", v as "RING" | "ROCKET")}
+            helperText='Animación que acompaña el progreso mientras se genera la imagen. "Cohete despegando" muestra un cohete que sube con el progreso, con fuego y humo; el color del porcentaje es el mismo configurado abajo.'
+          >
+            <option value="RING">Anillo de progreso (actual)</option>
+            <option value="ROCKET">Cohete despegando</option>
+          </SelectField>
+
           <ImageUploadField
             label="Imagen de Pantalla de Carga (Loading Page)"
             value={formData.loadingPageImage || ""}
