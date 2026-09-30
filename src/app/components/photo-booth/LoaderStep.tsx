@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { StyleProfile } from "@/app/services/admin/styleService";
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
+import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
 import {
   LOADER_LOGO_HEIGHT,
   scaledLogoStyle,
@@ -150,6 +151,9 @@ export default function LoaderStep({
       <div className="absolute inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: `url('${bgUrl}')` }} aria-hidden />
       {/* Velo para legibilidad */}
       <div className="absolute inset-0 bg-black/20" />
+      {/* Animación de fondo del evento: este paso tapa la global de
+          booth/[slug] con su propio fondo, así que la dibuja él mismo. */}
+      <BackgroundAnimation type={event?.backgroundAnimation} contained />
 
       {/* Logos: juntos arriba, lado a lado */}
       {(topLogo || bottomLogo) && (

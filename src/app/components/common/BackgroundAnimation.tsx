@@ -65,15 +65,27 @@ const SHOOTING_STARS = [
  * un cielo de estrellas titilando (y alguna fugaz) solo en la parte superior,
  * desvaneciéndose al llegar a los 2/3 de la pantalla.
  */
-export default function BackgroundAnimation({ type }: { type?: BackgroundAnimationType }) {
+export default function BackgroundAnimation({
+  type,
+  contained = false,
+}: {
+  type?: BackgroundAnimationType;
+  /** Para montarla DENTRO de una pantalla que pinta su propio fondo opaco a
+   * pantalla completa (CaptureStep/FrameCamera, LoaderStep), que si no la
+   * taparía. `absolute` sin z-index: queda en el orden del DOM, así que hay
+   * que ponerla justo después de la imagen de fondo y antes del contenido. */
+  contained?: boolean;
+}) {
   if (!type || type === "NONE") return null;
 
+  // Por defecto (booth/[slug]) z-[-1]: por encima de los fondos de imagen
+  // "fixed -z-10" que cada pantalla dibuja para sí misma, pero por debajo
+  // del contenido real.
+  const layer = contained ? "absolute" : "fixed z-[-1]";
+
   if (type === "FLOATING_ORBS") {
-    // z-[-1]: por encima de los fondos de imagen "fixed -z-10" que cada
-    // pantalla (SplashScreen, EventPhotoBoothLanding, PhotoBoothWizard)
-    // dibuja para sí misma, pero por debajo del contenido real.
     return (
-      <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none" aria-hidden>
+      <div className={`${layer} inset-0 overflow-hidden pointer-events-none`} aria-hidden>
         {ORBS.map((orb, i) => (
           <div
             key={i}
@@ -99,7 +111,7 @@ export default function BackgroundAnimation({ type }: { type?: BackgroundAnimati
   if (type === "TOP_STARS") {
     return (
       <div
-        className="fixed inset-x-0 top-0 h-[67%] z-[-1] overflow-hidden pointer-events-none"
+        className={`${layer} inset-x-0 top-0 h-[67%] overflow-hidden pointer-events-none`}
         style={{
           // Se desvanece hacia abajo para no cortar en seco a mitad de pantalla.
           maskImage: "linear-gradient(to bottom, black 0%, black 75%, transparent 100%)",

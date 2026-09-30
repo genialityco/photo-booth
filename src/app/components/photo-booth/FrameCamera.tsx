@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import BackgroundAnimation, { type BackgroundAnimationType } from "@/app/components/common/BackgroundAnimation";
 import { getAspectClassName, getAspectDims, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
 
 // Tipos para navegadores con APIs legacy
@@ -64,6 +65,7 @@ export default function FrameCamera({
   frameSrc = null,
   mirror = true,
   backgroundSrc,
+  backgroundAnimation,
   aspectRatio,
   facingMode = "user",
   onReady,
@@ -74,6 +76,8 @@ export default function FrameCamera({
   mirror?: boolean;
   /** Fondo detrás del cuadro nítido (la imagen/fondo configurado del evento), en vez de un blur genérico. */
   backgroundSrc?: string;
+  /** Animación de fondo del evento, encima de `backgroundSrc` y detrás del cuadro de cámara. */
+  backgroundAnimation?: BackgroundAnimationType;
   /** Relación de aspecto del cuadro de cámara/foto. "SQUARE" (default) = comportamiento original. */
   aspectRatio?: PhotoAspectRatio;
   /** Cámara a usar: "user" (frontal, default) o "environment" (trasera). Al
@@ -308,6 +312,7 @@ export default function FrameCamera({
           aria-hidden
         />
       )}
+      <BackgroundAnimation type={backgroundAnimation} contained />
 
       {/* Cuadro nítido: esto es exactamente lo que se captura (ver
           captureWithFrame/captureRawSquare, que recortan el cuadrado

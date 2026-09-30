@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { FaSyncAlt, FaBolt } from "react-icons/fa";
 import FrameCamera, { CAPTURE_HEADER_RESERVE, getCaptureBoxBottom } from "./FrameCamera";
+import type { BackgroundAnimationType } from "@/app/components/common/BackgroundAnimation";
 import captureWithFrame from "./captureWithFrame";
 import captureRawSquare from "./captureRawSquare";
 import ShutterButton from "@/app/components/common/ShutterButton";
@@ -73,6 +74,7 @@ export default function CaptureStep({
   logoLeftScalePct,
   logoRightScalePct,
   backgroundSrc,
+  backgroundAnimation,
   aspectRatio,
   captureQuality = CAPTURE_NORMAL,
 }: {
@@ -92,6 +94,8 @@ export default function CaptureStep({
   logoRightScalePct?: number;
   /** Fondo detrás del cuadro de cámara (la imagen de fondo configurada del evento). */
   backgroundSrc?: string;
+  /** Animación de fondo del evento (se dibuja dentro de FrameCamera, que tapa la global de booth/[slug]). */
+  backgroundAnimation?: BackgroundAnimationType;
   /** Relación de aspecto de la foto capturada. "SQUARE" (default) = comportamiento original. Solo aplica cuando no hay marco (el marco manda su propia forma). */
   aspectRatio?: PhotoAspectRatio;
   /** Tope de tamaño y calidad JPEG de la foto que se sube. Por defecto, el
@@ -301,6 +305,7 @@ export default function CaptureStep({
         frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
         mirror={effectiveMirror}
         backgroundSrc={backgroundSrc}
+        backgroundAnimation={backgroundAnimation}
         aspectRatio={aspectRatio}
         facingMode={facingMode}
         onReady={onReady}

@@ -879,6 +879,7 @@ export default function PhotoBoothWizard({
               logoLeftScalePct={logoTopScalePct}
               logoRightScalePct={logoBottomScalePct}
               backgroundSrc={bgUrl}
+              backgroundAnimation={eventData?.backgroundAnimation}
               aspectRatio={eventData?.photoAspectRatio}
               captureQuality={captureQualityFor(lowBandwidth)}
             />
