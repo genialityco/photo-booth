@@ -32,6 +32,11 @@ const STREAKS = [
   { left: "91%", delay: -0.9, duration: 1.15, h: 14 },
 ];
 
+const SCENE_MASK = [
+  "linear-gradient(to bottom, transparent 0%, #000 10%, #000 88%, transparent 100%)",
+  "linear-gradient(to right, transparent 0%, #000 22%, #000 78%, transparent 100%)",
+].join(", ");
+
 // Chispas que caen de la tobera.
 const SPARKS = [
   { x: -18, delay: 0, duration: 0.7 },
@@ -71,71 +76,87 @@ export default function RocketLoader({
   const bottomPct = 14 + climb * 34;
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="w-full flex flex-col items-center gap-2">
       <div
         className="relative overflow-hidden"
         style={{
-          width: wide ? "clamp(260px, 36vmin, 460px)" : "clamp(180px, 34vmin, 300px)",
+          // Bastante más ancha que el cohete: el resplandor del motor y el
+          // humo se abren hacia los costados, y con una escena angosta se
+          // cortaban en seco contra sus bordes (se veía una línea vertical
+          // sobre el fondo del evento).
+          width: "100%",
+          maxWidth: wide ? 900 : 560,
           height: wide ? "clamp(420px, 56vh, 780px)" : "clamp(280px, 46vh, 520px)",
-          // Bordes superior/inferior difuminados: el cohete y el humo se
-          // pierden de a poco en vez de cortarse en seco.
-          maskImage: "linear-gradient(to bottom, transparent 0%, black 10%, black 88%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 10%, black 88%, transparent 100%)",
+          // Todos los bordes difuminados (vertical Y horizontal, intersección
+          // de las dos máscaras): lo que se acerca al borde se desvanece en
+          // el fondo en vez de cortarse.
+          maskImage: SCENE_MASK,
+          WebkitMaskImage: SCENE_MASK,
+          maskComposite: "intersect",
+          WebkitMaskComposite: "source-in",
         }}
         role="img"
         aria-label={`Cargando ${progress}%`}
       >
-        {/* Líneas de velocidad, más visibles cuanto más alto va. */}
-        <div className="absolute inset-0" style={{ opacity: 0.15 + climb * 0.7 }} aria-hidden>
-          {STREAKS.map((s, i) => (
-            <span
-              key={i}
-              className="absolute top-0 w-[2px] rounded-full bg-white/70 rocket-streak"
-              style={{
-                left: s.left,
-                height: `${s.h}%`,
-                animationDelay: `${s.delay}s`,
-                animationDuration: `${s.duration}s`,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Estela: columna de humo entre la plataforma y la tobera. */}
+        {/* Columna central, del ancho del cohete + humo: las posiciones y
+            tamaños en % de las líneas, la estela y el humo son de esta
+            columna, no de la escena (que es ancha solo para dar aire). */}
         <div
-          className="absolute left-1/2 -translate-x-1/2 bottom-0 rounded-t-full"
-          style={{
-            width: "18%",
-            // Llega hasta dentro del fuego (que se afina hacia la punta), para
-            // que no quede un hueco entre la llama y la estela.
-            height: `${bottomPct + 8}%`,
-            background:
-              "linear-gradient(to top, rgba(255,255,255,0.55), rgba(255,220,180,0.35) 60%, rgba(255,160,60,0.0))",
-            filter: "blur(8px)",
-            transition: "height 0.2s linear",
-          }}
-          aria-hidden
-        />
-
-        {/* Nube de humo de la plataforma: fuerte al despegar, se disipa. */}
-        <div
-          className="absolute inset-x-0 bottom-0 h-[22%]"
-          style={{ opacity: Math.max(0, 1 - climb * 1.6), transition: "opacity 0.3s linear" }}
-          aria-hidden
+          className="absolute inset-y-0 left-1/2 -translate-x-1/2"
+          style={{ width: wide ? "clamp(260px, 36vmin, 460px)" : "clamp(180px, 34vmin, 300px)" }}
         >
-          {PUFFS.map((p, i) => (
-            <span
-              key={i}
-              className="absolute bottom-[8%] -translate-x-1/2 rounded-full bg-white/80 rocket-puff"
-              style={{
-                left: p.left,
-                width: `${p.size}%`,
-                aspectRatio: "1",
-                filter: "blur(6px)",
-                animationDelay: `${p.delay}s`,
-              }}
-            />
-          ))}
+          {/* Líneas de velocidad, más visibles cuanto más alto va. */}
+          <div className="absolute inset-0" style={{ opacity: 0.15 + climb * 0.7 }} aria-hidden>
+            {STREAKS.map((s, i) => (
+              <span
+                key={i}
+                className="absolute top-0 w-[2px] rounded-full bg-white/70 rocket-streak"
+                style={{
+                  left: s.left,
+                  height: `${s.h}%`,
+                  animationDelay: `${s.delay}s`,
+                  animationDuration: `${s.duration}s`,
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Estela: columna de humo entre la plataforma y la tobera. */}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 bottom-0 rounded-t-full"
+            style={{
+              width: "18%",
+              // Llega hasta dentro del fuego (que se afina hacia la punta), para
+              // que no quede un hueco entre la llama y la estela.
+              height: `${bottomPct + 8}%`,
+              background:
+                "linear-gradient(to top, rgba(255,255,255,0.55), rgba(255,220,180,0.35) 60%, rgba(255,160,60,0.0))",
+              filter: "blur(8px)",
+              transition: "height 0.2s linear",
+            }}
+            aria-hidden
+          />
+
+          {/* Nube de humo de la plataforma: fuerte al despegar, se disipa. */}
+          <div
+            className="absolute inset-x-0 bottom-0 h-[22%]"
+            style={{ opacity: Math.max(0, 1 - climb * 1.6), transition: "opacity 0.3s linear" }}
+            aria-hidden
+          >
+            {PUFFS.map((p, i) => (
+              <span
+                key={i}
+                className="absolute bottom-[8%] -translate-x-1/2 rounded-full bg-white/80 rocket-puff"
+                style={{
+                  left: p.left,
+                  width: `${p.size}%`,
+                  aspectRatio: "1",
+                  filter: "blur(6px)",
+                  animationDelay: `${p.delay}s`,
+                }}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Cohete */}
