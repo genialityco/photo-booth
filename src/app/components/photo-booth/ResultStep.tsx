@@ -24,6 +24,9 @@ type Props = {
    * useBoothLiveSession. */
   showQr: boolean;
   onShowQrChange: (value: boolean) => void;
+  /** Efecto continuo de la foto final, desde el evento que pasa el wizard (el
+   * `currentEvent` de sessionStorage puede estar viejo). */
+  resultImageEffect?: EventProfile["resultImageEffect"];
 };
 
 export default function ResultStep({
@@ -35,6 +38,7 @@ export default function ResultStep({
   buttonClickEffect,
   showQr,
   onShowQrChange,
+  resultImageEffect,
 }: Props) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const [style, setStyle] = useState<StyleProfile | null>(null);
@@ -48,6 +52,9 @@ export default function ResultStep({
   const brandingLogoSrc = event?.brandingLogoUrl ?? null;
   const brandingFooterText = event?.brandingFooterText ?? null;
   const aspectRatio = event?.photoAspectRatio;
+  // Con el QR ampliado la foto se queda quieta, para que se pueda escanear.
+  const floating =
+    (resultImageEffect ?? event?.resultImageEffect) === "SPACE_FLOAT" && !showQr;
   const pixelDims = useMemo(() => getPixelDims(aspectRatio), [aspectRatio]);
   // Mide el contenedor real y encoge la foto para que todo (foto + botones)
   // quepa sin scroll, en vez del "scroll de emergencia" que había antes —
@@ -229,7 +236,7 @@ export default function ResultStep({
             {/* PixelateImage renderiza la foto en su propio canvas WebGL (efecto
                 de partículas + bloom sobre la explosión). Sin marco ni halo:
                 la foto en reposo se ve limpia. */}
-            <div className="relative z-10 w-full h-full">
+            <div className={`relative z-10 w-full h-full ${floating ? "result-space-float" : ""}`}>
               <div
                 className="relative w-full h-full p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 rounded-2xl shadow-[0_10px_14px_-6px_rgba(0,0,0,0.45),0_35px_60px_-15px_rgba(0,0,0,0.6)]"
               >

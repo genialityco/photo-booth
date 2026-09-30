@@ -1154,6 +1154,7 @@ export default function PhotoBoothWizard({
                   buttonClickEffect={eventData?.buttonClickEffect}
                   showQr={showQr}
                   onShowQrChange={setShowQr}
+                  resultImageEffect={eventData?.resultImageEffect}
                 />
               </motion.div>
             )}

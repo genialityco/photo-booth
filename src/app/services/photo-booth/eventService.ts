@@ -370,6 +370,13 @@ export type EventProfile = {
    */
   backgroundAnimation?: "NONE" | "FLOATING_ORBS" | "TOP_STARS";
   /**
+   * Efecto continuo sobre la imagen resultante (tablet y pantalla espejo).
+   * "NONE" (o sin este campo, comportamiento original) = quieta.
+   * "SPACE_FLOAT" = flota en el espacio: sube/baja, deriva y se inclina
+   * lentamente, como sin gravedad.
+   */
+  resultImageEffect?: "NONE" | "SPACE_FLOAT";
+  /**
    * "Modo ahorro de datos": para sedes con wifi malo. Apaga de un solo lugar
    * todo lo que pesa en red durante la sesión — el revelado con rodillo y sus
    * ~49 MB de modelos ONNX, MediaPipe para las manos (~20 MB), los videos de
@@ -545,6 +552,7 @@ export async function createEventProfile(
       captureViewStyle: data.captureViewStyle || "CLASSIC",
       imageCustomizationEnabled: data.imageCustomizationEnabled === true,
       backgroundAnimation: data.backgroundAnimation || "NONE",
+      resultImageEffect: data.resultImageEffect || "NONE",
       lowBandwidthMode: data.lowBandwidthMode === true,
       mirrorScreenEnabled: data.mirrorScreenEnabled !== false,
       screenSaverMediaSlideEnabled: data.screenSaverMediaSlideEnabled !== false,
@@ -852,6 +860,7 @@ export async function updateEventProfile(
     if (data.captureViewStyle !== undefined) docData.captureViewStyle = data.captureViewStyle;
     if (data.imageCustomizationEnabled !== undefined) docData.imageCustomizationEnabled = data.imageCustomizationEnabled;
     if (data.backgroundAnimation !== undefined) docData.backgroundAnimation = data.backgroundAnimation;
+    if (data.resultImageEffect !== undefined) docData.resultImageEffect = data.resultImageEffect;
     if (data.lowBandwidthMode !== undefined) docData.lowBandwidthMode = data.lowBandwidthMode;
     if (data.paintTimeSeconds !== undefined) docData.paintTimeSeconds = data.paintTimeSeconds;
     if (data.photoAspectRatio !== undefined) docData.photoAspectRatio = data.photoAspectRatio;

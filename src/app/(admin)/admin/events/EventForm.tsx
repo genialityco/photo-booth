@@ -311,6 +311,7 @@ export default function EventForm({
     captureViewStyle: event?.captureViewStyle || "CLASSIC",
     imageCustomizationEnabled: event?.imageCustomizationEnabled === true,
     backgroundAnimation: event?.backgroundAnimation || "NONE",
+    resultImageEffect: event?.resultImageEffect || "NONE",
     paintTimeSeconds: event?.paintTimeSeconds,
     mirrorScreenEnabled: event?.mirrorScreenEnabled !== false,
     photoAspectRatio: event?.photoAspectRatio || "SQUARE",
@@ -1527,6 +1528,16 @@ export default function EventForm({
             <option value="NONE">Sin animación (actual)</option>
             <option value="FLOATING_ORBS">Esferas de colores flotando</option>
             <option value="TOP_STARS">Estrellas en la parte superior</option>
+          </SelectField>
+
+          <SelectField
+            label="Efecto de la Imagen Resultante"
+            value={formData.resultImageEffect || "NONE"}
+            onChange={(v) => setField("resultImageEffect", v as "NONE" | "SPACE_FLOAT")}
+            helperText='Animación continua de la foto final, en la tablet y en la pantalla espejo. "Flotando en el espacio" la hace subir, bajar y girar suavemente, como sin gravedad — combina bien con el fondo de estrellas.'
+          >
+            <option value="NONE">Sin efecto (actual)</option>
+            <option value="SPACE_FLOAT">Flotando en el espacio</option>
           </SelectField>
         </AccordionSection>
 

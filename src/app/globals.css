@@ -208,6 +208,25 @@ body {
   animation-timing-function: ease-out;
   animation-iteration-count: infinite;
 }
+/* Efecto "flotar en el espacio" de la imagen resultante (resultImageEffect
+   SPACE_FLOAT, ResultStep/BoothMirror). Deriva lenta en un lazo irregular
+   con leve giro 3D, como sin gravedad. Duración larga y amplitud chica para
+   que la foto se siga viendo bien (y el QR se pueda escanear). */
+@keyframes spaceFloat {
+  0%   { transform: perspective(1200px) translate3d(0, 0, 0) rotateZ(0deg) rotateX(0deg) rotateY(0deg); }
+  20%  { transform: perspective(1200px) translate3d(1.2%, -2.4%, 0) rotateZ(-1.2deg) rotateX(3deg) rotateY(-4deg); }
+  45%  { transform: perspective(1200px) translate3d(-0.8%, -3.6%, 0) rotateZ(0.8deg) rotateX(-2deg) rotateY(3deg); }
+  70%  { transform: perspective(1200px) translate3d(-1.4%, -1%, 0) rotateZ(1.4deg) rotateX(2deg) rotateY(4deg); }
+  100% { transform: perspective(1200px) translate3d(0, 0, 0) rotateZ(0deg) rotateX(0deg) rotateY(0deg); }
+}
+.result-space-float {
+  animation: spaceFloat 9s ease-in-out infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .result-space-float { animation: none !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bg-star-twinkle { animation: none !important; opacity: var(--star-max, 1); }
   .bg-shooting-star { display: none; }

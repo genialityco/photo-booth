@@ -299,6 +299,7 @@ function ResultView({
   }, [origin, taskId, result?.url, result?.videoUrl, enableFrame, frameSrc, event.id]);
 
   const mediaSrc = result?.videoUrl || result?.url;
+  const floating = event.resultImageEffect === "SPACE_FLOAT" && !localShowQr;
 
   if (!taskId || error || (!mediaSrc && tookTooLong)) {
     return (
@@ -318,24 +319,33 @@ function ResultView({
   // estirarla para llenar el rectángulo.
   return (
     <div className="fixed inset-0 bg-black">
-      {result?.videoUrl ? (
-        <video
-          key={result.videoUrl}
-          src={result.videoUrl}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-contain"
-        />
-      ) : (
-        <img
-          key={result?.url}
-          src={result?.url}
-          alt="Resultado"
-          className="absolute inset-0 w-full h-full object-contain"
-        />
-      )}
+      {/* Con "flotar en el espacio" la foto se achica un poco (inset) para
+          que la deriva no la corte contra los bordes de la pantalla, y se
+          queda quieta mientras el QR está ampliado. */}
+      <div
+        className={`absolute ${
+          floating ? "inset-[4%] result-space-float" : "inset-0"
+        }`}
+      >
+        {result?.videoUrl ? (
+          <video
+            key={result.videoUrl}
+            src={result.videoUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-contain"
+          />
+        ) : (
+          <img
+            key={result?.url}
+            src={result?.url}
+            alt="Resultado"
+            className="absolute inset-0 w-full h-full object-contain"
+          />
+        )}
+      </div>
 
       {/* Logos superiores, mismo layout que la pantalla de selección de
           filtro (EventPhotoBoothLanding) — para que el resultado en la
