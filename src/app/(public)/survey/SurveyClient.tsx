@@ -13,6 +13,25 @@ import {
 // ⬇️ Ya no guardamos en base, así que puedes comentar/retirar estos imports si no se usan
 // import { createSurveyRecord, createSurveyRecordQuick } from "../services/surveyServices";
 
+/** iPhone/iPad (el iPad con iPadOS se presenta como "MacIntel" con pantalla
+ * táctil). */
+function isAppleMobile() {
+  if (typeof navigator === "undefined") return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
+function triggerAnchorDownload(href: string, filename: string) {
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 type QRResponse =
   | { ok: true; dataUrl: string; kind: "raw" | "framed" }
   | { error: string };
@@ -49,6 +68,10 @@ export default function SurveyClient() {
   const [downloadHref, setDownloadHref] = useState<string>("");
   const [downloadName, setDownloadName] = useState<string>("");
   const revokeRef = useRef<null | (() => void)>(null);
+  // La imagen ya bajada como File, lista ANTES del toque: iOS solo abre la
+  // hoja de compartir (navigator.share) dentro del gesto del usuario, y un
+  // `await fetch` en el medio lo invalida.
+  const fileRef = useRef<File | null>(null);
 
   // Logos del evento (los mismos `logoTop`/`logoBottom` del booth, con el
   // tamaño configurado en el admin). Por `eventId` de la URL cuando el QR es
@@ -226,31 +249,56 @@ useEffect(() => {
       let isFramed = false;
       const fName = filenameFromQS || (kind === "video" ? suggestedName : suggestedName);
 
+      const name = frameToUse
+        ? filenameFromQS || `foto-con-marco-${new Date().toISOString().replace(/[:.]/g, "-")}.png`
+        : fName;
+      // Blob URLs propios, para revocarlos al salir.
+      const ownedBlobUrls: string[] = [];
+
       if (frameToUse) {
         finalUrl = await composeFramed(photo, frameToUse);
+        ownedBlobUrls.push(finalUrl);
         isFramed = true;
-      } else if (kind === "video" || photo.includes(".mp4")) {
-        // Usar proxy para forzar la descarga como archivo (attachment) en lugar de abrir reproductor en iOS
-        finalUrl = `/api/storage/download?url=${encodeURIComponent(photo)}&filename=${encodeURIComponent(fName)}`;
       } else {
-        finalUrl = photo; // ← sin marco, usamos la original
+        // Proxy propio (Content-Disposition: attachment). Enlazar directo a
+        // la URL de Firebase Storage no descarga: `download` se ignora en
+        // enlaces de otro dominio y el celular abría la imagen en el
+        // navegador en vez de guardarla.
+        finalUrl = `/api/storage/download?url=${encodeURIComponent(photo)}&filename=${encodeURIComponent(fName)}`;
+      }
+
+      // Imágenes: bajarlas ya como File (para la hoja de compartir de iOS /
+      // el diálogo de guardar) y servir el enlace desde un blob del mismo
+      // origen, donde `download` sí se respeta. El video se deja con el
+      // proxy: puede pesar mucho para bajarlo entero de antemano.
+      if (kind !== "video" && !photo.includes(".mp4")) {
+        try {
+          const res = await fetch(finalUrl);
+          if (!res.ok) throw new Error(`download ${res.status}`);
+          const blob = await res.blob();
+          fileRef.current = new File([blob], name, { type: blob.type || "image/png" });
+          if (!isFramed) {
+            finalUrl = URL.createObjectURL(blob);
+            ownedBlobUrls.push(finalUrl);
+          }
+        } catch (e) {
+          // Sin el File igual queda el enlace al proxy, que descarga.
+          console.warn("[Survey] no se pudo preparar el archivo:", e);
+          fileRef.current = null;
+        }
       }
 
       if (!active) {
-        if (isFramed) URL.revokeObjectURL(finalUrl);
+        ownedBlobUrls.forEach((u) => URL.revokeObjectURL(u));
         return;
       }
 
       setDownloadHref(finalUrl);
-      setDownloadName(
-        isFramed
-          ? filenameFromQS || `foto-con-marco-${new Date().toISOString().replace(/[:.]/g, "-")}.png`
-          : fName
-      );
+      setDownloadName(name);
       setSaved(true);
 
       revokeRef.current = () => {
-        if (isFramed) URL.revokeObjectURL(finalUrl);
+        ownedBlobUrls.forEach((u) => URL.revokeObjectURL(u));
       };
     } catch (e: any) {
       console.error(e);
@@ -270,6 +318,54 @@ useEffect(() => {
 ]);
 
   const canDownload = !!downloadHref && !loadingPhoto && saved;
+
+  // Guardar eligiendo dónde, según lo que permite cada plataforma (una web
+  // no puede abrir el explorador de archivos del celular directamente):
+  // - iPhone/iPad: hoja de compartir del sistema, con "Guardar imagen"
+  //   (Fotos) y "Guardar en Archivos" (explorador para elegir carpeta).
+  // - Navegadores con File System Access (Chrome/Edge de escritorio): el
+  //   diálogo "Guardar como" nativo.
+  // - Resto (Android): descarga normal del `<a download>`; Chrome la guarda
+  //   en Descargas, o pregunta dónde si el usuario tiene activado "Preguntar
+  //   dónde descargar archivos".
+  const handleDownloadClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!canDownload) {
+      e.preventDefault();
+      return;
+    }
+    const file = fileRef.current;
+    if (!file) return; // video o sin File: el enlace al proxy descarga solo
+
+    const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+    if (isAppleMobile() && nav.canShare?.({ files: [file] })) {
+      e.preventDefault();
+      nav.share({ files: [file] }).catch((err: any) => {
+        // Cancelar la hoja no es un error; cualquier otro fallo, descarga.
+        if (err?.name !== "AbortError") triggerAnchorDownload(downloadHref, file.name);
+      });
+      return;
+    }
+
+    const w = window as any;
+    if (typeof w.showSaveFilePicker === "function") {
+      e.preventDefault();
+      (async () => {
+        try {
+          const ext = file.name.split(".").pop() || "png";
+          const handle = await w.showSaveFilePicker({
+            suggestedName: file.name,
+            types: [{ description: "Imagen", accept: { [file.type || "image/png"]: [`.${ext}`] } }],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(file);
+          await writable.close();
+        } catch (err: any) {
+          if (err?.name !== "AbortError") triggerAnchorDownload(downloadHref, file.name);
+        }
+      })();
+    }
+    // Si no: comportamiento por defecto del <a download> (blob del mismo origen).
+  };
 
   // ⬇️ Manejadores del formulario (comentados para uso futuro)
   /*
@@ -408,6 +504,7 @@ useEffect(() => {
             <a
               href={canDownload ? downloadHref : undefined}
               download={downloadName || suggestedName}
+              onClick={handleDownloadClick}
               className={`px-4 py-2 rounded-xl font-semibold shadow transition
                 ${
                   canDownload
