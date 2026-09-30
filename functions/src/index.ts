@@ -9,6 +9,7 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { GoogleGenAI, Modality } from "@google/genai";
 import axios from "axios";
 import sharp from "sharp";
+import { removeBackground } from "./removeBackground";
 // Inicializa Admin SDK
 initializeApp();
 
@@ -1003,6 +1004,102 @@ export const processImageTask = onDocumentCreated(
         updatedAt: Date.now(),
         stackTrace: e?.stack?.substring(0, 500),
       });
+    }
+  }
+);
+
+/**
+ * Recorte sin fondo de la imagen generada, SOLO para el efecto "flotar en el
+ * espacio" (event.resultImageEffect === "SPACE_FLOAT"): el cliente muestra
+ * `cutoutUrl` flotando, y la descarga/QR/impresión siguen usando `url` (la
+ * original con fondo).
+ *
+ * HTTP y no trigger de Firestore a propósito: la llama el cliente
+ * (requestCutout en SpaceFloatCutout.tsx) solo cuando el evento tiene el
+ * efecto, así el resto de las tareas no dispara nada. Se llama apenas la
+ * tarea queda "done" — no suma tiempo a la pantalla de carga; el cliente
+ * muestra la original mientras tanto y cruza al recorte cuando llega.
+ *
+ * POST { taskId } -> { cutoutUrl }. Idempotente: si ya hay recorte, lo
+ * devuelve sin recalcular. Además deja `cutoutUrl`/`cutoutStatus` en
+ * imageTasks/{taskId}, que es por donde se entera la pantalla espejo
+ * (BoothMirror ya está suscripta a ese doc).
+ */
+export const removeBackgroundHttp = onRequest(
+  {
+    region: "us-central1",
+    timeoutSeconds: 120,
+    // MODNet + onnxruntime + la imagen decodificada: con 1GiB queda justo.
+    memory: "2GiB",
+    cors: true,
+  },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    const taskId = typeof req.body?.taskId === "string" ? req.body.taskId : "";
+    if (!taskId || taskId.includes("/")) {
+      res.status(400).json({ error: "Falta taskId" });
+      return;
+    }
+
+    const docRef = db.collection("imageTasks").doc(taskId);
+
+    try {
+      const snap = await docRef.get();
+      const task = snap.data();
+      if (!task) {
+        res.status(404).json({ error: "Tarea no encontrada" });
+        return;
+      }
+      if (task.cutoutUrl) {
+        res.json({ cutoutUrl: task.cutoutUrl });
+        return;
+      }
+      // Solo imágenes terminadas (BGVIDEO/VIDEO muestran el video).
+      if (task.status !== "done" || !task.outputPath || task.videoUrl) {
+        res.status(409).json({ error: "La tarea no tiene una imagen lista" });
+        return;
+      }
+      // La función es pública (sin auth, como el resto de la app): se valida
+      // contra el evento para que solo procese tareas que usan el efecto.
+      const eventSnap = task.eventId
+        ? await db.collection("events").doc(task.eventId).get()
+        : null;
+      if (eventSnap?.data()?.resultImageEffect !== "SPACE_FLOAT") {
+        res.status(403).json({ error: "El evento no usa el efecto de flotar" });
+        return;
+      }
+
+      await docRef.update({ cutoutStatus: "processing" });
+
+      const bucket = getStorage().bucket();
+      const [inputBuf] = await bucket.file(task.outputPath).download();
+      const t0 = Date.now();
+      const cutoutBuf = await removeBackground(inputBuf);
+      console.log(`removeBackgroundHttp ${taskId}: ${Date.now() - t0}ms`);
+
+      const cutoutPath = `tasks/${taskId}/cutout.webp`;
+      const token = randomUUID();
+      await bucket.file(cutoutPath).save(cutoutBuf, {
+        contentType: "image/webp",
+        resumable: false,
+        metadata: { metadata: { firebaseStorageDownloadTokens: token } },
+      });
+      const cutoutUrl = `https://firebasestorage.googleapis.com/v0/b/${
+        bucket.name
+      }/o/${encodeURIComponent(cutoutPath)}?alt=media&token=${token}`;
+
+      await docRef.update({ cutoutStatus: "done", cutoutUrl, cutoutPath });
+      res.json({ cutoutUrl });
+    } catch (e: any) {
+      console.error("removeBackgroundHttp error:", e);
+      await docRef
+        .update({ cutoutStatus: "error", cutoutError: e?.message ?? "Error desconocido" })
+        .catch(() => undefined);
+      res.status(500).json({ error: e?.message ?? "Error desconocido" });
     }
   }
 );

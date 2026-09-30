@@ -12,6 +12,7 @@ import RevealStep from "@/app/components/photo-booth/RevealStep";
 import RollerRevealStep from "@/app/components/photo-booth/reveal/RollerRevealStep";
 import { ROLLER_MODEL_PATH } from "@/app/components/photo-booth/reveal/RollerCursor";
 import ResultStep from "@/app/components/photo-booth/ResultStep";
+import { requestCutout } from "@/app/components/photo-booth/SpaceFloatCutout";
 import ImageCustomizeStep, { type ImageCustomization } from "@/app/components/photo-booth/ImageCustomizeStep";
 import { LOGO_BAR_VARIANTS, stepVariantsFor } from "@/app/components/photo-booth/stepTransitions";
 import { getStyleProfileById } from "@/app/services/admin/styleService";
@@ -62,6 +63,11 @@ const CONFIRM_MAX_AUTO_RETRIES = 3;
  */
 const TASK_WRITE_ACK_TIMEOUT_MS = 30_000;
 
+/** Tope de la espera extra en "loading" por el recorte sin fondo (efecto
+ * "flotar en el espacio"). En caliente la función tarda ~1 s; esto cubre un
+ * arranque en frío con margen, sin dejar al asistente colgado si falla. */
+const CUTOUT_MAX_WAIT_MS = 20_000;
+
 export default function PhotoBoothWizard({
   mirror = true,
   // Caja cuadrada responsiva: mínimo 320px, escala con viewport
@@ -111,6 +117,10 @@ export default function PhotoBoothWizard({
     stalled: boolean;
   } | null>(null);
   const unsubRef = useRef<() => void | undefined>(undefined);
+  // Tarea cuyo recorte sin fondo se está esperando en "loading" (efecto
+  // "flotar en el espacio"). resetAll lo limpia: si el asistente reinicia
+  // mientras tanto, la espera vieja termina sin tocar la sesión nueva.
+  const cutoutWaitRef = useRef<string | null>(null);
   // Reintento automático de confirmAndProcess programado. Se guarda para
   // poder cancelarlo: sin esto, un reset (salvapantallas, botón de rescate,
   // "tomar otra foto") dejaba el timer vivo y unos segundos después la
@@ -577,6 +587,29 @@ export default function PhotoBoothWizard({
             );
             clearGenerationTimers();
             setGenerationRetry(null);
+            // Cortar la suscripción ANTES de cualquier await: con
+            // includeMetadataChanges llegan más snapshots "done" y, con la
+            // espera del recorte de abajo, cada uno volvería a entrar acá.
+            if (unsubRef.current) {
+              unsubRef.current();
+              unsubRef.current = undefined;
+            }
+
+            // "Flotar en el espacio": el loading sigue hasta tener también la
+            // imagen sin fondo (removeBackgroundHttp), así el resultado ya
+            // arranca con el recorte listo. Con tope de tiempo: si la función
+            // falla o tarda de más se sigue igual con la original — ResultStep
+            // reusa esta misma promesa, por si el recorte llega después.
+            if (eventData?.resultImageEffect === "SPACE_FLOAT" && !data.videoUrl) {
+              cutoutWaitRef.current = newTaskId;
+              await Promise.race([
+                requestCutout(newTaskId).catch(() => undefined),
+                new Promise((resolve) => setTimeout(resolve, CUTOUT_MAX_WAIT_MS)),
+              ]);
+              if (cutoutWaitRef.current !== newTaskId) return; // se reinició
+              cutoutWaitRef.current = null;
+            }
+
             setAiUrl(data.url as string);
             if (data.videoUrl) setAiVideoUrl(data.videoUrl as string);
             // Por compatibilidad, eventos sin revealEffect configurado usan el
@@ -586,10 +619,6 @@ export default function PhotoBoothWizard({
             try {
               await updateDoc(taskRef, { finishedAt: serverTimestamp() });
             } catch {}
-            if (unsubRef.current) {
-              unsubRef.current();
-              unsubRef.current = undefined;
-            }
           }
         }
       );
@@ -695,6 +724,7 @@ export default function PhotoBoothWizard({
     clearGenerationTimers();
     uploadAbortRef.current?.abort();
     uploadAbortRef.current = null;
+    cutoutWaitRef.current = null;
     if (unsubRef.current) {
       unsubRef.current();
       unsubRef.current = undefined;

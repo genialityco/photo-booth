@@ -1534,7 +1534,7 @@ export default function EventForm({
             label="Efecto de la Imagen Resultante"
             value={formData.resultImageEffect || "NONE"}
             onChange={(v) => setField("resultImageEffect", v as "NONE" | "SPACE_FLOAT")}
-            helperText='Animación continua de la foto final, en la tablet y en la pantalla espejo. "Flotando en el espacio" la hace subir, bajar y girar suavemente, como sin gravedad — combina bien con el fondo de estrellas.'
+            helperText='Animación de la foto final, en la tablet y en la pantalla espejo. "Flotando en el espacio" le quita el fondo a la imagen (en el servidor, unos segundos después de generarla) y deja a la persona flotando, subiendo, bajando y girando suavemente — combina bien con el fondo de estrellas. La descarga, el QR y la impresión siguen siendo la imagen original con fondo.'
           >
             <option value="NONE">Sin efecto (actual)</option>
             <option value="SPACE_FLOAT">Flotando en el espacio</option>

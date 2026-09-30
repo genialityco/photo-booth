@@ -146,6 +146,9 @@ export function applyLowBandwidth(event: EventProfile, enabled: boolean): EventP
 
     // Costo de dispositivo, no de red — pero es lo que traba las tablets.
     backgroundAnimation: "NONE",
+    // El recorte sin fondo es una imagen más a bajar al final de la sesión
+    // (y sin el efecto, el wizard ni siquiera llama a la función que lo hace).
+    resultImageEffect: "NONE",
     buttonClickEffect: "NONE",
   };
 }

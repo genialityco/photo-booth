@@ -7,6 +7,7 @@ import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import QrTag from "@/app/components/photo-booth/QrTag";
 import PixelateImage from "@/app/components/photo-booth/PixelateImage";
+import SpaceFloatCutout, { getResolvedCutout, useCutoutShown, useTaskCutout } from "@/app/components/photo-booth/SpaceFloatCutout";
 import { composeFramedCanvas, composeFramedImageDataUrl } from "@/app/components/photo-booth/composeFramedImage";
 import { getPixelDims } from "@/app/components/photo-booth/photoAspectRatio";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
@@ -52,9 +53,26 @@ export default function ResultStep({
   const brandingLogoSrc = event?.brandingLogoUrl ?? null;
   const brandingFooterText = event?.brandingFooterText ?? null;
   const aspectRatio = event?.photoAspectRatio;
-  // Con el QR ampliado la foto se queda quieta, para que se pueda escanear.
-  const floating =
-    (resultImageEffect ?? event?.resultImageEffect) === "SPACE_FLOAT" && !showQr;
+  // "Flotar en el espacio": la que flota es la versión SIN fondo
+  // (`cutoutUrl`, ver SpaceFloatCutout). La original sigue siendo la de la
+  // descarga/QR. No aplica a video.
+  const spaceFloat =
+    (resultImageEffect ?? event?.resultImageEffect) === "SPACE_FLOAT" && !videoUrl;
+  const { cutoutUrl, failed: cutoutFailed } = useTaskCutout(taskId, spaceFloat);
+  // Lo normal: el wizard esperó el recorte en "loading", así que ya está
+  // listo al montar — se arranca directo con la persona flotando y la
+  // original (con su rearmado en partículas) ni se monta. Si llegó tarde
+  // (tope de espera vencido), se muestra la original y se cruza al recorte
+  // después del rearmado (reassembleMs=1800 más abajo).
+  const [cutoutReadyAtMount] = useState(() => spaceFloat && !!getResolvedCutout(taskId));
+  const { shown: cutoutShown, onLoad: onCutoutLoad } = useCutoutShown(
+    cutoutUrl,
+    cutoutReadyAtMount ? 0 : 2600
+  );
+  const hideOriginal = cutoutReadyAtMount || cutoutShown;
+  // Si el recorte falla, flota la tarjeta con la original como respaldo —
+  // quieta con el QR ampliado, para que se pueda escanear.
+  const floatCard = spaceFloat && cutoutFailed && !showQr;
   const pixelDims = useMemo(() => getPixelDims(aspectRatio), [aspectRatio]);
   // Mide el contenedor real y encoge la foto para que todo (foto + botones)
   // quepa sin scroll, en vez del "scroll de emergencia" que había antes —
@@ -233,55 +251,79 @@ export default function ResultStep({
                 : { maxWidth: "100%", maxHeight: "100%" }
             }
           >
+            {/* Recorte flotando: debajo de la tarjeta (z-0), que al aparecer
+                el recorte se vuelve transparente — queda solo el QR encima. */}
+            {spaceFloat && cutoutUrl && (
+              <SpaceFloatCutout
+                src={cutoutUrl}
+                shown={cutoutShown}
+                onLoad={onCutoutLoad}
+                className="absolute inset-0 z-0"
+              />
+            )}
+
             {/* PixelateImage renderiza la foto en su propio canvas WebGL (efecto
                 de partículas + bloom sobre la explosión). Sin marco ni halo:
                 la foto en reposo se ve limpia. */}
-            <div className={`relative z-10 w-full h-full ${floating ? "result-space-float" : ""}`}>
+            <div className={`relative z-10 w-full h-full ${floatCard ? "result-space-float" : ""}`}>
               <div
-                className="relative w-full h-full p-1.5 sm:p-2 bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 rounded-2xl shadow-[0_10px_14px_-6px_rgba(0,0,0,0.45),0_35px_60px_-15px_rgba(0,0,0,0.6)]"
+                className={`relative w-full h-full p-1.5 sm:p-2 rounded-2xl transition-all duration-[1200ms] ${
+                  hideOriginal
+                    ? ""
+                    : "bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 shadow-[0_10px_14px_-6px_rgba(0,0,0,0.45),0_35px_60px_-15px_rgba(0,0,0,0.6)]"
+                }`}
               >
-                <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/5">
-                  {videoUrl ? (
-                    <video
-                      src={videoUrl}
-                      className="absolute inset-0 w-full h-full object-contain"
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                    />
-                  ) : framedImageUrl ? (
-                    // Explosión/rearmado en partículas UNA sola vez, al
-                    // aparecer el resultado: la nube de puntos converge desde
-                    // la explosión, arma la foto y se queda nítida y quieta
-                    // (sin `loop`, no se vuelve a disolver ni a estallar) —
-                    // ver PixelateImage. Respeta prefers-reduced-motion por su
-                    // cuenta (queda nítida y quieta).
-                    //
-                    // Se monta recién cuando `framedImageUrl` está listo (no
-                    // con `aiUrl` de fallback): así el efecto corre una sola
-                    // vez, ya sobre la imagen final compuesta con marco, y no
-                    // se vuelve a disparar cuando termina de componerse (el
-                    // cambio de `src` remonta el canvas y reinicia la
-                    // animación).
-                    <PixelateImage
-                      src={framedImageUrl}
-                      alt="Imagen generada por IA"
-                      className="absolute inset-0 w-full h-full object-contain select-none"
-                      gridCols={80}
-                      reassembleMs={1800}
-                    />
-                  ) : (
-                    // Ventana corta mientras se compone el marco: foto estática
-                    // sin efecto, para no mostrar negro ni arrancar la
-                    // animación dos veces.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={aiUrl}
-                      alt="Imagen generada por IA"
-                      className="absolute inset-0 w-full h-full object-contain select-none"
-                    />
-                  )}
+                <div
+                  className={`relative w-full h-full overflow-hidden rounded-xl transition-colors duration-[1200ms] ${
+                    hideOriginal ? "" : "bg-black/5"
+                  }`}
+                >
+                  <div
+                    className="absolute inset-0 transition-opacity duration-[1200ms] ease-out"
+                    style={{ opacity: hideOriginal ? 0 : 1 }}
+                  >
+                    {cutoutReadyAtMount ? null : videoUrl ? (
+                      <video
+                        src={videoUrl}
+                        className="absolute inset-0 w-full h-full object-contain"
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                      />
+                    ) : framedImageUrl ? (
+                      // Explosión/rearmado en partículas UNA sola vez, al
+                      // aparecer el resultado: la nube de puntos converge desde
+                      // la explosión, arma la foto y se queda nítida y quieta
+                      // (sin `loop`, no se vuelve a disolver ni a estallar) —
+                      // ver PixelateImage. Respeta prefers-reduced-motion por su
+                      // cuenta (queda nítida y quieta).
+                      //
+                      // Se monta recién cuando `framedImageUrl` está listo (no
+                      // con `aiUrl` de fallback): así el efecto corre una sola
+                      // vez, ya sobre la imagen final compuesta con marco, y no
+                      // se vuelve a disparar cuando termina de componerse (el
+                      // cambio de `src` remonta el canvas y reinicia la
+                      // animación).
+                      <PixelateImage
+                        src={framedImageUrl}
+                        alt="Imagen generada por IA"
+                        className="absolute inset-0 w-full h-full object-contain select-none"
+                        gridCols={80}
+                        reassembleMs={1800}
+                      />
+                    ) : (
+                      // Ventana corta mientras se compone el marco: foto estática
+                      // sin efecto, para no mostrar negro ni arrancar la
+                      // animación dos veces.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={aiUrl}
+                        alt="Imagen generada por IA"
+                        className="absolute inset-0 w-full h-full object-contain select-none"
+                      />
+                    )}
+                  </div>
 
                   <button
                     type="button"

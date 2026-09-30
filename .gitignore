@@ -52,3 +52,7 @@ kinect-roller-backend/src/__pycache__/
 kinect-roller-backend/.venv/
 kinect-roller-backend/venv/
 
+
+# Copia generada por `npm run build` de functions/src/assets/models (el
+# modelo MODNet de removeBackground) — el original ya se versiona en src.
+functions/lib/assets/models/

@@ -17,6 +17,7 @@
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@google/genai": "^1.21.0",
+    "@huggingface/transformers": "^3.8.1",
     "@types/fluent-ffmpeg": "^2.1.28",
     "axios": "^1.12.2",
     "firebase-admin": "^12.7.0",

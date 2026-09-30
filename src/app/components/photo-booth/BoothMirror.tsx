@@ -19,6 +19,8 @@ import KinectRollerRevealStep from "@/app/components/photo-booth/reveal/KinectRo
 import LiveSessionStatusBadge from "@/app/components/photo-booth/LiveSessionStatusBadge";
 import ScreenSaver from "@/app/components/common/ScreenSaver";
 import ScreenSaverEditorialGrid from "@/app/components/common/ScreenSaverEditorialGrid";
+import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
+import SpaceFloatCutout, { useCutoutShown } from "@/app/components/photo-booth/SpaceFloatCutout";
 
 const NOOP = () => {};
 const NOOP_CUSTOMIZE = (_value: ImageCustomization) => {};
@@ -30,7 +32,15 @@ const NOOP_CUSTOMIZE = (_value: ImageCustomization) => {};
 // corre en otro puerto/host en algún despliegue.
 const KINECT_WS_URL = process.env.NEXT_PUBLIC_KINECT_WS_URL || "ws://localhost:8765";
 
-type TaskResult = { status?: string; url?: string; videoUrl?: string };
+type TaskResult = {
+  status?: string;
+  url?: string;
+  videoUrl?: string;
+  /** Recorte sin fondo para el efecto "flotar en el espacio" — ver
+   * SpaceFloatCutout y removeBackgroundTask (functions/src/index.ts). */
+  cutoutUrl?: string;
+  cutoutStatus?: "processing" | "done" | "error";
+};
 
 /** Se suscribe directamente a imageTasks/{taskId} — el mismo doc que ya lee
  * el tab líder (PhotoBoothWizard.confirmAndProcess) — así el resultado final
@@ -299,7 +309,25 @@ function ResultView({
   }, [origin, taskId, result?.url, result?.videoUrl, enableFrame, frameSrc, event.id]);
 
   const mediaSrc = result?.videoUrl || result?.url;
-  const floating = event.resultImageEffect === "SPACE_FLOAT" && !localShowQr;
+  // "Flotar en el espacio": se muestra la foto original un momento y después
+  // su fondo se desvanece y queda la persona recortada flotando sobre el
+  // fondo del evento (y su animación de fondo). `useTaskResult` sigue
+  // suscripto al doc, así que `cutoutUrl` llega solo cuando la función lo
+  // escribe.
+  const spaceFloat = event.resultImageEffect === "SPACE_FLOAT" && !result?.videoUrl;
+  const cutoutUrl = spaceFloat ? result?.cutoutUrl ?? null : null;
+  // El líder no pasa a "result" hasta tener el recorte (lo espera en
+  // "loading"), así que normalmente ya está al montar: se arranca directo
+  // con la persona flotando. Si llegó tarde, se ve la original un momento y
+  // después se cruza.
+  const [cutoutReadyAtMount] = useState(() => !!cutoutUrl);
+  const { shown: cutoutShown, onLoad: onCutoutLoad } = useCutoutShown(
+    cutoutUrl,
+    cutoutReadyAtMount ? 0 : 1500
+  );
+  const hideOriginal = cutoutReadyAtMount || cutoutShown;
+  // Respaldo si el recorte falla: flota la original (quieta con el QR ampliado).
+  const floatOriginal = spaceFloat && result?.cutoutStatus === "error" && !localShowQr;
 
   if (!taskId || error || (!mediaSrc && tookTooLong)) {
     return (
@@ -319,13 +347,38 @@ function ResultView({
   // estirarla para llenar el rectángulo.
   return (
     <div className="fixed inset-0 bg-black">
-      {/* Con "flotar en el espacio" la foto se achica un poco (inset) para
-          que la deriva no la corte contra los bordes de la pantalla, y se
-          queda quieta mientras el QR está ampliado. */}
+      {/* Fondo del evento + su animación, visibles solo al quitarse el fondo
+          de la foto (sin el efecto, el mate negro de siempre). */}
+      {spaceFloat && (
+        <div
+          className="absolute inset-0 transition-opacity duration-[1200ms]"
+          style={{ opacity: hideOriginal ? 1 : 0 }}
+          aria-hidden
+        >
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')` }}
+          />
+          <BackgroundAnimation type={event.backgroundAnimation} contained />
+        </div>
+      )}
+
+      {/* Flotando, la foto se achica un poco (inset) para que la deriva no la
+          corte contra los bordes de la pantalla. */}
+      {cutoutUrl && (
+        <SpaceFloatCutout
+          src={cutoutUrl}
+          shown={cutoutShown}
+          onLoad={onCutoutLoad}
+          className="absolute inset-[4%]"
+        />
+      )}
+
       <div
-        className={`absolute ${
-          floating ? "inset-[4%] result-space-float" : "inset-0"
+        className={`absolute transition-opacity duration-[1200ms] ease-out ${
+          floatOriginal ? "inset-[4%] result-space-float" : "inset-0"
         }`}
+        style={{ opacity: hideOriginal ? 0 : 1 }}
       >
         {result?.videoUrl ? (
           <video
