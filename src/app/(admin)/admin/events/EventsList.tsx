@@ -9,6 +9,7 @@ import {
 } from "@/app/services/photo-booth/eventService";
 import EventForm from "./EventForm";
 import QrTag from "@/app/components/photo-booth/QrTag";
+import { buildEventPhotosUrl } from "@/app/event-photos/dateRange";
 
 export default function EventsList() {
   const [events, setEvents] = useState<EventProfile[]>([]);
@@ -18,6 +19,20 @@ export default function EventsList() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
   const [qrEventName, setQrEventName] = useState("");
+  // Modal del link a la galería del evento, con rango de fechas opcional
+  // (`/event-photos/[slug]?from=&to=`, ver event-photos/dateRange.ts).
+  const [photosEvent, setPhotosEvent] = useState<EventProfile | null>(null);
+  const [photosFrom, setPhotosFrom] = useState("");
+  const [photosTo, setPhotosTo] = useState("");
+  const photosRangeInvalid = !!photosFrom && !!photosTo && photosFrom > photosTo;
+  const photosUrl = photosEvent
+    ? buildEventPhotosUrl(
+        typeof window !== "undefined" ? window.location.origin : "http://localhost:3000",
+        photosEvent.slug,
+        photosFrom || undefined,
+        photosTo || undefined,
+      )
+    : "";
 
   const loadEvents = async () => {
     try {
@@ -227,7 +242,9 @@ export default function EventsList() {
                   <div className="flex gap-2 justify-end flex-wrap">
                     <button
                       onClick={() => {
-                        window.open(`/event-photos/${event.slug}`, "_blank");
+                        setPhotosEvent(event);
+                        setPhotosFrom("");
+                        setPhotosTo("");
                       }}
                       className="px-3 py-2 bg-teal-100 text-teal-700 rounded hover:bg-teal-200 text-sm font-medium"
                     >
@@ -267,6 +284,88 @@ export default function EventsList() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal: link a la galería del evento, con rango de fechas */}
+      {photosEvent && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setPhotosEvent(null)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl p-6 sm:p-8 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl font-bold text-gray-900">Imágenes del evento</h2>
+              <button
+                onClick={() => setPhotosEvent(null)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-gray-700 font-medium mb-1">{photosEvent.name}</p>
+            <p className="text-xs text-gray-500 mb-5">
+              Opcional: elige un rango para que el link muestre solo las fotos
+              tomadas entre esas fechas (ambas incluidas). Sin fechas, muestra
+              todas.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
+                Desde
+                <input
+                  type="date"
+                  value={photosFrom}
+                  max={photosTo || undefined}
+                  onChange={(e) => setPhotosFrom(e.target.value)}
+                  className="px-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
+                Hasta
+                <input
+                  type="date"
+                  value={photosTo}
+                  min={photosFrom || undefined}
+                  onChange={(e) => setPhotosTo(e.target.value)}
+                  className="px-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </label>
+            </div>
+
+            {photosRangeInvalid ? (
+              <p className="text-sm text-red-600 mb-4">
+                La fecha de inicio debe ser anterior o igual a la de fin.
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500 break-all mb-4 bg-gray-50 border border-gray-200 rounded p-2">
+                {photosUrl}
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button
+                disabled={photosRangeInvalid}
+                onClick={() => {
+                  navigator.clipboard.writeText(photosUrl);
+                  alert("URL copiada al portapapeles");
+                }}
+                className="px-4 py-2 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 text-sm font-medium disabled:opacity-50"
+              >
+                Copiar URL
+              </button>
+              <button
+                disabled={photosRangeInvalid}
+                onClick={() => window.open(photosUrl, "_blank")}
+                className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 text-sm font-medium disabled:opacity-50"
+              >
+                Abrir
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

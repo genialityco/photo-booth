@@ -9,6 +9,8 @@ import {
   orderBy,
   query,
   Timestamp,
+  where,
+  type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "@/firebaseConfig";
 import {
@@ -443,6 +445,10 @@ type AdminListProps = {
   hideDateFilter?: boolean;
   /** Solo lectura: oculta el botón de eliminar de cada foto. */
   readOnly?: boolean;
+  /** Rango fijo de fechas (inclusivo) — ver `/event-photos/[slug]?from=&to=`.
+   * Las fotos fuera del rango no se cargan, y el filtro por día solo ofrece
+   * días dentro de él. */
+  dateRange?: { from: Date | null; to: Date | null };
 };
 
 export default function AdminList({
@@ -451,7 +457,12 @@ export default function AdminList({
   brandOptions,
   hideDateFilter = false,
   readOnly = false,
+  dateRange,
 }: AdminListProps = {}) {
+  // Como números para las dependencias de los efectos (un objeto Date nuevo
+  // en cada render del padre re-suscribiría el onSnapshot sin parar).
+  const rangeFromMs = dateRange?.from?.getTime() ?? null;
+  const rangeToMs = dateRange?.to?.getTime() ?? null;
   const eventLocked = !!lockedEventId;
   const brandsLocked = Array.isArray(brandOptions);
 
@@ -579,10 +590,19 @@ export default function AdminList({
     return () => clearTimeout(timeoutId);
   }, [brandSearch, brandsLocked]);
 
-  // Load all tasks in real-time
+  // Load all tasks in real-time — acotado en la consulta misma cuando hay
+  // rango fijo (filtro de rango + orden sobre el mismo campo: no necesita
+  // índice compuesto), así no se baja la colección entera para descartarla.
   useEffect(() => {
     setLoading(true);
-    const q = query(baseCol, orderBy("createdAt", "desc"));
+    const constraints: QueryConstraint[] = [];
+    if (rangeFromMs !== null) {
+      constraints.push(where("createdAt", ">=", Timestamp.fromMillis(rangeFromMs)));
+    }
+    if (rangeToMs !== null) {
+      constraints.push(where("createdAt", "<=", Timestamp.fromMillis(rangeToMs)));
+    }
+    const q = query(baseCol, ...constraints, orderBy("createdAt", "desc"));
     const unsub = onSnapshot(
       q,
       (snap) => {
@@ -598,7 +618,7 @@ export default function AdminList({
       if (unsubRef.current) unsubRef.current();
       unsubRef.current = undefined;
     };
-  }, [baseCol]);
+  }, [baseCol, rangeFromMs, rangeToMs]);
 
   // Filter events by search - now just displays what's in events state
   const filteredEvents = events;
@@ -640,9 +660,18 @@ export default function AdminList({
         return !!d && toLocalDateKey(d) === selectedDate;
       });
     }
+    // Rango fijo: ya viene acotado de la consulta; esto es por si el
+    // snapshot local trae algo en el borde (p. ej. createdAt pendiente).
+    if (rangeFromMs !== null || rangeToMs !== null) {
+      result = result.filter((it) => {
+        const t = toDate(it.createdAt)?.getTime();
+        if (t === undefined) return false;
+        return (rangeFromMs === null || t >= rangeFromMs) && (rangeToMs === null || t <= rangeToMs);
+      });
+    }
 
     return result;
-  }, [items, selectedEventId, selectedBrandId, selectedDate]);
+  }, [items, selectedEventId, selectedBrandId, selectedDate, rangeFromMs, rangeToMs]);
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -977,6 +1006,8 @@ const handleNext = () => {
               <input
                 type="date"
                 value={selectedDate}
+                min={rangeFromMs !== null ? toLocalDateKey(new Date(rangeFromMs)) : undefined}
+                max={rangeToMs !== null ? toLocalDateKey(new Date(rangeToMs)) : undefined}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="flex-1 px-3 py-2 rounded-lg border border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-neutral-900"
               />
