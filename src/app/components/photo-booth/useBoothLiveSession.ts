@@ -46,6 +46,10 @@ export type BoothLiveState = {
   /** Si el QR de descarga está expandido a pantalla completa en "result" —
    * la pantalla espejo lo refleja en vez de tener su propio toggle. */
   showQr: boolean;
+  /** Modo facetas: qué faceta está al frente del carrusel del resultado en
+   * el líder — la pantalla espejo gira su carrusel a la misma. Opcional:
+   * docs escritos antes de que existiera el campo no lo traen (=> 0). */
+  facetIndex?: number;
   /**
    * Si el salvapantallas está abierto en el líder. La pantalla espejo no
    * corre su propio reloj de inactividad — nadie la toca, así que su única
@@ -206,6 +210,7 @@ export function useBoothLiveSession(
               customization: sameDevice ? data?.customization ?? null : null,
               previewUrl: sameDevice ? data?.previewUrl ?? null : null,
               showQr: sameDevice ? data?.showQr ?? false : false,
+              facetIndex: sameDevice ? data?.facetIndex ?? 0 : 0,
               // Siempre false al reclamar: una tablet que recarga vuelve con
               // el flujo en marcha, no con el salvapantallas encima (y el
               // propio ScreenSaver lo re-transmite apenas monta).

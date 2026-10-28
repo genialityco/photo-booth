@@ -14,6 +14,10 @@ import {
   where,
 } from "firebase/firestore";
 
+/** Columnas x filas de la cuadrícula del modo facetas (generationType="FACETS").
+ * Mismos valores que FACETS_GRIDS en functions/src/index.ts. */
+export type FacetsLayout = "2x1" | "3x1" | "2x2" | "3x2";
+
 /**
  * Un logo posicionado libremente dentro del header configurable de la splash
  * (ver `splashHeaderLogos` en `EventProfile`). Coordenadas y ancho en % del
@@ -114,7 +118,21 @@ export type EventProfile = {
   showLogosInLoader?: boolean;
   enableFrame?: boolean;
   dataProcessingText?: string;
-  generationType?: "IMAGE" | "BGVIDEO" | "VIDEO";
+  /**
+   * "FACETS" = una sola llamada a Gemini que devuelve una cuadrícula con
+   * varias facetas de la persona (descritas en `facetsPrompt`), cortada en
+   * imágenes sueltas por processImageTask y mostrada como carrusel 3D en el
+   * resultado (FacetCarousel3D). El doc de imageTasks trae `facets` además de
+   * `url` (= la primera faceta).
+   */
+  generationType?: "IMAGE" | "BGVIDEO" | "VIDEO" | "FACETS";
+  /** Solo con generationType="FACETS": qué faceta va en cada panel, en orden
+   * de lectura (izquierda a derecha, arriba a abajo). Vacío = facetas
+   * genéricas (ver FACETS_DEFAULT_DESCRIPTION en functions/src/index.ts). */
+  facetsPrompt?: string;
+  /** Solo con generationType="FACETS": columnas x filas de la cuadrícula
+   * (= cantidad de facetas). Sin este campo, "2x2". */
+  facetsLayout?: FacetsLayout;
   /** Animación al hacer click en los botones del wizard (ej. confeti). */
   buttonClickEffect?: "NONE" | "CONFETTI" | "PAINT_SPLASH";
   /** Controlar la app con un cursor manejado por gestos de mano (pellizco = click). */
@@ -701,6 +719,9 @@ export async function createEventProfile(
       docData.photoAspectRatio = data.photoAspectRatio;
     }
 
+    if (data.facetsPrompt !== undefined) docData.facetsPrompt = data.facetsPrompt;
+    if (data.facetsLayout !== undefined) docData.facetsLayout = data.facetsLayout;
+
     if (data.brandingFooterText !== undefined) {
       docData.brandingFooterText = data.brandingFooterText;
     }
@@ -858,6 +879,8 @@ export async function updateEventProfile(
     if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
     if (data.dataProcessingText !== undefined) docData.dataProcessingText = data.dataProcessingText;
     if (data.generationType !== undefined) docData.generationType = data.generationType;
+    if (data.facetsPrompt !== undefined) docData.facetsPrompt = data.facetsPrompt;
+    if (data.facetsLayout !== undefined) docData.facetsLayout = data.facetsLayout;
     if (data.buttonClickEffect !== undefined) docData.buttonClickEffect = data.buttonClickEffect;
     if (data.handCursorEnabled !== undefined) docData.handCursorEnabled = data.handCursorEnabled;
     if (data.handRevealEnabled !== undefined) docData.handRevealEnabled = data.handRevealEnabled;

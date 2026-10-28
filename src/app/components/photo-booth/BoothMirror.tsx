@@ -21,6 +21,8 @@ import ScreenSaver from "@/app/components/common/ScreenSaver";
 import ScreenSaverEditorialGrid from "@/app/components/common/ScreenSaverEditorialGrid";
 import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
 import SpaceFloatCutout, { useCutoutShown } from "@/app/components/photo-booth/SpaceFloatCutout";
+import FacetCarousel3D from "@/app/components/photo-booth/FacetCarousel3D";
+import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
 
 const NOOP = () => {};
 const NOOP_CUSTOMIZE = (_value: ImageCustomization) => {};
@@ -40,6 +42,8 @@ type TaskResult = {
    * SpaceFloatCutout y removeBackgroundTask (functions/src/index.ts). */
   cutoutUrl?: string;
   cutoutStatus?: "processing" | "done" | "error";
+  /** Modo facetas — ver processImageTask. `url` es la primera. */
+  facets?: { url?: string; path?: string }[];
 };
 
 /** Se suscribe directamente a imageTasks/{taskId} — el mismo doc que ya lee
@@ -222,6 +226,48 @@ function MirrorStage({ event, children }: { event: EventProfile; children: React
   );
 }
 
+/** Carrusel de facetas en la pantalla espejo, sobre el fondo del evento.
+ * Componente propio (y no dentro de ResultView) porque useFitAspectBox mide
+ * su contenedor al montar, y ResultView arranca mostrando el loader. */
+function MirrorFacetsCarousel({
+  event,
+  urls,
+  index,
+  onIndexChange,
+}: {
+  event: EventProfile;
+  urls: string[];
+  index: number;
+  onIndexChange: (index: number) => void;
+}) {
+  const { containerRef, boxDims } = useFitAspectBox(event.photoAspectRatio);
+  return (
+    <div className="absolute inset-0">
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')` }}
+        aria-hidden
+      />
+      <div className="absolute inset-0 bg-black/45" aria-hidden />
+      {/* Entre los logos de arriba y el pie de branding de abajo. */}
+      <div className="absolute inset-x-0 top-[12%] bottom-[14%]">
+        {/* Solo mide: la tarjeta activa cabe acá, el carrusel usa todo el ancho. */}
+        <div ref={containerRef} className="absolute inset-x-[16%] inset-y-[8%] pointer-events-none" aria-hidden />
+        {boxDims && (
+          <FacetCarousel3D
+            items={urls}
+            index={index}
+            onIndexChange={onIndexChange}
+            cardWidth={boxDims.width}
+            cardHeight={boxDims.height}
+            className="absolute inset-0"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Espejo de ResultStep — misma proporción real de la foto/video (object-
  * contain) que en la tablet, adaptada a la pantalla espejo vertical
  * (1080x1920). El QR arranca siempre como sello en la esquina y se agranda
@@ -234,9 +280,13 @@ function ResultView({
   taskId,
   result,
   error,
+  facetIndex,
 }: {
   event: EventProfile;
   taskId: string | null;
+  /** Faceta al frente en el líder (BoothLiveState.facetIndex). Esta
+   * pantalla la sigue, pero también se puede deslizar acá mismo. */
+  facetIndex: number;
   /** Recibido desde BoothMirror (suscripción a imageTasks/{taskId} arrancada
    * desde "loading", no acá) — con revealEffect="NONE" la fase salta directo
    * de "loading" a "result" sin ningún paso intermedio que le dé tiempo a
@@ -286,19 +336,37 @@ function ResultView({
   const enableFrame = event.enableFrame ?? true;
   const frameSrc = event.frameImage ?? null;
 
-  // Misma URL de /survey que arma ResultStep (aiUrl ahí = result.url acá).
+  const facetUrls = useMemo(
+    () => (result?.facets ?? []).map((f) => f?.url).filter((u): u is string => typeof u === "string"),
+    [result?.facets]
+  );
+  const facetsMode = facetUrls.length > 1;
+  const [localFacetIndex, setLocalFacetIndex] = useState(facetIndex);
+  useEffect(() => {
+    setLocalFacetIndex(facetIndex);
+  }, [facetIndex, taskId]);
+  const activeUrl = facetsMode ? facetUrls[Math.min(localFacetIndex, facetUrls.length - 1)] : result?.url;
+
+  // Misma URL de /survey que arma ResultStep (aiUrl ahí = result.url acá; en
+  // facetas, la faceta al frente del carrusel).
   const surveyUrl = useMemo(() => {
-    if (!taskId || !result?.url) return "";
+    if (!taskId || !activeUrl) return "";
     const url = new URL(`${origin}/survey`);
-    if (result.videoUrl) {
+    if (result?.videoUrl) {
       url.searchParams.set("src", result.videoUrl);
       url.searchParams.set("kind", "video");
       url.searchParams.set("filename", `video-ia-${taskId}.mp4`);
     } else {
-      url.searchParams.set("src", result.url);
+      const withFrame = enableFrame && !!frameSrc;
+      url.searchParams.set("src", activeUrl);
       url.searchParams.set("kind", "raw");
-      url.searchParams.set("filename", `foto-ia-${taskId}.png`);
-      if (enableFrame && frameSrc) {
+      url.searchParams.set(
+        "filename",
+        facetsMode
+          ? `foto-ia-${taskId}-${localFacetIndex + 1}.${withFrame ? "png" : "jpg"}`
+          : `foto-ia-${taskId}.png`
+      );
+      if (withFrame && frameSrc) {
         url.searchParams.set("frameUrl", frameSrc);
       }
     }
@@ -306,7 +374,7 @@ function ResultView({
     // evento viaja en la URL (es lo único que le permite mostrar sus logos).
     url.searchParams.set("eventId", event.id);
     return url.toString();
-  }, [origin, taskId, result?.url, result?.videoUrl, enableFrame, frameSrc, event.id]);
+  }, [origin, taskId, activeUrl, result?.videoUrl, enableFrame, frameSrc, event.id, facetsMode, localFacetIndex]);
 
   const mediaSrc = result?.videoUrl || result?.url;
   // "Flotar en el espacio": se muestra la foto original un momento y después
@@ -314,7 +382,7 @@ function ResultView({
   // fondo del evento (y su animación de fondo). `useTaskResult` sigue
   // suscripto al doc, así que `cutoutUrl` llega solo cuando la función lo
   // escribe.
-  const spaceFloat = event.resultImageEffect === "SPACE_FLOAT" && !result?.videoUrl;
+  const spaceFloat = event.resultImageEffect === "SPACE_FLOAT" && !result?.videoUrl && !facetsMode;
   const cutoutUrl = spaceFloat ? result?.cutoutUrl ?? null : null;
   // El líder no pasa a "result" hasta tener el recorte (lo espera en
   // "loading"), así que normalmente ya está al montar: se arranca directo
@@ -374,6 +442,14 @@ function ResultView({
         />
       )}
 
+      {facetsMode ? (
+        <MirrorFacetsCarousel
+          event={event}
+          urls={facetUrls}
+          index={localFacetIndex}
+          onIndexChange={setLocalFacetIndex}
+        />
+      ) : (
       <div
         className={`absolute transition-opacity duration-[1200ms] ease-out ${
           floatOriginal ? "inset-[4%] result-space-float" : "inset-0"
@@ -399,6 +475,7 @@ function ResultView({
           />
         )}
       </div>
+      )}
 
       {/* Logos superiores, mismo layout que la pantalla de selección de
           filtro (EventPhotoBoothLanding) — para que el resultado en la
@@ -710,6 +787,7 @@ export default function BoothMirror({
             taskId={state.taskId}
             result={taskResult}
             error={taskError}
+            facetIndex={state.facetIndex ?? 0}
           />
         );
 

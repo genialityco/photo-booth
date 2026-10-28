@@ -11,6 +11,10 @@ import SpaceFloatCutout, { getResolvedCutout, useCutoutShown, useTaskCutout } fr
 import { composeFramedCanvas, composeFramedImageDataUrl } from "@/app/components/photo-booth/composeFramedImage";
 import { getPixelDims } from "@/app/components/photo-booth/photoAspectRatio";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
+import FacetCarousel3D from "@/app/components/photo-booth/FacetCarousel3D";
+
+/** Tamaño de la faceta activa del carrusel respecto de la caja disponible. */
+const FACET_CARD_SCALE = 0.78;
 
 type Props = {
   taskId: string;
@@ -28,6 +32,13 @@ type Props = {
   /** Efecto continuo de la foto final, desde el evento que pasa el wizard (el
    * `currentEvent` de sessionStorage puede estar viejo). */
   resultImageEffect?: EventProfile["resultImageEffect"];
+  /** Modo facetas (generationType="FACETS"): todas las imágenes, en orden.
+   * Con 2 o más se muestra el carrusel 3D en vez de la foto única, y la
+   * descarga/QR usan la faceta visible. */
+  facetUrls?: string[];
+  /** Controlados por el wizard para transmitirlos a la pantalla espejo. */
+  facetIndex?: number;
+  onFacetIndexChange?: (index: number) => void;
 };
 
 export default function ResultStep({
@@ -40,7 +51,14 @@ export default function ResultStep({
   showQr,
   onShowQrChange,
   resultImageEffect,
+  facetUrls,
+  facetIndex = 0,
+  onFacetIndexChange,
 }: Props) {
+  const facetsMode = (facetUrls?.length ?? 0) > 1;
+  // En facetas, todo lo que antes usaba `aiUrl` (QR, descarga) pasa a usar
+  // la faceta que está al frente del carrusel.
+  const activeUrl = facetsMode ? facetUrls![Math.min(facetIndex, facetUrls!.length - 1)] : aiUrl;
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [event, setEvent] = useState<EventProfile | null>(null);
@@ -57,7 +75,7 @@ export default function ResultStep({
   // (`cutoutUrl`, ver SpaceFloatCutout). La original sigue siendo la de la
   // descarga/QR. No aplica a video.
   const spaceFloat =
-    (resultImageEffect ?? event?.resultImageEffect) === "SPACE_FLOAT" && !videoUrl;
+    (resultImageEffect ?? event?.resultImageEffect) === "SPACE_FLOAT" && !videoUrl && !facetsMode;
   const { cutoutUrl, failed: cutoutFailed } = useTaskCutout(taskId, spaceFloat);
   // Lo normal: el wizard esperó el recorte en "loading", así que ya está
   // listo al montar — se arranca directo con la persona flotando y la
@@ -80,6 +98,14 @@ export default function ResultStep({
   // aspecto es configurable por evento (3:4 ocupa más alto que el cuadrado
   // original).
   const { containerRef, boxDims } = useFitAspectBox(aspectRatio);
+  // En facetas la tarjeta activa es más chica que la caja disponible, para
+  // que se asomen las vecinas del carrusel y quede lugar para los puntos.
+  const cardDims =
+    facetsMode && boxDims
+      ? { width: boxDims.width * FACET_CARD_SCALE, height: boxDims.height * FACET_CARD_SCALE }
+      : boxDims;
+  // El mate (degradado + sombra) lo pone la tarjeta del carrusel en facetas.
+  const showMat = !hideOriginal && !facetsMode;
 
   const surveyAI = useMemo(() => {
     const url = new URL(`${origin}/survey`);
@@ -89,12 +115,20 @@ export default function ResultStep({
       url.searchParams.set("kind", "video");
       url.searchParams.set("filename", `video-ia-${taskId}.mp4`);
     } else {
-      url.searchParams.set("src", aiUrl);
+      const withFrame = enableFrame && !!frameSrc;
+      url.searchParams.set("src", activeUrl);
       url.searchParams.set("kind", "raw");
-      url.searchParams.set("filename", `foto-ia-${taskId}.png`);
-      
+      // Las facetas se guardan en JPEG (ver splitFacetsGrid); con marco,
+      // /survey recompone en canvas y baja PNG.
+      url.searchParams.set(
+        "filename",
+        facetsMode
+          ? `foto-ia-${taskId}-${facetIndex + 1}.${withFrame ? "png" : "jpg"}`
+          : `foto-ia-${taskId}.png`
+      );
+
       // Agregar frameUrl solo si enableFrame está activado y hay frameImage
-      if (enableFrame && frameSrc) {
+      if (withFrame) {
         url.searchParams.set("frameUrl", frameSrc);
       }
     }
@@ -107,7 +141,7 @@ export default function ResultStep({
     }
 
     return url.toString();
-  }, [origin, aiUrl, videoUrl, taskId, enableFrame, frameSrc, event?.id]);
+  }, [origin, activeUrl, videoUrl, taskId, enableFrame, frameSrc, event?.id, facetsMode, facetIndex]);
 
   // === Componer imagen con marco (para preview en pantalla) ===
   const [framedImageUrl, setFramedImageUrl] = useState<string>("");
@@ -142,6 +176,40 @@ export default function ResultStep({
 
     composeFrame();
   }, [aiUrl, frameSrc, enableFrame, brandingLogoSrc, brandingFooterText, pixelDims.width, pixelDims.height]);
+
+  // Lo mismo para cada faceta del carrusel. Mientras se componen (o si
+  // alguna falla) se muestra la faceta sin marco.
+  const [framedFacetUrls, setFramedFacetUrls] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!facetsMode || !facetUrls) return;
+    if ((!enableFrame || !frameSrc) && !brandingLogoSrc && !brandingFooterText) {
+      setFramedFacetUrls(facetUrls);
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(
+      facetUrls.map((src) =>
+        composeFramedImageDataUrl({
+          aiUrl: src,
+          frameSrc,
+          enableFrame,
+          brandingLogoSrc,
+          brandingFooterText,
+          width: pixelDims.width,
+          height: pixelDims.height,
+        }).catch((err) => {
+          console.error("Error composing facet frame:", err);
+          return src;
+        })
+      )
+    ).then((urls) => {
+      if (!cancelled) setFramedFacetUrls(urls);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [facetsMode, facetUrls, frameSrc, enableFrame, brandingLogoSrc, brandingFooterText, pixelDims.width, pixelDims.height]);
 
   useEffect(() => {
     try {
@@ -198,7 +266,7 @@ export default function ResultStep({
     }
     try {
       const canvas = await composeFramedCanvas({
-        aiUrl,
+        aiUrl: activeUrl,
         frameSrc,
         enableFrame,
         brandingLogoSrc,
@@ -217,7 +285,7 @@ export default function ResultStep({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `foto-ia-${taskId}.png`;
+      a.download = facetsMode ? `foto-ia-${taskId}-${facetIndex + 1}.png` : `foto-ia-${taskId}.png`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -243,11 +311,25 @@ export default function ResultStep({
           ref={containerRef}
           className="relative flex-1 min-h-0 w-full flex items-center justify-center"
         >
+          {/* Facetas: el carrusel ocupa todo el ancho (para que se vean las
+              vecinas) y la caja de abajo queda encima de la tarjeta activa,
+              transparente al arrastre, solo para el QR. */}
+          {facetsMode && cardDims && (
+            <FacetCarousel3D
+              items={framedFacetUrls ?? facetUrls!}
+              index={facetIndex}
+              onIndexChange={(i) => onFacetIndexChange?.(i)}
+              cardWidth={cardDims.width}
+              cardHeight={cardDims.height}
+              className="absolute inset-0"
+              hint="Desliza para ver todas tus facetas"
+            />
+          )}
           <div
-            className="relative"
+            className={`relative ${facetsMode ? "z-10 pointer-events-none" : ""}`}
             style={
-              boxDims
-                ? { width: boxDims.width, height: boxDims.height }
+              cardDims
+                ? { width: cardDims.width, height: cardDims.height }
                 : { maxWidth: "100%", maxHeight: "100%" }
             }
           >
@@ -268,16 +350,17 @@ export default function ResultStep({
             <div className={`relative z-10 w-full h-full ${floatCard ? "result-space-float" : ""}`}>
               <div
                 className={`relative w-full h-full p-1.5 sm:p-2 rounded-2xl transition-all duration-[1200ms] ${
-                  hideOriginal
-                    ? ""
-                    : "bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 shadow-[0_10px_14px_-6px_rgba(0,0,0,0.45),0_35px_60px_-15px_rgba(0,0,0,0.6)]"
+                  showMat
+                    ? "bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 shadow-[0_10px_14px_-6px_rgba(0,0,0,0.45),0_35px_60px_-15px_rgba(0,0,0,0.6)]"
+                    : ""
                 }`}
               >
                 <div
                   className={`relative w-full h-full overflow-hidden rounded-xl transition-colors duration-[1200ms] ${
-                    hideOriginal ? "" : "bg-black/5"
+                    showMat ? "bg-black/5" : ""
                   }`}
                 >
+                  {!facetsMode && (
                   <div
                     className="absolute inset-0 transition-opacity duration-[1200ms] ease-out"
                     style={{ opacity: hideOriginal ? 0 : 1 }}
@@ -324,12 +407,13 @@ export default function ResultStep({
                       />
                     )}
                   </div>
+                  )}
 
                   <button
                     type="button"
                     onClick={() => onShowQrChange(!showQr)}
                     aria-label={showQr ? "Volver a la foto" : "Mostrar código QR para descargar la foto"}
-                    className={`absolute rounded-xl transition-all duration-300 ease-out ${
+                    className={`absolute pointer-events-auto rounded-xl transition-all duration-300 ease-out ${
                       showQr
                         ? "inset-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
                         : "bottom-2 right-2 sm:bottom-3 sm:right-3 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10 active:scale-95"
@@ -337,7 +421,7 @@ export default function ResultStep({
                   >
                     <QrTag
                       value={surveyAI}
-                      size={showQr ? qrSize : Math.max(48, Math.min(88, (boxDims?.width ?? 240) * 0.22))}
+                      size={showQr ? qrSize : Math.max(48, Math.min(88, (cardDims?.width ?? 240) * 0.22))}
                       label={showQr ? "Escanea para descargar tu foto en tu celular" : undefined}
                     />
                   </button>

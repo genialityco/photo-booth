@@ -103,6 +103,11 @@ export default function PhotoBoothWizard({
   const [rawShot, setRawShot] = useState<string | null>(null);
   const [aiUrl, setAiUrl] = useState<string | null>(null);
   const [aiVideoUrl, setAiVideoUrl] = useState<string | null>(null);
+  // Modo facetas (generationType="FACETS"): todas las imágenes del carrusel
+  // del resultado y cuál está al frente. `aiUrl` sigue siendo la primera
+  // (es la que se revela).
+  const [aiFacetUrls, setAiFacetUrls] = useState<string[] | null>(null);
+  const [facetIndex, setFacetIndex] = useState(0);
   const [framedUrl, setFramedUrl] = useState<string | null>(null);
   const [mirrorPreviewUrl, setMirrorPreviewUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -600,7 +605,11 @@ export default function PhotoBoothWizard({
             // arranca con el recorte listo. Con tope de tiempo: si la función
             // falla o tarda de más se sigue igual con la original — ResultStep
             // reusa esta misma promesa, por si el recorte llega después.
-            if (eventData?.resultImageEffect === "SPACE_FLOAT" && !data.videoUrl) {
+            const facetUrls: string[] = Array.isArray(data.facets)
+              ? data.facets.map((f: { url?: string }) => f?.url).filter((u: unknown): u is string => typeof u === "string")
+              : [];
+
+            if (eventData?.resultImageEffect === "SPACE_FLOAT" && !data.videoUrl && facetUrls.length === 0) {
               cutoutWaitRef.current = newTaskId;
               await Promise.race([
                 requestCutout(newTaskId).catch(() => undefined),
@@ -612,6 +621,8 @@ export default function PhotoBoothWizard({
 
             setAiUrl(data.url as string);
             if (data.videoUrl) setAiVideoUrl(data.videoUrl as string);
+            setAiFacetUrls(facetUrls.length > 1 ? facetUrls : null);
+            setFacetIndex(0);
             // Por compatibilidad, eventos sin revealEffect configurado usan el
             // efecto original (borrar el velo con la mano).
             const revealEffect = eventData?.revealEffect ?? "HAND_WIPE";
@@ -741,6 +752,8 @@ export default function PhotoBoothWizard({
     setRawShot(null);
     setAiUrl(null);
     setAiVideoUrl(null);
+    setAiFacetUrls(null);
+    setFacetIndex(0);
     setFramedUrl(null);
     setMirrorPreviewUrl(null);
     setTaskId(null);
@@ -777,9 +790,10 @@ export default function PhotoBoothWizard({
       customization,
       previewUrl: mirrorPreviewUrl || framedUrl || null,
       showQr,
+      facetIndex,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, taskId, brand, customization, mirrorPreviewUrl, framedUrl, showQr]);
+  }, [step, taskId, brand, customization, mirrorPreviewUrl, framedUrl, showQr, facetIndex]);
 
   // Cada paso trae su propia transición de entrada/salida (ver
   // `stepTransitions.ts`, que documenta el criterio de cada una). Dos cosas
@@ -1185,6 +1199,9 @@ export default function PhotoBoothWizard({
                   showQr={showQr}
                   onShowQrChange={setShowQr}
                   resultImageEffect={eventData?.resultImageEffect}
+                  facetUrls={aiFacetUrls ?? undefined}
+                  facetIndex={facetIndex}
+                  onFacetIndexChange={setFacetIndex}
                 />
               </motion.div>
             )}

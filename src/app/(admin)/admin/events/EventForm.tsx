@@ -16,6 +16,7 @@ import {
   EventProfile,
   createEventProfile,
   updateEventProfile,
+  type FacetsLayout,
   type SplashHeaderLogo,
   type SplashLayout,
 } from "@/app/services/photo-booth/eventService";
@@ -264,6 +265,8 @@ export default function EventForm({
     enableFrame: event?.enableFrame !== false,
     dataProcessingText: event?.dataProcessingText || "",
     generationType: event?.generationType || "IMAGE",
+    facetsPrompt: event?.facetsPrompt || "",
+    facetsLayout: event?.facetsLayout || "2x2",
     buttonClickEffect: event?.buttonClickEffect || "NONE",
     lowBandwidthMode: event?.lowBandwidthMode === true,
     handCursorEnabled: event?.handCursorEnabled === true,
@@ -525,12 +528,57 @@ export default function EventForm({
           <SelectField
             label="Tipo de Generación"
             value={formData.generationType || "IMAGE"}
-            onChange={(v) => setField("generationType", v as "IMAGE" | "BGVIDEO" | "VIDEO")}
+            onChange={(v) => setField("generationType", v as NonNullable<EventProfile["generationType"]>)}
           >
             <option value="IMAGE">IMAGE</option>
             <option value="BGVIDEO">BGVIDEO</option>
             <option value="VIDEO">VIDEO</option>
+            <option value="FACETS">FACETAS (varias imágenes, carrusel 3D)</option>
           </SelectField>
+
+          {/* Modo facetas: una sola llamada a la IA genera una cuadrícula con
+              varias versiones de la persona, que se corta en imágenes sueltas
+              y se muestra como carrusel 3D en el resultado. */}
+          {formData.generationType === "FACETS" && (
+            <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:p-4">
+              <SelectField
+                label="Cantidad de facetas (cuadrícula)"
+                value={formData.facetsLayout || "2x2"}
+                onChange={(v) => setField("facetsLayout", v as FacetsLayout)}
+              >
+                <option value="2x1">2 facetas (2 columnas × 1 fila)</option>
+                <option value="3x1">3 facetas (3 columnas × 1 fila)</option>
+                <option value="2x2">4 facetas (2 × 2)</option>
+                <option value="3x2">6 facetas (3 columnas × 2 filas)</option>
+              </SelectField>
+
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                  Descripción de las facetas
+                </label>
+                <textarea
+                  name="facetsPrompt"
+                  value={formData.facetsPrompt || ""}
+                  onChange={handleChange}
+                  rows={6}
+                  placeholder={
+                    "Describe qué muestra cada panel, en orden (izquierda a derecha, arriba a abajo). Ej.:\n" +
+                    "1. El ejecutivo: traje elegante, oficina moderna con vista a la ciudad.\n" +
+                    "2. El aventurero: ropa de montaña, cima nevada al amanecer.\n" +
+                    "3. El artista: taller lleno de color, pinceles en mano.\n" +
+                    "4. El deportista: uniforme de fútbol, estadio iluminado."
+                  }
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Se suma al prompt de la marca seleccionada (estilo, logo, fondo). Describe tantas facetas
+                  como paneles tenga la cuadrícula. Vacío = facetas genéricas de personalidad. Cada faceta
+                  sale más chica que una foto normal, así que la cuadrícula se pide a la máxima resolución
+                  del modelo.
+                </p>
+              </div>
+            </div>
+          )}
         </AccordionSection>
 
         {/* Imágenes y Marca */}

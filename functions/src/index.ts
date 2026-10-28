@@ -518,6 +518,137 @@ async function cropToAspectRatio(buf: Buffer, targetW: number, targetH: number):
     .toBuffer();
 }
 
+// === Modo FACETAS (event.generationType === "FACETS") ===
+// Una sola llamada a Gemini que devuelve UNA imagen en cuadrícula con N
+// facetas de la misma persona (descritas por event.facetsPrompt); acá se
+// corta en N imágenes sueltas. Como cada faceta ocupa solo una celda, la
+// cuadrícula se pide a la mayor resolución que acepte el modelo
+// (FACETS_IMAGE_SIZES) en vez de la default (~1K, el tamaño de siempre).
+type FacetsLayout = "2x1" | "3x1" | "2x2" | "3x2";
+const FACETS_GRIDS: Record<FacetsLayout, { cols: number; rows: number }> = {
+  "2x1": { cols: 2, rows: 1 },
+  "3x1": { cols: 3, rows: 1 },
+  "2x2": { cols: 2, rows: 2 },
+  "3x2": { cols: 3, rows: 2 },
+};
+
+function parseFacetsLayout(value: unknown): FacetsLayout {
+  return typeof value === "string" && value in FACETS_GRIDS ? (value as FacetsLayout) : "2x2";
+}
+
+// Únicas relaciones de aspecto que acepta imageConfig.aspectRatio.
+const GEMINI_ASPECT_RATIOS = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
+
+/** La relación soportada más parecida (en escala logarítmica, para que
+ * "el doble de ancho" y "el doble de alto" pesen igual). */
+function closestGeminiAspectRatio(ratio: number): string {
+  let best = "1:1";
+  let bestDiff = Infinity;
+  for (const r of GEMINI_ASPECT_RATIOS) {
+    const [a, b] = r.split(":").map(Number);
+    const diff = Math.abs(Math.log(a / b) - Math.log(ratio));
+    if (diff < bestDiff) {
+      best = r;
+      bestDiff = diff;
+    }
+  }
+  return best;
+}
+
+// Se prueban en orden: si el modelo rechaza un tamaño (INVALID_ARGUMENT) se
+// baja al siguiente, y `undefined` = sin imageSize (el default del modelo).
+const FACETS_IMAGE_SIZES: (string | undefined)[] = ["4K", "2K", undefined];
+
+// Fracción que se recorta en cada borde de cada celda: aunque el prompt lo
+// prohíbe, el modelo a veces deja una línea/costura entre paneles, o no los
+// alinea exacto con la división en partes iguales.
+const FACETS_SEAM_TRIM = 0.015;
+
+const FACETS_DEFAULT_DESCRIPTION =
+  "Each panel shows a clearly different facet of the person (for example: the professional, the adventurer, the artist, the athlete, the dreamer, the leader), each with its own outfit, setting and mood.";
+
+function buildFacetsGridPrompt(opts: {
+  cols: number;
+  rows: number;
+  tileW: number;
+  tileH: number;
+  description: string;
+}): string {
+  const { cols, rows, tileW, tileH } = opts;
+  const n = cols * rows;
+  const layout = rows === 1 ? `${cols} panels side by side in a single row` : `${cols} columns and ${rows} rows`;
+  return [
+    "MULTI-FACET GRID — CRITICAL LAYOUT INSTRUCTIONS (they override any framing or composition instruction above):",
+    `- Generate ONE single image that is a grid of exactly ${n} equal panels: ${layout}.`,
+    "- All panels have exactly the same size and together fill the entire canvas edge to edge.",
+    "- NO borders, gutters, separators, white lines, margins, captions, labels, numbers or any text between or inside the panels.",
+    `- Each panel is a complete, independent portrait composed for a ${tileW}:${tileH} frame, with the person centered and fully inside the panel (never cut by a panel edge).`,
+    "- The SAME person from the uploaded photo appears in every panel. Preserve their face, identity, facial features, skin tone and hair faithfully and consistently across ALL panels.",
+    "- Maximum detail and sharpness in every panel.",
+    "- What each panel shows (reading order: left to right, top to bottom):",
+    opts.description.trim() || FACETS_DEFAULT_DESCRIPTION,
+  ].join("\n");
+}
+
+/** Corta la cuadrícula en `cols x rows` celdas iguales (menos el margen de
+ * costura) y recorta cada una al centro a la relación de aspecto del evento. */
+async function splitFacetsGrid(
+  buf: Buffer,
+  cols: number,
+  rows: number,
+  tileW: number,
+  tileH: number
+): Promise<Buffer[]> {
+  const { width: w, height: h } = await sharp(buf).metadata();
+  if (!w || !h) throw new Error("No se pudo leer el tamaño de la cuadrícula generada");
+
+  const cellW = w / cols;
+  const cellH = h / rows;
+  const targetRatio = tileW / tileH;
+  const tiles: Promise<Buffer>[] = [];
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      let left = c * cellW + cellW * FACETS_SEAM_TRIM;
+      let top = r * cellH + cellH * FACETS_SEAM_TRIM;
+      let width = cellW * (1 - 2 * FACETS_SEAM_TRIM);
+      let height = cellH * (1 - 2 * FACETS_SEAM_TRIM);
+      if (width / height > targetRatio) {
+        const fitW = height * targetRatio;
+        left += (width - fitW) / 2;
+        width = fitW;
+      } else {
+        const fitH = width / targetRatio;
+        top += (height - fitH) / 2;
+        height = fitH;
+      }
+      const rect = { left: Math.round(left), top: Math.round(top), width: Math.floor(width), height: Math.floor(height) };
+      rect.width = Math.min(rect.width, w - rect.left);
+      rect.height = Math.min(rect.height, h - rect.top);
+      // JPEG y no PNG: a 4K cada faceta en PNG pesa varios MB, y la tablet
+      // y la pantalla espejo bajan todas de una para el carrusel.
+      tiles.push(sharp(buf).extract(rect).jpeg({ quality: 92, mozjpeg: true }).toBuffer());
+    }
+  }
+  return Promise.all(tiles);
+}
+
+/** Guarda en Storage con token de descarga y devuelve la URL pública. */
+async function saveWithDownloadToken(
+  bucket: ReturnType<ReturnType<typeof getStorage>["bucket"]>,
+  path: string,
+  buf: Buffer,
+  contentType: string
+): Promise<string> {
+  const token = randomUUID();
+  await bucket.file(path).save(buf, {
+    contentType,
+    resumable: false,
+    metadata: { metadata: { firebaseStorageDownloadTokens: token } },
+  });
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
+}
+
 // --- Función Principal Modificada ---
 
 /**
@@ -607,6 +738,8 @@ export const processImageTask = onDocumentCreated(
     let OBJECT_IMAGE_PROMPT = "";
     let GENERATION_TYPE = "IMAGE";
     let BRAND_VIDEO_URL = "";
+    let FACETS_PROMPT = "";
+    let FACETS_LAYOUT: FacetsLayout = "2x2";
 
     // Leer generationType, frameImage y photoAspectRatio del evento si se
     // provee eventId. "SQUARE" (o sin configurar) es el default histórico;
@@ -628,6 +761,8 @@ export const processImageTask = onDocumentCreated(
           GENERATION_TYPE = eventSnap.data()?.generationType || "IMAGE";
           FRAME_IMAGE_URL = eventSnap.data()?.frameImage || "";
           PHOTO_ASPECT_RATIO = eventSnap.data()?.photoAspectRatio === "3:4" ? "3:4" : "SQUARE";
+          FACETS_PROMPT = eventSnap.data()?.facetsPrompt || "";
+          FACETS_LAYOUT = parseFacetsLayout(eventSnap.data()?.facetsLayout);
         }
       } catch (e) {
         console.warn("Error reading event data:", e);
@@ -641,6 +776,17 @@ export const processImageTask = onDocumentCreated(
         : "1:1";
     const PHOTO_ASPECT_DIMS = GEMINI_ASPECT_RATIO === "3:4" ? { w: 3, h: 4 } : { w: 1, h: 1 };
 
+    // En FACETAS lo que se le pide a Gemini es la cuadrícula ENTERA (ej. 2x2
+    // de 3:4 => 3:4, 3x2 de 1:1 => 3:2), no una sola foto; la relación del
+    // evento se aplica después, a cada faceta (splitFacetsGrid).
+    const IS_FACETS = GENERATION_TYPE === "FACETS";
+    const FACETS_GRID = FACETS_GRIDS[FACETS_LAYOUT];
+    const REQUEST_ASPECT_RATIO = IS_FACETS
+      ? closestGeminiAspectRatio(
+          (FACETS_GRID.cols * PHOTO_ASPECT_DIMS.w) / (FACETS_GRID.rows * PHOTO_ASPECT_DIMS.h)
+        )
+      : GEMINI_ASPECT_RATIO;
+
     if (data?.brand) {
       const promptData = await buildPromptWithBrand({
         brand: data.brand,
@@ -648,7 +794,7 @@ export const processImageTask = onDocumentCreated(
         palette: data.palette,
         texture: data.texture,
         intensity: data.intensity,
-        aspectRatio: GEMINI_ASPECT_RATIO,
+        aspectRatio: REQUEST_ASPECT_RATIO,
       });
       PROMPT = promptData.prompt;
       LOGO_URL = promptData.logoPath || "";
@@ -669,6 +815,16 @@ export const processImageTask = onDocumentCreated(
       } catch (e) {
         console.warn("Error reading brand videoUrl:", e);
       }
+    }
+
+    if (IS_FACETS) {
+      PROMPT = PROMPT + "\n\n" + buildFacetsGridPrompt({
+        cols: FACETS_GRID.cols,
+        rows: FACETS_GRID.rows,
+        tileW: PHOTO_ASPECT_DIMS.w,
+        tileH: PHOTO_ASPECT_DIMS.h,
+        description: FACETS_PROMPT,
+      });
     }
 
     if (!data?.inputPath) {
@@ -795,7 +951,13 @@ export const processImageTask = onDocumentCreated(
       // Agregar imagen de fondo del prompt si existe
       if (base64PromptBg) {
         parts.push(
-          { text: "CRITICAL INSTRUCTION - BACKGROUND IMAGE: You MUST use the following image as the EXACT background for the generated portrait. This is NOT optional. The background image provided below must be preserved EXACTLY as shown - do not modify, reinterpret, or change it in any way. Place the person in front of this background, ensuring the background remains completely unchanged and clearly visible behind the subject. The background should fill the entire image space. Do not create a new background - use THIS specific image." },
+          {
+            // En FACETAS "llenar toda la imagen" pelearía con la cuadrícula:
+            // el fondo va detrás de la persona en CADA panel.
+            text: IS_FACETS
+              ? "CRITICAL INSTRUCTION - BACKGROUND IMAGE: Use the following image as the background behind the person in EVERY panel of the grid. Keep it recognizable and faithful to the original; it fills each panel, not the whole canvas. Do not draw borders between panels."
+              : "CRITICAL INSTRUCTION - BACKGROUND IMAGE: You MUST use the following image as the EXACT background for the generated portrait. This is NOT optional. The background image provided below must be preserved EXACTLY as shown - do not modify, reinterpret, or change it in any way. Place the person in front of this background, ensuring the background remains completely unchanged and clearly visible behind the subject. The background should fill the entire image space. Do not create a new background - use THIS specific image.",
+          },
           {
             inlineData: {
               mimeType: promptBgMime,
@@ -816,17 +978,15 @@ export const processImageTask = onDocumentCreated(
         },
       ];
 
-      const response = await ai.models.generateContent({
+      const generate = (imageSize?: string) => ai.models.generateContent({
         model: "gemini-3.1-flash-image",
         contents: contents,
-        // `imageConfig.aspectRatio` no está tipado todavía en esta versión
-        // del SDK (@google/genai) - de ahí el `as any` - pero la API REST sí
-        // lo soporta. NO confiar solo en esto: hay un bug reportado donde el
-        // SDK JS a veces lo omite del request
-        // (github.com/googleapis/js-genai/issues/1009), así que el recorte
-        // con sharp más abajo (cropToAspectRatio) es lo que realmente
-        // garantiza la forma final, esto es solo para acercar el resultado
-        // del modelo y evitar recortar de más.
+        // Hasta @google/genai 1.21 el SDK descartaba `imageConfig` entero al
+        // armar el request (github.com/googleapis/js-genai/issues/1009): ni
+        // aspectRatio ni imageSize llegaban y todo salía a 1024x1024. Desde
+        // 1.52 sí se envía. Igual el recorte con sharp más abajo
+        // (cropToAspectRatio) es lo que garantiza la forma final, esto es
+        // para acercar el resultado del modelo y evitar recortar de más.
         config: {
           // Modality.IMAGE === "IMAGE" (todo mayúsculas) - un string suelto
           // con otra capitalización (ej. "Image") es un valor de enum
@@ -836,9 +996,27 @@ export const processImageTask = onDocumentCreated(
           // respuesta de texto cuando no hay imagen (ver "Sin respuesta de
           // texto").
           responseModalities: [Modality.TEXT, Modality.IMAGE],
-          imageConfig: { aspectRatio: GEMINI_ASPECT_RATIO },
+          imageConfig: {
+            aspectRatio: REQUEST_ASPECT_RATIO,
+            ...(imageSize ? { imageSize } : {}),
+          },
         } as any,
       });
+
+      // Flujo normal: un solo intento con el tamaño default del modelo. En
+      // FACETAS se pide la mayor resolución y se baja si el modelo la rechaza.
+      const imageSizes = IS_FACETS ? FACETS_IMAGE_SIZES : [undefined];
+      let response!: Awaited<ReturnType<typeof generate>>;
+      for (let i = 0; i < imageSizes.length; i++) {
+        try {
+          response = await generate(imageSizes[i]);
+          break;
+        } catch (e: any) {
+          const invalidArgument = e?.status === 400 || /INVALID_ARGUMENT/i.test(e?.message ?? "");
+          if (!invalidArgument || i === imageSizes.length - 1) throw e;
+          console.warn(`imageSize ${imageSizes[i]} rechazado, probando el siguiente:`, e?.message);
+        }
+      }
 
       console.log("Response received:", JSON.stringify(response, null, 2));
 
@@ -898,6 +1076,46 @@ export const processImageTask = onDocumentCreated(
       }
      
       console.log("Image found, saving to storage...");
+
+      // 5b) FACETAS: cortar la cuadrícula en una imagen por faceta. `url` y
+      //     `outputPath` apuntan a la PRIMERA faceta (con la relación de
+      //     aspecto del evento), así revelado, impresión, mosaico, display y
+      //     admin siguen funcionando sin saber de facetas; el carrusel del
+      //     resultado lee `facets`.
+      if (IS_FACETS) {
+        const gridBuf = Buffer.from(generatedImageData, "base64");
+        const gridMeta = await sharp(gridBuf).metadata();
+        console.log(`Facets grid ${FACETS_LAYOUT}: ${gridMeta.width}x${gridMeta.height}`);
+
+        const tiles = await splitFacetsGrid(
+          gridBuf,
+          FACETS_GRID.cols,
+          FACETS_GRID.rows,
+          PHOTO_ASPECT_DIMS.w,
+          PHOTO_ASPECT_DIMS.h
+        );
+        const gridPath = `tasks/${taskId}/grid.jpg`;
+        const gridJpg = await sharp(gridBuf).jpeg({ quality: 90, mozjpeg: true }).toBuffer();
+        const facetPaths = tiles.map((_, i) => `tasks/${taskId}/facet_${i + 1}.jpg`);
+        const [gridUrl, ...facetUrls] = await Promise.all([
+          saveWithDownloadToken(bucket, gridPath, gridJpg, "image/jpeg"),
+          ...tiles.map((tile, i) => saveWithDownloadToken(bucket, facetPaths[i], tile, "image/jpeg")),
+        ]);
+        const facets = facetUrls.map((url, i) => ({ url, path: facetPaths[i] }));
+
+        await docRef.update({
+          status: "done",
+          url: facets[0].url,
+          outputPath: facets[0].path,
+          facets,
+          facetsLayout: FACETS_LAYOUT,
+          gridUrl,
+          gridPath,
+          gridSize: { width: gridMeta.width ?? null, height: gridMeta.height ?? null },
+          updatedAt: Date.now(),
+        });
+        return;
+      }
 
       // 5) Guardar salida y generar URL con token
       const outPath = `tasks/${taskId}/output.png`;
