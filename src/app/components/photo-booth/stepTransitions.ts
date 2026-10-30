@@ -35,6 +35,7 @@ export type WizardStepName =
   | "customize"
   | "loading"
   | "reveal"
+  | "showcase"
   | "result";
 
 // Salida exponencial: arranca rápido y frena largo. Es la que da la sensación
@@ -103,6 +104,14 @@ export const STEP_VARIANTS: Record<WizardStepName, Variants> = {
   // (mano/rodillo); una transición marcada le competiría y ensuciaría el
   // arranque de la animación de revelado.
   reveal: {
+    initial: { opacity: 0, scale: 1.03 },
+    animate: { ...ACTIVE, opacity: 1, scale: 1, transition: { duration: 0.5, ease: EASE_OUT } },
+    exit: { ...LEAVING, opacity: 0, scale: 0.985, transition: { duration: 0.35, ease: EASE_IN } },
+  },
+
+  // Showcase (flujo multi-prompt): mismo criterio sobrio que reveal — el
+  // movimiento lo pone el carrusel que pasa las fotos.
+  showcase: {
     initial: { opacity: 0, scale: 1.03 },
     animate: { ...ACTIVE, opacity: 1, scale: 1, transition: { duration: 0.5, ease: EASE_OUT } },
     exit: { ...LEAVING, opacity: 0, scale: 0.985, transition: { duration: 0.35, ease: EASE_IN } },

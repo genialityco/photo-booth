@@ -44,6 +44,9 @@ export default function SurveyClient() {
   const kind = (sp.get("kind") as "raw" | "framed" | "video") || undefined;
   const filenameFromQS = sp.get("filename") || undefined;
   const frameUrlFromQS = sp.get("frameUrl") || undefined;
+  /** El collage del flujo multi-prompt ya trae su propio marco: nunca se le
+   * aplica el marco de foto suelta (ni el cacheado del kiosco). */
+  const noFrame = sp.get("noFrame") === "1";
   /** Evento que generó la foto — lo pone ResultStep/BoothMirror al armar el QR.
    * Es la única forma de saberlo acá: esta página se abre en el celular del
    * asistente, donde no existe el sessionStorage del kiosco. */
@@ -221,7 +224,7 @@ useEffect(() => {
         frameToUse = frameUrlFromQS;
       }
       // Prioridad 2: frame guardado en sessionStorage (comportamiento legacy)
-      else {
+      else if (!noFrame) {
         let data = sessionStorage.getItem("currentEvent");
         if (!data) {
           data = sessionStorage.getItem("photoBoothStyle");
@@ -313,6 +316,7 @@ useEffect(() => {
   loadingPhoto,
   photo,
   frameUrlFromQS,          // ← importante: agregar esta dependencia
+  noFrame,
   filenameFromQS,
   suggestedName,
 ]);

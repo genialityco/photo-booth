@@ -14,6 +14,12 @@ import { getAspectDims, type PhotoAspectRatio } from "@/app/components/photo-boo
  */
 export function useFitAspectBox(aspectRatio?: PhotoAspectRatio | null) {
   const { w: ratioW, h: ratioH } = getAspectDims(aspectRatio);
+  return useFitRatioBox(ratioW / ratioH);
+}
+
+/** Lo mismo que useFitAspectBox para una relación ancho/alto cualquiera (ej.
+ * el collage del flujo multi-prompt, cuya forma depende de la distribución). */
+export function useFitRatioBox(targetRatio: number) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [boxDims, setBoxDims] = useState<{ width: number; height: number } | null>(null);
 
@@ -24,7 +30,6 @@ export function useFitAspectBox(aspectRatio?: PhotoAspectRatio | null) {
       const { width, height } = entries[0].contentRect;
       if (width <= 0 || height <= 0) return;
       const containerRatio = width / height;
-      const targetRatio = ratioW / ratioH;
       if (containerRatio > targetRatio) {
         setBoxDims({ width: height * targetRatio, height });
       } else {
@@ -33,7 +38,7 @@ export function useFitAspectBox(aspectRatio?: PhotoAspectRatio | null) {
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [ratioW, ratioH]);
+  }, [targetRatio]);
 
   return { containerRef, boxDims };
 }

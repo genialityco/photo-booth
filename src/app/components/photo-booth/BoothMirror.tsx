@@ -23,6 +23,8 @@ import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
 import SpaceFloatCutout, { useCutoutShown } from "@/app/components/photo-booth/SpaceFloatCutout";
 import FacetCarousel3D from "@/app/components/photo-booth/FacetCarousel3D";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
+import MultiPromptShowcase from "@/app/components/photo-booth/MultiPromptShowcase";
+import MultiPromptResultStep from "@/app/components/photo-booth/MultiPromptResultStep";
 
 const NOOP = () => {};
 const NOOP_CUSTOMIZE = (_value: ImageCustomization) => {};
@@ -44,6 +46,10 @@ type TaskResult = {
   cutoutStatus?: "processing" | "done" | "error";
   /** Modo facetas — ver processImageTask. `url` es la primera. */
   facets?: { url?: string; path?: string }[];
+  /** Flujo multi-prompt — ver processMultiPromptTask: una foto por prompt
+   * (en orden) y el collage que baja el QR. */
+  multiUrls?: string[];
+  compositeUrl?: string | null;
 };
 
 /** Se suscribe directamente a imageTasks/{taskId} — el mismo doc que ya lee
@@ -538,6 +544,44 @@ function ResultView({
   );
 }
 
+/** Resultado del flujo multi-prompt en la pantalla espejo: las mismas fotos
+ * separadas y el mismo QR único que la tablet (MultiPromptResultStep, sin
+ * botones). Como en ResultView, el QR se agranda solo tocándolo acá. */
+function MultiPromptMirrorResult({
+  event,
+  taskId,
+  result,
+}: {
+  event: EventProfile;
+  taskId: string;
+  result: TaskResult;
+}) {
+  const [localShowQr, setLocalShowQr] = useState(false);
+  useEffect(() => {
+    setLocalShowQr(false);
+  }, [taskId]);
+
+  return (
+    <div className="fixed inset-0 flex flex-col overflow-hidden">
+      <MirrorBackground event={event} />
+      <div className="flex-shrink-0 px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-2">
+        <TopLogosBar event={event} />
+      </div>
+      <div className="flex-1 min-h-0 pb-6">
+        <MultiPromptResultStep
+          taskId={taskId}
+          urls={result.multiUrls ?? []}
+          compositeUrl={result.compositeUrl}
+          event={event}
+          showQr={localShowQr}
+          onShowQrChange={setLocalShowQr}
+          large
+        />
+      </div>
+    </div>
+  );
+}
+
 /** Revelado con rodillo REAL + Kinect, para revealEffect="KINECT_ROLLER" —
  * la pantalla gigante ES el Kinect, así que acá sí hay alguien tocándola de
  * verdad (a diferencia de "capture"/"preview"/etc., que reflejan lo que
@@ -780,7 +824,33 @@ export default function BoothMirror({
         return <FullBleedMessage event={event} title="Revelando foto…" />;
       }
 
+      case "showcase": {
+        const urls = taskResult?.multiUrls ?? [];
+        if (urls.length === 0) return <LoaderStep brandIdOverride={state.brand} eventOverride={event} />;
+        return (
+          <MirrorStage event={event}>
+            <div className="w-full h-full px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-6 flex flex-col">
+              <div className="flex-shrink-0 pb-2">
+                <TopLogosBar event={event} />
+              </div>
+              <div className="flex-1 min-h-0">
+                {/* Sin onDone: sigue la foto al frente del líder (facetIndex). */}
+                <MultiPromptShowcase
+                  urls={urls}
+                  index={state.facetIndex ?? 0}
+                  onIndexChange={NOOP}
+                  aspectRatio={event.photoAspectRatio}
+                />
+              </div>
+            </div>
+          </MirrorStage>
+        );
+      }
+
       case "result":
+        if (state.taskId && taskResult?.multiUrls?.length) {
+          return <MultiPromptMirrorResult event={event} taskId={state.taskId} result={taskResult} />;
+        }
         return (
           <ResultView
             event={event}

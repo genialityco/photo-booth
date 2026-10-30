@@ -686,6 +686,353 @@ async function composeVideoViaAPI(
   return Buffer.from(response.data as ArrayBuffer);
 }
 
+// === Flujo MULTI_PROMPT (event.boothFlow === "MULTI_PROMPT") ===
+// El cliente crea UNA tarea con `flow: "MULTI_PROMPT"`; acá se genera una
+// imagen por cada prompt del evento (1 a 4, en el orden de event.prompts, en
+// paralelo) y después se arma con todas un collage según la distribución
+// elegida en el admin. El QR del resultado baja ese collage (`compositeUrl`);
+// `url` apunta a la primera foto para que display/mosaico/impresión/admin
+// sigan funcionando sin saber de este flujo (mismo criterio que FACETAS).
+
+const MULTI_PROMPT_MAX = 4;
+
+type MultiPromptCell = { x: number; y: number; w: number; h: number };
+type MultiPromptLayout = { id: string; cols: number; rows: number; cells: MultiPromptCell[] };
+
+const mpCell = (x: number, y: number, w = 1, h = 1): MultiPromptCell => ({ x, y, w, h });
+
+// Copia de MULTI_PROMPT_LAYOUTS en src/app/components/photo-booth/
+// multiPromptLayout.ts (de donde sale la vista previa del admin y la
+// pantalla de resultado) — mantener las dos iguales. Celdas en "unidades de
+// foto": una celda 2x2 sigue teniendo la forma de la foto.
+const MULTI_PROMPT_LAYOUTS: Record<number, MultiPromptLayout[]> = {
+  1: [{ id: "single", cols: 1, rows: 1, cells: [mpCell(0, 0)] }],
+  2: [
+    { id: "row", cols: 2, rows: 1, cells: [mpCell(0, 0), mpCell(1, 0)] },
+    { id: "column", cols: 1, rows: 2, cells: [mpCell(0, 0), mpCell(0, 1)] },
+  ],
+  3: [
+    { id: "row", cols: 3, rows: 1, cells: [mpCell(0, 0), mpCell(1, 0), mpCell(2, 0)] },
+    { id: "column", cols: 1, rows: 3, cells: [mpCell(0, 0), mpCell(0, 1), mpCell(0, 2)] },
+    { id: "big-left", cols: 3, rows: 2, cells: [mpCell(0, 0, 2, 2), mpCell(2, 0), mpCell(2, 1)] },
+    { id: "big-top", cols: 2, rows: 3, cells: [mpCell(0, 0, 2, 2), mpCell(0, 2), mpCell(1, 2)] },
+  ],
+  4: [
+    { id: "grid", cols: 2, rows: 2, cells: [mpCell(0, 0), mpCell(1, 0), mpCell(0, 1), mpCell(1, 1)] },
+    { id: "row", cols: 4, rows: 1, cells: [mpCell(0, 0), mpCell(1, 0), mpCell(2, 0), mpCell(3, 0)] },
+    { id: "column", cols: 1, rows: 4, cells: [mpCell(0, 0), mpCell(0, 1), mpCell(0, 2), mpCell(0, 3)] },
+    { id: "big-left", cols: 4, rows: 3, cells: [mpCell(0, 0, 3, 3), mpCell(3, 0), mpCell(3, 1), mpCell(3, 2)] },
+    { id: "big-top", cols: 3, rows: 4, cells: [mpCell(0, 0, 3, 3), mpCell(0, 3), mpCell(1, 3), mpCell(2, 3)] },
+  ],
+};
+
+function resolveMultiPromptLayout(count: number, id?: unknown): MultiPromptLayout {
+  const options = MULTI_PROMPT_LAYOUTS[Math.max(1, Math.min(MULTI_PROMPT_MAX, count))];
+  return options.find((l) => l.id === id) ?? options[0];
+}
+
+/** Lado mayor del lienzo del collage: una celda grande (3x3) se arma
+ * agrandando una foto de ~1K, así que más que esto solo suma peso. */
+const MULTI_PROMPT_CANVAS_MAX = 3072;
+
+/**
+ * Arma el collage con sharp. `gapPct` = separación entre fotos y margen
+ * exterior, en % del ancho de una foto (misma cuenta que layoutGeometry en
+ * el frontend, para que la vista previa del admin coincida).
+ */
+async function composeMultiPromptCollage(opts: {
+  images: Buffer[];
+  layout: MultiPromptLayout;
+  tileW: number;
+  tileH: number;
+  gapPct: number;
+  bgColor: string;
+  overlay?: Buffer | null;
+}): Promise<Buffer> {
+  const { images, layout, gapPct, bgColor, overlay } = opts;
+  const ratio = opts.tileW / opts.tileH;
+  const g = Math.max(0, gapPct) / 100;
+  // Tamaño de una foto en px tal que el lado mayor del lienzo quede en
+  // MULTI_PROMPT_CANVAS_MAX (sin pasar de 1024 de ancho por foto).
+  const unitsW = 2 * g + layout.cols + (layout.cols - 1) * g;
+  const unitsH = 2 * g + (layout.rows + (layout.rows - 1) * g) / ratio;
+  const tileW = Math.min(1024, Math.floor(MULTI_PROMPT_CANVAS_MAX / Math.max(unitsW, unitsH)));
+  const tileH = Math.round(tileW / ratio);
+  const gap = Math.round(tileW * g);
+  const width = 2 * gap + layout.cols * tileW + (layout.cols - 1) * gap;
+  const height = 2 * gap + layout.rows * tileH + (layout.rows - 1) * gap;
+
+  const layers: sharp.OverlayOptions[] = await Promise.all(
+    layout.cells.slice(0, images.length).map(async (c, i) => {
+      const w = c.w * tileW + (c.w - 1) * gap;
+      const h = c.h * tileH + (c.h - 1) * gap;
+      const input = await sharp(images[i]).resize(w, h, { fit: "cover", position: "centre" }).toBuffer();
+      return { input, left: gap + c.x * (tileW + gap), top: gap + c.y * (tileH + gap) };
+    })
+  );
+
+  if (overlay) {
+    layers.push({ input: await sharp(overlay).resize(width, height, { fit: "fill" }).png().toBuffer(), left: 0, top: 0 });
+  }
+
+  return sharp({ create: { width, height, channels: 3, background: bgColor } })
+    .composite(layers)
+    .jpeg({ quality: 90, mozjpeg: true })
+    .toBuffer();
+}
+
+/**
+ * Una generación de Gemini con un prompt de marca, para el flujo
+ * multi-prompt. Arma las mismas partes que processImageTask (logo, objeto y
+ * fondo del prompt) pero sin sus ramas de FACETAS/BGVIDEO ni su manejo de
+ * errores sobre el doc: si no hay imagen, tira un Error y quien llama decide.
+ * Devuelve el PNG ya recortado a la relación de aspecto del evento.
+ */
+async function generateBrandedImage(opts: {
+  ai: GoogleGenAI;
+  brand: string;
+  color?: string;
+  palette?: string[];
+  texture?: string;
+  intensity?: number;
+  aspectRatio: "3:4" | "1:1";
+  input: { base64: string; mime: string };
+}): Promise<Buffer> {
+  const promptData = await buildPromptWithBrand({
+    brand: opts.brand,
+    color: opts.color,
+    palette: opts.palette,
+    texture: opts.texture,
+    intensity: opts.intensity,
+    aspectRatio: opts.aspectRatio,
+  });
+
+  const [logoData, objData, bgData] = await Promise.all([
+    promptData.logoPath ? downloadAndConvertLogo(promptData.logoPath) : Promise.resolve(null),
+    promptData.objectImage ? downloadAndConvertLogo(promptData.objectImage) : Promise.resolve(null),
+    promptData.promptBgImage ? downloadAndConvertLogo(promptData.promptBgImage) : Promise.resolve(null),
+  ]);
+
+  const parts: any[] = [
+    { text: promptData.prompt },
+    { inlineData: { mimeType: opts.input.mime, data: opts.input.base64 } },
+  ];
+  if (objData && promptData.objectImagePrompt) {
+    parts.unshift({ text: promptData.objectImagePrompt }, { inlineData: { mimeType: objData.mime, data: objData.base64 } });
+  }
+  if (logoData) {
+    parts.unshift(
+      { text: promptData.logoPrompt || DEFAULT_LOGO_PROMPT },
+      { inlineData: { mimeType: logoData.mime, data: logoData.base64 } }
+    );
+  }
+  if (bgData) {
+    parts.push(
+      {
+        text: "CRITICAL INSTRUCTION - BACKGROUND IMAGE: You MUST use the following image as the EXACT background for the generated portrait. This is NOT optional. The background image provided below must be preserved EXACTLY as shown - do not modify, reinterpret, or change it in any way. Place the person in front of this background, ensuring the background remains completely unchanged and clearly visible behind the subject. The background should fill the entire image space. Do not create a new background - use THIS specific image.",
+      },
+      { inlineData: { mimeType: bgData.mime, data: bgData.base64 } }
+    );
+  }
+
+  const response = await opts.ai.models.generateContent({
+    model: "gemini-3.1-flash-image",
+    contents: [{ role: "user", parts }],
+    // Ver los comentarios de la misma llamada en processImageTask.
+    config: {
+      responseModalities: [Modality.TEXT, Modality.IMAGE],
+      imageConfig: { aspectRatio: opts.aspectRatio },
+    } as any,
+  });
+
+  if (response.promptFeedback?.blockReason) {
+    throw new Error(`Blocked: ${response.promptFeedback.blockReason}`);
+  }
+  const candidate = response.candidates?.[0];
+  const data = candidate?.content?.parts?.find(
+    (p) => p.inlineData && p.inlineData.mimeType?.startsWith("image/")
+  )?.inlineData?.data;
+  if (!data) {
+    const text = candidate?.content?.parts?.filter((p) => p.text).map((p) => p.text).join(" ");
+    throw new Error(`Respuesta sin imagen generada${text ? `: ${text.substring(0, 200)}` : ""}`);
+  }
+
+  const dims = opts.aspectRatio === "3:4" ? { w: 3, h: 4 } : { w: 1, h: 1 };
+  return cropToAspectRatio(Buffer.from(data, "base64"), dims.w, dims.h);
+}
+
+/** Gemini a veces responde sin imagen (o con un error transitorio); con
+ * varias fotos por sesión, un reintento evita que el collage salga con un
+ * hueco por un tropiezo puntual. */
+const MULTI_PROMPT_ATTEMPTS = 2;
+
+async function processMultiPromptTask(opts: {
+  taskId: string;
+  data: {
+    inputPath?: string;
+    eventId?: string;
+    color?: string;
+    palette?: string[];
+    texture?: string;
+    intensity?: number;
+    aspectRatio?: string;
+  };
+  docRef: FirebaseFirestore.DocumentReference;
+  bucket: ReturnType<ReturnType<typeof getStorage>["bucket"]>;
+}): Promise<void> {
+  const { taskId, data, docRef, bucket } = opts;
+
+  try {
+    if (!data.inputPath) throw new Error("Falta inputPath");
+    if (!data.eventId) throw new Error("Falta eventId");
+
+    const eventSnap = await db.collection("events").doc(data.eventId).get();
+    const ev = eventSnap.data() ?? {};
+    const promptIds: string[] = (Array.isArray(ev.prompts) ? ev.prompts : [])
+      .filter((p: unknown): p is string => typeof p === "string" && !!p)
+      .slice(0, MULTI_PROMPT_MAX);
+    if (promptIds.length === 0) throw new Error("El evento no tiene prompts configurados");
+
+    const aspectRatio: "3:4" | "1:1" =
+      data.aspectRatio === "3:4" || data.aspectRatio === "1:1"
+        ? data.aspectRatio
+        : ev.photoAspectRatio === "3:4"
+        ? "3:4"
+        : "1:1";
+
+    // event.prompts guarda ids de photo_booth_prompts, pero buildPromptWithBrand
+    // busca por el campo `brand` (igual que resuelve el cliente en el flujo
+    // clásico, ver PhotoBoothWizard.confirmAndProcess).
+    const brands = await Promise.all(
+      promptIds.map(async (id) => {
+        try {
+          const snap = await db.collection("photo_booth_prompts").doc(id).get();
+          return (snap.data()?.brand as string | undefined) || id;
+        } catch {
+          return id;
+        }
+      })
+    );
+
+    await docRef.update({
+      status: "processing",
+      multiPromptIds: promptIds,
+      multiTotal: promptIds.length,
+      updatedAt: Date.now(),
+    });
+
+    const file = bucket.file(data.inputPath);
+    const [meta] = await file.getMetadata().catch(() => [{ contentType: "image/png" } as any]);
+    const [fileBuf] = await file.download();
+    const input = {
+      base64: fileBuf.toString("base64"),
+      mime: (meta?.contentType || "image/png").startsWith("image/") ? meta.contentType : "image/png",
+    };
+
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
+
+    // Cada foto se guarda y se anota en el doc apenas está (multiResults.<i>),
+    // así se ve el avance; el orden final lo da el índice, no quién termina
+    // primero.
+    const results = await Promise.all(
+      promptIds.map(async (promptId, i) => {
+        let lastError: any = null;
+        for (let attempt = 1; attempt <= MULTI_PROMPT_ATTEMPTS; attempt++) {
+          try {
+            const buf = await generateBrandedImage({
+              ai,
+              brand: brands[i],
+              color: data.color,
+              palette: data.palette,
+              texture: data.texture,
+              intensity: data.intensity,
+              aspectRatio,
+              input,
+            });
+            const path = `tasks/${taskId}/prompt_${i + 1}.png`;
+            const url = await saveWithDownloadToken(bucket, path, buf, "image/png");
+            await docRef.update({
+              [`multiResults.${i}`]: { status: "done", promptId, brand: brands[i], url, path },
+              updatedAt: Date.now(),
+            });
+            return { ok: true as const, buf, url, path };
+          } catch (e: any) {
+            lastError = e;
+            console.warn(`Multi-prompt ${i + 1}/${promptIds.length} (${brands[i]}) intento ${attempt} falló:`, e?.message);
+          }
+        }
+        await docRef.update({
+          [`multiResults.${i}`]: {
+            status: "error",
+            promptId,
+            brand: brands[i],
+            error: lastError?.message ?? "Error desconocido",
+          },
+          updatedAt: Date.now(),
+        });
+        return { ok: false as const };
+      })
+    );
+
+    const done = results.filter((r): r is { ok: true; buf: Buffer; url: string; path: string } => r.ok);
+    if (done.length === 0) throw new Error("No se pudo generar ninguna de las imágenes");
+
+    // Si alguna falló, el collage se arma con las que sí salieron (con la
+    // distribución elegida si existe para esa cantidad, si no la default).
+    const layout = resolveMultiPromptLayout(done.length, ev.multiPromptLayout);
+    let compositeUrl: string | null = null;
+    let compositePath: string | null = null;
+    try {
+      const overlayData = ev.multiPromptFrameImage
+        ? await axios
+            .get(ev.multiPromptFrameImage, { responseType: "arraybuffer", timeout: 20_000 })
+            .then((r) => Buffer.from(r.data as ArrayBuffer))
+            .catch((e) => {
+              console.warn("No se pudo bajar el marco del collage:", e?.message);
+              return null;
+            })
+        : null;
+      const gapPct = typeof ev.multiPromptGapPct === "number" ? ev.multiPromptGapPct : 3;
+      const bgColor =
+        typeof ev.multiPromptBgColor === "string" && /^#[0-9a-f]{3,8}$/i.test(ev.multiPromptBgColor)
+          ? ev.multiPromptBgColor
+          : "#ffffff";
+      const collage = await composeMultiPromptCollage({
+        images: done.map((r) => r.buf),
+        layout,
+        tileW: aspectRatio === "3:4" ? 3 : 1,
+        tileH: aspectRatio === "3:4" ? 4 : 1,
+        gapPct,
+        bgColor,
+        overlay: overlayData,
+      });
+      compositePath = `tasks/${taskId}/collage.jpg`;
+      compositeUrl = await saveWithDownloadToken(bucket, compositePath, collage, "image/jpeg");
+    } catch (e: any) {
+      // Sin collage el resultado igual se muestra; el QR cae a la primera foto.
+      console.error("Error armando el collage multi-prompt:", e);
+    }
+
+    await docRef.update({
+      status: "done",
+      url: done[0].url,
+      outputPath: done[0].path,
+      multiUrls: done.map((r) => r.url),
+      multiLayout: layout.id,
+      compositeUrl,
+      compositePath,
+      updatedAt: Date.now(),
+    });
+  } catch (e: any) {
+    console.error("processMultiPromptTask error:", e);
+    await docRef.update({
+      status: "error",
+      error: e?.message ?? "Error desconocido",
+      updatedAt: Date.now(),
+    });
+  }
+}
+
 export const processImageTask = onDocumentCreated(
   {
     document: "imageTasks/{taskId}",
@@ -727,8 +1074,16 @@ export const processImageTask = onDocumentCreated(
           // para tareas viejas o creadas por otro flujo que no mande este
           // campo.
           aspectRatio?: string;
+          /** "MULTI_PROMPT" = una imagen por prompt del evento + collage,
+           * ver processMultiPromptTask. Sin el campo, el flujo de siempre. */
+          flow?: string;
         }
       | undefined;
+
+    if (data?.flow === "MULTI_PROMPT") {
+      await processMultiPromptTask({ taskId, data, docRef, bucket });
+      return;
+    }
 
     let PROMPT = DEFAULT_PROMPT;
     let LOGO_PROMPT = DEFAULT_LOGO_PROMPT;

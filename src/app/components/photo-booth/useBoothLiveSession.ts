@@ -33,6 +33,7 @@ export type BoothPhase =
   | "customize"
   | "loading"
   | "reveal"
+  | "showcase"
   | "result";
 
 export type BoothLiveState = {
@@ -50,6 +51,8 @@ export type BoothLiveState = {
    * el líder — la pantalla espejo gira su carrusel a la misma. Opcional:
    * docs escritos antes de que existiera el campo no lo traen (=> 0). */
   facetIndex?: number;
+  // En el flujo multi-prompt (event.boothFlow="MULTI_PROMPT") el mismo campo
+  // lleva qué foto está al frente durante "showcase".
   /**
    * Si el salvapantallas está abierto en el líder. La pantalla espejo no
    * corre su propio reloj de inactividad — nadie la toca, así que su única

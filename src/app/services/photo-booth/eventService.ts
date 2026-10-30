@@ -13,10 +13,14 @@ import {
   getDoc,
   where,
 } from "firebase/firestore";
+import type { MultiPromptLayoutId } from "@/app/components/photo-booth/multiPromptLayout";
 
 /** Columnas x filas de la cuadrícula del modo facetas (generationType="FACETS").
  * Mismos valores que FACETS_GRIDS en functions/src/index.ts. */
 export type FacetsLayout = "2x1" | "3x1" | "2x2" | "3x2";
+
+/** Flujo del booth — ver `EventProfile.boothFlow`. */
+export type BoothFlow = "CLASSIC" | "MULTI_PROMPT";
 
 /**
  * Un logo posicionado libremente dentro del header configurable de la splash
@@ -454,6 +458,32 @@ export type EventProfile = {
    * siguiente). Opcional: sin este campo no se dibuja nada.
    */
   brandingFooterText?: string;
+  /**
+   * Flujo del booth. "CLASSIC" (o sin este campo) es el de siempre: se elige
+   * UNA marca/prompt, se genera una foto, se revela y se muestra con su QR.
+   * "MULTI_PROMPT": splash -> cámara -> pantalla de espera -> animación con
+   * una foto por cada prompt del evento (1 a 4, en el orden de `prompts`) ->
+   * resultado con las fotos por separado y UN solo QR, que baja un collage
+   * con todas armado por processImageTask según `multiPromptLayout`. En este
+   * flujo no hay selección de marca ni revelado, y se ignora `generationType`.
+   */
+  boothFlow?: BoothFlow;
+  /** Solo MULTI_PROMPT: distribución del collage (ver multiPromptLayout.ts).
+   * Sin valor, o si no existe para la cantidad de prompts, la default. */
+  multiPromptLayout?: MultiPromptLayoutId;
+  /** Solo MULTI_PROMPT: color de fondo del collage (lo que se ve en los
+   * márgenes y entre fotos). Sin valor, blanco. */
+  multiPromptBgColor?: string;
+  /** Solo MULTI_PROMPT: separación entre fotos y margen exterior del
+   * collage, en % del ancho de una foto (0 = fotos pegadas). Sin valor, 3. */
+  multiPromptGapPct?: number;
+  /** Solo MULTI_PROMPT: PNG opcional dibujado encima de TODO el collage
+   * (estirado al tamaño final) — para logos/marco del evento. Conviene
+   * diseñarlo con la misma proporción que muestra la vista previa del admin. */
+  multiPromptFrameImage?: string;
+  /** Solo MULTI_PROMPT: segundos que se ve cada foto en la animación previa
+   * al resultado. Sin valor, 2.5. */
+  multiPromptShowcaseSeconds?: number;
   prompts: string[];
   isActive: boolean;
   screenConfig?: {
@@ -593,7 +623,7 @@ export async function createEventProfile(
     // Image fields to process
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl", "screenSaverFolderLogo"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl", "screenSaverFolderLogo", "multiPromptFrameImage"];
 
     for (const field of imageFields) {
       const fileData = data[field];
@@ -721,6 +751,11 @@ export async function createEventProfile(
 
     if (data.facetsPrompt !== undefined) docData.facetsPrompt = data.facetsPrompt;
     if (data.facetsLayout !== undefined) docData.facetsLayout = data.facetsLayout;
+    if (data.boothFlow !== undefined) docData.boothFlow = data.boothFlow;
+    if (data.multiPromptLayout !== undefined) docData.multiPromptLayout = data.multiPromptLayout;
+    if (data.multiPromptBgColor !== undefined) docData.multiPromptBgColor = data.multiPromptBgColor;
+    if (data.multiPromptGapPct !== undefined) docData.multiPromptGapPct = data.multiPromptGapPct;
+    if (data.multiPromptShowcaseSeconds !== undefined) docData.multiPromptShowcaseSeconds = data.multiPromptShowcaseSeconds;
 
     if (data.brandingFooterText !== undefined) {
       docData.brandingFooterText = data.brandingFooterText;
@@ -881,6 +916,11 @@ export async function updateEventProfile(
     if (data.generationType !== undefined) docData.generationType = data.generationType;
     if (data.facetsPrompt !== undefined) docData.facetsPrompt = data.facetsPrompt;
     if (data.facetsLayout !== undefined) docData.facetsLayout = data.facetsLayout;
+    if (data.boothFlow !== undefined) docData.boothFlow = data.boothFlow;
+    if (data.multiPromptLayout !== undefined) docData.multiPromptLayout = data.multiPromptLayout;
+    if (data.multiPromptBgColor !== undefined) docData.multiPromptBgColor = data.multiPromptBgColor;
+    if (data.multiPromptGapPct !== undefined) docData.multiPromptGapPct = data.multiPromptGapPct;
+    if (data.multiPromptShowcaseSeconds !== undefined) docData.multiPromptShowcaseSeconds = data.multiPromptShowcaseSeconds;
     if (data.buttonClickEffect !== undefined) docData.buttonClickEffect = data.buttonClickEffect;
     if (data.handCursorEnabled !== undefined) docData.handCursorEnabled = data.handCursorEnabled;
     if (data.handRevealEnabled !== undefined) docData.handRevealEnabled = data.handRevealEnabled;
@@ -943,7 +983,7 @@ export async function updateEventProfile(
     // Process image fields
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl", "screenSaverFolderLogo"];
+    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl", "screenSaverFolderLogo", "multiPromptFrameImage"];
     for (const field of imageFields) {
       const fileData = data[field];
       if (fileData === undefined) continue;
