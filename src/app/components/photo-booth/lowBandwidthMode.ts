@@ -138,11 +138,13 @@ export function applyLowBandwidth(event: EventProfile, enabled: boolean): EventP
     handCursorEnabled: false,
     handRevealEnabled: false,
 
-    // Videos de fondo: cada loop es una descarga grande y sostenida. Ambas
-    // pantallas tienen fallback a imagen fija.
+    // Videos de fondo: cada loop es una descarga grande y sostenida. Todas
+    // estas pantallas tienen fallback a imagen fija. El de la pantalla de
+    // carga además competiría justo con la subida de la foto.
     screenSaverVideoUrl: undefined,
     splashUseVideo: false,
     splashVideoUrl: undefined,
+    loadingMediaUrl: undefined,
 
     // Costo de dispositivo, no de red — pero es lo que traba las tablets.
     backgroundAnimation: "NONE",

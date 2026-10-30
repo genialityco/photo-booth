@@ -91,7 +91,7 @@ export type EventProfile = {
   frameImage?: string;
   buttonImage?: string;
   loadingPageImage?: string;
-  /** GIF o WEBM opcional para la pantalla de carga; si está presente, tiene prioridad sobre loadingPageImage. */
+  /** Video (MP4/WEBM) o GIF opcional para la pantalla de carga; si está presente, tiene prioridad sobre loadingPageImage. */
   loadingMediaUrl?: string;
   splashImage?: string;
   loadingMessage?: string;

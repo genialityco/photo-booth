@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
+import { isVideoMediaSrc as isVideoSrc } from "@/app/components/photo-booth/loadingMedia";
 
-/** Detecta si un data:URL o URL http es un video (webm) en vez de una imagen (gif). */
-function isVideoSrc(src: string): boolean {
-  if (src.startsWith("data:")) return src.startsWith("data:video/");
-  return /\.webm(\?.*)?$/i.test(src);
-}
+// MP4 además de WEBM: Safari en iPad (las tablets del booth) no siempre
+// reproduce WEBM, y MP4 (H.264) anda en todos lados.
+const ACCEPTED_TYPES = ["image/gif", "video/webm", "video/mp4"];
 
 export default function LoadingMediaUploadField({
   label,
@@ -33,14 +32,12 @@ export default function LoadingMediaUploadField({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const isVideo = file.type === "video/webm";
-    const isGif = file.type === "image/gif";
-    if (!isVideo && !isGif) {
-      alert("Solo se aceptan archivos GIF o WEBM.");
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      alert("Solo se aceptan archivos GIF, MP4 o WEBM.");
       return;
     }
 
-    // Un WEBM corto y comprimido entra bien en este límite; un GIF típico también.
+    // Un video corto y comprimido entra bien en este límite; un GIF típico también.
     const maxSize = 25 * 1024 * 1024;
     if (file.size > maxSize) {
       alert("El archivo es demasiado grande. El tamaño máximo es 25MB.");
@@ -81,28 +78,40 @@ export default function LoadingMediaUploadField({
             ) : (
               <img src={preview} alt="Preview" className="max-h-48 mx-auto rounded" />
             )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClear();
-              }}
-              className="mt-2 w-full px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
-            >
-              Cambiar Archivo
-            </button>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRef.current?.click();
+                }}
+                className="flex-1 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+              >
+                Cambiar Archivo
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClear();
+                }}
+                className="flex-1 px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
+              >
+                Quitar
+              </button>
+            </div>
           </div>
         ) : (
           <div className="text-center py-6">
-            <p className="text-gray-600">Haz clic para seleccionar un GIF o WEBM</p>
-            <p className="text-xs text-gray-500 mt-1">GIF, WEBM (máx 25MB)</p>
+            <p className="text-gray-600">Haz clic para seleccionar un video o GIF</p>
+            <p className="text-xs text-gray-500 mt-1">MP4, WEBM o GIF (máx 25MB, se reproduce en loop)</p>
           </div>
         )}
       </div>
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/gif,video/webm"
+        accept={ACCEPTED_TYPES.join(",")}
         onChange={handleFileChange}
         className="hidden"
       />

@@ -30,6 +30,7 @@ import {
 } from "@/app/components/photo-booth/logoBarSizing";
 import ImageUploadField from "./ImageUploadField";
 import VideoUploadField from "./VideoUploadField";
+import LoadingMediaUploadField from "./LoadingMediaUploadField";
 import HeaderLogoEditor from "./HeaderLogoEditor";
 import SplashLayoutEditor from "./SplashLayoutEditor";
 
@@ -1216,6 +1217,16 @@ export default function EventForm({
             value={formData.loadingPageImage || ""}
             onChange={(value) => handleImageChange("loadingPageImage", value)}
           />
+
+          <LoadingMediaUploadField
+            label="Video / GIF de Pantalla de Carga (loop, opcional)"
+            value={formData.loadingMediaUrl || ""}
+            onChange={(value) => handleImageChange("loadingMediaUrl", value)}
+          />
+          <p className="text-xs text-gray-500 -mt-2">
+            Si se sube, tiene prioridad sobre la imagen de arriba y se reproduce en loop, sin sonido, a pantalla
+            completa. La imagen sigue sirviendo de respaldo mientras carga el video y en modo ahorro de datos.
+          </p>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

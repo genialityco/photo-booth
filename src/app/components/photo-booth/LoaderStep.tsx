@@ -6,6 +6,7 @@ import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
 import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
 import RocketLoader from "@/app/components/photo-booth/RocketLoader";
+import { isVideoMediaSrc } from "@/app/components/photo-booth/loadingMedia";
 import {
   LOADER_LOGO_HEIGHT,
   scaledLogoStyle,
@@ -115,6 +116,12 @@ export default function LoaderStep({
     ? style.bgLoading || style.bgLanding || "/Lenovo/app-avatars-01.png"
     : "/Lenovo/app-avatars-01.png";
 
+  // Video o GIF opcional: se dibuja encima de bgUrl, que queda de respaldo
+  // mientras el video carga (y si falla, o en modo ahorro de datos, que lo
+  // quita en applyLowBandwidth).
+  const loadingMediaUrl = event?.loadingMediaUrl || null;
+  const loadingMediaIsVideo = loadingMediaUrl ? isVideoMediaSrc(loadingMediaUrl) : false;
+
   // Título y subtítulo personalizables por evento (subtítulo con default
   // genérico, igual que el título, para que siempre se vea algo aunque el
   // evento no lo haya configurado todavía).
@@ -152,6 +159,26 @@ export default function LoaderStep({
     <div className="fixed inset-0 z-50 flex flex-col items-center text-white">
       {/* Fondo */}
       <div className="absolute inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: `url('${bgUrl}')` }} aria-hidden />
+      {loadingMediaUrl &&
+        (loadingMediaIsVideo ? (
+          <video
+            key={loadingMediaUrl}
+            src={loadingMediaUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 -z-10 w-full h-full object-cover"
+            aria-hidden
+          />
+        ) : (
+          <img
+            src={loadingMediaUrl}
+            alt=""
+            className="absolute inset-0 -z-10 w-full h-full object-cover"
+            aria-hidden
+          />
+        ))}
       {/* Velo para legibilidad */}
       <div className="absolute inset-0 bg-black/20" />
       {/* Animación de fondo del evento: este paso tapa la global de
