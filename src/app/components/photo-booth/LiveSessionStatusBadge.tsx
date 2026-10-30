@@ -13,6 +13,7 @@ const PHASE_LABELS: Partial<Record<BoothPhase, string>> = {
   customize: "Personalizando",
   loading: "Generando IA",
   reveal: "Revelando",
+  showcase: "Mostrando fotos",
   result: "Resultado",
 };
 

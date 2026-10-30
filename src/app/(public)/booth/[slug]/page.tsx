@@ -79,7 +79,12 @@ export default function EventBoothPage({
           // Guardar la única brand en sessionStorage
           sessionStorage.setItem("selectedBrand", eventData.prompts[0]);
         }
-        const skipLanding = singleBrand || eventData.captureBeforeFilter === true;
+        // El flujo multi-prompt genera con TODOS los prompts del evento: no
+        // hay marca que elegir.
+        const skipLanding =
+          singleBrand ||
+          eventData.captureBeforeFilter === true ||
+          eventData.boothFlow === "MULTI_PROMPT";
 
         setPhase(eventData.showSplashScreen ? "splash" : skipLanding ? "wizard" : "landing");
       } catch (err) {
@@ -185,7 +190,16 @@ export default function EventBoothPage({
   // "Volver a la selección" solo tiene sentido si hay una fase "landing" a la
   // que volver: no aplica con una sola brand, ni con captura primero (ahí la
   // selección de filtro vive dentro del wizard, no como fase de esta página).
-  const canReturnToLanding = !skipBrandSelection && shownEvent.captureBeforeFilter !== true;
+  const multiPromptFlow = shownEvent.boothFlow === "MULTI_PROMPT";
+  const canReturnToLanding =
+    !skipBrandSelection && shownEvent.captureBeforeFilter !== true && !multiPromptFlow;
+  // En multi-prompt el recorrido arranca en la splash: "Nueva foto" vuelve ahí
+  // (si está habilitada) en vez de directo a la cámara.
+  const handleWizardReset = canReturnToLanding
+    ? () => setPhase("landing")
+    : multiPromptFlow && shownEvent.showSplashScreen
+      ? () => setPhase("splash")
+      : undefined;
 
   return (
     <div className="antialiased h-full w-full relative overflow-hidden">
@@ -233,7 +247,10 @@ export default function EventBoothPage({
             <SplashScreen
               event={shownEvent}
               onStart={() => {
-                const skipLanding = skipBrandSelection || shownEvent.captureBeforeFilter === true;
+                const skipLanding =
+                  skipBrandSelection ||
+                  shownEvent.captureBeforeFilter === true ||
+                  shownEvent.boothFlow === "MULTI_PROMPT";
                 setPhase(skipLanding ? "wizard" : "landing");
               }}
             />
@@ -277,7 +294,7 @@ export default function EventBoothPage({
               mirror
               boxSize={boxSize}
               eventData={shownEvent}
-              onReset={canReturnToLanding ? () => setPhase("landing") : undefined}
+              onReset={handleWizardReset}
               onLiveState={trackedBroadcast}
               remoteRevealedTaskId={liveSession.role === "leader" ? liveSession.remoteRevealedTaskId : null}
             />

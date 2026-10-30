@@ -12,6 +12,9 @@ import RevealStep from "@/app/components/photo-booth/RevealStep";
 import RollerRevealStep from "@/app/components/photo-booth/reveal/RollerRevealStep";
 import { ROLLER_MODEL_PATH } from "@/app/components/photo-booth/reveal/RollerCursor";
 import ResultStep from "@/app/components/photo-booth/ResultStep";
+import MultiPromptShowcase from "@/app/components/photo-booth/MultiPromptShowcase";
+import MultiPromptResultStep from "@/app/components/photo-booth/MultiPromptResultStep";
+import { MULTI_PROMPT_MAX } from "@/app/components/photo-booth/multiPromptLayout";
 import { requestCutout } from "@/app/components/photo-booth/SpaceFloatCutout";
 import ImageCustomizeStep, { type ImageCustomization } from "@/app/components/photo-booth/ImageCustomizeStep";
 import { LOGO_BAR_VARIANTS, stepVariantsFor } from "@/app/components/photo-booth/stepTransitions";
@@ -97,7 +100,7 @@ export default function PhotoBoothWizard({
 }) {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<
-    "capture" | "preview" | "filter" | "customize" | "loading" | "reveal" | "result"
+    "capture" | "preview" | "filter" | "customize" | "loading" | "reveal" | "showcase" | "result"
   >("capture");
   const [framedShot, setFramedShot] = useState<string | null>(null);
   const [rawShot, setRawShot] = useState<string | null>(null);
@@ -108,6 +111,11 @@ export default function PhotoBoothWizard({
   // (es la que se revela).
   const [aiFacetUrls, setAiFacetUrls] = useState<string[] | null>(null);
   const [facetIndex, setFacetIndex] = useState(0);
+  // Flujo multi-prompt (event.boothFlow="MULTI_PROMPT"): una foto por prompt,
+  // en orden, y el collage que baja el QR. `facetIndex` se reusa para la foto
+  // al frente del "showcase" (así llega igual a la pantalla espejo).
+  const [multiUrls, setMultiUrls] = useState<string[] | null>(null);
+  const [compositeUrl, setCompositeUrl] = useState<string | null>(null);
   const [framedUrl, setFramedUrl] = useState<string | null>(null);
   const [mirrorPreviewUrl, setMirrorPreviewUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -150,6 +158,11 @@ export default function PhotoBoothWizard({
   // handRevealEnabled, etc. vienen resueltos. Lo único que queda por decidir
   // acá es cuánto comprimir lo que se sube — ver lowBandwidthMode.ts.
   const lowBandwidth = eventData?.lowBandwidthMode === true;
+
+  // Flujo multi-prompt: sin selección de marca ni revelado — después de la
+  // espera vienen la animación con todas las fotos ("showcase") y el
+  // resultado con un solo QR. Ver EventProfile.boothFlow.
+  const multiPrompt = eventData?.boothFlow === "MULTI_PROMPT";
 
   // revealEffect="KINECT_ROLLER" siempre, y revealEffect="HAND_WIPE" (default)
   // cuando hay pantalla espejo habilitada: el revelado ocurre en la pantalla
@@ -420,7 +433,9 @@ export default function PhotoBoothWizard({
   // para elegir, la selección de filtro se muestra recién después de
   // confirmar el preview (en vez de antes de la captura).
   const needsFilterStep =
-    eventData?.captureBeforeFilter === true && (eventData?.prompts?.length ?? 0) > 1;
+    !multiPrompt &&
+    eventData?.captureBeforeFilter === true &&
+    (eventData?.prompts?.length ?? 0) > 1;
   // Pantalla opcional "Dale tu toque" (paleta/textura/intensidad), habilitada
   // por evento. Se muestra después del filtro (si aplica) y justo antes de
   // generar, para que sus valores viajen en el mismo doc de imageTasks.
@@ -605,6 +620,21 @@ export default function PhotoBoothWizard({
             // arranca con el recorte listo. Con tope de tiempo: si la función
             // falla o tarda de más se sigue igual con la original — ResultStep
             // reusa esta misma promesa, por si el recorte llega después.
+            if (data.flow === "MULTI_PROMPT") {
+              const urls: string[] = Array.isArray(data.multiUrls)
+                ? data.multiUrls.filter((u: unknown): u is string => typeof u === "string")
+                : [data.url as string];
+              setAiUrl(data.url as string);
+              setMultiUrls(urls);
+              setCompositeUrl((data.compositeUrl as string | null) ?? null);
+              setFacetIndex(0);
+              setStep("showcase");
+              try {
+                await updateDoc(taskRef, { finishedAt: serverTimestamp() });
+              } catch {}
+              return;
+            }
+
             const facetUrls: string[] = Array.isArray(data.facets)
               ? data.facets.map((f: { url?: string }) => f?.url).filter((u: unknown): u is string => typeof u === "string")
               : [];
@@ -635,11 +665,15 @@ export default function PhotoBoothWizard({
       );
 
       // Usar el brand/color del estado si existen, si no del sessionStorage
-      const promptId =
-        brand ||
-        sessionStorage.getItem("selectedBrand") ||
-        eventData?.prompts?.[0] ||
-        null;
+      // En multi-prompt no hay elección: la Cloud Function genera con todos
+      // los prompts del evento; el primero queda como `brand` de referencia
+      // (loader de la pantalla espejo, admin).
+      const promptId = multiPrompt
+        ? eventData?.prompts?.[0] ?? null
+        : brand ||
+          sessionStorage.getItem("selectedBrand") ||
+          eventData?.prompts?.[0] ||
+          null;
       const finalColor =
         color || sessionStorage.getItem("selectedColor") || null;
 
@@ -710,6 +744,11 @@ export default function PhotoBoothWizard({
         // usa con prioridad sobre volver a leer event.photoAspectRatio (ver
         // processImageTask en functions/src/index.ts).
         aspectRatio: eventData?.photoAspectRatio === "3:4" ? "3:4" : "1:1",
+        // Multi-prompt: processImageTask genera una imagen por cada prompt
+        // del evento (en el orden de event.prompts) y arma el collage.
+        ...(multiPrompt
+          ? { flow: "MULTI_PROMPT", multiPromptIds: (eventData?.prompts ?? []).slice(0, MULTI_PROMPT_MAX) }
+          : {}),
         taskId: newTaskId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -754,6 +793,8 @@ export default function PhotoBoothWizard({
     setAiVideoUrl(null);
     setAiFacetUrls(null);
     setFacetIndex(0);
+    setMultiUrls(null);
+    setCompositeUrl(null);
     setFramedUrl(null);
     setMirrorPreviewUrl(null);
     setTaskId(null);
@@ -842,7 +883,7 @@ export default function PhotoBoothWizard({
     ? usableLogo(
         step === "loading"
           ? style.logoLoadingTop || style.logoLandingTop
-          : step === "result" || step === "reveal"
+          : step === "result" || step === "reveal" || step === "showcase"
             ? style.logoResultsTop || style.logoLandingTop
             : style.logoLandingTop
       )
@@ -852,7 +893,7 @@ export default function PhotoBoothWizard({
     ? usableLogo(
         step === "loading"
           ? style.logoLoadingBottom || style.logoLandingBottom
-          : step === "result" || step === "reveal"
+          : step === "result" || step === "reveal" || step === "showcase"
             ? style.logoResultsBottom || style.logoLandingBottom
             : style.logoLandingBottom
       )
@@ -863,7 +904,7 @@ export default function PhotoBoothWizard({
       ? style.bgCapture || style.bgLanding
       : step === "loading"
         ? style.bgLoading || style.bgLanding
-        : step === "result" || step === "reveal"
+        : step === "result" || step === "reveal" || step === "showcase"
           ? style.bgResults || style.bgLanding
           : style.bgLanding
     : "/Lenovo/app-avatars-01.png";
@@ -1180,7 +1221,50 @@ export default function PhotoBoothWizard({
               </motion.div>
             )}
 
-            {step === "result" && framedShot && aiUrl && (
+            {step === "showcase" && multiUrls && (
+              <motion.div
+                key="showcase"
+                className="absolute inset-0 flex items-center justify-center"
+                variants={stepVariantsFor("showcase", reduceMotion)}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+              >
+                <MultiPromptShowcase
+                  urls={multiUrls}
+                  index={facetIndex}
+                  onIndexChange={setFacetIndex}
+                  aspectRatio={eventData?.photoAspectRatio}
+                  secondsPerPhoto={eventData?.multiPromptShowcaseSeconds}
+                  onDone={() => setStep("result")}
+                />
+              </motion.div>
+            )}
+
+            {step === "result" && multiUrls && taskId && (
+              <motion.div
+                key="result-multi"
+                className="absolute inset-0 flex items-center justify-center"
+                variants={stepVariantsFor("result", reduceMotion)}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+              >
+                <MultiPromptResultStep
+                  taskId={taskId}
+                  urls={multiUrls}
+                  compositeUrl={compositeUrl}
+                  event={eventData}
+                  showQr={showQr}
+                  onShowQrChange={setShowQr}
+                  onAgain={resetAll}
+                  buttonImage={eventData?.buttonImage}
+                  buttonClickEffect={eventData?.buttonClickEffect}
+                />
+              </motion.div>
+            )}
+
+            {step === "result" && !multiUrls && framedShot && aiUrl && (
               <motion.div
                 key="result"
                 className="absolute inset-0 flex items-center justify-center"

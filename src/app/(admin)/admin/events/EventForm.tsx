@@ -10,6 +10,7 @@ import {
   FaRobot,
   FaChevronDown,
   FaCheckCircle,
+  FaProjectDiagram,
 } from "react-icons/fa";
 import type { IconType } from "react-icons";
 import {
@@ -32,6 +33,7 @@ import ImageUploadField from "./ImageUploadField";
 import VideoUploadField from "./VideoUploadField";
 import HeaderLogoEditor from "./HeaderLogoEditor";
 import SplashLayoutEditor from "./SplashLayoutEditor";
+import BoothFlowPanel from "./BoothFlowPanel";
 
 /** Los seis textos fijos de la animación editorial, en el orden en que se ven
  * en pantalla (fila de arriba y fila de abajo). Los placeholders son los
@@ -323,6 +325,12 @@ export default function EventForm({
     brandingFooterText: event?.brandingFooterText || "",
     prompts: event?.prompts || [],
     isActive: event?.isActive !== false,
+    boothFlow: event?.boothFlow || "CLASSIC",
+    multiPromptLayout: event?.multiPromptLayout,
+    multiPromptBgColor: event?.multiPromptBgColor,
+    multiPromptGapPct: event?.multiPromptGapPct,
+    multiPromptShowcaseSeconds: event?.multiPromptShowcaseSeconds,
+    multiPromptFrameImage: event?.multiPromptFrameImage || "",
   });
 
   const [selectedPromptIds, setSelectedPromptIds] = useState<string[]>(event?.prompts || []);
@@ -397,6 +405,11 @@ export default function EventForm({
     e.preventDefault();
     if (!formData.name?.trim() || !formData.slug?.trim()) {
       alert("Nombre y Slug son requeridos");
+      return;
+    }
+
+    if (formData.boothFlow === "MULTI_PROMPT" && selectedPromptIds.length === 0) {
+      alert('El flujo "Multi-prompt" necesita al menos un prompt (sección "Prompts (Marca IA)").');
       return;
     }
 
@@ -579,6 +592,18 @@ export default function EventForm({
               </div>
             </div>
           )}
+        </AccordionSection>
+
+        {/* Flujo del Photobooth: qué pantallas recorre el asistente */}
+        <AccordionSection title="Flujo del Photobooth" icon={FaProjectDiagram} defaultOpen>
+          <BoothFlowPanel
+            formData={formData}
+            setField={setField}
+            promptIds={selectedPromptIds}
+            onPromptIdsChange={setSelectedPromptIds}
+            availablePrompts={availablePrompts}
+            onFrameImageChange={(value) => handleImageChange("multiPromptFrameImage", value)}
+          />
         </AccordionSection>
 
         {/* Imágenes y Marca */}
@@ -1628,7 +1653,7 @@ export default function EventForm({
                       value={prompt.id}
                       disabled={selectedPromptIds.includes(prompt.id)}
                     >
-                      {prompt.brand} - {prompt.basePrompt}
+                      {prompt.brandName || prompt.brand || prompt.id}
                     </option>
                   ))}
                 </select>
@@ -1648,7 +1673,7 @@ export default function EventForm({
                           className="flex items-center justify-between bg-gray-50 p-3 rounded border border-gray-200"
                         >
                           <span className="text-gray-700">
-                            <strong>{prompt?.brand}:</strong> {prompt?.basePrompt}
+                            {prompt ? prompt.brandName || prompt.brand || prompt.id : promptId}
                           </span>
                           <button
                             type="button"
