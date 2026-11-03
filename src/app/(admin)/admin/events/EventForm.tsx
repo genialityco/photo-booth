@@ -1247,6 +1247,7 @@ export default function EventForm({
           <LoadingMediaUploadField
             label="Video / GIF de Pantalla de Carga (loop, opcional)"
             value={formData.loadingMediaUrl || ""}
+            eventSlug={formData.slug || event?.slug || "event"}
             onChange={(value) => handleImageChange("loadingMediaUrl", value)}
           />
           <p className="text-xs text-gray-500 -mt-2">
