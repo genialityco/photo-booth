@@ -846,6 +846,7 @@ export default function EventForm({
           <VideoUploadField
             label="Video de Fondo de la Splash (loop, opcional)"
             value={formData.splashVideoUrl || ""}
+            eventSlug={formData.slug || event?.slug || "event"}
             onChange={(value) => handleImageChange("splashVideoUrl", value)}
           />
 
@@ -1405,6 +1406,7 @@ export default function EventForm({
           <VideoUploadField
             label="Video de Pantalla de Inactividad / Salvapantallas (loop, opcional)"
             value={formData.screenSaverVideoUrl || ""}
+            eventSlug={formData.slug || event?.slug || "event"}
             onChange={(value) => handleImageChange("screenSaverVideoUrl", value)}
           />
           <p className="text-xs text-gray-500 -mt-2">

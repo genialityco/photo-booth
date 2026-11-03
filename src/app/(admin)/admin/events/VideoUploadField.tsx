@@ -1,18 +1,31 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
+import {
+  getStorage,
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  type UploadTask,
+} from "firebase/storage";
+import { app } from "@/firebaseConfig";
 
 export default function VideoUploadField({
   label,
   value,
   onChange,
+  eventSlug,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  eventSlug: string;
 }) {
   const [preview, setPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadTaskRef = useRef<UploadTask | null>(null);
 
   // Sincronizar preview con value prop
   useEffect(() => {
@@ -34,20 +47,55 @@ export default function VideoUploadField({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      setPreview(result);
-      onChange(result);
-    };
-    reader.onerror = () => {
-      alert("Error al leer el archivo. Intenta con otro video.");
-    };
-    reader.readAsDataURL(file);
+    uploadTaskRef.current?.cancel();
+    const extension = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
+    const safeSlug = eventSlug.trim().replace(/[^a-z0-9_-]/gi, "_") || "event";
+    const storageRef = ref(
+      getStorage(app),
+      `events/${safeSlug}/screenSaverVideo-${Date.now()}.${extension}`
+    );
+
+    setUploading(true);
+    setUploadError(null);
+    setPreview(URL.createObjectURL(file));
+
+    const uploadTask = uploadBytesResumable(storageRef, file, {
+      contentType: file.type || "video/mp4",
+    });
+    uploadTaskRef.current = uploadTask;
+    uploadTask.on(
+      "state_changed",
+      undefined,
+      (error) => {
+        console.error("Error uploading screensaver video:", error);
+        uploadTaskRef.current = null;
+        setUploading(false);
+        setUploadError("No se pudo subir el video. Intenta nuevamente.");
+        setPreview(null);
+      },
+      async () => {
+        try {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          uploadTaskRef.current = null;
+          onChange(url);
+          setUploading(false);
+        } catch (error) {
+          console.error("Error getting screensaver video URL:", error);
+          uploadTaskRef.current = null;
+          setUploading(false);
+          setUploadError("El video se subió, pero no se pudo obtener su URL.");
+          setPreview(null);
+        }
+      }
+    );
   };
 
   const handleClear = () => {
+    uploadTaskRef.current?.cancel();
+    uploadTaskRef.current = null;
+    setUploading(false);
     setPreview(null);
+    setUploadError(null);
     onChange("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -64,6 +112,9 @@ export default function VideoUploadField({
         {preview ? (
           <div className="relative inline-block w-full">
             <video src={preview} className="max-h-48 mx-auto rounded" muted loop autoPlay playsInline />
+            {uploading && (
+              <p className="mt-2 text-center text-sm text-blue-700">Subiendo video...</p>
+            )}
             <div className="mt-2 flex gap-2">
               <button
                 type="button"
@@ -86,6 +137,7 @@ export default function VideoUploadField({
                 Quitar Video
               </button>
             </div>
+            {uploadError && <p className="mt-2 text-sm text-red-600">{uploadError}</p>}
           </div>
         ) : (
           <div className="text-center py-6">
