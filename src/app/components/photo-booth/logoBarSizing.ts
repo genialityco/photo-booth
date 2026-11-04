@@ -98,8 +98,8 @@ export const TOP_BAR_LOGO_MAX_WIDTH = "42vw";
 /** Alto de los logos del header de CaptureStep. El `50%` es relativo a la
  * banda reservada arriba (CAPTURE_HEADER_RESERVE), por eso va acá como string
  * y no como rem fijo. */
-export const CAPTURE_LOGO_HEIGHT = "clamp(2.5rem, 50%, 4rem)";
-export const CAPTURE_LOGO_MAX_WIDTH = "35vw";
+export const CAPTURE_LOGO_HEIGHT = "clamp(3.5rem, 62%, 6.25rem)";
+export const CAPTURE_LOGO_MAX_WIDTH = "42vw";
 
 /** Alto de los logos de ImageCustomizeStep (los dos juntos arriba). */
 export const CUSTOMIZE_LOGO_HEIGHT = "clamp(3.4rem, 10vh, 5.5rem)";

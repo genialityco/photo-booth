@@ -33,7 +33,7 @@ type NavigatorWithLegacy = Navigator & {
  * "perdida" lejos de la cámara en dispositivos donde el cuadro no llega a
  * ocupar toda la altura disponible (ej. un iPad).
  */
-export const CAPTURE_HEADER_RESERVE = "7rem";
+export const CAPTURE_HEADER_RESERVE = "10rem";
 const CAPTURE_FOOTER_RESERVE = "9rem";
 const CAPTURE_AVAILABLE_HEIGHT = `calc(100dvh - ${CAPTURE_HEADER_RESERVE} - ${CAPTURE_FOOTER_RESERVE})`;
 

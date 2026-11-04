@@ -143,6 +143,7 @@ export default function ScreenSaverEditorialGrid({
   const cameraRef = useRef<HTMLDivElement | null>(null);
   const introRef = useRef<HTMLDivElement | null>(null);
   const outroRef = useRef<HTMLDivElement | null>(null);
+  const dimRef = useRef<HTMLDivElement | null>(null);
   const columnRefs = useRef<(HTMLDivElement | null)[]>([]);
   /** Alto de UNA copia de cada columna, en px. El desplazamiento se hace en
    * módulo de esa medida para que el loop no tenga costura (ver `measure`). */
@@ -216,7 +217,10 @@ export default function ScreenSaverEditorialGrid({
       window.removeEventListener("resize", measure);
       imgs.forEach((img) => img.removeEventListener("load", measure));
     };
-  }, [columns, runKey]);
+    // `active` entra porque el tablero se desmonta mientras no está al frente
+    // (ver el `return null` de abajo): al volver, las columnas y sus <img>
+    // son nodos nuevos y hay que medirlos y escucharlos de nuevo.
+  }, [columns, runKey, active]);
 
   // Coreografía. Un solo rAF maneja scroll, cámara y fundidos, todo en función
   // del tiempo transcurrido dentro del turno.
@@ -271,10 +275,17 @@ export default function ScreenSaverEditorialGrid({
           ? "none"
           : `translate3d(${shiftX}%, 0, 0) rotateX(${rotateX}deg) rotateY(${rotateY}deg) rotate(${rotateZ}deg) scale(${scale})`;
         cameraRef.current.style.opacity = String(0.15 + 0.85 * easeInOut(intro));
-        // "Reducir progresivamente la iluminación de las fotografías" antes
-        // del fundido: la luz baja un poco antes de que el negro tape.
-        cameraRef.current.style.filter = `brightness(${1 - 0.55 * outro})`;
       }
+      // "Reducir progresivamente la iluminación de las fotografías" antes del
+      // fundido: la luz baja un poco antes de que el negro tape. Va como capa
+      // negra semitransparente encima de la cámara y NO como
+      // `filter: brightness()` sobre ella: un filtro sobre un nodo con
+      // transformación 3D obliga al navegador a pintar todo el tablero (más
+      // ancho y alto que la pantalla, ampliado) en una textura intermedia,
+      // y en tablets con poca memoria de GPU esa textura no se puede crear y
+      // la pantalla queda en blanco. Para contenido opaco el resultado es el
+      // mismo: negro con alfa `a` == brightness(1 - a).
+      if (dimRef.current) dimRef.current.style.opacity = String(0.55 * outro);
       if (introRef.current) introRef.current.style.opacity = String(1 - easeInOut(intro));
       if (outroRef.current) outroRef.current.style.opacity = String(easeInOut(outro));
 
@@ -290,7 +301,17 @@ export default function ScreenSaverEditorialGrid({
     return () => cancelAnimationFrame(frame);
   }, [active, durationSec, columns, runKey, reduceMotion]);
 
-  if (columns.length === 0) return null;
+  // Fuera de turno el tablero NO queda montado. Antes seguía en el DOM (con
+  // opacidad 0 desde el rotador) con sus 72 <img> —36 fotos distintas, a
+  // resolución completa— decodificadas y en capas de GPU mientras la
+  // siguiente pantalla (la imagen fija del evento, con su copia difuminada de
+  // fondo) entraba encima. En tablets con poca memoria ese pico, justo en la
+  // transición, hacía que el navegador descartara las capas y se viera el
+  // fondo blanco de la página. Desmontarlo es invisible: al cambiar de turno
+  // la pantalla ya está en negro (fundido de salida, o el arranque de la
+  // pasada siguiente), y el pozo de fotos y `onPhotosChange` no dependen de
+  // esto — siguen vivos en el efecto de carga de arriba.
+  if (columns.length === 0 || !active) return null;
 
   // Sin textos configurados no se inventa nada: la esquina simplemente no se
   // dibuja. Un evento que no llenó estos campos ve el tablero limpio.
@@ -307,7 +328,10 @@ export default function ScreenSaverEditorialGrid({
           ref={cameraRef}
           className="absolute inset-0 flex justify-center will-change-transform"
           style={{
-            transformStyle: "preserve-3d",
+            // Sin `transform-style: preserve-3d`: la perspectiva del padre ya
+            // le da profundidad al giro de la cámara, y las columnas solo se
+            // mueven en Y (z = 0), así que mantenerlas en un contexto 3D no
+            // cambiaba nada visible y solo sumaba capas de GPU.
             // Valores del primer frame: sin esto se ve un fotograma con la
             // cuadrícula ya montada antes de que el rAF tome el control.
             transform: reduceMotion ? "none" : "scale(1.03) rotate(3.6deg)",
@@ -364,6 +388,15 @@ export default function ScreenSaverEditorialGrid({
           </div>
         </div>
       </div>
+
+      {/* Baja de luz previa al fundido a negro (ver `dimRef` en el rAF). Va
+          debajo de la viñeta y de los textos: oscurece solo las fotos. */}
+      <div
+        ref={dimRef}
+        className="absolute inset-0 pointer-events-none bg-black"
+        style={{ opacity: 0 }}
+        aria-hidden
+      />
 
       {/* Viñeta fija: cierra la composición y despega los textos del tablero. */}
       <div
