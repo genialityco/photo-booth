@@ -88,19 +88,31 @@ export default function ButtonPrimary({
   };
 
   // Con imageSrc: branding a medida por evento (imagen propia como fondo del
-  // botón) — comportamiento original, sin cambios.
+  // botón). La FORMA del botón la da la imagen (normalmente un PNG con
+  // transparencia: píldora, botón ilustrado, etc.), no la caja del <button>.
+  // Por eso nada de lo que se dibuja acá puede depender de esa caja:
+  // - La sombra va como `filter: drop-shadow` sobre la imagen, que sigue su
+  //   canal alfa. Antes era `box-shadow` sobre el <button> (un rectángulo sin
+  //   redondeo): alrededor de la imagen se veía un recuadro sombreado y, por
+  //   la sombra dura de 4px, una línea oscura debajo.
+  // - Se quitó el brillo superior (degradado blanco a `inset-0`): cubría la
+  //   caja entera, así que sobre las zonas transparentes del PNG se veía como
+  //   un recuadro blanco semitransparente.
   if (imageSrc) {
+    const imageShadow = disabled
+      ? "none"
+      : isPressedLook
+        ? "drop-shadow(0 1px 0 rgba(0,0,0,0.35)) drop-shadow(0 2px 4px rgba(0,0,0,0.35))"
+        : "drop-shadow(0 4px 0 rgba(0,0,0,0.35)) drop-shadow(0 8px 10px rgba(0,0,0,0.35))";
     return (
       <button
         {...commonProps}
         className={[
           "relative flex items-center justify-center select-none",
           "outline-none focus-visible:ring-2 focus-visible:ring-white/60",
-          "transition-all duration-100 ease-out",
-          pressed
-            ? "translate-y-[3px] shadow-[0_1px_0_0_rgba(0,0,0,0.35),0_2px_6px_-1px_rgba(0,0,0,0.4)]"
-            : "shadow-[0_4px_0_0_rgba(0,0,0,0.35),0_10px_20px_-6px_rgba(0,0,0,0.5)] hover:brightness-105",
-          "disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0",
+          "transition-transform duration-100 ease-out",
+          pressed ? "translate-y-[3px]" : "hover:brightness-105",
+          "disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0",
           className,
         ].join(" ")}
         style={{ width: widthStyle, height: heightStyle }}
@@ -108,13 +120,9 @@ export default function ButtonPrimary({
         <img
           src={imageSrc}
           alt={label}
-          className="absolute w-full h-full object-cover rounded-[14px]"
+          className="absolute w-full h-full object-cover rounded-[14px] transition-[filter] duration-100 ease-out"
+          style={{ filter: imageShadow }}
           draggable={false}
-        />
-        {/* Brillo superior: da sensación de superficie curva en vez de plana */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-[14px] bg-gradient-to-b from-white/35 via-white/0 to-black/10"
         />
         <span
           className={[
