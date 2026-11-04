@@ -45,6 +45,15 @@ export const LOGO_BAR_TOP_MAX_WIDTH = "min(70vw, 300px)";
  * leyendo como un par con el de arriba en vez de dominarlo. */
 export const LOGO_BAR_BOTTOM_MAX_WIDTH = "min(88vw, 420px)";
 
+/** Variante ~1.5x de las tres medidas de arriba para el paso de preview
+ * (REPETIR / CONFIRMAR). Ahí la pantalla solo tiene la foto y dos botones, así
+ * que sobra alto para darle más presencia a la marca; en el resto del wizard
+ * (resultado, revelado) se mantienen las medidas base. Mismo criterio de
+ * clamp vh/vw que LOGO_BAR_HEIGHT. */
+export const PREVIEW_LOGO_BAR_HEIGHT = "clamp(2.25rem, min(10.5vh, 21vw), 6.5rem)";
+export const PREVIEW_LOGO_BAR_TOP_MAX_WIDTH = "min(80vw, 450px)";
+export const PREVIEW_LOGO_BAR_BOTTOM_MAX_WIDTH = "min(92vw, 630px)";
+
 /** Rango permitido para la escala configurable por evento (`logoTopScalePct` /
  * `logoBottomScalePct`). Acotado para que un valor mal tipeado en el admin no
  * deje un logo invisible ni uno que tape toda la pantalla. */

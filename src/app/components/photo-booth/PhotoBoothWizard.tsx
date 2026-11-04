@@ -30,6 +30,9 @@ import {
   LOGO_BAR_HEIGHT,
   LOGO_BAR_PADDING,
   LOGO_BAR_TOP_MAX_WIDTH,
+  PREVIEW_LOGO_BAR_BOTTOM_MAX_WIDTH,
+  PREVIEW_LOGO_BAR_HEIGHT,
+  PREVIEW_LOGO_BAR_TOP_MAX_WIDTH,
   scaledLogoStyle,
 } from "@/app/components/photo-booth/logoBarSizing";
 import { useSearchParams } from "next/navigation";
@@ -1065,8 +1068,9 @@ export default function PhotoBoothWizard({
               alt="Logo"
               className="block w-auto object-contain select-none"
               style={scaledLogoStyle({
-                baseHeight: LOGO_BAR_HEIGHT,
-                baseMaxWidth: LOGO_BAR_TOP_MAX_WIDTH,
+                baseHeight: step === "preview" ? PREVIEW_LOGO_BAR_HEIGHT : LOGO_BAR_HEIGHT,
+                baseMaxWidth:
+                  step === "preview" ? PREVIEW_LOGO_BAR_TOP_MAX_WIDTH : LOGO_BAR_TOP_MAX_WIDTH,
                 scalePct: logoTopScalePct,
               })}
               draggable={false}
@@ -1318,8 +1322,9 @@ export default function PhotoBoothWizard({
                  salvapantallas al mantenerlo presionado — ver ScreenSaver. */
               className="block w-auto object-contain select-none pointer-events-auto"
               style={scaledLogoStyle({
-                baseHeight: LOGO_BAR_HEIGHT,
-                baseMaxWidth: LOGO_BAR_BOTTOM_MAX_WIDTH,
+                baseHeight: step === "preview" ? PREVIEW_LOGO_BAR_HEIGHT : LOGO_BAR_HEIGHT,
+                baseMaxWidth:
+                  step === "preview" ? PREVIEW_LOGO_BAR_BOTTOM_MAX_WIDTH : LOGO_BAR_BOTTOM_MAX_WIDTH,
                 scalePct: logoBottomScalePct,
               })}
               draggable={false}
