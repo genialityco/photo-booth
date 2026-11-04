@@ -431,8 +431,10 @@ export default function ResultStep({
           </div>
         </div>
 
-        {/* Botones: nueva foto / descargar */}
-        <div className="flex-shrink-0 w-full flex flex-row items-center justify-center gap-2 sm:gap-3 overflow-x-auto whitespace-nowrap">
+        {/* Botones: nueva foto / descargar. El padding es el aire para la
+            sombra de ButtonPrimary: `overflow-x-auto` fuerza overflow-y a
+            `auto` y sin él la fila la recortaba (ver PreviewStep). */}
+        <div className="flex-shrink-0 w-full flex flex-row items-center justify-center gap-2 sm:gap-3 overflow-x-auto whitespace-nowrap px-4 pt-1 pb-6">
           <ButtonPrimary
             onClick={onAgain}
             label="NUEVA FOTO"

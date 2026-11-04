@@ -86,7 +86,11 @@ export default function PreviewStep({
         </div>
 
         {!readOnly && (
-          <div className="flex flex-row gap-1 sm:gap-2 justify-center overflow-x-auto whitespace-nowrap flex-shrink-0 w-full px-2">
+          /* `overflow-x-auto` obliga por spec a que overflow-y también sea
+             `auto`, así que la fila recorta todo lo que se salga de su caja —
+             incluida la sombra de ButtonPrimary (~24px abajo, ~14px a los
+             costados). El padding le deja ese aire dentro de la fila. */
+          <div className="flex flex-row gap-1 sm:gap-2 justify-center overflow-x-auto whitespace-nowrap flex-shrink-0 w-full px-4 pt-1 pb-6">
             <ButtonPrimary
               onClick={onRetake}
               imageSrc={buttonImage}
