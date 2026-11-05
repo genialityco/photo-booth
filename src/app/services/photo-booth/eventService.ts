@@ -395,8 +395,19 @@ export type EventProfile = {
    * "FLOATING_ORBS" = esferas de colores flotando lentamente de fondo.
    * "TOP_STARS" = estrellas titilando (y alguna fugaz) solo en la parte
    * superior del fondo.
+   * "LOGO_RAIN" = los logos de `logoRainImages` cayendo como lluvia.
+   * "RUNWAY_LIGHTS" = reflectores de pasarela a los costados barriendo.
    */
-  backgroundAnimation?: "NONE" | "FLOATING_ORBS" | "TOP_STARS";
+  backgroundAnimation?: "NONE" | "FLOATING_ORBS" | "TOP_STARS" | "LOGO_RAIN" | "RUNWAY_LIGHTS";
+  /** Solo RUNWAY_LIGHTS: color (hex) de los haces de luz. Sin valor, blanco cálido. */
+  runwayLightsColor?: string;
+  /** Solo LOGO_RAIN: URLs de los logos que caen (PNG con transparencia
+   * idealmente). Sin logos, la animación no dibuja nada. */
+  logoRainImages?: string[];
+  /** Solo LOGO_RAIN: cuántos logos hay en pantalla a la vez. Sin valor, 24. */
+  logoRainCount?: number;
+  /** Solo LOGO_RAIN: tamaño base de cada logo en px. Sin valor, 80. */
+  logoRainSizePx?: number;
   /**
    * Efecto continuo sobre la imagen resultante (tablet y pantalla espejo).
    * "NONE" (o sin este campo, comportamiento original) = quieta.
@@ -580,6 +591,36 @@ async function resolveHeaderLogos(
 }
 
 /**
+ * Sube los logos de la "lluvia de logos" que todavía sean data: URLs y
+ * devuelve la lista con URLs hospedadas (las `http...` quedan igual). Cada
+ * subida lleva un nombre único: reusar `logoRain_0.png` haría que el CDN/
+ * navegador sirviera la versión vieja al reemplazar un logo.
+ */
+async function resolveLogoRainImages(
+  images: string[] | undefined,
+  eventSlug: string | undefined
+): Promise<string[] | undefined> {
+  if (!images) return undefined;
+  const stamp = Date.now();
+  const resolved: string[] = [];
+  for (let i = 0; i < images.length; i++) {
+    const img = images[i];
+    if (!img) continue;
+    if (img.startsWith("http")) {
+      resolved.push(img);
+      continue;
+    }
+    const normalized = img.startsWith("data:") ? img : `data:${img}`;
+    const blob = dataURLtoBlob(normalized);
+    const extension = (blob.type || "image/png").split("/")[1]?.replace("+", "_") || "png";
+    resolved.push(
+      await uploadImageViaAPI(normalized, `logoRain_${stamp}_${i}.${extension}`, eventSlug || "event")
+    );
+  }
+  return resolved;
+}
+
+/**
  * Create a new event profile
  */
 export async function createEventProfile(
@@ -715,6 +756,12 @@ export async function createEventProfile(
     if (data.splashWordsFont !== undefined) docData.splashWordsFont = data.splashWordsFont;
     if (data.splashTitleBold !== undefined) docData.splashTitleBold = data.splashTitleBold;
     if (data.splashSubtitleBold !== undefined) docData.splashSubtitleBold = data.splashSubtitleBold;
+    if (data.logoRainImages !== undefined) {
+      docData.logoRainImages = await resolveLogoRainImages(data.logoRainImages, data.slug);
+    }
+    if (data.logoRainCount !== undefined) docData.logoRainCount = data.logoRainCount;
+    if (data.logoRainSizePx !== undefined) docData.logoRainSizePx = data.logoRainSizePx;
+    if (data.runwayLightsColor !== undefined) docData.runwayLightsColor = data.runwayLightsColor;
 
     if (data.screenConfig !== undefined) {
       docData.screenConfig = data.screenConfig;
@@ -979,6 +1026,12 @@ export async function updateEventProfile(
     if (data.splashWordsFont !== undefined) docData.splashWordsFont = data.splashWordsFont;
     if (data.splashTitleBold !== undefined) docData.splashTitleBold = data.splashTitleBold;
     if (data.splashSubtitleBold !== undefined) docData.splashSubtitleBold = data.splashSubtitleBold;
+    if (data.logoRainImages !== undefined) {
+      docData.logoRainImages = await resolveLogoRainImages(data.logoRainImages, data.slug);
+    }
+    if (data.logoRainCount !== undefined) docData.logoRainCount = data.logoRainCount;
+    if (data.logoRainSizePx !== undefined) docData.logoRainSizePx = data.logoRainSizePx;
+    if (data.runwayLightsColor !== undefined) docData.runwayLightsColor = data.runwayLightsColor;
 
     // Process image fields
     // "imageFields": el mismo mecanismo genérico (por content-type) también

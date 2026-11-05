@@ -10,6 +10,21 @@ import {
 } from "@/app/services/photo-booth/eventService";
 import { runButtonClickEffect } from "@/app/components/common/click-effects";
 import MediaTapScreen from "@/app/components/common/MediaTapScreen";
+import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
+
+/** Animación de fondo del evento, montada dentro de la splash (ver uso). */
+function SplashBackgroundAnimation({ event }: { event: EventProfile }) {
+  return (
+    <BackgroundAnimation
+      type={event.backgroundAnimation}
+      logos={event.logoRainImages}
+      logoCount={event.logoRainCount}
+      logoSizePx={event.logoRainSizePx}
+      lightsColor={event.runwayLightsColor}
+      contained
+    />
+  );
+}
 
 // Exportados para que SplashLayoutEditor.tsx pueda aplicar las mismas
 // variables de fuente en el preview del admin — si no, el título/subtítulo/
@@ -695,6 +710,9 @@ export default function SplashScreen({
           </div>
         )}
 
+        {/* Ver el modo por defecto: el fondo de arriba tapa la animación global. */}
+        <SplashBackgroundAnimation event={event} />
+
         {/* Escenario acotado a la relación de aspecto de referencia del
             editor (SPLASH_STAGE_ASPECT_RATIO) y centrado horizontalmente —
             el fondo de arriba sigue ocupando el 100% de la pantalla (sin
@@ -943,6 +961,11 @@ export default function SplashScreen({
           />
         </div>
       )}
+
+      {/* La splash pinta su propio fondo opaco a pantalla completa, que tapa
+          la animación global de booth/[slug]: se vuelve a montar acá, justo
+          encima del fondo y debajo del contenido. */}
+      <SplashBackgroundAnimation event={event} />
 
       {/* Columna de contenido: grid con áreas nombradas (splash-grid en
           globals.css) en vez de un simple flex-col, para poder reacomodar

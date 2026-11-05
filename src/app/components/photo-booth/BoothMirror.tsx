@@ -433,7 +433,14 @@ function ResultView({
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')` }}
           />
-          <BackgroundAnimation type={event.backgroundAnimation} contained />
+          <BackgroundAnimation
+            type={event.backgroundAnimation}
+            logos={event.logoRainImages}
+            logoCount={event.logoRainCount}
+            logoSizePx={event.logoRainSizePx}
+            lightsColor={event.runwayLightsColor}
+            contained
+          />
         </div>
       )}
 

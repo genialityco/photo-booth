@@ -35,6 +35,12 @@ import LoadingMediaUploadField from "./LoadingMediaUploadField";
 import HeaderLogoEditor from "./HeaderLogoEditor";
 import SplashLayoutEditor from "./SplashLayoutEditor";
 import BoothFlowPanel from "./BoothFlowPanel";
+import MultiImageUploadField from "./MultiImageUploadField";
+import {
+  LOGO_RAIN_DEFAULT_COUNT,
+  LOGO_RAIN_DEFAULT_SIZE_PX,
+  RUNWAY_LIGHTS_DEFAULT_COLOR,
+} from "@/app/components/common/BackgroundAnimation";
 
 /** Los seis textos fijos de la animación editorial, en el orden en que se ven
  * en pantalla (fila de arriba y fila de abajo). Los placeholders son los
@@ -318,6 +324,10 @@ export default function EventForm({
     captureViewStyle: event?.captureViewStyle || "CLASSIC",
     imageCustomizationEnabled: event?.imageCustomizationEnabled === true,
     backgroundAnimation: event?.backgroundAnimation || "NONE",
+    logoRainImages: event?.logoRainImages || [],
+    logoRainCount: event?.logoRainCount,
+    logoRainSizePx: event?.logoRainSizePx,
+    runwayLightsColor: event?.runwayLightsColor || "",
     resultImageEffect: event?.resultImageEffect || "NONE",
     paintTimeSeconds: event?.paintTimeSeconds,
     mirrorScreenEnabled: event?.mirrorScreenEnabled !== false,
@@ -1620,13 +1630,97 @@ export default function EventForm({
           <SelectField
             label="Animación de Fondo"
             value={formData.backgroundAnimation || "NONE"}
-            onChange={(v) => setField("backgroundAnimation", v as "NONE" | "FLOATING_ORBS" | "TOP_STARS")}
-            helperText='Se muestra detrás de toda la app (selección de marca, cámara, resultado). "Esferas de colores" agrega formas difuminadas de colores derivando lentamente de fondo. "Estrellas arriba" dibuja estrellas titilando (y alguna fugaz) en la parte superior — ocupan los 2/3 superiores; luce mejor sobre fondos oscuros.'
+            onChange={(v) => setField("backgroundAnimation", v as EventProfile["backgroundAnimation"])}
+            helperText='Se muestra detrás de toda la app (selección de marca, cámara, resultado). "Esferas de colores" agrega formas difuminadas de colores derivando lentamente de fondo. "Estrellas arriba" dibuja estrellas titilando (y alguna fugaz) en la parte superior — ocupan los 2/3 superiores; luce mejor sobre fondos oscuros. "Lluvia de logos" hace caer los logos que subas abajo, girando.'
           >
             <option value="NONE">Sin animación (actual)</option>
             <option value="FLOATING_ORBS">Esferas de colores flotando</option>
             <option value="TOP_STARS">Estrellas en la parte superior</option>
+            <option value="LOGO_RAIN">Lluvia de logos</option>
+            <option value="RUNWAY_LIGHTS">Luces de pasarela a los costados</option>
           </SelectField>
+
+          {formData.backgroundAnimation === "RUNWAY_LIGHTS" && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <label
+                htmlFor="runwayLightsColor"
+                className="block text-xs sm:text-sm font-medium text-gray-700 mb-1"
+              >
+                Color de las luces
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  id="runwayLightsColor"
+                  value={formData.runwayLightsColor || RUNWAY_LIGHTS_DEFAULT_COLOR}
+                  onChange={(e) => setField("runwayLightsColor", e.target.value)}
+                  className="h-10 w-16 cursor-pointer rounded border border-gray-300"
+                />
+                <span className="text-sm text-gray-600 font-mono">
+                  {(formData.runwayLightsColor || RUNWAY_LIGHTS_DEFAULT_COLOR).toUpperCase()}
+                </span>
+                {formData.runwayLightsColor && (
+                  <button
+                    type="button"
+                    onClick={() => setField("runwayLightsColor", "")}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Volver al blanco cálido
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Reflectores que salen de los bordes izquierdo y derecho y barren hacia el centro, como en una pasarela. Se ven mucho mejor sobre fondos oscuros.
+              </p>
+            </div>
+          )}
+
+          {formData.backgroundAnimation === "LOGO_RAIN" && (
+            <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <MultiImageUploadField
+                label="Logos que caen"
+                value={formData.logoRainImages || []}
+                onChange={(v) => setField("logoRainImages", v)}
+                helperText="PNG con fondo transparente para que se vean recortados. Se reparten en orden entre las gotas de la lluvia. Sin logos, no se muestra nada."
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Cantidad de logos en pantalla
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={80}
+                    value={formData.logoRainCount ?? ""}
+                    onChange={(e) =>
+                      setField("logoRainCount", e.target.value === "" ? undefined : Number(e.target.value))
+                    }
+                    placeholder={`${LOGO_RAIN_DEFAULT_COUNT} (por defecto)`}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">1 a 80. Muchos logos grandes pueden trabar tablets lentas.</p>
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Tamaño de cada logo (px)
+                  </label>
+                  <input
+                    type="number"
+                    min={20}
+                    max={400}
+                    value={formData.logoRainSizePx ?? ""}
+                    onChange={(e) =>
+                      setField("logoRainSizePx", e.target.value === "" ? undefined : Number(e.target.value))
+                    }
+                    placeholder={`${LOGO_RAIN_DEFAULT_SIZE_PX} (por defecto)`}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Tamaño base; cada logo varía ±35% para dar profundidad.</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <SelectField
             label="Efecto de la Imagen Resultante"

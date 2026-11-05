@@ -208,6 +208,50 @@ body {
   animation-timing-function: ease-out;
   animation-iteration-count: infinite;
 }
+/* Animación de fondo "lluvia de logos" (BackgroundAnimation LOGO_RAIN).
+   Cada logo arranca justo arriba del borde superior y cae hasta salir por
+   abajo, girando y con una leve deriva lateral. Lineal, como lluvia. */
+@keyframes logoRainFall {
+  0% { transform: translate3d(0, 0, 0) rotate(var(--rain-rot0, 0deg)); }
+  100% {
+    transform: translate3d(var(--rain-sway, 0), calc(100vh + 100%), 0)
+      rotate(calc(var(--rain-rot0, 0deg) + var(--rain-spin, 180deg)));
+  }
+}
+.bg-logo-rain {
+  animation-name: logoRainFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-logo-rain { animation: none !important; }
+}
+/* Animación de fondo "luces de pasarela" (BackgroundAnimation RUNWAY_LIGHTS).
+   Cada haz gira sobre su reflector (borde lateral) entre --beam-from y
+   --beam-to, con un leve pulso de intensidad; el reflector titila suave. */
+@keyframes runwayBeamSweep {
+  0%, 100% { transform: rotate(var(--beam-from, 0deg)); opacity: 0.85; }
+  50% { transform: rotate(var(--beam-to, 20deg)); opacity: 1; }
+  70% { opacity: 0.7; }
+}
+.bg-runway-beam {
+  animation-name: runwayBeamSweep;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+@keyframes runwaySourcePulse {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+.bg-runway-source {
+  animation: runwaySourcePulse 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-runway-beam,
+  .bg-runway-source { animation: none !important; }
+}
 /* Efecto "flotar en el espacio" de la imagen resultante (resultImageEffect
    SPACE_FLOAT, ResultStep/BoothMirror). Deriva lenta en un lazo irregular
    con leve giro 3D, como sin gravedad. Duración larga y amplitud chica para

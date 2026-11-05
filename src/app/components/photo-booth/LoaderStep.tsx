@@ -183,7 +183,14 @@ export default function LoaderStep({
       <div className="absolute inset-0 bg-black/20" />
       {/* Animación de fondo del evento: este paso tapa la global de
           booth/[slug] con su propio fondo, así que la dibuja él mismo. */}
-      <BackgroundAnimation type={event?.backgroundAnimation} contained />
+      <BackgroundAnimation
+        type={event?.backgroundAnimation}
+        logos={event?.logoRainImages}
+        logoCount={event?.logoRainCount}
+        logoSizePx={event?.logoRainSizePx}
+        lightsColor={event?.runwayLightsColor}
+        contained
+      />
 
       {/* Logos: juntos arriba, lado a lado */}
       {(topLogo || bottomLogo) && (

@@ -968,6 +968,12 @@ export default function PhotoBoothWizard({
               logoRightScalePct={logoBottomScalePct}
               backgroundSrc={bgUrl}
               backgroundAnimation={eventData?.backgroundAnimation}
+              backgroundOptions={{
+                images: eventData?.logoRainImages,
+                count: eventData?.logoRainCount,
+                sizePx: eventData?.logoRainSizePx,
+                lightsColor: eventData?.runwayLightsColor,
+              }}
               aspectRatio={eventData?.photoAspectRatio}
               captureQuality={captureQualityFor(lowBandwidth)}
             />

@@ -232,7 +232,13 @@ export default function EventBoothPage({
 
       {/* Animación de fondo opcional (ej. esferas de colores), configurable
           por evento — sin animación por defecto. */}
-      <BackgroundAnimation type={shownEvent.backgroundAnimation} />
+      <BackgroundAnimation
+        type={shownEvent.backgroundAnimation}
+        logos={shownEvent.logoRainImages}
+        logoCount={shownEvent.logoRainCount}
+        logoSizePx={shownEvent.logoRainSizePx}
+        lightsColor={shownEvent.runwayLightsColor}
+      />
 
       <AnimatePresence mode="wait" initial={false}>
         {phase === "splash" && (

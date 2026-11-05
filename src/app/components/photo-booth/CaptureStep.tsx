@@ -75,6 +75,7 @@ export default function CaptureStep({
   logoRightScalePct,
   backgroundSrc,
   backgroundAnimation,
+  backgroundOptions,
   aspectRatio,
   captureQuality = CAPTURE_NORMAL,
 }: {
@@ -96,6 +97,8 @@ export default function CaptureStep({
   backgroundSrc?: string;
   /** Animación de fondo del evento (se dibuja dentro de FrameCamera, que tapa la global de booth/[slug]). */
   backgroundAnimation?: BackgroundAnimationType;
+  /** Opciones de la animación de fondo: logos de LOGO_RAIN y color de RUNWAY_LIGHTS (ver BackgroundAnimation). */
+  backgroundOptions?: { images?: string[]; count?: number; sizePx?: number; lightsColor?: string };
   /** Relación de aspecto de la foto capturada. "SQUARE" (default) = comportamiento original. Solo aplica cuando no hay marco (el marco manda su propia forma). */
   aspectRatio?: PhotoAspectRatio;
   /** Tope de tamaño y calidad JPEG de la foto que se sube. Por defecto, el
@@ -306,6 +309,7 @@ export default function CaptureStep({
         mirror={effectiveMirror}
         backgroundSrc={backgroundSrc}
         backgroundAnimation={backgroundAnimation}
+        backgroundOptions={backgroundOptions}
         aspectRatio={aspectRatio}
         facingMode={facingMode}
         onReady={onReady}

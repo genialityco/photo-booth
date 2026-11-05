@@ -66,6 +66,7 @@ export default function FrameCamera({
   mirror = true,
   backgroundSrc,
   backgroundAnimation,
+  backgroundOptions,
   aspectRatio,
   facingMode = "user",
   onReady,
@@ -78,6 +79,8 @@ export default function FrameCamera({
   backgroundSrc?: string;
   /** Animación de fondo del evento, encima de `backgroundSrc` y detrás del cuadro de cámara. */
   backgroundAnimation?: BackgroundAnimationType;
+  /** Opciones de la animación de fondo: logos de LOGO_RAIN y color de RUNWAY_LIGHTS (ver BackgroundAnimation). */
+  backgroundOptions?: { images?: string[]; count?: number; sizePx?: number; lightsColor?: string };
   /** Relación de aspecto del cuadro de cámara/foto. "SQUARE" (default) = comportamiento original. */
   aspectRatio?: PhotoAspectRatio;
   /** Cámara a usar: "user" (frontal, default) o "environment" (trasera). Al
@@ -312,7 +315,14 @@ export default function FrameCamera({
           aria-hidden
         />
       )}
-      <BackgroundAnimation type={backgroundAnimation} contained />
+      <BackgroundAnimation
+        type={backgroundAnimation}
+        logos={backgroundOptions?.images}
+        logoCount={backgroundOptions?.count}
+        logoSizePx={backgroundOptions?.sizePx}
+        lightsColor={backgroundOptions?.lightsColor}
+        contained
+      />
 
       {/* Cuadro nítido: esto es exactamente lo que se captura (ver
           captureWithFrame/captureRawSquare, que recortan el cuadrado
