@@ -11,6 +11,7 @@ import {
 import { runButtonClickEffect } from "@/app/components/common/click-effects";
 import MediaTapScreen from "@/app/components/common/MediaTapScreen";
 import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
+import StitchLoaderBar from "@/app/components/photo-booth/StitchLoaderBar";
 
 /** Animación de fondo del evento, montada dentro de la splash (ver uso). */
 function SplashBackgroundAnimation({ event }: { event: EventProfile }) {
@@ -317,6 +318,9 @@ export default function SplashScreen({
 
   const loaderFrom = event.splashLoaderColorFrom || DEFAULT_LOADER_FROM;
   const loaderTo = event.splashLoaderColorTo || DEFAULT_LOADER_TO;
+  // Estilo de la barra decorativa: "PAINT" (pintura con gota, la original y
+  // default), "STITCH" (costura con aguja) o "NONE" (sin barra).
+  const loaderStyle = event.splashLoaderStyle || "PAINT";
 
   const buttonText = event.splashButtonText?.trim() || DEFAULT_BUTTON_TEXT;
   const buttonFrom = event.splashButtonColorFrom || DEFAULT_BUTTON_FROM;
@@ -344,6 +348,14 @@ export default function SplashScreen({
           : { gap: 12 }
       }
     >
+      {loaderStyle === "STITCH" ? (
+        <StitchLoaderBar
+          width="clamp(140px, 42vmin, 220px)"
+          height="clamp(7px, 1.6vmin, 10px)"
+          from={loaderFrom}
+          to={loaderTo}
+        />
+      ) : loaderStyle === "PAINT" ? (
       <div
         className="relative splash-loader-track"
         style={{
@@ -374,6 +386,7 @@ export default function SplashScreen({
           />
         </div>
       </div>
+      ) : null}
 
       <button
         type="button"
@@ -422,7 +435,15 @@ export default function SplashScreen({
   const freeLayoutOn = !isVideoMode && event.splashFreeLayoutEnabled === true;
 
   if (freeLayoutOn) {
-    const barNode = (
+    const barNode = loaderStyle === "NONE" ? null : loaderStyle === "STITCH" ? (
+      <StitchLoaderBar
+        className="splash-anim-loaderbar"
+        width={wide ? "52cqw" : "34.62cqw"}
+        height={wide ? "3.46cqw" : "2.31cqw"}
+        from={loaderFrom}
+        to={loaderTo}
+      />
+    ) : (
       <div
         className="splash-anim-loaderbar relative splash-loader-track"
         style={{
@@ -818,9 +839,11 @@ export default function SplashScreen({
           </div>
         ) : (
           <>
+            {barNode && (
             <FreePositioned event={event} kind="bar">
               {barNode}
             </FreePositioned>
+            )}
             <FreePositioned event={event} kind="button">
               {buttonNode}
             </FreePositioned>

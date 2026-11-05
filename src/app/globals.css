@@ -409,6 +409,14 @@ body {
 .splash-anim-bob { animation: splash-bob 4.2s ease-in-out infinite; }
 .splash-anim-sheen { animation: splash-sheen 3.6s ease-in-out infinite; }
 .splash-anim-drop { animation: splash-dropFall 1.6s ease-in infinite; }
+/* Aguja de la barra "costura" (StitchLoaderBar): baja a la tela y sube,
+   inclinada, como dando puntadas. */
+@keyframes splash-needleStitch {
+  0%, 100% { transform: translateY(-20%) rotate(18deg); }
+  45% { transform: translateY(35%) rotate(10deg); }
+  55% { transform: translateY(35%) rotate(10deg); }
+}
+.splash-anim-needle { animation: splash-needleStitch .55s ease-in-out infinite; }
 .splash-anim-button { animation: splash-buttonIn 6.5s cubic-bezier(.2,1.6,.4,1) infinite; }
 .splash-anim-blob1 { animation: splash-blobDrift 11s ease-in-out infinite; }
 .splash-anim-blob2 { animation: splash-blobDrift2 13s ease-in-out infinite; }
@@ -518,6 +526,7 @@ body {
   .splash-loader-track {
     width: clamp(100px, 24vh, 170px) !important;
     height: clamp(6px, 1.4vh, 9px) !important;
+    --stitch-h: clamp(6px, 1.4vh, 9px) !important;
   }
   .splash-button {
     font-size: clamp(0.85rem, 3.6vh, 1.2rem) !important;
@@ -559,6 +568,7 @@ body {
 .splash-wide .splash-loader-track {
   width: clamp(260px, 40vmin, 480px) !important;
   height: clamp(12px, 2.2vmin, 18px) !important;
+  --stitch-h: clamp(12px, 2.2vmin, 18px) !important;
 }
 .splash-wide .splash-button {
   font-size: clamp(1.6rem, 4vmin, 2.6rem) !important;
@@ -579,6 +589,7 @@ body {
   .splash-anim-bob,
   .splash-anim-sheen,
   .splash-anim-drop,
+  .splash-anim-needle,
   .splash-anim-button,
   .splash-anim-blob1,
   .splash-anim-blob2,

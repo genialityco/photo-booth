@@ -312,6 +312,7 @@ export default function EventForm({
     splashWord2Color: event?.splashWord2Color || "#F0369A",
     splashLoaderColorFrom: event?.splashLoaderColorFrom || "#F7A600",
     splashLoaderColorTo: event?.splashLoaderColorTo || "#E4032E",
+    splashLoaderStyle: event?.splashLoaderStyle || "PAINT",
     splashButtonText: event?.splashButtonText || "",
     splashButtonColorFrom: event?.splashButtonColorFrom || "#F2143C",
     splashButtonColorTo: event?.splashButtonColorTo || "#C40024",
@@ -1127,6 +1128,18 @@ export default function EventForm({
               ))}
             </SelectField>
 
+            <SelectField
+              label="Barra de carga (decorativa)"
+              value={formData.splashLoaderStyle || "PAINT"}
+              onChange={(v) => setField("splashLoaderStyle", v as EventProfile["splashLoaderStyle"])}
+              helperText='Barra animada sobre el botón de la splash. Es solo decorativa (no mide ninguna carga real). "Costura" es una aguja que va cosiendo puntadas con el degradado de abajo.'
+            >
+              <option value="PAINT">Pintura con gota (actual)</option>
+              <option value="STITCH">Costura con aguja</option>
+              <option value="NONE">Sin barra</option>
+            </SelectField>
+
+            {formData.splashLoaderStyle !== "NONE" && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Degradado de la barra de carga
@@ -1156,6 +1169,7 @@ export default function EventForm({
                 </div>
               </div>
             </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

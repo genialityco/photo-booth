@@ -350,6 +350,10 @@ export type EventProfile = {
   splashWord2Color?: string;
   splashLoaderColorFrom?: string;
   splashLoaderColorTo?: string;
+  /** Estilo de la barra decorativa de la splash: "PAINT" (o sin campo) =
+   * pintura con gota, la original; "STITCH" = costura con aguja; "NONE" = sin
+   * barra. Los colores salen de splashLoaderColorFrom/To en los dos estilos. */
+  splashLoaderStyle?: "PAINT" | "STITCH" | "NONE";
   splashButtonText?: string;
   splashButtonColorFrom?: string;
   splashButtonColorTo?: string;
@@ -758,6 +762,7 @@ export async function createEventProfile(
     if (data.splashWord2Color !== undefined) docData.splashWord2Color = data.splashWord2Color;
     if (data.splashLoaderColorFrom !== undefined) docData.splashLoaderColorFrom = data.splashLoaderColorFrom;
     if (data.splashLoaderColorTo !== undefined) docData.splashLoaderColorTo = data.splashLoaderColorTo;
+    if (data.splashLoaderStyle !== undefined) docData.splashLoaderStyle = data.splashLoaderStyle;
     if (data.splashButtonText !== undefined) docData.splashButtonText = data.splashButtonText;
     if (data.splashButtonColorFrom !== undefined) docData.splashButtonColorFrom = data.splashButtonColorFrom;
     if (data.splashButtonColorTo !== undefined) docData.splashButtonColorTo = data.splashButtonColorTo;
@@ -1034,6 +1039,7 @@ export async function updateEventProfile(
     if (data.splashWord2Color !== undefined) docData.splashWord2Color = data.splashWord2Color;
     if (data.splashLoaderColorFrom !== undefined) docData.splashLoaderColorFrom = data.splashLoaderColorFrom;
     if (data.splashLoaderColorTo !== undefined) docData.splashLoaderColorTo = data.splashLoaderColorTo;
+    if (data.splashLoaderStyle !== undefined) docData.splashLoaderStyle = data.splashLoaderStyle;
     if (data.splashButtonText !== undefined) docData.splashButtonText = data.splashButtonText;
     if (data.splashButtonColorFrom !== undefined) docData.splashButtonColorFrom = data.splashButtonColorFrom;
     if (data.splashButtonColorTo !== undefined) docData.splashButtonColorTo = data.splashButtonColorTo;
