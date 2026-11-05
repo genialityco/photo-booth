@@ -22,7 +22,7 @@ import {
   type SplashLayout,
 } from "@/app/services/photo-booth/eventService";
 import { getActivePhotoBoothPrompts, type PhotoBoothPrompt } from "@/app/services/photo-booth/brandService";
-import { BUTTON_CLICK_EFFECT_OPTIONS } from "@/app/components/common/click-effects";
+import { BUTTON_CLICK_EFFECT_OPTIONS, type ButtonClickEffectId } from "@/app/components/common/click-effects";
 import { SPLASH_FONT_OPTIONS, resolveSplashFont } from "@/app/components/photo-booth/SplashScreen";
 import {
   LOGO_SCALE_DEFAULT,
@@ -751,7 +751,7 @@ export default function EventForm({
           <SelectField
             label="Efecto al Tocar Botones"
             value={formData.buttonClickEffect || "NONE"}
-            onChange={(v) => setField("buttonClickEffect", v as "NONE" | "CONFETTI" | "PAINT_SPLASH")}
+            onChange={(v) => setField("buttonClickEffect", v as ButtonClickEffectId)}
             helperText="Animación que se dispara al tocar los botones (tomar foto, repetir, confirmar, etc.) en este evento."
           >
             {BUTTON_CLICK_EFFECT_OPTIONS.map((opt) => (

@@ -14,6 +14,7 @@ import {
   where,
 } from "firebase/firestore";
 import type { MultiPromptLayoutId } from "@/app/components/photo-booth/multiPromptLayout";
+import type { ButtonClickEffectId } from "@/app/components/common/click-effects/types";
 
 /** Columnas x filas de la cuadrícula del modo facetas (generationType="FACETS").
  * Mismos valores que FACETS_GRIDS en functions/src/index.ts. */
@@ -147,7 +148,7 @@ export type EventProfile = {
    * (= cantidad de facetas). Sin este campo, "2x2". */
   facetsLayout?: FacetsLayout;
   /** Animación al hacer click en los botones del wizard (ej. confeti). */
-  buttonClickEffect?: "NONE" | "CONFETTI" | "PAINT_SPLASH";
+  buttonClickEffect?: ButtonClickEffectId;
   /** Controlar la app con un cursor manejado por gestos de mano (pellizco = click). */
   handCursorEnabled?: boolean;
   /**
