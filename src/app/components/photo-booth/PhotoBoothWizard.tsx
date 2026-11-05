@@ -33,6 +33,7 @@ import {
   PREVIEW_LOGO_BAR_BOTTOM_MAX_WIDTH,
   PREVIEW_LOGO_BAR_HEIGHT,
   PREVIEW_LOGO_BAR_TOP_MAX_WIDTH,
+  bottomLogoScalePct,
   scaledLogoStyle,
 } from "@/app/components/photo-booth/logoBarSizing";
 import { useSearchParams } from "next/navigation";
@@ -877,10 +878,14 @@ export default function PhotoBoothWizard({
   // de sessionStorage("currentEvent") — de ahí el fallback, si no el tamaño
   // elegido se perdía en todas las pantallas de ese flujo.
   const cachedEventConfig = style as unknown as Partial<EventProfile> | null;
+  // Preview y resultado usan los logos grandes (~1.5x): en ambas pantallas
+  // solo están la foto y dos botones, así que sobra alto para la marca.
+  const bigLogoBars = step === "preview" || step === "result";
   const logoTopScalePct =
     eventData?.logoTopScalePct ?? cachedEventConfig?.logoTopScalePct;
-  const logoBottomScalePct =
-    eventData?.logoBottomScalePct ?? cachedEventConfig?.logoBottomScalePct;
+  const logoBottomScalePct = bottomLogoScalePct(
+    eventData?.logoBottomScalePct ?? cachedEventConfig?.logoBottomScalePct,
+  );
 
   const topLogoSrc = style
     ? usableLogo(
@@ -1074,9 +1079,9 @@ export default function PhotoBoothWizard({
               alt="Logo"
               className="block w-auto object-contain select-none"
               style={scaledLogoStyle({
-                baseHeight: step === "preview" ? PREVIEW_LOGO_BAR_HEIGHT : LOGO_BAR_HEIGHT,
+                baseHeight: bigLogoBars ? PREVIEW_LOGO_BAR_HEIGHT : LOGO_BAR_HEIGHT,
                 baseMaxWidth:
-                  step === "preview" ? PREVIEW_LOGO_BAR_TOP_MAX_WIDTH : LOGO_BAR_TOP_MAX_WIDTH,
+                  bigLogoBars ? PREVIEW_LOGO_BAR_TOP_MAX_WIDTH : LOGO_BAR_TOP_MAX_WIDTH,
                 scalePct: logoTopScalePct,
               })}
               draggable={false}
@@ -1086,7 +1091,7 @@ export default function PhotoBoothWizard({
       </AnimatePresence>
 
       {/* CONTENT: Contenedor del contenido (capture, preview, result) */}
-      <div className="relative z-20 flex-1 flex items-center justify-center overflow-hidden px-0 sm:px-4 w-full">
+      <div className={`relative z-20 flex-1 flex items-center justify-center overflow-hidden w-full ${step === "result" ? "px-0" : "px-0 sm:px-4"}`}>
         {/* w-full h-full (sin variante sm:auto): un hijo con altura en % (h-full,
             flex-1, etc. — como usan PreviewStep/ResultStep/ImageCustomizeStep
             para centrarse o hacer scroll interno) necesita que ESTE contenedor
@@ -1328,9 +1333,9 @@ export default function PhotoBoothWizard({
                  salvapantallas al mantenerlo presionado — ver ScreenSaver. */
               className="block w-auto object-contain select-none pointer-events-auto"
               style={scaledLogoStyle({
-                baseHeight: step === "preview" ? PREVIEW_LOGO_BAR_HEIGHT : LOGO_BAR_HEIGHT,
+                baseHeight: bigLogoBars ? PREVIEW_LOGO_BAR_HEIGHT : LOGO_BAR_HEIGHT,
                 baseMaxWidth:
-                  step === "preview" ? PREVIEW_LOGO_BAR_BOTTOM_MAX_WIDTH : LOGO_BAR_BOTTOM_MAX_WIDTH,
+                  bigLogoBars ? PREVIEW_LOGO_BAR_BOTTOM_MAX_WIDTH : LOGO_BAR_BOTTOM_MAX_WIDTH,
                 scalePct: logoBottomScalePct,
               })}
               draggable={false}

@@ -20,6 +20,7 @@ import LiveSessionStatusBadge from "@/app/components/photo-booth/LiveSessionStat
 import ScreenSaver from "@/app/components/common/ScreenSaver";
 import ScreenSaverEditorialGrid from "@/app/components/common/ScreenSaverEditorialGrid";
 import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
+import { bottomLogoScalePct } from "@/app/components/photo-booth/logoBarSizing";
 import SpaceFloatCutout, { useCutoutShown } from "@/app/components/photo-booth/SpaceFloatCutout";
 import FacetCarousel3D from "@/app/components/photo-booth/FacetCarousel3D";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
@@ -786,7 +787,7 @@ export default function BoothMirror({
               logoLeftSrc={event.logoTop}
               logoRightSrc={event.logoBottom}
               logoLeftScalePct={event.logoTopScalePct}
-              logoRightScalePct={event.logoBottomScalePct}
+              logoRightScalePct={bottomLogoScalePct(event.logoBottomScalePct)}
               aspectRatio={event.photoAspectRatio}
             />
           </MirrorStage>

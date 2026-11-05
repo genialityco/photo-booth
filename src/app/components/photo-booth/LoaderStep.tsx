@@ -9,6 +9,7 @@ import RocketLoader from "@/app/components/photo-booth/RocketLoader";
 import { isVideoMediaSrc } from "@/app/components/photo-booth/loadingMedia";
 import {
   LOADER_LOGO_HEIGHT,
+  bottomLogoScalePct,
   scaledLogoStyle,
   scaledWideLogoStyle,
 } from "@/app/components/photo-booth/logoBarSizing";
@@ -235,11 +236,11 @@ export default function LoaderStep({
               className={`select-none ${wide ? "object-fill" : "w-auto object-contain"}`}
               style={
                 wide
-                  ? scaledWideLogoStyle({ scalePct: event?.logoBottomScalePct })
+                  ? scaledWideLogoStyle({ scalePct: bottomLogoScalePct(event?.logoBottomScalePct) })
                   : scaledLogoStyle({
                       baseHeight: LOADER_LOGO_HEIGHT,
                       baseMaxWidth: "42vw",
-                      scalePct: event?.logoBottomScalePct,
+                      scalePct: bottomLogoScalePct(event?.logoBottomScalePct),
                       viewportMaxWidth: "46vw",
                     })
               }

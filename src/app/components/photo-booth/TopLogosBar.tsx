@@ -5,6 +5,7 @@ import React from "react";
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import {
   TOP_BAR_LOGO_HEIGHT,
+  bottomLogoScalePct,
   TOP_BAR_LOGO_MAX_WIDTH,
   scaledLogoStyle,
   scaledWideLogoStyle,
@@ -63,7 +64,7 @@ export default function TopLogosBar({
           src={event.logoBottom}
           alt=""
           className={logoClassName}
-          style={styleFor(event.logoBottomScalePct)}
+          style={styleFor(bottomLogoScalePct(event.logoBottomScalePct))}
           draggable={false}
         />
       )}

@@ -91,7 +91,7 @@ export function scaledLogoStyle({
   scalePct?: number;
   viewportMaxWidth?: string;
 }): CSSProperties {
-  const k = clampLogoScale(scalePct) / 100;
+  const k = clampRenderScale(scalePct) / 100;
   return {
     height: `calc(${baseHeight} * ${k})`,
     maxWidth: `min(${viewportMaxWidth}, calc(${baseMaxWidth} * ${k}))`,
@@ -129,9 +129,32 @@ export function scaledWideLogoStyle({
   baseWidth?: string;
   scalePct?: number;
 } = {}): CSSProperties {
-  const k = clampLogoScale(scalePct) / 100;
+  const k = clampRenderScale(scalePct) / 100;
   return {
     height: `calc(${baseHeight} * ${k})`,
     width: `calc(${baseWidth} * ${k})`,
   };
+}
+
+/** Aumento fijo del logo inferior (`logoBottom`) respecto del superior, en
+ * todas las pantallas que lo dibujan: suele ser una tira con varios logos de
+ * auspiciantes que, al mismo alto que el de arriba, quedaba chica. Se aplica
+ * ENCIMA de la escala del admin (`logoBottomScalePct`). */
+export const BOTTOM_LOGO_BOOST = 1.2;
+
+/** Escala efectiva del logo inferior: la del admin × BOTTOM_LOGO_BOOST. Usar
+ * esto (y no `event.logoBottomScalePct` directo) en cada lugar que dibuje el
+ * logo inferior. */
+export function bottomLogoScalePct(scalePct?: number | null): number {
+  return Math.round(clampLogoScale(scalePct) * BOTTOM_LOGO_BOOST);
+}
+
+/** Como clampLogoScale, pero con techo LOGO_SCALE_MAX × BOTTOM_LOGO_BOOST:
+ * las funciones de estilo reciben escalas ya aumentadas (logo inferior), y con
+ * el techo normal el aumento se perdía cuando el admin ponía el máximo. */
+function clampRenderScale(scalePct?: number | null): number {
+  if (typeof scalePct !== "number" || !Number.isFinite(scalePct)) {
+    return LOGO_SCALE_DEFAULT;
+  }
+  return Math.min(LOGO_SCALE_MAX * BOTTOM_LOGO_BOOST, Math.max(LOGO_SCALE_MIN, scalePct));
 }

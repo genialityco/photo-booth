@@ -250,6 +250,14 @@ export default function ResultStep({
     return () => window.removeEventListener("resize", updateQrSize);
   }, []);
 
+  // QR ampliado: ocupa casi toda la tarjeta de la foto (lo más grande que
+  // entra), descontando el padding del botón (p-4 = 16px por lado), el mate
+  // (4px por lado) y el renglón de la leyenda (~32px con su separación). Sin
+  // medidas todavía, cae al cálculo por viewport.
+  const expandedQrSize = cardDims
+    ? Math.max(160, Math.floor(Math.min(cardDims.width - 40, cardDims.height - 40 - 32)))
+    : qrSize;
+
   // === Descargar imagen o video ===
   const handleDownload = async () => {
     // Si hay video, descargarlo directamente
@@ -298,7 +306,7 @@ export default function ResultStep({
 
   return (
     <div
-      className="w-full h-full flex flex-col items-center justify-center px-3 sm:px-4 overflow-hidden"
+      className="w-full h-full flex flex-col items-center justify-center px-1 overflow-hidden"
     >
       {/* Sin scroll: la foto encoge (useFitAspectBox) para que foto + botones
           quepan siempre en el alto disponible, incluso con relaciones de
@@ -349,7 +357,7 @@ export default function ResultStep({
                 la foto en reposo se ve limpia. */}
             <div className={`relative z-10 w-full h-full ${floatCard ? "result-space-float" : ""}`}>
               <div
-                className={`relative w-full h-full p-1.5 sm:p-2 rounded-2xl transition-all duration-[1200ms] ${
+                className={`relative w-full h-full p-1 rounded-2xl transition-all duration-[1200ms] ${
                   showMat
                     ? "bg-gradient-to-br from-white/20 to-white/5 ring-1 ring-white/25 shadow-[0_10px_14px_-6px_rgba(0,0,0,0.45),0_35px_60px_-15px_rgba(0,0,0,0.6)]"
                     : ""
@@ -421,7 +429,7 @@ export default function ResultStep({
                   >
                     <QrTag
                       value={surveyAI}
-                      size={showQr ? qrSize : Math.max(48, Math.min(88, (cardDims?.width ?? 240) * 0.22))}
+                      size={showQr ? expandedQrSize : Math.max(64, Math.min(150, (cardDims?.width ?? 240) * 0.3))}
                       label={showQr ? "Escanea para descargar tu foto en tu celular" : undefined}
                     />
                   </button>
