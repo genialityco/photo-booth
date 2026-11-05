@@ -964,7 +964,6 @@ export default function PhotoBoothWizard({
               mirror={mirror}
               onCaptured={handleCaptured}
               frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
-              buttonImage={eventData?.buttonImage}
               buttonClickEffect={eventData?.buttonClickEffect}
               viewStyle={eventData?.captureViewStyle}
               logoLeftSrc={style ? style.logoCaptureTop || style.logoLandingTop : "/genilaty_smart_led_logo.png"}

@@ -5,18 +5,17 @@ import { runButtonClickEffect, type ButtonClickEffectId } from "@/app/components
 
 /**
  * Botón disparador tipo cámara real: anillo blanco + círculo interior, sin
- * texto. Si el evento tiene `buttonImage`, se usa como relleno del círculo
- * interior (toque de marca); si no, queda blanco puro (shutter clásico).
+ * texto, siempre blanco. No usa el `buttonImage` del evento: ese fondo está
+ * pensado para botones rectangulares con texto y recortado en el círculo
+ * se veía mal.
  */
 export default function ShutterButton({
   onClick,
-  imageSrc,
   disabled = false,
   clickEffect,
   ariaLabel = "Tomar foto",
 }: {
   onClick: () => void;
-  imageSrc?: string;
   disabled?: boolean;
   clickEffect?: ButtonClickEffectId;
   ariaLabel?: string;
@@ -54,8 +53,7 @@ export default function ShutterButton({
         }`}
       >
         <span
-          className="absolute inset-[6px] rounded-full bg-white bg-cover bg-center"
-          style={imageSrc ? { backgroundImage: `url('${imageSrc}')` } : undefined}
+          className="absolute inset-[6px] rounded-full bg-white"
         />
       </button>
     </div>

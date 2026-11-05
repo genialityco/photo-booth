@@ -66,7 +66,6 @@ export default function CaptureStep({
   frameSrc = null,
   mirror = true,
   onCaptured,
-  buttonImage,
   buttonClickEffect,
   viewStyle = "CLASSIC",
   logoLeftSrc,
@@ -81,7 +80,6 @@ export default function CaptureStep({
 }: {
   frameSrc?: string | null;
   mirror?: boolean;
-  buttonImage?: string;
   buttonClickEffect?: ButtonClickEffectId;
   /** Estilo visual de la vista de captura. "CLASSIC" (default) es el actual;
    * "VIEWFINDER" agrega la guía de encuadre tipo visor de cámara. */
@@ -436,7 +434,6 @@ export default function CaptureStep({
           <div className="flex justify-center items-center h-full">
             <ShutterButton
               onClick={() => startCapture()}
-              imageSrc={buttonImage}
               clickEffect={buttonClickEffect}
             />
           </div>
