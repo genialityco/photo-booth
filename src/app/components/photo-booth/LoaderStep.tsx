@@ -134,7 +134,12 @@ export default function LoaderStep({
   const loadingProgressTrackColor = event?.loadingProgressTrackColor || "rgba(0,0,0,0.15)";
   const loadingPercentColor = event?.loadingPercentColor || "#000000";
   // "RING" (default, el anillo de siempre) o "ROCKET" (cohete despegando).
+  // "CUSTOM" = GIF/imagen subido en el admin; sin archivo (o quitado por el
+  // modo ahorro de datos) cae al anillo.
   const loadingEffect = event?.loadingEffect || "RING";
+  const customIndicatorUrl = event?.loadingIndicatorUrl || null;
+  const customIndicatorScale =
+    Math.min(300, Math.max(30, event?.loadingIndicatorScalePct ?? 100)) / 100;
 
   // Controlar si mostrar logos basado en la configuración del evento
   // `style !== null` era la única señal de "ya cargó la config"; con
@@ -252,7 +257,50 @@ export default function LoaderStep({
 
       {/* Contenido central */}
       <div className="relative z-20 flex-1 min-h-0 w-full flex flex-col items-center justify-center gap-5 px-6">
-        {loadingEffect === "ROCKET" ? (
+        {loadingEffect === "CUSTOM" && customIndicatorUrl ? (
+          // GIF/imagen/video del evento en lugar del anillo, con el mismo
+          // tamaño base que el anillo × la escala del admin.
+          <>
+            <div
+              className="relative flex items-center justify-center"
+              style={{
+                width: `calc(${wide ? "clamp(220px, 32vmin, 380px)" : "clamp(125px, 16vmin, 185px)"} * ${customIndicatorScale})`,
+                height: `calc(${wide ? "clamp(220px, 32vmin, 380px)" : "clamp(125px, 16vmin, 185px)"} * ${customIndicatorScale})`,
+                maxWidth: "88vw",
+                maxHeight: "45vh",
+              }}
+            >
+              {isVideoMediaSrc(customIndicatorUrl) ? (
+                <video
+                  key={customIndicatorUrl}
+                  src={customIndicatorUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-contain"
+                  aria-hidden
+                />
+              ) : (
+                <img
+                  src={customIndicatorUrl}
+                  alt=""
+                  draggable={false}
+                  className="w-full h-full object-contain select-none"
+                  aria-hidden
+                />
+              )}
+            </div>
+            {event?.loadingIndicatorShowPercent !== false && (
+              <span
+                className="font-black drop-shadow-sm -mt-2"
+                style={{ fontSize: "clamp(1.7rem, 4.5vmin, 2.5rem)", color: loadingPercentColor }}
+              >
+                {progress}%
+              </span>
+            )}
+          </>
+        ) : loadingEffect === "ROCKET" ? (
           <RocketLoader
             progress={progress}
             progressCap={PROGRESS_CAP}

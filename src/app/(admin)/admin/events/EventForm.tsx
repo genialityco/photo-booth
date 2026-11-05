@@ -271,6 +271,9 @@ export default function EventForm({
     loadingPercentColor: event?.loadingPercentColor || "#000000",
     showLogosInLoader: event?.showLogosInLoader !== false,
     loadingEffect: event?.loadingEffect || "RING",
+    loadingIndicatorUrl: event?.loadingIndicatorUrl || "",
+    loadingIndicatorScalePct: event?.loadingIndicatorScalePct,
+    loadingIndicatorShowPercent: event?.loadingIndicatorShowPercent !== false,
     enableFrame: event?.enableFrame !== false,
     dataProcessingText: event?.dataProcessingText || "",
     generationType: event?.generationType || "IMAGE",
@@ -1241,12 +1244,62 @@ export default function EventForm({
           <SelectField
             label="Efecto de Carga"
             value={formData.loadingEffect || "RING"}
-            onChange={(v) => setField("loadingEffect", v as "RING" | "ROCKET")}
-            helperText='Animación que acompaña el progreso mientras se genera la imagen. "Cohete despegando" muestra un cohete que sube con el progreso, con fuego y humo; el color del porcentaje es el mismo configurado abajo.'
+            onChange={(v) => setField("loadingEffect", v as EventProfile["loadingEffect"])}
+            helperText='Animación que acompaña el progreso mientras se genera la imagen. "Cohete despegando" muestra un cohete que sube con el progreso, con fuego y humo. "GIF / imagen propia" reemplaza el anillo por el archivo que subas. El color del porcentaje es el mismo configurado abajo.'
           >
             <option value="RING">Anillo de progreso (actual)</option>
             <option value="ROCKET">Cohete despegando</option>
+            <option value="CUSTOM">GIF / imagen propia</option>
           </SelectField>
+
+          {formData.loadingEffect === "CUSTOM" && (
+            <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <LoadingMediaUploadField
+                label="GIF de carga (reemplaza el anillo)"
+                value={formData.loadingIndicatorUrl || ""}
+                eventSlug={formData.slug || event?.slug || "event"}
+                fileNamePrefix="loadingIndicator"
+                onChange={(value) => setField("loadingIndicatorUrl", value)}
+              />
+              <p className="text-xs text-gray-500 -mt-2">
+                Ideal un GIF o PNG/WEBP animado con fondo transparente, cuadrado. También acepta MP4/WEBM
+                (en modo ahorro de datos el video se omite y vuelve el anillo). Sin archivo se muestra el anillo.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Tamaño (% del anillo)
+                  </label>
+                  <input
+                    type="number"
+                    min={30}
+                    max={300}
+                    value={formData.loadingIndicatorScalePct ?? ""}
+                    onChange={(e) =>
+                      setField(
+                        "loadingIndicatorScalePct",
+                        e.target.value === "" ? undefined : Number(e.target.value)
+                      )
+                    }
+                    placeholder="100 (por defecto)"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">30 a 300. Nunca pasa del 45% del alto de la pantalla.</p>
+                </div>
+                <div className="flex items-start pt-6">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.loadingIndicatorShowPercent !== false}
+                      onChange={(e) => setField("loadingIndicatorShowPercent", e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    Mostrar el porcentaje debajo del GIF
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
 
           <ImageUploadField
             label="Imagen de Pantalla de Carga (Loading Page)"

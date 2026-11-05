@@ -13,18 +13,23 @@ import { app } from "@/firebaseConfig";
 
 // MP4 además de WEBM: Safari en iPad (las tablets del booth) no siempre
 // reproduce WEBM, y MP4 (H.264) anda en todos lados.
-const ACCEPTED_TYPES = ["image/gif", "video/webm", "video/mp4"];
+// PNG/WEBP (incluye APNG y WEBP animados) además de GIF: el indicador de
+// carga personalizado (loadingIndicatorUrl) también usa este campo.
+const ACCEPTED_TYPES = ["image/gif", "image/png", "image/webp", "video/webm", "video/mp4"];
 
 export default function LoadingMediaUploadField({
   label,
   value,
   onChange,
   eventSlug,
+  fileNamePrefix = "loadingMedia",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   eventSlug: string;
+  /** Prefijo del archivo en Storage (events/<slug>/<prefijo>-<timestamp>.<ext>). */
+  fileNamePrefix?: string;
 }) {
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -46,7 +51,7 @@ export default function LoadingMediaUploadField({
     if (!file) return;
 
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      alert("Solo se aceptan archivos GIF, MP4 o WEBM.");
+      alert("Solo se aceptan archivos GIF, PNG, WEBP, MP4 o WEBM.");
       return;
     }
 
@@ -62,7 +67,7 @@ export default function LoadingMediaUploadField({
     const safeSlug = eventSlug.trim().replace(/[^a-z0-9_-]/gi, "_") || "event";
     const storageRef = ref(
       getStorage(app),
-      `events/${safeSlug}/loadingMedia-${Date.now()}.${extension}`
+      `events/${safeSlug}/${fileNamePrefix}-${Date.now()}.${extension}`
     );
 
     setUploading(true);
@@ -156,7 +161,7 @@ export default function LoadingMediaUploadField({
         ) : (
           <div className="text-center py-6">
             <p className="text-gray-600">Haz clic para seleccionar un video o GIF</p>
-            <p className="text-xs text-gray-500 mt-1">MP4, WEBM o GIF (máx 25MB, se reproduce en loop)</p>
+            <p className="text-xs text-gray-500 mt-1">GIF, PNG, WEBP, MP4 o WEBM (máx 25MB; animados y videos en loop)</p>
           </div>
         )}
       </div>

@@ -116,9 +116,18 @@ export type EventProfile = {
   /**
    * Animación de progreso de la pantalla de carga. "RING" (o sin este campo,
    * comportamiento original) = anillo con porcentaje. "ROCKET" = cohete
-   * despegando con fuego (RocketLoader.tsx).
+   * despegando con fuego (RocketLoader.tsx). "CUSTOM" = el GIF/imagen/video
+   * subido en `loadingIndicatorUrl` en lugar del anillo (sin archivo, cae al
+   * anillo).
    */
-  loadingEffect?: "RING" | "ROCKET";
+  loadingEffect?: "RING" | "ROCKET" | "CUSTOM";
+  /** Solo loadingEffect CUSTOM: URL del GIF (o PNG/WEBP animado, MP4/WEBM)
+   * que reemplaza al anillo. Se sube directo a Storage desde el admin. */
+  loadingIndicatorUrl?: string;
+  /** Solo CUSTOM: tamaño en % del tamaño del anillo. Sin valor, 100. */
+  loadingIndicatorScalePct?: number;
+  /** Solo CUSTOM: mostrar el porcentaje debajo del GIF. Sin valor, true. */
+  loadingIndicatorShowPercent?: boolean;
   showLogosInLoader?: boolean;
   enableFrame?: boolean;
   dataProcessingText?: string;
@@ -762,6 +771,9 @@ export async function createEventProfile(
     if (data.logoRainCount !== undefined) docData.logoRainCount = data.logoRainCount;
     if (data.logoRainSizePx !== undefined) docData.logoRainSizePx = data.logoRainSizePx;
     if (data.runwayLightsColor !== undefined) docData.runwayLightsColor = data.runwayLightsColor;
+    if (data.loadingIndicatorUrl !== undefined) docData.loadingIndicatorUrl = data.loadingIndicatorUrl;
+    if (data.loadingIndicatorScalePct !== undefined) docData.loadingIndicatorScalePct = data.loadingIndicatorScalePct;
+    if (data.loadingIndicatorShowPercent !== undefined) docData.loadingIndicatorShowPercent = data.loadingIndicatorShowPercent;
 
     if (data.screenConfig !== undefined) {
       docData.screenConfig = data.screenConfig;
@@ -958,6 +970,9 @@ export async function updateEventProfile(
     if (data.loadingPercentColor !== undefined) docData.loadingPercentColor = data.loadingPercentColor;
     if (data.showLogosInLoader !== undefined) docData.showLogosInLoader = data.showLogosInLoader;
     if (data.loadingEffect !== undefined) docData.loadingEffect = data.loadingEffect;
+    if (data.loadingIndicatorUrl !== undefined) docData.loadingIndicatorUrl = data.loadingIndicatorUrl;
+    if (data.loadingIndicatorScalePct !== undefined) docData.loadingIndicatorScalePct = data.loadingIndicatorScalePct;
+    if (data.loadingIndicatorShowPercent !== undefined) docData.loadingIndicatorShowPercent = data.loadingIndicatorShowPercent;
     if (data.enableFrame !== undefined) docData.enableFrame = data.enableFrame;
     if (data.dataProcessingText !== undefined) docData.dataProcessingText = data.dataProcessingText;
     if (data.generationType !== undefined) docData.generationType = data.generationType;

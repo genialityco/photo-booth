@@ -71,7 +71,7 @@ function computeSteps(data: Partial<EventProfile>, promptCount: number): FlowSte
   };
   const loading: FlowStep = {
     title: "Pantalla de espera",
-    detail: `Mientras la IA genera (${data.loadingEffect === "ROCKET" ? "cohete" : "anillo de progreso"}).`,
+    detail: `Mientras la IA genera (${data.loadingEffect === "ROCKET" ? "cohete" : data.loadingEffect === "CUSTOM" && data.loadingIndicatorUrl ? "GIF propio" : "anillo de progreso"}).`,
     enabled: true,
     where: "Pantalla 2 · Carga (Loading)",
   };

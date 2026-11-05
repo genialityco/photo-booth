@@ -1,4 +1,5 @@
 import type { EventProfile } from "@/app/services/photo-booth/eventService";
+import { isVideoMediaSrc } from "@/app/components/photo-booth/loadingMedia";
 
 /**
  * "Modo ahorro de datos": una sola perilla para eventos con wifi malo.
@@ -145,6 +146,12 @@ export function applyLowBandwidth(event: EventProfile, enabled: boolean): EventP
     splashUseVideo: false,
     splashVideoUrl: undefined,
     loadingMediaUrl: undefined,
+    // Indicador de carga personalizado: si es video se quita (vuelve el
+    // anillo); un GIF/PNG se deja, suele ser liviano y es parte de la marca.
+    loadingIndicatorUrl:
+      event.loadingIndicatorUrl && isVideoMediaSrc(event.loadingIndicatorUrl)
+        ? undefined
+        : event.loadingIndicatorUrl,
 
     // Costo de dispositivo, no de red — pero es lo que traba las tablets.
     backgroundAnimation: "NONE",
