@@ -284,6 +284,40 @@ body {
   .multi-prompt-pop { animation: none !important; }
 }
 
+/* Efecto "desde el centro" del resultado multi-prompt (CENTER_OUT): cada
+   celda aparece en el centro del collage, agrandada, se queda un momento y
+   viaja a su lugar. centerOutCellStyle (MultiPromptCollage.tsx) pone
+   --mp-dx/--mp-dy (traslado al centro, en % de la celda), --mp-s (escala en
+   el centro), --mp-dur y el animation-delay escalonado. */
+@keyframes multiPromptCenterOut {
+  0% {
+    opacity: 0;
+    transform: translate(var(--mp-dx), var(--mp-dy)) scale(calc(var(--mp-s) * 0.6));
+    animation-timing-function: cubic-bezier(.22, 1, .36, 1);
+  }
+  22% {
+    opacity: 1;
+    transform: translate(var(--mp-dx), var(--mp-dy)) scale(var(--mp-s));
+    animation-timing-function: linear;
+  }
+  50% {
+    opacity: 1;
+    transform: translate(var(--mp-dx), var(--mp-dy)) scale(var(--mp-s));
+    animation-timing-function: cubic-bezier(.65, 0, .25, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+.multi-prompt-center-out {
+  animation: multiPromptCenterOut var(--mp-dur, 1700ms) both;
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .multi-prompt-center-out { animation: none !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bg-star-twinkle { animation: none !important; opacity: var(--star-max, 1); }
   .bg-shooting-star { display: none; }

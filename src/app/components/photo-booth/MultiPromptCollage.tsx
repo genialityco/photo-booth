@@ -2,7 +2,40 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { layoutGeometry, type MultiPromptLayout } from "@/app/components/photo-booth/multiPromptLayout";
+import {
+  CENTER_OUT_DURATION_MS,
+  CENTER_OUT_STAGGER_MS,
+  layoutGeometry,
+  type MultiPromptLayout,
+} from "@/app/components/photo-booth/multiPromptLayout";
+
+/** Posición y tamaño de una celda, en proporciones (0..1) del collage. */
+export type CollageCellGeometry = { left: number; top: number; width: number; height: number };
+
+/** Clase CSS del efecto "desde el centro" (globals.css); va junto con
+ * `centerOutCellStyle` en cada celda. */
+export const CENTER_OUT_CELL_CLASS = "multi-prompt-center-out";
+
+/**
+ * Estilo de cada celda para el efecto "desde el centro" (CENTER_OUT): la
+ * animación `multiPromptCenterOut` la arranca trasladada al centro del collage
+ * y agrandada (hasta ~80% del collage), y la deja en su lugar. Las variables
+ * van en % del tamaño de la propia celda, que es lo que usa `translate()`.
+ * Las celdas posteriores quedan encima en el DOM, así la que viaja pasa por
+ * encima de las que ya llegaron.
+ */
+export function centerOutCellStyle(index: number, c: CollageCellGeometry): React.CSSProperties {
+  const dx = ((0.5 - (c.left + c.width / 2)) / c.width) * 100;
+  const dy = ((0.5 - (c.top + c.height / 2)) / c.height) * 100;
+  const scale = Math.max(1, Math.min(0.8 / c.width, 0.8 / c.height));
+  return {
+    "--mp-dx": `${dx}%`,
+    "--mp-dy": `${dy}%`,
+    "--mp-s": String(scale),
+    "--mp-dur": `${CENTER_OUT_DURATION_MS}ms`,
+    animationDelay: `${index * CENTER_OUT_STAGGER_MS}ms`,
+  } as React.CSSProperties;
+}
 
 /**
  * Dibuja una distribución del flujo multi-prompt con CSS, en proporciones —
@@ -24,6 +57,7 @@ export default function MultiPromptCollage({
   renderCell,
   className = "",
   cellClassName = "",
+  cellStyle,
 }: {
   layout: MultiPromptLayout;
   /** Ancho/alto de una foto (relación de aspecto del evento). */
@@ -38,6 +72,8 @@ export default function MultiPromptCollage({
   renderCell: (index: number) => React.ReactNode;
   className?: string;
   cellClassName?: string;
+  /** Estilo extra por celda (ej. `centerOutCellStyle` para animar la entrada). */
+  cellStyle?: (index: number, cell: CollageCellGeometry) => React.CSSProperties;
 }) {
   const geometry = useMemo(() => layoutGeometry(layout, tileRatio, gapPct), [layout, tileRatio, gapPct]);
   const cells = geometry.cells.slice(0, count ?? geometry.cells.length);
@@ -56,6 +92,7 @@ export default function MultiPromptCollage({
             top: `${c.top * 100}%`,
             width: `${c.width * 100}%`,
             height: `${c.height * 100}%`,
+            ...cellStyle?.(i, c),
           }}
         >
           {renderCell(i)}

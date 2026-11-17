@@ -33,6 +33,65 @@ export const MULTI_PROMPT_BG_DEFAULT = "#ffffff";
 /** Segundos que se ve cada foto en la animación previa al resultado. */
 export const MULTI_PROMPT_SHOWCASE_SECONDS_DEFAULT = 2.5;
 
+/**
+ * Cómo entran las fotos a la pantalla de resultado (tablet y pantalla espejo).
+ * Solo es la animación en pantalla: no cambia el collage que baja el QR.
+ * - "POP": aparecen casi a la vez, cada una en su lugar (la de siempre).
+ * - "CENTER_OUT": una por una, cada foto aparece grande en el centro y viaja
+ *   hacia afuera a su celda; al terminar la última queda armada la cuadrícula.
+ */
+export type MultiPromptResultEffect = "POP" | "CENTER_OUT";
+export const MULTI_PROMPT_RESULT_EFFECT_DEFAULT: MultiPromptResultEffect = "POP";
+export const MULTI_PROMPT_RESULT_EFFECTS: { id: MultiPromptResultEffect; label: string; description: string }[] = [
+  {
+    id: "POP",
+    label: "Aparecen juntas",
+    description: "Todas las fotos aparecen casi a la vez, cada una en su lugar.",
+  },
+  {
+    id: "CENTER_OUT",
+    label: "Desde el centro, una por una",
+    description: "Cada foto aparece grande en el centro y viaja a su lugar; al final queda armada la cuadrícula.",
+  },
+];
+/**
+ * CENTER_OUT con UNA sola foto (un solo prompt que ya devuelve una imagen con
+ * varios paneles, ej. 4 facetas en 2x2): en pantalla esa imagen se divide en
+ * columnas x filas (por las mitades, tercios…) y cada pieza hace el viaje del
+ * centro a su lugar por separado (GridAssembleImage). "NONE" = no dividir.
+ * Solo visual: el collage/QR sigue siendo la imagen entera.
+ */
+export type MultiPromptSplitGrid = "NONE" | "2x2" | "2x1" | "1x2" | "3x1" | "3x2";
+export const MULTI_PROMPT_SPLIT_DEFAULT: MultiPromptSplitGrid = "2x2";
+export const MULTI_PROMPT_SPLIT_OPTIONS: { id: MultiPromptSplitGrid; label: string }[] = [
+  { id: "2x2", label: "4 partes (2 × 2, por las mitades)" },
+  { id: "2x1", label: "2 partes lado a lado (2 × 1)" },
+  { id: "1x2", label: "2 partes una sobre otra (1 × 2)" },
+  { id: "3x1", label: "3 partes lado a lado (3 × 1)" },
+  { id: "3x2", label: "6 partes (3 × 2)" },
+  { id: "NONE", label: "No dividir" },
+];
+/** La cuadrícula en que se divide la foto en pantalla, o null si no se
+ * divide (más de una foto, otro efecto, o "NONE"). */
+export function resolveSplitGrid(
+  photoCount: number,
+  effect: MultiPromptResultEffect | undefined,
+  split: MultiPromptSplitGrid | undefined
+): Exclude<MultiPromptSplitGrid, "NONE"> | null {
+  if (photoCount !== 1 || effect !== "CENTER_OUT") return null;
+  const value = split ?? MULTI_PROMPT_SPLIT_DEFAULT;
+  return value === "NONE" ? null : value;
+}
+
+/** CENTER_OUT: ms entre la entrada de una foto y la siguiente. */
+export const CENTER_OUT_STAGGER_MS = 1100;
+/** CENTER_OUT: ms que dura cada foto (aparecer en el centro + pausa + viaje). */
+export const CENTER_OUT_DURATION_MS = 1700;
+/** CENTER_OUT: ms hasta que la última foto queda en su lugar. */
+export function centerOutTotalMs(count: number): number {
+  return count <= 0 ? 0 : (count - 1) * CENTER_OUT_STAGGER_MS + CENTER_OUT_DURATION_MS;
+}
+
 const cell = (x: number, y: number, w = 1, h = 1): MultiPromptCell => ({ x, y, w, h });
 
 export const MULTI_PROMPT_LAYOUTS: Record<1 | 2 | 3 | 4, MultiPromptLayout[]> = {

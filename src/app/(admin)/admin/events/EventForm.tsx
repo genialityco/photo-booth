@@ -333,6 +333,7 @@ export default function EventForm({
     logoRainSizePx: event?.logoRainSizePx,
     runwayLightsColor: event?.runwayLightsColor || "",
     resultImageEffect: event?.resultImageEffect || "NONE",
+    resultGridLayout: event?.resultGridLayout,
     paintTimeSeconds: event?.paintTimeSeconds,
     mirrorScreenEnabled: event?.mirrorScreenEnabled !== false,
     photoAspectRatio: event?.photoAspectRatio || "SQUARE",
@@ -345,6 +346,8 @@ export default function EventForm({
     multiPromptBgColor: event?.multiPromptBgColor,
     multiPromptGapPct: event?.multiPromptGapPct,
     multiPromptShowcaseSeconds: event?.multiPromptShowcaseSeconds,
+    multiPromptResultEffect: event?.multiPromptResultEffect,
+    multiPromptSplitGrid: event?.multiPromptSplitGrid,
     multiPromptFrameImage: event?.multiPromptFrameImage || "",
   });
 
@@ -1792,12 +1795,26 @@ export default function EventForm({
           <SelectField
             label="Efecto de la Imagen Resultante"
             value={formData.resultImageEffect || "NONE"}
-            onChange={(v) => setField("resultImageEffect", v as "NONE" | "SPACE_FLOAT")}
-            helperText='Animación de la foto final, en la tablet y en la pantalla espejo. "Flotando en el espacio" le quita el fondo a la imagen (en el servidor, unos segundos después de generarla) y deja a la persona flotando, subiendo, bajando y girando suavemente — combina bien con el fondo de estrellas. La descarga, el QR y la impresión siguen siendo la imagen original con fondo.'
+            onChange={(v) => setField("resultImageEffect", v as NonNullable<EventProfile["resultImageEffect"]>)}
+            helperText='Animación de la foto final, en la tablet y en la pantalla espejo. "Flotando en el espacio" le quita el fondo a la imagen (en el servidor, unos segundos después de generarla) y deja a la persona flotando, subiendo, bajando y girando suavemente — combina bien con el fondo de estrellas. "Cuadrícula desde el centro" es para prompts que devuelven UNA imagen con varios paneles (ej. 4 facetas en 2x2): en pantalla se separan los paneles y cada uno aparece en el centro y viaja a su lugar, uno por uno, hasta armar la imagen. La descarga, el QR y la impresión siguen siendo la imagen original.'
           >
             <option value="NONE">Sin efecto (actual)</option>
             <option value="SPACE_FLOAT">Flotando en el espacio</option>
+            <option value="GRID_ASSEMBLE">Cuadrícula desde el centro (una por una)</option>
           </SelectField>
+          {formData.resultImageEffect === "GRID_ASSEMBLE" && (
+            <SelectField
+              label="Cuadrícula de la imagen generada (columnas × filas)"
+              value={formData.resultGridLayout || "2x2"}
+              onChange={(v) => setField("resultGridLayout", v as NonNullable<EventProfile["resultGridLayout"]>)}
+              helperText="Cómo viene dividida la imagen que devuelve el prompt. Los paneles entran en orden de lectura: de izquierda a derecha y de arriba a abajo."
+            >
+              <option value="2x2">2 × 2 (4 paneles)</option>
+              <option value="2x1">2 × 1 (2 paneles lado a lado)</option>
+              <option value="3x1">3 × 1 (3 paneles lado a lado)</option>
+              <option value="3x2">3 × 2 (6 paneles)</option>
+            </SelectField>
+          )}
         </AccordionSection>
 
         {/* Prompts */}

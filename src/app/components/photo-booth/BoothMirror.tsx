@@ -25,6 +25,7 @@ import SpaceFloatCutout, { useCutoutShown } from "@/app/components/photo-booth/S
 import FacetCarousel3D from "@/app/components/photo-booth/FacetCarousel3D";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
 import MultiPromptShowcase from "@/app/components/photo-booth/MultiPromptShowcase";
+import GridAssembleImage from "@/app/components/photo-booth/GridAssembleImage";
 import MultiPromptResultStep from "@/app/components/photo-booth/MultiPromptResultStep";
 
 const NOOP = () => {};
@@ -403,6 +404,14 @@ function ResultView({
   const hideOriginal = cutoutReadyAtMount || cutoutShown;
   // Respaldo si el recorte falla: flota la original (quieta con el QR ampliado).
   const floatOriginal = spaceFloat && result?.cutoutStatus === "error" && !localShowQr;
+  // "Cuadrícula desde el centro" (ver GridAssembleImage): igual que en la
+  // tablet, el sello del QR aparece cuando la imagen ya quedó armada.
+  const gridAssemble = event.resultImageEffect === "GRID_ASSEMBLE" && !result?.videoUrl && !facetsMode;
+  const [gridAssembled, setGridAssembled] = useState(false);
+  useEffect(() => {
+    setGridAssembled(false);
+  }, [result?.url]);
+  const hideQrSeal = gridAssemble && !gridAssembled;
 
   if (!taskId || error || (!mediaSrc && tookTooLong)) {
     return (
@@ -480,6 +489,14 @@ function ResultView({
             playsInline
             className="absolute inset-0 w-full h-full object-contain"
           />
+        ) : gridAssemble && result?.url ? (
+          <GridAssembleImage
+            key={result.url}
+            src={result.url}
+            layout={event.resultGridLayout}
+            className="absolute inset-0"
+            onAssembled={() => setGridAssembled(true)}
+          />
         ) : (
           <img
             key={result?.url}
@@ -514,7 +531,7 @@ function ResultView({
             aria-hidden={localShowQr}
             tabIndex={localShowQr ? -1 : 0}
             className={`absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 rounded-2xl bg-white p-2 shadow-lg ring-1 ring-black/10 origin-bottom-right transition-all duration-300 ease-out ${
-              localShowQr
+              localShowQr || hideQrSeal
                 ? "opacity-0 scale-75 pointer-events-none"
                 : "opacity-100 scale-100 active:scale-95"
             }`}

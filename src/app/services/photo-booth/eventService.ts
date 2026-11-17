@@ -13,7 +13,7 @@ import {
   getDoc,
   where,
 } from "firebase/firestore";
-import type { MultiPromptLayoutId } from "@/app/components/photo-booth/multiPromptLayout";
+import type { MultiPromptLayoutId, MultiPromptResultEffect, MultiPromptSplitGrid } from "@/app/components/photo-booth/multiPromptLayout";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects/types";
 
 /** Columnas x filas de la cuadrícula del modo facetas (generationType="FACETS").
@@ -427,8 +427,16 @@ export type EventProfile = {
    * "NONE" (o sin este campo, comportamiento original) = quieta.
    * "SPACE_FLOAT" = flota en el espacio: sube/baja, deriva y se inclina
    * lentamente, como sin gravedad.
+   * "GRID_ASSEMBLE" = para prompts que devuelven UNA imagen con una
+   * cuadrícula de paneles (ej. 4 facetas en 2x2): en pantalla se corta en sus
+   * celdas (`resultGridLayout`) y cada una aparece en el centro y viaja a su
+   * lugar, una por una, hasta armar la imagen (GridAssembleImage). Solo es
+   * visual: la imagen guardada, la descarga y el QR siguen siendo una sola.
    */
-  resultImageEffect?: "NONE" | "SPACE_FLOAT";
+  resultImageEffect?: "NONE" | "SPACE_FLOAT" | "GRID_ASSEMBLE";
+  /** Solo con resultImageEffect="GRID_ASSEMBLE": columnas x filas de la
+   * cuadrícula que trae la imagen generada. Sin valor, "2x2". */
+  resultGridLayout?: FacetsLayout;
   /**
    * "Modo ahorro de datos": para sedes con wifi malo. Apaga de un solo lugar
    * todo lo que pesa en red durante la sesión — el revelado con rodillo y sus
@@ -509,6 +517,13 @@ export type EventProfile = {
   /** Solo MULTI_PROMPT: segundos que se ve cada foto en la animación previa
    * al resultado. Sin valor, 2.5. */
   multiPromptShowcaseSeconds?: number;
+  /** Solo MULTI_PROMPT: cómo entran las fotos a la pantalla de resultado
+   * (ver MultiPromptResultEffect). No cambia el collage del QR. Sin valor, "POP". */
+  multiPromptResultEffect?: MultiPromptResultEffect;
+  /** Solo MULTI_PROMPT con UNA foto y efecto "CENTER_OUT": en cuántas partes
+   * se divide esa foto en pantalla para que cada una entre por separado (ver
+   * MultiPromptSplitGrid). Sin valor, "2x2". */
+  multiPromptSplitGrid?: MultiPromptSplitGrid;
   prompts: string[];
   isActive: boolean;
   screenConfig?: {
@@ -663,6 +678,7 @@ export async function createEventProfile(
       imageCustomizationEnabled: data.imageCustomizationEnabled === true,
       backgroundAnimation: data.backgroundAnimation || "NONE",
       resultImageEffect: data.resultImageEffect || "NONE",
+      ...(data.resultGridLayout ? { resultGridLayout: data.resultGridLayout } : {}),
       lowBandwidthMode: data.lowBandwidthMode === true,
       mirrorScreenEnabled: data.mirrorScreenEnabled !== false,
       screenSaverMediaSlideEnabled: data.screenSaverMediaSlideEnabled !== false,
@@ -821,6 +837,8 @@ export async function createEventProfile(
     if (data.multiPromptBgColor !== undefined) docData.multiPromptBgColor = data.multiPromptBgColor;
     if (data.multiPromptGapPct !== undefined) docData.multiPromptGapPct = data.multiPromptGapPct;
     if (data.multiPromptShowcaseSeconds !== undefined) docData.multiPromptShowcaseSeconds = data.multiPromptShowcaseSeconds;
+    if (data.multiPromptResultEffect !== undefined) docData.multiPromptResultEffect = data.multiPromptResultEffect;
+    if (data.multiPromptSplitGrid !== undefined) docData.multiPromptSplitGrid = data.multiPromptSplitGrid;
 
     if (data.brandingFooterText !== undefined) {
       docData.brandingFooterText = data.brandingFooterText;
@@ -989,6 +1007,8 @@ export async function updateEventProfile(
     if (data.multiPromptBgColor !== undefined) docData.multiPromptBgColor = data.multiPromptBgColor;
     if (data.multiPromptGapPct !== undefined) docData.multiPromptGapPct = data.multiPromptGapPct;
     if (data.multiPromptShowcaseSeconds !== undefined) docData.multiPromptShowcaseSeconds = data.multiPromptShowcaseSeconds;
+    if (data.multiPromptResultEffect !== undefined) docData.multiPromptResultEffect = data.multiPromptResultEffect;
+    if (data.multiPromptSplitGrid !== undefined) docData.multiPromptSplitGrid = data.multiPromptSplitGrid;
     if (data.buttonClickEffect !== undefined) docData.buttonClickEffect = data.buttonClickEffect;
     if (data.handCursorEnabled !== undefined) docData.handCursorEnabled = data.handCursorEnabled;
     if (data.handRevealEnabled !== undefined) docData.handRevealEnabled = data.handRevealEnabled;
@@ -1000,6 +1020,7 @@ export async function updateEventProfile(
     if (data.imageCustomizationEnabled !== undefined) docData.imageCustomizationEnabled = data.imageCustomizationEnabled;
     if (data.backgroundAnimation !== undefined) docData.backgroundAnimation = data.backgroundAnimation;
     if (data.resultImageEffect !== undefined) docData.resultImageEffect = data.resultImageEffect;
+    if (data.resultGridLayout !== undefined) docData.resultGridLayout = data.resultGridLayout;
     if (data.lowBandwidthMode !== undefined) docData.lowBandwidthMode = data.lowBandwidthMode;
     if (data.paintTimeSeconds !== undefined) docData.paintTimeSeconds = data.paintTimeSeconds;
     if (data.photoAspectRatio !== undefined) docData.photoAspectRatio = data.photoAspectRatio;

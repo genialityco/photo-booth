@@ -1297,6 +1297,7 @@ export default function PhotoBoothWizard({
                   showQr={showQr}
                   onShowQrChange={setShowQr}
                   resultImageEffect={eventData?.resultImageEffect}
+                  resultGridLayout={eventData?.resultGridLayout}
                   facetUrls={aiFacetUrls ?? undefined}
                   facetIndex={facetIndex}
                   onFacetIndexChange={setFacetIndex}

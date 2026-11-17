@@ -1,22 +1,34 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { FaArrowDown, FaArrowUp, FaChevronRight, FaExclamationTriangle } from "react-icons/fa";
 import type { BoothFlow, EventProfile } from "@/app/services/photo-booth/eventService";
 import type { PhotoBoothPrompt } from "@/app/services/photo-booth/brandService";
-import MultiPromptCollage, { collageRatio } from "@/app/components/photo-booth/MultiPromptCollage";
+import MultiPromptCollage, {
+  CENTER_OUT_CELL_CLASS,
+  centerOutCellStyle,
+  collageRatio,
+} from "@/app/components/photo-booth/MultiPromptCollage";
 import { getAspectDims } from "@/app/components/photo-booth/photoAspectRatio";
 import {
   MULTI_PROMPT_BG_DEFAULT,
   MULTI_PROMPT_GAP_DEFAULT,
   MULTI_PROMPT_GAP_MAX,
   MULTI_PROMPT_MAX,
+  MULTI_PROMPT_RESULT_EFFECTS,
+  MULTI_PROMPT_RESULT_EFFECT_DEFAULT,
   MULTI_PROMPT_SHOWCASE_SECONDS_DEFAULT,
+  MULTI_PROMPT_SPLIT_DEFAULT,
+  MULTI_PROMPT_SPLIT_OPTIONS,
   layoutsForCount,
   resolveMultiPromptLayout,
+  resolveSplitGrid,
+  type MultiPromptLayout,
   type MultiPromptLayoutId,
+  type MultiPromptSplitGrid,
 } from "@/app/components/photo-booth/multiPromptLayout";
+import { parseGridLayout } from "@/app/components/photo-booth/GridAssembleImage";
 import ImageUploadField from "./ImageUploadField";
 
 type FlowStep = {
@@ -93,7 +105,11 @@ function computeSteps(data: Partial<EventProfile>, promptCount: number): FlowSte
       },
       {
         title: "Resultado + 1 QR",
-        detail: "Las fotos por separado y un solo QR que descarga el collage con todas.",
+        detail: resolveSplitGrid(n, data.multiPromptResultEffect, data.multiPromptSplitGrid)
+          ? "La foto se divide en partes que entran una por una desde el centro hasta armarla, y un QR que la descarga entera."
+          : `Las fotos por separado (${
+              data.multiPromptResultEffect === "CENTER_OUT" ? "entran una por una desde el centro" : "aparecen juntas"
+            }) y un solo QR que descarga el collage con todas.`,
         enabled: true,
         where: "Este panel",
       },
@@ -182,6 +198,28 @@ export default function BoothFlowPanel({
   const bgColor = formData.multiPromptBgColor || MULTI_PROMPT_BG_DEFAULT;
   const layout = resolveMultiPromptLayout(Math.max(count, 1), formData.multiPromptLayout);
   const previewRatio = collageRatio(layout, tileRatio, gapPct);
+  const resultEffect = formData.multiPromptResultEffect ?? MULTI_PROMPT_RESULT_EFFECT_DEFAULT;
+  // En pantalla las fotos van siempre algo separadas (ver MultiPromptResultStep).
+  const screenGapPct = Math.max(gapPct, 3);
+  const screenRatio = collageRatio(layout, tileRatio, screenGapPct);
+  // Cambiar la key re-monta la vista previa y repite la animación.
+  const [effectReplay, setEffectReplay] = useState(0);
+  // Una sola foto + "desde el centro": la foto se divide en partes (ver
+  // MultiPromptSplitGrid). La vista previa la simula con una cuadrícula de
+  // piezas pegadas, cada una con la forma de su parte.
+  const splitGrid = resolveSplitGrid(count, resultEffect, formData.multiPromptSplitGrid);
+  const splitPreview = (() => {
+    if (!splitGrid) return null;
+    const { cols, rows } = parseGridLayout(splitGrid);
+    const layout: MultiPromptLayout = {
+      id: "grid",
+      label: "",
+      cols,
+      rows,
+      cells: Array.from({ length: cols * rows }, (_, i) => ({ x: i % cols, y: Math.floor(i / cols), w: 1, h: 1 })),
+    };
+    return { layout, pieceRatio: (tileRatio * rows) / cols };
+  })();
 
   const promptById = (id: string) => availablePrompts.find((p) => p.id === id);
 
@@ -436,6 +474,114 @@ export default function BoothFlowPanel({
               />
             </div>
           </div>
+
+          {/* Efecto de entrada en la pantalla de resultado */}
+          {count > 0 && (
+            <div>
+              <p className="text-sm font-medium text-gray-700">Efecto al mostrar el resultado</p>
+              <p className="text-xs text-gray-500 mb-2">
+                Cómo aparecen las fotos en la pantalla de resultado (tablet y pantalla gigante). No cambia la imagen
+                que baja el QR.
+              </p>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-2 md:w-72 shrink-0">
+                  {MULTI_PROMPT_RESULT_EFFECTS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setField("multiPromptResultEffect", opt.id);
+                        setEffectReplay((n) => n + 1);
+                      }}
+                      className={`text-left p-3 rounded-lg border-2 transition-colors ${
+                        resultEffect === opt.id ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"
+                      }`}
+                    >
+                      <span className="block text-sm font-semibold text-gray-800">{opt.label}</span>
+                      <span className="block text-xs text-gray-600 mt-1">{opt.description}</span>
+                    </button>
+                  ))}
+                  {count === 1 && resultEffect === "CENTER_OUT" && (
+                    <div className="sm:col-span-2 md:col-span-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                        Dividir la foto en
+                      </label>
+                      <select
+                        value={formData.multiPromptSplitGrid ?? MULTI_PROMPT_SPLIT_DEFAULT}
+                        onChange={(e) => {
+                          setField("multiPromptSplitGrid", e.target.value as MultiPromptSplitGrid);
+                          setEffectReplay((n) => n + 1);
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
+                      >
+                        {MULTI_PROMPT_SPLIT_OPTIONS.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Para un prompt que ya devuelve varios paneles en una imagen (ej. 4 facetas): en pantalla se
+                        corta por las mitades y cada parte viaja del centro a su lugar. El QR baja la imagen entera.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 rounded-lg bg-slate-800 p-6">
+                  <div
+                    key={`${effectReplay}-${resultEffect}-${layout.id}-${splitGrid ?? ""}`}
+                    style={
+                      splitPreview
+                        ? tileRatio >= 1
+                          ? { width: "100%", maxWidth: 300 }
+                          : { width: 220 * tileRatio }
+                        : screenRatio >= 1
+                          ? { width: "100%", maxWidth: 300 }
+                          : { width: 220 * screenRatio }
+                    }
+                  >
+                    {splitPreview ? (
+                      <MultiPromptCollage
+                        layout={splitPreview.layout}
+                        tileRatio={splitPreview.pieceRatio}
+                        gapPct={0}
+                        cellClassName={`shadow-lg ${CENTER_OUT_CELL_CLASS}`}
+                        cellStyle={centerOutCellStyle}
+                        renderCell={(i) => (
+                          <div
+                            className="absolute inset-0 flex items-center justify-center text-white font-bold text-xl drop-shadow"
+                            style={{ backgroundColor: SLOT_COLORS[i % SLOT_COLORS.length] }}
+                          >
+                            {i + 1}
+                          </div>
+                        )}
+                      />
+                    ) : (
+                      <MultiPromptCollage
+                        layout={layout}
+                        tileRatio={tileRatio}
+                        gapPct={screenGapPct}
+                        cellClassName={`rounded-md shadow-lg ${
+                          resultEffect === "CENTER_OUT" ? CENTER_OUT_CELL_CLASS : "multi-prompt-pop"
+                        }`}
+                        cellStyle={
+                          resultEffect === "CENTER_OUT" ? centerOutCellStyle : (i) => ({ animationDelay: `${i * 120}ms` })
+                        }
+                        renderCell={(i) => renderSlot(i)}
+                      />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEffectReplay((n) => n + 1)}
+                    className="text-xs font-semibold text-white/80 hover:text-white underline"
+                  >
+                    Ver de nuevo
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <ImageUploadField
             label="Marco del collage (PNG opcional, se dibuja encima de todo el collage)"

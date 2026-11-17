@@ -157,7 +157,9 @@ export function applyLowBandwidth(event: EventProfile, enabled: boolean): EventP
     backgroundAnimation: "NONE",
     // El recorte sin fondo es una imagen más a bajar al final de la sesión
     // (y sin el efecto, el wizard ni siquiera llama a la función que lo hace).
-    resultImageEffect: "NONE",
+    // GRID_ASSEMBLE se deja: no baja nada extra (corta la misma imagen con
+    // CSS) y es más liviano que el efecto de partículas que reemplaza.
+    resultImageEffect: event.resultImageEffect === "GRID_ASSEMBLE" ? "GRID_ASSEMBLE" : "NONE",
     buttonClickEffect: "NONE",
   };
 }

@@ -6,13 +6,21 @@ import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import QrTag from "@/app/components/photo-booth/QrTag";
-import MultiPromptCollage, { collageRatio } from "@/app/components/photo-booth/MultiPromptCollage";
+import MultiPromptCollage, {
+  CENTER_OUT_CELL_CLASS,
+  centerOutCellStyle,
+  collageRatio,
+} from "@/app/components/photo-booth/MultiPromptCollage";
 import { useFitRatioBox } from "@/app/components/photo-booth/useFitAspectBox";
 import { getAspectDims } from "@/app/components/photo-booth/photoAspectRatio";
 import {
   MULTI_PROMPT_GAP_DEFAULT,
+  MULTI_PROMPT_RESULT_EFFECT_DEFAULT,
+  centerOutTotalMs,
   resolveMultiPromptLayout,
+  resolveSplitGrid,
 } from "@/app/components/photo-booth/multiPromptLayout";
+import GridAssembleImage from "@/app/components/photo-booth/GridAssembleImage";
 
 /** En pantalla las fotos van siempre separadas (aunque el collage descargable
  * las tenga pegadas): es la vista de "tus fotos", no el collage. */
@@ -81,6 +89,20 @@ export default function MultiPromptResultStep({
   const tileRatio = w / h;
   const gapPct = Math.max(event?.multiPromptGapPct ?? MULTI_PROMPT_GAP_DEFAULT, SCREEN_MIN_GAP_PCT);
   const { containerRef, boxDims } = useFitRatioBox(collageRatio(layout, tileRatio, gapPct));
+  // Entrada de las fotos (ver MultiPromptResultEffect). Con "desde el centro"
+  // la barra del QR aparece cuando ya se armó la cuadrícula.
+  const effect = event?.multiPromptResultEffect ?? MULTI_PROMPT_RESULT_EFFECT_DEFAULT;
+  const centerOut = effect === "CENTER_OUT";
+  const assembledMs = centerOut ? centerOutTotalMs(urls.length) : 0;
+  // Una sola foto que ya trae varios paneles (ej. 4 facetas en 2x2): se
+  // divide en pantalla y cada parte entra por separado. La barra del QR
+  // aparece cuando GridAssembleImage avisa que quedó armada.
+  const splitGrid = resolveSplitGrid(urls.length, effect, event?.multiPromptSplitGrid);
+  const [splitAssembled, setSplitAssembled] = useState(false);
+  const firstUrl = urls[0];
+  useEffect(() => {
+    setSplitAssembled(false);
+  }, [firstUrl, splitGrid]);
 
   const downloadUrl = compositeUrl || urls[0];
   const surveyUrl = useMemo(
@@ -124,20 +146,30 @@ export default function MultiPromptResultStep({
     <div className="w-full h-full flex flex-col items-center px-3 sm:px-4 py-2 sm:py-4 gap-2 sm:gap-3 overflow-hidden">
       {/* Fotos: la caja más grande con la forma de la distribución que cabe. */}
       <div ref={containerRef} className="relative flex-1 min-h-0 w-full flex items-center justify-center">
-        {boxDims && (
+        {splitGrid && urls[0] ? (
+          <GridAssembleImage
+            src={urls[0]}
+            layout={splitGrid}
+            className="absolute inset-0"
+            onAssembled={() => setSplitAssembled(true)}
+          />
+        ) : boxDims && (
           <div style={{ width: boxDims.width }}>
             <MultiPromptCollage
               layout={layout}
               tileRatio={tileRatio}
               gapPct={gapPct}
               count={urls.length}
-              cellClassName="rounded-xl ring-1 ring-white/25 shadow-[0_10px_14px_-6px_rgba(0,0,0,0.45),0_25px_45px_-15px_rgba(0,0,0,0.6)] bg-black/20"
+              cellClassName={`rounded-xl ring-1 ring-white/25 shadow-[0_10px_14px_-6px_rgba(0,0,0,0.45),0_25px_45px_-15px_rgba(0,0,0,0.6)] bg-black/20 ${
+                centerOut ? CENTER_OUT_CELL_CLASS : ""
+              }`}
+              cellStyle={centerOut ? centerOutCellStyle : undefined}
               renderCell={(i) => (
                 <img
                   src={urls[i]}
                   alt={`Foto ${i + 1}`}
-                  className="absolute inset-0 w-full h-full object-cover select-none multi-prompt-pop"
-                  style={{ animationDelay: `${i * 120}ms` }}
+                  className={`absolute inset-0 w-full h-full object-cover select-none ${centerOut ? "" : "multi-prompt-pop"}`}
+                  style={centerOut ? undefined : { animationDelay: `${i * 120}ms` }}
                   draggable={false}
                 />
               )}
@@ -169,7 +201,12 @@ export default function MultiPromptResultStep({
       </div>
 
       {/* QR único + acciones */}
-      <div className="flex-shrink-0 w-full flex items-center justify-center gap-3 sm:gap-4">
+      <div
+        className={`flex-shrink-0 w-full flex items-center justify-center gap-3 sm:gap-4 ${
+          splitGrid ? (splitAssembled ? "multi-prompt-pop" : "invisible") : centerOut ? "multi-prompt-pop" : ""
+        }`}
+        style={centerOut && !splitGrid ? { animationDelay: `${Math.max(0, assembledMs - 300)}ms` } : undefined}
+      >
         <button
           type="button"
           onClick={() => onShowQrChange(!showQr)}

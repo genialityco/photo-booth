@@ -12,6 +12,7 @@ import { composeFramedCanvas, composeFramedImageDataUrl } from "@/app/components
 import { getPixelDims } from "@/app/components/photo-booth/photoAspectRatio";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
 import FacetCarousel3D from "@/app/components/photo-booth/FacetCarousel3D";
+import GridAssembleImage from "@/app/components/photo-booth/GridAssembleImage";
 
 /** Tamaño de la faceta activa del carrusel respecto de la caja disponible. */
 const FACET_CARD_SCALE = 0.78;
@@ -32,6 +33,9 @@ type Props = {
   /** Efecto continuo de la foto final, desde el evento que pasa el wizard (el
    * `currentEvent` de sessionStorage puede estar viejo). */
   resultImageEffect?: EventProfile["resultImageEffect"];
+  /** Cuadrícula de la imagen para resultImageEffect="GRID_ASSEMBLE" (mismo
+   * motivo que `resultImageEffect`: el evento cacheado puede estar viejo). */
+  resultGridLayout?: EventProfile["resultGridLayout"];
   /** Modo facetas (generationType="FACETS"): todas las imágenes, en orden.
    * Con 2 o más se muestra el carrusel 3D en vez de la foto única, y la
    * descarga/QR usan la faceta visible. */
@@ -51,6 +55,7 @@ export default function ResultStep({
   showQr,
   onShowQrChange,
   resultImageEffect,
+  resultGridLayout,
   facetUrls,
   facetIndex = 0,
   onFacetIndexChange,
@@ -77,6 +82,13 @@ export default function ResultStep({
   const spaceFloat =
     (resultImageEffect ?? event?.resultImageEffect) === "SPACE_FLOAT" && !videoUrl && !facetsMode;
   const { cutoutUrl, failed: cutoutFailed } = useTaskCutout(taskId, spaceFloat);
+  // "Cuadrícula desde el centro": la imagen (una sola, con varios paneles) se
+  // corta en pantalla y se arma pieza por pieza (GridAssembleImage). El sello
+  // del QR aparece cuando ya quedó armada.
+  const gridAssemble =
+    (resultImageEffect ?? event?.resultImageEffect) === "GRID_ASSEMBLE" && !videoUrl && !facetsMode;
+  const [gridAssembled, setGridAssembled] = useState(false);
+  const hideQrSeal = gridAssemble && !gridAssembled && !showQr;
   // Lo normal: el wizard esperó el recorte en "loading", así que ya está
   // listo al montar — se arranca directo con la persona flotando y la
   // original (con su rearmado en partículas) ni se monta. Si llegó tarde
@@ -382,6 +394,17 @@ export default function ResultStep({
                         muted
                         playsInline
                       />
+                    ) : gridAssemble ? (
+                      // Se corta la imagen SIN marco (las uniones caen justo
+                      // en los paneles que generó la IA) y al final se funde
+                      // con la versión con marco, cuando ya está compuesta.
+                      <GridAssembleImage
+                        src={aiUrl}
+                        finalSrc={framedImageUrl || undefined}
+                        layout={resultGridLayout ?? event?.resultGridLayout}
+                        className="absolute inset-0"
+                        onAssembled={() => setGridAssembled(true)}
+                      />
                     ) : framedImageUrl ? (
                       // Explosión/rearmado en partículas UNA sola vez, al
                       // aparecer el resultado: la nube de puntos converge desde
@@ -425,7 +448,7 @@ export default function ResultStep({
                       showQr
                         ? "inset-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
                         : "bottom-2 right-2 sm:bottom-3 sm:right-3 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10 active:scale-95"
-                    }`}
+                    } ${hideQrSeal ? "opacity-0 pointer-events-none" : ""}`}
                   >
                     <QrTag
                       value={surveyAI}
