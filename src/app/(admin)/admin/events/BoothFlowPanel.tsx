@@ -95,14 +95,21 @@ function computeSteps(data: Partial<EventProfile>, promptCount: number): FlowSte
       capture,
       customize,
       { ...loading, detail: `Mientras la IA genera ${n || "las"} imagen${n === 1 ? "" : "es"} en paralelo.` },
-      {
-        title: "Animación de fotos",
-        detail: `Pasan una a una las ${n || "—"} foto${n === 1 ? "" : "s"} (una por prompt, ${
-          data.multiPromptShowcaseSeconds ?? MULTI_PROMPT_SHOWCASE_SECONDS_DEFAULT
-        } s cada una).`,
-        enabled: true,
-        where: "Este panel",
-      },
+      resolveSplitGrid(n, data.multiPromptResultEffect, data.multiPromptSplitGrid)
+        ? {
+            title: "Animación de fotos",
+            detail: "Omitida: con la foto dividida, el resultado arranca directo con el efecto.",
+            enabled: false,
+            where: "Este panel",
+          }
+        : {
+            title: "Animación de fotos",
+            detail: `Pasan una a una las ${n || "—"} foto${n === 1 ? "" : "s"} (una por prompt, ${
+              data.multiPromptShowcaseSeconds ?? MULTI_PROMPT_SHOWCASE_SECONDS_DEFAULT
+            } s cada una).`,
+            enabled: true,
+            where: "Este panel",
+          },
       {
         title: "Resultado + 1 QR",
         detail: resolveSplitGrid(n, data.multiPromptResultEffect, data.multiPromptSplitGrid)

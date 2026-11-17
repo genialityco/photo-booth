@@ -14,7 +14,7 @@ import { ROLLER_MODEL_PATH } from "@/app/components/photo-booth/reveal/RollerCur
 import ResultStep from "@/app/components/photo-booth/ResultStep";
 import MultiPromptShowcase from "@/app/components/photo-booth/MultiPromptShowcase";
 import MultiPromptResultStep from "@/app/components/photo-booth/MultiPromptResultStep";
-import { MULTI_PROMPT_MAX } from "@/app/components/photo-booth/multiPromptLayout";
+import { MULTI_PROMPT_MAX, resolveSplitGrid } from "@/app/components/photo-booth/multiPromptLayout";
 import { requestCutout } from "@/app/components/photo-booth/SpaceFloatCutout";
 import ImageCustomizeStep, { type ImageCustomization } from "@/app/components/photo-booth/ImageCustomizeStep";
 import { LOGO_BAR_VARIANTS, stepVariantsFor } from "@/app/components/photo-booth/stepTransitions";
@@ -632,7 +632,27 @@ export default function PhotoBoothWizard({
               setMultiUrls(urls);
               setCompositeUrl((data.compositeUrl as string | null) ?? null);
               setFacetIndex(0);
-              setStep("showcase");
+              // Una sola foto que se divide en partes (resolveSplitGrid): el
+              // carrusel previo solo mostraría la imagen entera antes del
+              // efecto, así que se va directo al resultado, donde las partes
+              // arman la imagen. Antes se precarga (con tope) para que el
+              // efecto arranque apenas se va la pantalla de espera.
+              const splitGrid = resolveSplitGrid(
+                urls.length,
+                eventData?.multiPromptResultEffect,
+                eventData?.multiPromptSplitGrid
+              );
+              if (splitGrid) {
+                await Promise.race([
+                  new Promise<void>((resolve) => {
+                    const img = new Image();
+                    img.onload = img.onerror = () => resolve();
+                    img.src = urls[0];
+                  }),
+                  new Promise<void>((resolve) => window.setTimeout(resolve, 6000)),
+                ]);
+              }
+              setStep(splitGrid ? "result" : "showcase");
               try {
                 await updateDoc(taskRef, { finishedAt: serverTimestamp() });
               } catch {}
