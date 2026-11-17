@@ -348,6 +348,7 @@ export default function EventForm({
     multiPromptShowcaseSeconds: event?.multiPromptShowcaseSeconds,
     multiPromptResultEffect: event?.multiPromptResultEffect,
     multiPromptSplitGrid: event?.multiPromptSplitGrid,
+    multiPromptAssembleFlashes: event?.multiPromptAssembleFlashes,
     multiPromptFrameImage: event?.multiPromptFrameImage || "",
   });
 
@@ -1262,10 +1263,11 @@ export default function EventForm({
             label="Efecto de Carga"
             value={formData.loadingEffect || "RING"}
             onChange={(v) => setField("loadingEffect", v as EventProfile["loadingEffect"])}
-            helperText='Animación que acompaña el progreso mientras se genera la imagen. "Cohete despegando" muestra un cohete que sube con el progreso, con fuego y humo. "GIF / imagen propia" reemplaza el anillo por el archivo que subas. El color del porcentaje es el mismo configurado abajo.'
+            helperText='Animación que acompaña el progreso mientras se genera la imagen. "Cohete despegando" muestra un cohete que sube con el progreso, con fuego y humo. "Pasarela con flashes" muestra una pasarela cuyas luces se encienden con el progreso mientras los fotógrafos disparan flashes a los costados (usa el color de las luces de pasarela, si lo configuraste). "GIF / imagen propia" reemplaza el anillo por el archivo que subas. El color del porcentaje es el mismo configurado abajo.'
           >
             <option value="RING">Anillo de progreso (actual)</option>
             <option value="ROCKET">Cohete despegando</option>
+            <option value="RUNWAY">Pasarela con flashes</option>
             <option value="CUSTOM">GIF / imagen propia</option>
           </SelectField>
 
@@ -1701,16 +1703,18 @@ export default function EventForm({
             label="Animación de Fondo"
             value={formData.backgroundAnimation || "NONE"}
             onChange={(v) => setField("backgroundAnimation", v as EventProfile["backgroundAnimation"])}
-            helperText='Se muestra detrás de toda la app (selección de marca, cámara, resultado). "Esferas de colores" agrega formas difuminadas de colores derivando lentamente de fondo. "Estrellas arriba" dibuja estrellas titilando (y alguna fugaz) en la parte superior — ocupan los 2/3 superiores; luce mejor sobre fondos oscuros. "Lluvia de logos" hace caer los logos que subas abajo, girando.'
+            helperText='Se muestra detrás de toda la app (selección de marca, cámara, resultado). "Esferas de colores" agrega formas difuminadas de colores derivando lentamente de fondo. "Estrellas arriba" dibuja estrellas titilando (y alguna fugaz) en la parte superior — ocupan los 2/3 superiores; luce mejor sobre fondos oscuros. "Lluvia de logos" hace caer los logos que subas abajo, girando. "Urbano (neón y spray)" pone letreros de neón que parpadean en los bordes (gancho de ropa, estrella, rayo, corona…), chorreados de spray y manchas de aerosol — estilo calle/grafiti; luce mejor sobre fondos oscuros. "Urbano + luces de pasarela" lo combina con los reflectores.'
           >
             <option value="NONE">Sin animación (actual)</option>
             <option value="FLOATING_ORBS">Esferas de colores flotando</option>
             <option value="TOP_STARS">Estrellas en la parte superior</option>
             <option value="LOGO_RAIN">Lluvia de logos</option>
             <option value="RUNWAY_LIGHTS">Luces de pasarela a los costados</option>
+            <option value="URBAN_NEON">Urbano (neón y spray)</option>
+            <option value="URBAN_RUNWAY">Urbano + luces de pasarela</option>
           </SelectField>
 
-          {formData.backgroundAnimation === "RUNWAY_LIGHTS" && (
+          {(formData.backgroundAnimation === "RUNWAY_LIGHTS" || formData.backgroundAnimation === "URBAN_RUNWAY") && (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
               <label
                 htmlFor="runwayLightsColor"

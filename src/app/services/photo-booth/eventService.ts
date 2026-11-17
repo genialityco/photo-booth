@@ -121,7 +121,7 @@ export type EventProfile = {
    * subido en `loadingIndicatorUrl` en lugar del anillo (sin archivo, cae al
    * anillo).
    */
-  loadingEffect?: "RING" | "ROCKET" | "CUSTOM";
+  loadingEffect?: "RING" | "ROCKET" | "RUNWAY" | "CUSTOM";
   /** Solo loadingEffect CUSTOM: URL del GIF (o PNG/WEBP animado, MP4/WEBM)
    * que reemplaza al anillo. Se sube directo a Storage desde el admin. */
   loadingIndicatorUrl?: string;
@@ -412,7 +412,7 @@ export type EventProfile = {
    * "LOGO_RAIN" = los logos de `logoRainImages` cayendo como lluvia.
    * "RUNWAY_LIGHTS" = reflectores de pasarela a los costados barriendo.
    */
-  backgroundAnimation?: "NONE" | "FLOATING_ORBS" | "TOP_STARS" | "LOGO_RAIN" | "RUNWAY_LIGHTS";
+  backgroundAnimation?: "NONE" | "FLOATING_ORBS" | "TOP_STARS" | "LOGO_RAIN" | "RUNWAY_LIGHTS" | "URBAN_NEON" | "URBAN_RUNWAY";
   /** Solo RUNWAY_LIGHTS: color (hex) de los haces de luz. Sin valor, blanco cálido. */
   runwayLightsColor?: string;
   /** Solo LOGO_RAIN: URLs de los logos que caen (PNG con transparencia
@@ -524,6 +524,9 @@ export type EventProfile = {
    * se divide esa foto en pantalla para que cada una entre por separado (ver
    * MultiPromptSplitGrid). Sin valor, "2x2". */
   multiPromptSplitGrid?: MultiPromptSplitGrid;
+  /** Con la foto dividida (multiPromptSplitGrid): flashes de cámara cuando
+   * cada parte llega a su lugar y una ráfaga al quedar armada. Sin valor, sí. */
+  multiPromptAssembleFlashes?: boolean;
   prompts: string[];
   isActive: boolean;
   screenConfig?: {
@@ -839,6 +842,7 @@ export async function createEventProfile(
     if (data.multiPromptShowcaseSeconds !== undefined) docData.multiPromptShowcaseSeconds = data.multiPromptShowcaseSeconds;
     if (data.multiPromptResultEffect !== undefined) docData.multiPromptResultEffect = data.multiPromptResultEffect;
     if (data.multiPromptSplitGrid !== undefined) docData.multiPromptSplitGrid = data.multiPromptSplitGrid;
+    if (data.multiPromptAssembleFlashes !== undefined) docData.multiPromptAssembleFlashes = data.multiPromptAssembleFlashes;
 
     if (data.brandingFooterText !== undefined) {
       docData.brandingFooterText = data.brandingFooterText;
@@ -1009,6 +1013,7 @@ export async function updateEventProfile(
     if (data.multiPromptShowcaseSeconds !== undefined) docData.multiPromptShowcaseSeconds = data.multiPromptShowcaseSeconds;
     if (data.multiPromptResultEffect !== undefined) docData.multiPromptResultEffect = data.multiPromptResultEffect;
     if (data.multiPromptSplitGrid !== undefined) docData.multiPromptSplitGrid = data.multiPromptSplitGrid;
+    if (data.multiPromptAssembleFlashes !== undefined) docData.multiPromptAssembleFlashes = data.multiPromptAssembleFlashes;
     if (data.buttonClickEffect !== undefined) docData.buttonClickEffect = data.buttonClickEffect;
     if (data.handCursorEnabled !== undefined) docData.handCursorEnabled = data.handCursorEnabled;
     if (data.handRevealEnabled !== undefined) docData.handRevealEnabled = data.handRevealEnabled;

@@ -151,6 +151,7 @@ export default function MultiPromptResultStep({
             src={urls[0]}
             layout={splitGrid}
             className="absolute inset-0"
+            flashes={event?.multiPromptAssembleFlashes !== false}
             onAssembled={() => setSplitAssembled(true)}
           />
         ) : boxDims && (

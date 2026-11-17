@@ -1,6 +1,7 @@
 import confettiEffect from "./confetti";
 import paintSplashEffect from "./paintSplash";
 import runwayFlashEffect from "./runwayFlash";
+import sprayTagEffect from "./sprayTag";
 import type {
   ButtonClickEffectContext,
   ButtonClickEffectHandler,
@@ -16,6 +17,7 @@ const REGISTRY: Partial<Record<ButtonClickEffectId, ButtonClickEffectHandler>> =
   CONFETTI: confettiEffect,
   PAINT_SPLASH: paintSplashEffect,
   RUNWAY_FLASH: runwayFlashEffect,
+  SPRAY_TAG: sprayTagEffect,
 };
 
 export function runButtonClickEffect(

@@ -6,6 +6,7 @@ import type { EventProfile } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
 import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
 import RocketLoader from "@/app/components/photo-booth/RocketLoader";
+import RunwayLoader from "@/app/components/photo-booth/RunwayLoader";
 import { isVideoMediaSrc } from "@/app/components/photo-booth/loadingMedia";
 import {
   LOADER_LOGO_HEIGHT,
@@ -300,6 +301,14 @@ export default function LoaderStep({
               </span>
             )}
           </>
+        ) : loadingEffect === "RUNWAY" ? (
+          <RunwayLoader
+            progress={progress}
+            progressCap={PROGRESS_CAP}
+            percentColor={loadingPercentColor}
+            lightColor={event?.runwayLightsColor || undefined}
+            wide={wide}
+          />
         ) : loadingEffect === "ROCKET" ? (
           <RocketLoader
             progress={progress}

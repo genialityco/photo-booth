@@ -1,4 +1,4 @@
-export type ButtonClickEffectId = "NONE" | "CONFETTI" | "PAINT_SPLASH" | "RUNWAY_FLASH";
+export type ButtonClickEffectId = "NONE" | "CONFETTI" | "PAINT_SPLASH" | "RUNWAY_FLASH" | "SPRAY_TAG";
 
 export type ButtonClickEffectContext = {
   /** Elemento sobre el que se hizo click (para posicionar el efecto). */
@@ -18,4 +18,5 @@ export const BUTTON_CLICK_EFFECT_OPTIONS: ButtonClickEffectOption[] = [
   { id: "CONFETTI", label: "Confeti" },
   { id: "PAINT_SPLASH", label: "Salpicado de pintura" },
   { id: "RUNWAY_FLASH", label: "Flash de pasarela" },
+  { id: "SPRAY_TAG", label: "Spray de grafiti (neón)" },
 ];

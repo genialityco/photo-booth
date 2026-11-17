@@ -83,7 +83,7 @@ function computeSteps(data: Partial<EventProfile>, promptCount: number): FlowSte
   };
   const loading: FlowStep = {
     title: "Pantalla de espera",
-    detail: `Mientras la IA genera (${data.loadingEffect === "ROCKET" ? "cohete" : data.loadingEffect === "CUSTOM" && data.loadingIndicatorUrl ? "GIF propio" : "anillo de progreso"}).`,
+    detail: `Mientras la IA genera (${data.loadingEffect === "ROCKET" ? "cohete" : data.loadingEffect === "RUNWAY" ? "pasarela con flashes" : data.loadingEffect === "CUSTOM" && data.loadingIndicatorUrl ? "GIF propio" : "anillo de progreso"}).`,
     enabled: true,
     where: "Pantalla 2 · Carga (Loading)",
   };
@@ -531,6 +531,25 @@ export default function BoothFlowPanel({
                         Para un prompt que ya devuelve varios paneles en una imagen (ej. 4 facetas): en pantalla se
                         corta por las mitades y cada parte viaja del centro a su lugar. El QR baja la imagen entera.
                       </p>
+                      {splitGrid && (
+                        <label className="mt-2 flex items-start gap-2 text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={formData.multiPromptAssembleFlashes !== false}
+                            onChange={(e) => {
+                              setField("multiPromptAssembleFlashes", e.target.checked);
+                              setEffectReplay((n) => n + 1);
+                            }}
+                            className="mt-0.5 h-4 w-4 accent-blue-600"
+                          />
+                          <span>
+                            Flashes de cámara
+                            <span className="block text-xs text-gray-500">
+                              Un flash cuando cada parte llega a su lugar y una ráfaga al quedar armada.
+                            </span>
+                          </span>
+                        </label>
+                      )}
                     </div>
                   )}
                 </div>

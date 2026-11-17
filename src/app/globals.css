@@ -252,6 +252,93 @@ body {
   .bg-runway-beam,
   .bg-runway-source { animation: none !important; }
 }
+
+/* Fondo urbano (BackgroundAnimation URBAN_NEON / URBAN_RUNWAY).
+   Neón: encendido casi todo el tiempo, con un par de parpadeos cortos e
+   irregulares por ciclo (como un tubo viejo) y un leve zumbido de brillo. */
+@keyframes neonFlicker {
+  0%, 18%, 22%, 61%, 66%, 100% { opacity: 0.9; }
+  19% { opacity: 0.25; }
+  20% { opacity: 0.85; }
+  21% { opacity: 0.15; }
+  40% { opacity: 0.8; }
+  62% { opacity: 0.35; }
+  64% { opacity: 0.92; }
+  65% { opacity: 0.2; }
+}
+.bg-neon-flicker {
+  animation-name: neonFlicker;
+  animation-timing-function: steps(1, end);
+  animation-iteration-count: infinite;
+  will-change: opacity;
+}
+/* Chorreado de spray: baja despacio desde el borde, queda y se desvanece. */
+@keyframes sprayDrip {
+  0% { transform: scaleY(0); opacity: 0; }
+  6% { opacity: 0.75; }
+  55% { transform: scaleY(1); }
+  85% { transform: scaleY(1.04); opacity: 0.7; }
+  100% { transform: scaleY(1.04); opacity: 0; }
+}
+.bg-drip {
+  transform-origin: top center;
+  animation-name: sprayDrip;
+  animation-timing-function: cubic-bezier(.3, .6, .4, 1);
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+@keyframes neonBlob {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.08); }
+}
+.bg-neon-blob {
+  animation: neonBlob 14s ease-in-out infinite;
+}
+/* Pantalla de carga "pasarela con flashes" (RunwayLoader): cada fotógrafo
+   dispara un flash corto (estrella + halo) una vez por ciclo. */
+@keyframes runwayPaparazzi {
+  0%, 18%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(0deg); }
+  4% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(10deg); }
+  10% { opacity: 0.7; transform: translate(-50%, -50%) scale(0.85) rotate(20deg); }
+}
+.runway-paparazzi {
+  opacity: 0;
+  animation-name: runwayPaparazzi;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+/* Flashes de cámara en el armado de la cuadrícula (GridAssembleImage):
+   uno por pieza cuando llega a su lugar y una ráfaga al quedar armada. El
+   delay de cada uno lo pone el componente. */
+@keyframes gridLandFlash {
+  0% { opacity: 0; }
+  18% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+.grid-land-flash {
+  opacity: 0;
+  animation: gridLandFlash 520ms ease-out both;
+  mix-blend-mode: screen;
+}
+@keyframes gridFlashStar {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(0deg); }
+  30% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(12deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.5) rotate(28deg); }
+}
+.grid-flash-star {
+  opacity: 0;
+  animation: gridFlashStar 420ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .runway-paparazzi, .grid-land-flash, .grid-flash-star { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-neon-flicker, .bg-drip, .bg-neon-blob { animation: none !important; }
+  .bg-drip { transform: scaleY(1); opacity: 0.6; }
+}
 /* Efecto "flotar en el espacio" de la imagen resultante (resultImageEffect
    SPACE_FLOAT, ResultStep/BoothMirror). Deriva lenta en un lazo irregular
    con leve giro 3D, como sin gravedad. Duración larga y amplitud chica para
