@@ -428,7 +428,7 @@ useEffect(() => {
         </header>
 
         {loadingPhoto && (
-          <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-white/80">
+          <div className="mb-4 rounded-xl border border-white/15 bg-black/70 backdrop-blur-md p-3 text-white/90">
             Preparando tu imagen…
           </div>
         )}
@@ -440,7 +440,7 @@ useEffect(() => {
 
         {/* ⬇️ FORMULARIO ORIGINAL (COMENTADO)
         {!saved && (
-          <div className="rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6">
+          <div className="rounded-2xl border border-white/15 bg-black/70 backdrop-blur-md shadow-xl p-5 md:p-6">
             <h2 className="text-xl font-bold text-white mb-1">Completa el formulario</h2>
             <p className="text-sm text-white/70 mb-4">
               Al enviar, te mostraremos tu foto y podrás descargarla.
@@ -520,7 +520,7 @@ useEffect(() => {
         */}
 
         {/* ⬇️ SOLO DESCARGA */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6">
+        <div className="rounded-2xl border border-white/15 bg-black/70 backdrop-blur-md shadow-xl p-5 md:p-6">
           <div className="flex flex-wrap items-center gap-3">
             <a
               href={canDownload ? downloadHref : undefined}

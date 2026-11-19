@@ -328,7 +328,7 @@ export default function EventSurveyCard({
     return (
       <section
         id={id}
-        className="mt-5 rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6 text-center"
+        className="mt-5 rounded-2xl border border-white/15 bg-black/70 backdrop-blur-md shadow-xl p-5 md:p-6 text-center"
         aria-live="polite"
       >
         <div
@@ -342,7 +342,7 @@ export default function EventSurveyCard({
           {survey.thankYouTitle || SURVEY_DEFAULTS.thankYouTitle}
         </h2>
         {survey.thankYouText && (
-          <p className="mt-2 text-white/80 text-sm md:text-base">{survey.thankYouText}</p>
+          <p className="mt-2 text-white/90 text-sm md:text-base">{survey.thankYouText}</p>
         )}
       </section>
     );
@@ -354,20 +354,20 @@ export default function EventSurveyCard({
   return (
     <section
       id={id}
-      className="mt-5 rounded-2xl border border-white/10 bg-white/5 shadow-xl p-5 md:p-6 scroll-mt-4"
+      className="mt-5 rounded-2xl border border-white/15 bg-black/70 backdrop-blur-md shadow-xl p-5 md:p-6 scroll-mt-4"
     >
       <header className="mb-4">
         <h2 className="text-xl md:text-2xl font-extrabold text-white leading-tight">
           {survey.title || SURVEY_DEFAULTS.title}
         </h2>
         {survey.intro && step === 0 && (
-          <p className="mt-2 text-sm text-white/75">{survey.intro}</p>
+          <p className="mt-2 text-sm text-white/90">{survey.intro}</p>
         )}
       </header>
 
       {totalSteps > 1 && (
         <div className="mb-4">
-          <div className="flex items-center justify-between text-xs text-white/60 mb-1.5">
+          <div className="flex items-center justify-between text-xs text-white/85 mb-1.5">
             <span>{onPhoneStep ? "Último paso" : `Pregunta ${step + 1} de ${questions.length}`}</span>
             <span aria-live="polite">
               {autosave === "saving"
@@ -391,7 +391,7 @@ export default function EventSurveyCard({
           <label htmlFor="survey-phone" className="block text-base md:text-lg font-bold text-white mb-1">
             {phoneStep.label}
           </label>
-          <p className="text-xs text-white/60 mb-2">Es opcional: puedes dejarlo vacío y enviar.</p>
+          <p className="text-xs text-white/85 mb-2">Es opcional: puedes dejarlo vacío y enviar.</p>
           <input
             id="survey-phone"
             type="tel"
@@ -413,7 +413,7 @@ export default function EventSurveyCard({
           )}
 
           {phoneTyped && (
-            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/15 bg-white/5 p-3">
+            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/20 bg-white/10 p-3">
               <input
                 type="checkbox"
                 checked={consent}
@@ -421,7 +421,7 @@ export default function EventSurveyCard({
                 className="mt-0.5 h-5 w-5 shrink-0 rounded"
                 style={{ accentColor: accent }}
               />
-              <span className="text-xs leading-relaxed text-white/85">{phoneStep.consentText}</span>
+              <span className="text-xs leading-relaxed text-white/90">{phoneStep.consentText}</span>
             </label>
           )}
 
@@ -446,7 +446,7 @@ export default function EventSurveyCard({
                   {showPolicy ? "Ocultar política de privacidad" : "Ver política de privacidad"}
                 </button>
                 {showPolicy && (
-                  <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-white/15 bg-black/40 p-3 text-xs leading-relaxed text-white/80 whitespace-pre-line">
+                  <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-white/15 bg-black/60 p-3 text-xs leading-relaxed text-white/90 whitespace-pre-line">
                     {phoneStep.privacyPolicyText}
                   </div>
                 )}
@@ -457,7 +457,7 @@ export default function EventSurveyCard({
       ) : (
         <fieldset key={q.id} className="animate-fadeIn">
           <legend className="text-base md:text-lg font-bold text-white mb-1">{q.text}</legend>
-          {q.multiple && <p className="text-xs text-white/60 mb-2">Puedes elegir varias.</p>}
+          {q.multiple && <p className="text-xs text-white/85 mb-2">Puedes elegir varias.</p>}
           <div className="mt-2 grid gap-2">
             {q.options.map((option) => {
               const on = selected.includes(option);
@@ -469,7 +469,7 @@ export default function EventSurveyCard({
                   aria-pressed={on}
                   disabled={status === "sending"}
                   className={`flex min-h-12 w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm md:text-base font-medium transition active:scale-[0.99] ${
-                    on ? "text-white" : "border-white/20 bg-white/5 text-white/90 hover:bg-white/10"
+                    on ? "text-white" : "border-white/25 bg-white/10 text-white hover:bg-white/15"
                   }`}
                   style={on ? { borderColor: accent, backgroundColor: `${accent}33` } : undefined}
                 >
@@ -503,7 +503,7 @@ export default function EventSurveyCard({
         <button
           type="button"
           onClick={() => setStep((s) => Math.max(0, s - 1))}
-          className={`px-3 py-2 text-sm font-medium text-white/70 hover:text-white ${step === 0 ? "invisible" : ""}`}
+          className={`px-3 py-2 text-sm font-medium text-white/85 hover:text-white ${step === 0 ? "invisible" : ""}`}
         >
           ← Atrás
         </button>
@@ -534,7 +534,7 @@ export default function EventSurveyCard({
       </div>
 
       {onPhoneStep && phoneTyped && phoneValid && !consent && (
-        <p className="mt-2 text-right text-xs text-white/60">
+        <p className="mt-2 text-right text-xs text-white/90">
           Marca la autorización para enviar tu celular, o bórralo para enviar sin él.
         </p>
       )}
