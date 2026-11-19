@@ -4,6 +4,7 @@ import { getAdminServices } from "@/server/firebaseAdmin";
 import {
   SURVEY_RESPONSES_COLLECTION,
   getActiveSurvey,
+  isValidSurveyResponseId,
   validateSurveyAnswers,
   validateSurveyPhone,
   type SurveyResponseRow,
@@ -37,7 +38,12 @@ function cleanId(v: unknown): string | null {
 }
 
 /**
- * Guarda una respuesta de la encuesta de la página de descarga (`/survey`).
+ * Crea o actualiza la respuesta de la encuesta de la página de descarga
+ * (`/survey`). Se llama cada vez que la persona contesta una pregunta, con
+ * TODAS sus respuestas hasta ese momento (no solo la nueva), sobre el mismo
+ * `responseId` que generó su celular — así lo contestado queda guardado
+ * aunque nunca toque "Enviar". `complete: true` (el botón "Enviar") marca la
+ * respuesta como completa y es el único guardado que acepta el celular.
  *
  * Pasa por el servidor (Admin SDK) en vez de escribir a Firestore desde el
  * celular: la página es pública y sin login, y las reglas de Firestore no
@@ -62,6 +68,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "eventId requerido" }, { status: 400 });
     }
     const taskId = cleanId(body?.taskId);
+    const responseId = body?.responseId;
+    if (!isValidSurveyResponseId(responseId)) {
+      return NextResponse.json({ error: "responseId inválido" }, { status: 400 });
+    }
+    const complete = body?.complete === true;
 
     const { admin, db } = getAdminServices();
     const eventSnap = await db.collection("events").doc(eventId).get();
@@ -74,29 +85,67 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "La encuesta no está activa" }, { status: 409 });
     }
 
-    const result = validateSurveyAnswers(survey, body?.answers);
+    // Vacío solo vale al completar o sobre un doc existente (se verifica abajo).
+    const result = validateSurveyAnswers(survey, body?.answers, { allowEmpty: true });
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
-    const phoneResult = validateSurveyPhone(survey, body?.phone, body?.consent);
+    // El celular solo entra con "Enviar"; los guardados parciales lo ignoran.
+    const phoneResult = complete
+      ? validateSurveyPhone(survey, body?.phone, body?.consent)
+      : ({ ok: true, phone: null, consent: null } as const);
     if (!phoneResult.ok) {
       return NextResponse.json({ error: phoneResult.error }, { status: 400 });
     }
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
-    const ref = await db.collection(SURVEY_RESPONSES_COLLECTION).add({
-      eventId,
-      eventName: typeof event.name === "string" ? event.name : "",
-      taskId: taskId ?? null,
-      answers: result.answers,
-      phone: phoneResult.phone,
-      // Prueba de la autorización (Ley 1581): qué texto aceptó y cuándo.
-      consent: phoneResult.consent ? { ...phoneResult.consent, acceptedAt: now } : null,
-      userAgent: (req.headers.get("user-agent") || "").slice(0, 300),
-      createdAt: now,
+    const ref = db.collection(SURVEY_RESPONSES_COLLECTION).doc(responseId);
+    const outcome = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const fields: Record<string, unknown> = {
+        answers: result.answers,
+        completed: complete,
+        updatedAt: now,
+      };
+      if (complete) {
+        fields.completedAt = now;
+        fields.phone = phoneResult.phone;
+        // Prueba de la autorización (Ley 1581): qué texto aceptó y cuándo.
+        fields.consent = phoneResult.consent ? { ...phoneResult.consent, acceptedAt: now } : null;
+      }
+
+      if (snap.exists) {
+        const prev = snap.data() || {};
+        if (prev.eventId !== eventId) return "conflict" as const;
+        // Una respuesta enviada queda cerrada: nada la reescribe después.
+        if (prev.completed === true) return "closed" as const;
+        tx.update(ref, fields);
+        return "updated" as const;
+      }
+
+      if (!result.answers.length && !complete) return "empty" as const;
+      tx.set(ref, {
+        eventId,
+        eventName: typeof event.name === "string" ? event.name : "",
+        taskId: taskId ?? null,
+        phone: null,
+        consent: null,
+        userAgent: (req.headers.get("user-agent") || "").slice(0, 300),
+        createdAt: now,
+        ...fields,
+      });
+      return "created" as const;
     });
 
-    return NextResponse.json({ ok: true, id: ref.id });
+    if (outcome === "conflict") {
+      return NextResponse.json({ error: "responseId inválido" }, { status: 409 });
+    }
+    if (outcome === "empty") {
+      return NextResponse.json({ error: "No hay respuestas" }, { status: 400 });
+    }
+    // "closed": ya estaba enviada (p. ej. un reintento tras un corte de red):
+    // para el celular es éxito, no hay nada más que guardar.
+    return NextResponse.json({ ok: true, id: responseId, outcome });
   } catch (error: any) {
     console.error("[survey-responses] POST", error);
     return NextResponse.json({ error: "No se pudo guardar la respuesta" }, { status: 500 });
@@ -138,6 +187,9 @@ export async function GET(req: NextRequest) {
         createdAt: created ? created.toISOString() : null,
         taskId: typeof data.taskId === "string" ? data.taskId : null,
         answers: Array.isArray(data.answers) ? data.answers : [],
+        // Sin el campo = doc anterior al guardado por pregunta: esos solo se
+        // creaban al tocar "Enviar".
+        completed: data.completed !== false,
         ...(withPhones ? { phone } : {}),
       };
     });

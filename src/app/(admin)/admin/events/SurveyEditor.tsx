@@ -18,6 +18,9 @@ import {
 /** Clave de exportación de celulares, recordada solo en este navegador. */
 const EXPORT_KEY_LS = "photobooth:survey-export-key";
 
+/** Filas de la pestaña "Respuestas" que se pintan de a poco (el CSV las trae todas). */
+const RESPONSES_PAGE = 100;
+
 const inputCls =
   "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent";
 
@@ -441,6 +444,8 @@ export function SurveyResultsPanel({
   const [error, setError] = useState<string | null>(null);
   const [phoneInfo, setPhoneInfo] = useState({ count: 0, withPhones: false, keyConfigured: false });
   const [exportKey, setExportKey] = useState("");
+  const [view, setView] = useState<"summary" | "responses">("summary");
+  const [visibleCount, setVisibleCount] = useState(RESPONSES_PAGE);
 
   useEffect(() => {
     try {
@@ -532,17 +537,21 @@ export function SurveyResultsPanel({
     return { questions, counts, answered };
   }, [rows, survey.questions]);
 
+  const completedCount = (rows || []).filter((r) => r.completed).length;
+
   const exportCsv = () => {
     if (!rows) return;
     const withPhones = phoneInfo.withPhones;
     const header = [
       "Fecha",
+      "Estado",
       "Foto (taskId)",
       ...(withPhones ? ["Celular (autorizado)"] : []),
       ...summary.questions.map((q) => q.text),
     ];
     const body = rows.map((r) => [
       r.createdAt ? new Date(r.createdAt).toLocaleString("es-CO") : "",
+      r.completed ? "Completa" : "Parcial",
       r.taskId || "",
       ...(withPhones ? [r.phone || ""] : []),
       ...summary.questions.map(
@@ -555,9 +564,19 @@ export function SurveyResultsPanel({
   return (
     <div className="rounded-lg border border-gray-200 p-3 sm:p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold text-gray-800">
-          Resultados {rows ? `· ${rows.length} respuesta${rows.length === 1 ? "" : "s"}` : ""}
-        </h4>
+        <div>
+          <h4 className="text-sm font-semibold text-gray-800">
+            Resultados {rows ? `· ${rows.length} persona${rows.length === 1 ? "" : "s"}` : ""}
+          </h4>
+          {rows && rows.length > 0 && (
+            <p className="text-xs text-gray-500">
+              {completedCount} completa{completedCount === 1 ? "" : "s"} ·{" "}
+              {rows.length - completedCount} parcial{rows.length - completedCount === 1 ? "" : "es"}{" "}
+              (contestaron algunas preguntas sin tocar &quot;Enviar&quot;; cada respuesta se guarda al
+              contestarla)
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -584,33 +603,36 @@ export function SurveyResultsPanel({
             <strong>{phoneInfo.count}</strong> persona{phoneInfo.count === 1 ? "" : "s"} dejaron su
             celular con autorización.{" "}
             {phoneInfo.withPhones
-              ? "Los números se incluyen en el CSV."
+              ? "Los números se ven en “Respuestas” y se incluyen en el CSV."
               : "Por privacidad, los números solo se incluyen en el CSV con la clave de exportación."}
           </p>
           {!phoneInfo.withPhones &&
             (phoneInfo.keyConfigured ? (
-              <form
-                className="flex flex-wrap items-center gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  load(exportKey.trim() || undefined);
-                }}
-              >
+              // Sin <form>: dentro de "Editar evento" este panel ya vive en el
+              // formulario del evento, y un form anidado (o Enter) lo enviaría.
+              <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="password"
                   value={exportKey}
                   onChange={(e) => setExportKey(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      load(exportKey.trim() || undefined);
+                    }
+                  }}
                   placeholder="Clave de exportación"
                   autoComplete="off"
                   className="flex-1 min-w-40 px-2.5 py-1.5 text-xs border border-gray-300 rounded-md"
                 />
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => load(exportKey.trim() || undefined)}
                   className="px-3 py-1.5 text-xs font-medium rounded-md bg-gray-800 text-white hover:bg-gray-900"
                 >
                   Desbloquear celulares
                 </button>
-              </form>
+              </div>
             ) : (
               <p className="text-amber-700">
                 Falta configurar la variable SURVEY_EXPORT_KEY en el servidor (Netlify) para poder
@@ -626,6 +648,94 @@ export function SurveyResultsPanel({
       )}
 
       {rows && rows.length > 0 && (
+        <div className="flex gap-1 border-b border-gray-200" role="tablist">
+          {(
+            [
+              ["summary", "Resumen"],
+              ["responses", `Respuestas (${rows.length})`],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={view === key}
+              onClick={() => setView(key)}
+              className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                view === key
+                  ? "border-blue-600 text-blue-700"
+                  : "border-transparent text-gray-500 hover:text-gray-800"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {rows && rows.length > 0 && view === "responses" && (
+        <div className="space-y-2">
+          <div className="overflow-x-auto rounded-md border border-gray-200">
+            <table className="min-w-full text-xs">
+              <thead className="bg-gray-50 text-left text-gray-600">
+                <tr>
+                  <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Fecha</th>
+                  <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Estado</th>
+                  {phoneInfo.withPhones && (
+                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Celular</th>
+                  )}
+                  {summary.questions.map((q, i) => (
+                    <th key={q.id} className="px-2.5 py-2 font-semibold min-w-44" title={q.text}>
+                      {i + 1}. {q.text}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {rows.slice(0, visibleCount).map((r) => (
+                  <tr key={r.id} className="align-top hover:bg-gray-50">
+                    <td className="px-2.5 py-2 whitespace-nowrap text-gray-500 tabular-nums">
+                      {r.createdAt ? new Date(r.createdAt).toLocaleString("es-CO") : "—"}
+                    </td>
+                    <td className="px-2.5 py-2 whitespace-nowrap">
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          r.completed ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
+                        {r.completed ? "Completa" : "Parcial"}
+                      </span>
+                    </td>
+                    {phoneInfo.withPhones && (
+                      <td className="px-2.5 py-2 whitespace-nowrap tabular-nums text-gray-800">
+                        {r.phone || "—"}
+                      </td>
+                    )}
+                    {summary.questions.map((q) => (
+                      <td key={q.id} className="px-2.5 py-2 text-gray-800">
+                        {r.answers.find((a) => a.questionId === q.id)?.selected.join(", ") || (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {rows.length > visibleCount && (
+            <button
+              type="button"
+              onClick={() => setVisibleCount((n) => n + RESPONSES_PAGE)}
+              className="text-xs font-medium text-blue-600 hover:text-blue-700"
+            >
+              Ver {Math.min(RESPONSES_PAGE, rows.length - visibleCount)} más (de {rows.length - visibleCount} restantes)
+            </button>
+          )}
+        </div>
+      )}
+
+      {rows && rows.length > 0 && view === "summary" && (
         <div className="space-y-4">
           {summary.questions.map((q) => {
             const n = summary.answered[q.id] || 0;

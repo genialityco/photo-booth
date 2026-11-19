@@ -10,6 +10,7 @@ import {
 import EventForm from "./EventForm";
 import QrTag from "@/app/components/photo-booth/QrTag";
 import { buildEventPhotosUrl } from "@/app/event-photos/dateRange";
+import { SurveyResultsPanel } from "./SurveyEditor";
 
 export default function EventsList() {
   const [events, setEvents] = useState<EventProfile[]>([]);
@@ -22,6 +23,8 @@ export default function EventsList() {
   // Modal del link a la galería del evento, con rango de fechas opcional
   // (`/event-photos/[slug]?from=&to=`, ver event-photos/dateRange.ts).
   const [photosEvent, setPhotosEvent] = useState<EventProfile | null>(null);
+  // Modal de respuestas de la encuesta de la página de descarga.
+  const [surveyEvent, setSurveyEvent] = useState<EventProfile | null>(null);
   const [photosFrom, setPhotosFrom] = useState("");
   const [photosTo, setPhotosTo] = useState("");
   const photosRangeInvalid = !!photosFrom && !!photosTo && photosFrom > photosTo;
@@ -258,6 +261,14 @@ export default function EventsList() {
                     >
                       Pantalla
                     </button>
+                    {event.surveyEnabled === true && (
+                      <button
+                        onClick={() => setSurveyEvent(event)}
+                        className="px-3 py-2 bg-pink-100 text-pink-700 rounded hover:bg-pink-200 text-sm font-medium"
+                      >
+                        Encuestas
+                      </button>
+                    )}
                     <button
                       onClick={() => handleEdit(event)}
                       className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium"
@@ -364,6 +375,43 @@ export default function EventsList() {
               >
                 Abrir
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: respuestas de la encuesta (resumen, tabla y CSV) */}
+      {surveyEvent && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSurveyEvent(null)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Encuestas de ${surveyEvent.name}`}
+          >
+            <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-gray-200">
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold text-gray-900">Encuestas</h2>
+                <p className="text-sm text-gray-600 truncate">{surveyEvent.name}</p>
+              </div>
+              <button
+                onClick={() => setSurveyEvent(null)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+            <div className="overflow-y-auto p-5">
+              <SurveyResultsPanel
+                eventId={surveyEvent.id}
+                eventSlug={surveyEvent.slug}
+                survey={surveyEvent.survey || { questions: [] }}
+              />
             </div>
           </div>
         </div>

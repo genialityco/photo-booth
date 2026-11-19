@@ -83,11 +83,26 @@ export type SurveyResponseRow = {
   createdAt: string | null;
   taskId: string | null;
   answers: StoredSurveyAnswer[];
+  /** false = la persona contestó algunas preguntas pero no tocó "Enviar"
+   * (cada respuesta se guarda al contestarla). */
+  completed: boolean;
   /** Solo viene con la clave de exportación (ver api/survey-responses). */
   phone?: string | null;
 };
 
 export const SURVEY_RESPONSES_COLLECTION = "surveyResponses";
+
+/** Id de la respuesta, generado en el celular y reutilizado en cada guardado
+ * parcial. Largo y aleatorio: es lo único que permite escribir sobre ese doc. */
+export function newSurveyResponseId(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export function isValidSurveyResponseId(v: unknown): v is string {
+  return typeof v === "string" && /^[a-f0-9]{32}$/.test(v);
+}
 
 export const SURVEY_LIMITS = {
   questions: 12,
@@ -302,7 +317,10 @@ export function getActiveSurvey(event: {
  */
 export function validateSurveyAnswers(
   survey: EventSurveyConfig,
-  answers: unknown
+  answers: unknown,
+  /** allowEmpty: un guardado parcial que deja todo sin marcar (ej. desmarcar
+   * la única opción de una pregunta múltiple) es válido sobre un doc existente. */
+  opts: { allowEmpty?: boolean } = {}
 ): { ok: true; answers: StoredSurveyAnswer[] } | { ok: false; error: string } {
   if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
     return { ok: false, error: "Respuestas inválidas" };
@@ -325,7 +343,7 @@ export function validateSurveyAnswers(
     out.push({ questionId: q.id, question: q.text, selected: unique });
   }
 
-  if (!out.length) return { ok: false, error: "No hay respuestas" };
+  if (!out.length && !opts.allowEmpty) return { ok: false, error: "No hay respuestas" };
   return { ok: true, answers: out };
 }
 

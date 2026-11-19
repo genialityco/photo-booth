@@ -90,7 +90,7 @@ This is separate from `display/[slug]` and `mosaic/[slug]`, which are passive sc
 
 ### Firestore collections
 
-`events` (event config, `eventService.ts`), `imageTasks` (one doc per photo: the async job *and* the archive of results), `photo_booth_prompts` (per-brand AI prompt config), `boothLiveSessions` (one doc per event, leader/mirror sync), `surveyResponses` (answers to the optional per-event survey on `/survey`, configured by `event.surveyEnabled`/`event.survey` — see `eventSurvey.ts`; written only through `POST /api/survey-responses`, which validates against the event config). Note `printJobsService.ts` reads `imageTasks` despite its name and `PrintJob` type — there is no separate print-jobs collection.
+`events` (event config, `eventService.ts`), `imageTasks` (one doc per photo: the async job *and* the archive of results), `photo_booth_prompts` (per-brand AI prompt config), `boothLiveSessions` (one doc per event, leader/mirror sync), `surveyResponses` (answers to the optional per-event survey on `/survey`, configured by `event.surveyEnabled`/`event.survey` — see `eventSurvey.ts`; written only through `POST /api/survey-responses`, which validates against the event config). One doc per person, keyed by a random `responseId` generated on the phone: every answered question re-posts the full answer set (so partial answers are kept, `completed: false`), and the final "Enviar" (`complete: true`, the only write that may carry the phone + consent) closes the doc against later writes. Note `printJobsService.ts` reads `imageTasks` despite its name and `PrintJob` type — there is no separate print-jobs collection.
 
 ### How event config reaches components
 

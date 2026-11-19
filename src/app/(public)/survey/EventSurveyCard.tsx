@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   SURVEY_DEFAULTS,
   getActivePhoneStep,
+  isValidSurveyResponseId,
+  newSurveyResponseId,
   normalizeColombianMobile,
   type EventSurveyConfig,
   type SurveyAnswers,
@@ -30,6 +32,43 @@ function markDone(eventId: string) {
     localStorage.setItem(doneKey(eventId), "1");
   } catch {
     // modo privado / almacenamiento bloqueado: solo se volvería a ofrecer
+  }
+}
+
+/** Espera tras el último toque antes de guardar: agrupa los toques rápidos
+ * de una pregunta múltiple en un solo envío. */
+const SAVE_DEBOUNCE_MS = 400;
+
+function progressKey(eventId: string) {
+  return `photobooth:survey-progress:${eventId}`;
+}
+
+/** Respuesta a medias de este celular (para retomarla al recargar). */
+function readProgress(
+  eventId: string
+): { responseId: string; answers: SurveyAnswers; step: number } | null {
+  try {
+    const raw = localStorage.getItem(progressKey(eventId));
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (!isValidSurveyResponseId(p?.responseId) || !p.answers || typeof p.answers !== "object") {
+      return null;
+    }
+    const answers: SurveyAnswers = {};
+    for (const [k, v] of Object.entries(p.answers)) {
+      if (Array.isArray(v)) answers[k] = v.filter((s): s is string => typeof s === "string");
+    }
+    return { responseId: p.responseId, answers, step: Number(p.step) || 0 };
+  } catch {
+    return null;
+  }
+}
+
+function clearProgress(eventId: string) {
+  try {
+    localStorage.removeItem(progressKey(eventId));
+  } catch {
+    // ignore
   }
 }
 
@@ -67,15 +106,154 @@ export default function EventSurveyCard({
   const [showPolicy, setShowPolicy] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [autosave, setAutosave] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const advanceTimer = useRef<number | null>(null);
 
+  // --- Guardado por pregunta -------------------------------------------
+  // Cada cambio de respuestas se manda entero (todas las contestadas hasta
+  // ahora) sobre el mismo `responseId`. Los envíos van de a uno: si llega un
+  // cambio con otro en vuelo, se marca `dirty` y al terminar se manda el
+  // estado más reciente — así uno viejo nunca pisa a uno nuevo.
+  const responseIdRef = useRef<string>("");
+  const answersRef = useRef<SurveyAnswers>({});
+  const savingRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const saveTimer = useRef<number | null>(null);
+  const restoredRef = useRef(false);
+  const finishedRef = useRef(false);
+  /** Ya existe el doc en el servidor (guardado ok, o retomado de antes). */
+  const savedOnceRef = useRef(false);
+  const stepRef = useRef(0);
+  stepRef.current = step;
+
+  const hasAnyAnswer = (a: SurveyAnswers) => Object.values(a).some((v) => v.length > 0);
+
+  const payload = (extra: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      eventId,
+      taskId,
+      responseId: responseIdRef.current,
+      answers: answersRef.current,
+      ...extra,
+    });
+
+  const persistProgress = () => {
+    try {
+      localStorage.setItem(
+        progressKey(eventId),
+        JSON.stringify({
+          responseId: responseIdRef.current,
+          answers: answersRef.current,
+          step: stepRef.current,
+        })
+      );
+    } catch {
+      // sin almacenamiento: no se retoma al recargar, lo demás sigue igual
+    }
+  };
+
+  const savePartial = async () => {
+    if (finishedRef.current) return;
+    // Sin nada contestado y sin doc en el servidor todavía, no hay qué guardar
+    // (con doc, sí: desmarcar todo también se guarda).
+    if (!hasAnyAnswer(answersRef.current) && !savedOnceRef.current) return;
+    if (savingRef.current) {
+      dirtyRef.current = true;
+      return;
+    }
+    savingRef.current = true;
+    dirtyRef.current = false;
+    setAutosave("saving");
+    try {
+      const res = await fetch("/api/survey-responses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload(),
+      });
+      if (res.ok) savedOnceRef.current = true;
+      setAutosave(res.ok ? "saved" : "error");
+    } catch {
+      setAutosave("error");
+    } finally {
+      savingRef.current = false;
+      if (dirtyRef.current && !finishedRef.current) void savePartial();
+    }
+  };
+
+  // Al montar: ya respondida → agradecimiento; a medias → se retoma donde iba
+  // (misma respuesta en el servidor); nueva → id nuevo.
   useEffect(() => {
-    if (readDone(eventId)) setStatus("done");
+    if (readDone(eventId)) {
+      finishedRef.current = true;
+      setStatus("done");
+      return;
+    }
+    const saved = readProgress(eventId);
+    if (saved) {
+      responseIdRef.current = saved.responseId;
+      answersRef.current = saved.answers;
+      savedOnceRef.current = hasAnyAnswer(saved.answers);
+      setAnswers(saved.answers);
+      setStep(Math.min(saved.step, Math.max(0, totalSteps - 1)));
+    } else {
+      responseIdRef.current = newSurveyResponseId();
+    }
+    restoredRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
+
+  useEffect(() => {
+    answersRef.current = answers;
+    if (!restoredRef.current || finishedRef.current) return;
+    persistProgress();
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      saveTimer.current = null;
+      void savePartial();
+    }, SAVE_DEBOUNCE_MS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers]);
+
+  useEffect(() => {
+    if (restoredRef.current && !finishedRef.current) persistProgress();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  // Si cierra la pestaña o cambia de app con un guardado pendiente, se manda
+  // igual (keepalive sobrevive a la descarga de la página).
+  useEffect(() => {
+    const flush = () => {
+      if (!saveTimer.current || finishedRef.current) return;
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+      if (!hasAnyAnswer(answersRef.current)) return;
+      try {
+        void fetch("/api/survey-responses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload(),
+          keepalive: true,
+        });
+      } catch {
+        // la página se está yendo: no hay nada más que hacer
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId, taskId]);
 
   useEffect(
     () => () => {
       if (advanceTimer.current) window.clearTimeout(advanceTimer.current);
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
     },
     []
   );
@@ -109,18 +287,24 @@ export default function EventSurveyCard({
     }
   };
 
+  /** "Enviar": cierra la respuesta (ya guardada pregunta a pregunta) y es el
+   * único guardado que lleva el celular. Un guardado parcial que llegue
+   * después al servidor se descarta: la respuesta enviada queda cerrada. */
   const submit = async () => {
     if (phoneBlocksSubmit) return;
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    answersRef.current = answers;
     setStatus("sending");
     setErrorMsg("");
     try {
       const res = await fetch("/api/survey-responses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventId,
-          taskId,
-          answers,
+        body: payload({
+          complete: true,
           ...(phoneStep && phoneTyped ? { phone: phone.trim(), consent } : {}),
         }),
       });
@@ -128,7 +312,9 @@ export default function EventSurveyCard({
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || "No se pudo enviar");
       }
+      finishedRef.current = true;
       markDone(eventId);
+      clearProgress(eventId);
       setStatus("done");
     } catch (e) {
       setErrorMsg(
@@ -183,7 +369,13 @@ export default function EventSurveyCard({
         <div className="mb-4">
           <div className="flex items-center justify-between text-xs text-white/60 mb-1.5">
             <span>{onPhoneStep ? "Último paso" : `Pregunta ${step + 1} de ${questions.length}`}</span>
-            <span>Opcional</span>
+            <span aria-live="polite">
+              {autosave === "saving"
+                ? "Guardando…"
+                : autosave === "saved"
+                  ? "Respuestas guardadas ✓"
+                  : "Opcional"}
+            </span>
           </div>
           <div className="h-1.5 w-full rounded-full bg-white/15 overflow-hidden">
             <div
