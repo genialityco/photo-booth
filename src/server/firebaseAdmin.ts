@@ -9,11 +9,13 @@ const getServiceAccount = () => {
   try {
     // Intentar múltiples rutas posibles
     const possiblePaths = [
+      // Donde lo deja `generate-firebase-creds.js` en el prebuild (Netlify).
+      path.join(process.cwd(), ".next", "firebaseServiceAccount.json"),
       path.join(process.cwd(), "firebaseServiceAccount.json"),
       path.join(__dirname, "../../firebaseServiceAccount.json"),
       path.join(process.env.HOME || process.env.USERPROFILE || "/tmp", "firebaseServiceAccount.json"),
     ];
-    
+
     for (const filePath of possiblePaths) {
       if (fs.existsSync(filePath)) {
         try {
@@ -25,7 +27,24 @@ const getServiceAccount = () => {
         }
       }
     }
-    
+
+    // Variables divididas (FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, ...),
+    // igual que `api/photos` y `api/storage/upload`. Sin esto, las rutas que
+    // usan este módulo solo funcionaban si otra ruta ya había inicializado la
+    // app default en la misma instancia.
+    const { FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL } = process.env;
+    if (FIREBASE_PROJECT_ID && FIREBASE_PRIVATE_KEY && FIREBASE_CLIENT_EMAIL) {
+      console.log("✓ Credenciales reconstruidas desde variables FIREBASE_* divididas");
+      return {
+        type: "service_account",
+        project_id: FIREBASE_PROJECT_ID,
+        private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID || "",
+        private_key: FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+        client_email: FIREBASE_CLIENT_EMAIL,
+        client_id: process.env.FIREBASE_CLIENT_ID || "",
+      };
+    }
+
     // Fallback: intentar desde variable de entorno
     const envvar = process.env.FIREBASE_SERVICE_ACCOUNT;
     if (envvar) {

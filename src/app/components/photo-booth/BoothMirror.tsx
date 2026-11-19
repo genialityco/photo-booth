@@ -381,6 +381,8 @@ function ResultView({
     // Ver ResultStep: /survey se abre en el celular del asistente, así que el
     // evento viaja en la URL (es lo único que le permite mostrar sus logos).
     url.searchParams.set("eventId", event.id);
+    // Igual que ResultStep: liga la respuesta de la encuesta a esta foto.
+    url.searchParams.set("taskId", taskId);
     return url.toString();
   }, [origin, taskId, activeUrl, result?.videoUrl, enableFrame, frameSrc, event.id, facetsMode, localFacetIndex]);
 

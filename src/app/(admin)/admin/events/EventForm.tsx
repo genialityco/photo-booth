@@ -11,6 +11,7 @@ import {
   FaChevronDown,
   FaCheckCircle,
   FaProjectDiagram,
+  FaClipboardList,
 } from "react-icons/fa";
 import type { IconType } from "react-icons";
 import {
@@ -36,6 +37,7 @@ import HeaderLogoEditor from "./HeaderLogoEditor";
 import SplashLayoutEditor from "./SplashLayoutEditor";
 import BoothFlowPanel from "./BoothFlowPanel";
 import MultiImageUploadField from "./MultiImageUploadField";
+import SurveyEditor, { SurveyResultsPanel } from "./SurveyEditor";
 import {
   LOGO_RAIN_DEFAULT_COUNT,
   LOGO_RAIN_DEFAULT_SIZE_PX,
@@ -350,6 +352,8 @@ export default function EventForm({
     multiPromptSplitGrid: event?.multiPromptSplitGrid,
     multiPromptAssembleFlashes: event?.multiPromptAssembleFlashes,
     multiPromptFrameImage: event?.multiPromptFrameImage || "",
+    surveyEnabled: event?.surveyEnabled === true,
+    survey: event?.survey || { questions: [] },
   });
 
   const [selectedPromptIds, setSelectedPromptIds] = useState<string[]>(event?.prompts || []);
@@ -1818,6 +1822,37 @@ export default function EventForm({
               <option value="3x1">3 × 1 (3 paneles lado a lado)</option>
               <option value="3x2">3 × 2 (6 paneles)</option>
             </SelectField>
+          )}
+        </AccordionSection>
+
+        {/* Encuesta opcional en la página de descarga (/survey) */}
+        <AccordionSection title="Encuesta en la descarga" icon={FaClipboardList}>
+          <ToggleField
+            id="surveyEnabled"
+            label="Mostrar encuesta en la página de descarga"
+            description="Al escanear el QR de la foto, debajo del botón de descarga aparece esta encuesta, una pregunta a la vez. Es opcional: nunca bloquea la descarga. Quien ya respondió en ese celular ve el agradecimiento en vez de la encuesta. Las respuestas se guardan en la colección surveyResponses."
+            checked={formData.surveyEnabled === true}
+            onChange={(checked) => setField("surveyEnabled", checked)}
+          />
+
+          {formData.surveyEnabled && (
+            <>
+              <SurveyEditor
+                value={formData.survey || { questions: [] }}
+                onChange={(next) => setField("survey", next)}
+              />
+              {currentEventId ? (
+                <SurveyResultsPanel
+                  eventId={currentEventId}
+                  eventSlug={formData.slug}
+                  survey={formData.survey || { questions: [] }}
+                />
+              ) : (
+                <p className="text-xs text-gray-500">
+                  Guarda el evento para ver aquí los resultados.
+                </p>
+              )}
+            </>
           )}
         </AccordionSection>
 

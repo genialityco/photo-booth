@@ -151,6 +151,8 @@ export default function ResultStep({
     if (event?.id) {
       url.searchParams.set("eventId", event.id);
     }
+    // Liga la respuesta de la encuesta opcional de /survey a esta foto.
+    if (taskId) url.searchParams.set("taskId", taskId);
 
     return url.toString();
   }, [origin, activeUrl, videoUrl, taskId, enableFrame, frameSrc, event?.id, facetsMode, facetIndex]);

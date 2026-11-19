@@ -10,6 +10,8 @@ import {
   getEventProfileById,
   type EventProfile,
 } from "@/app/services/photo-booth/eventService";
+import { getActiveSurvey } from "@/app/services/photo-booth/eventSurvey";
+import EventSurveyCard from "./EventSurveyCard";
 // ⬇️ Ya no guardamos en base, así que puedes comentar/retirar estos imports si no se usan
 // import { createSurveyRecord, createSurveyRecordQuick } from "../services/surveyServices";
 
@@ -51,7 +53,12 @@ export default function SurveyClient() {
    * Es la única forma de saberlo acá: esta página se abre en el celular del
    * asistente, donde no existe el sessionStorage del kiosco. */
   const eventIdFromQS = sp.get("eventId") || undefined;
+  /** Foto a la que pertenece este QR: solo para ligarle la respuesta de la
+   * encuesta (los QR viejos no lo traen y la encuesta funciona igual). */
+  const taskIdFromQS = sp.get("taskId") || undefined;
   const [event, setEvent] = useState<EventProfile | null>(null);
+  /** Encuesta opcional del evento — nunca condiciona la descarga. */
+  const activeSurvey = useMemo(() => getActiveSurvey(event), [event]);
   const [photo, setPhoto] = useState<string>("");
   const [loadingPhoto, setLoadingPhoto] = useState(true);
   const [err, setErr] = useState<string>("");
@@ -408,6 +415,16 @@ useEffect(() => {
           <p className="text-white/80 mt-2 max-w-2xl mx-auto">
             Tu imagen se preparará automáticamente
           </p>
+          {/* En el celular la encuesta queda debajo de la vista previa, fuera
+              de pantalla: este atajo avisa que existe sin estorbar la descarga. */}
+          {activeSurvey && (
+            <a
+              href="#encuesta"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/20"
+            >
+              {activeSurvey.title || "Responde nuestra encuesta"} ↓
+            </a>
+          )}
         </header>
 
         {loadingPhoto && (
@@ -560,6 +577,16 @@ useEffect(() => {
             </div>
           )}
         </div>
+
+        {/* Encuesta opcional del evento (admin → "Encuesta en la descarga"). */}
+        {activeSurvey && event?.id && (
+          <EventSurveyCard
+            id="encuesta"
+            eventId={event.id}
+            taskId={taskIdFromQS}
+            survey={activeSurvey}
+          />
+        )}
       </div>
     </div>
   );

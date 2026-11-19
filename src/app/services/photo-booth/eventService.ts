@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import type { MultiPromptLayoutId, MultiPromptResultEffect, MultiPromptSplitGrid } from "@/app/components/photo-booth/multiPromptLayout";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects/types";
+import { sanitizeSurveyConfig, type EventSurveyConfig } from "./eventSurvey";
 
 /** Columnas x filas de la cuadrícula del modo facetas (generationType="FACETS").
  * Mismos valores que FACETS_GRIDS en functions/src/index.ts. */
@@ -527,6 +528,15 @@ export type EventProfile = {
   /** Con la foto dividida (multiPromptSplitGrid): flashes de cámara cuando
    * cada parte llega a su lugar y una ráfaga al quedar armada. Sin valor, sí. */
   multiPromptAssembleFlashes?: boolean;
+  /**
+   * Encuesta opcional en la página de descarga (`/survey`, la que abre el QR
+   * en el celular). Nunca bloquea la descarga. Se lee como `=== true`: los
+   * eventos sin este campo no muestran encuesta.
+   */
+  surveyEnabled?: boolean;
+  /** Preguntas y textos de esa encuesta (ver eventSurvey.ts). Las respuestas
+   * van a la colección `surveyResponses` vía `POST /api/survey-responses`. */
+  survey?: EventSurveyConfig;
   prompts: string[];
   isActive: boolean;
   screenConfig?: {
@@ -848,6 +858,9 @@ export async function createEventProfile(
       docData.brandingFooterText = data.brandingFooterText;
     }
 
+    if (data.surveyEnabled !== undefined) docData.surveyEnabled = data.surveyEnabled === true;
+    if (data.survey !== undefined) docData.survey = sanitizeSurveyConfig(data.survey);
+
     if (data.logoTopScalePct !== undefined) {
       docData.logoTopScalePct = data.logoTopScalePct;
     }
@@ -1080,6 +1093,8 @@ export async function updateEventProfile(
     if (data.logoRainCount !== undefined) docData.logoRainCount = data.logoRainCount;
     if (data.logoRainSizePx !== undefined) docData.logoRainSizePx = data.logoRainSizePx;
     if (data.runwayLightsColor !== undefined) docData.runwayLightsColor = data.runwayLightsColor;
+    if (data.surveyEnabled !== undefined) docData.surveyEnabled = data.surveyEnabled === true;
+    if (data.survey !== undefined) docData.survey = sanitizeSurveyConfig(data.survey);
 
     // Process image fields
     // "imageFields": el mismo mecanismo genérico (por content-type) también

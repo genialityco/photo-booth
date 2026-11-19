@@ -47,6 +47,8 @@ export function buildMultiPromptSurveyUrl(opts: {
   // foto suelta del evento no le corresponde — ver `noFrame` en SurveyClient.
   url.searchParams.set("noFrame", "1");
   if (opts.eventId) url.searchParams.set("eventId", opts.eventId);
+  // Liga la respuesta de la encuesta opcional de /survey a esta foto.
+  if (opts.taskId) url.searchParams.set("taskId", opts.taskId);
   return url.toString();
 }
 
