@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import TopLogosBar from "@/app/components/photo-booth/TopLogosBar";
+import TopLogosBar, { BottomLogoBar } from "@/app/components/photo-booth/TopLogosBar";
 import {
   getEventProfileById,
   type EventProfile,
@@ -891,6 +891,9 @@ useEffect(() => {
             survey={activeSurvey}
           />
         )}
+
+        {/* Layout de esquinas (`logoTopLeft`): `logoBottom` va abajo. */}
+        {event && <BottomLogoBar event={event} className="mt-8 px-2" />}
       </div>
     </div>
   );

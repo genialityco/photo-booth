@@ -158,3 +158,90 @@ function clampRenderScale(scalePct?: number | null): number {
   }
   return Math.min(LOGO_SCALE_MAX * BOTTOM_LOGO_BOOST, Math.max(LOGO_SCALE_MIN, scalePct));
 }
+
+/** Un logo ya resuelto para dibujar: archivo + escala efectiva (con el
+ * aumento del logo inferior ya aplicado cuando corresponde). */
+export type PlacedLogo = { src: string; scalePct: number };
+
+/**
+ * Layout "de esquinas" de los logos del evento: `logoTopLeft` arriba a la
+ * izquierda, `logoTop` arriba a la derecha y `logoBottom` centrado abajo.
+ *
+ * Se activa SOLO cuando el evento tiene `logoTopLeft`; si no, devuelve null y
+ * cada pantalla sigue con su layout de siempre. Todas las pantallas del booth
+ * (header/footer del wizard, cámara, carga, personalización, TopLogosBar y la
+ * pantalla espejo) preguntan acá en vez de decidirlo cada una — la splash no,
+ * que tiene su propio editor de posiciones (SplashLayoutEditor).
+ */
+export function cornerLogoLayout(
+  event:
+    | {
+        logoTopLeft?: string;
+        logoTop?: string;
+        logoBottom?: string;
+        logoTopLeftScalePct?: number;
+        logoTopScalePct?: number;
+        logoBottomScalePct?: number;
+      }
+    | null
+    | undefined,
+): { topLeft: PlacedLogo; topRight: PlacedLogo | null; bottom: PlacedLogo | null } | null {
+  const left = event?.logoTopLeft?.trim();
+  if (!event || !left) return null;
+  return {
+    topLeft: { src: left, scalePct: clampLogoScale(event.logoTopLeftScalePct) },
+    topRight: event.logoTop
+      ? { src: event.logoTop, scalePct: clampLogoScale(event.logoTopScalePct) }
+      : null,
+    bottom: event.logoBottom
+      ? { src: event.logoBottom, scalePct: bottomLogoScalePct(event.logoBottomScalePct) }
+      : null,
+  };
+}
+
+/*
+ * Medidas ÚNICAS del layout de esquinas. Cada pantalla tenía las suyas (header
+ * del wizard chico o "preview", banda de la cámara, loader…), así que el mismo
+ * logo cambiaba de tamaño y de altura al pasar de una pantalla a otra. En el
+ * layout de esquinas todas usan estas, para que los logos queden quietos.
+ *
+ * - Arriba: el alto "grande" de preview/resultado, con tope de ancho por logo
+ *   (son dos lado a lado).
+ * - Abajo: el tamaño del logo inferior de la pantalla de carga, despegado
+ *   del borde inferior.
+ */
+export const CORNER_TOP_LOGO_HEIGHT = PREVIEW_LOGO_BAR_HEIGHT;
+export const CORNER_TOP_LOGO_MAX_WIDTH = "44vw";
+export const CORNER_BOTTOM_LOGO_HEIGHT = LOADER_LOGO_HEIGHT;
+export const CORNER_BOTTOM_LOGO_MAX_WIDTH = "min(88vw, 520px)";
+/** Distancia de los logos de arriba al borde superior. */
+export const CORNER_PAD_TOP = "max(1.25rem, env(safe-area-inset-top))";
+/** Distancia del logo inferior al borde inferior. */
+export const CORNER_PAD_BOTTOM = "max(clamp(2rem, 3.5vh, 4rem), env(safe-area-inset-bottom))";
+/** Margen lateral de los logos de arriba. */
+export const CORNER_PAD_X = "1.5rem";
+/** Alto total que ocupa la franja del logo inferior (logo + aire hasta el
+ * borde), para que una pantalla pueda reservarlo — p. ej. la cámara, que centra
+ * el disparador en lo que queda entre el cuadro y este logo. `scalePct` es la
+ * escala efectiva del logo (la de `cornerLogoLayout`). */
+export function cornerBottomReserve(scalePct?: number): string {
+  const k = clampRenderScale(scalePct) / 100;
+  return `calc(${CORNER_BOTTOM_LOGO_HEIGHT} * ${k} + clamp(2rem, 3.5vh, 4rem) + 0.75rem)`;
+}
+
+export function cornerTopLogoStyle(scalePct?: number): CSSProperties {
+  return scaledLogoStyle({
+    baseHeight: CORNER_TOP_LOGO_HEIGHT,
+    baseMaxWidth: CORNER_TOP_LOGO_MAX_WIDTH,
+    scalePct,
+    viewportMaxWidth: CORNER_TOP_LOGO_MAX_WIDTH,
+  });
+}
+
+export function cornerBottomLogoStyle(scalePct?: number): CSSProperties {
+  return scaledLogoStyle({
+    baseHeight: CORNER_BOTTOM_LOGO_HEIGHT,
+    baseMaxWidth: CORNER_BOTTOM_LOGO_MAX_WIDTH,
+    scalePct,
+  });
+}

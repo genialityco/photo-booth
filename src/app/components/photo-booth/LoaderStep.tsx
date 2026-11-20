@@ -11,6 +11,12 @@ import { isVideoMediaSrc } from "@/app/components/photo-booth/loadingMedia";
 import {
   LOADER_LOGO_HEIGHT,
   bottomLogoScalePct,
+  CORNER_PAD_BOTTOM,
+  CORNER_PAD_TOP,
+  CORNER_PAD_X,
+  cornerBottomLogoStyle,
+  cornerLogoLayout,
+  cornerTopLogoStyle,
   scaledLogoStyle,
   scaledWideLogoStyle,
 } from "@/app/components/photo-booth/logoBarSizing";
@@ -156,6 +162,36 @@ export default function LoaderStep({
     ? (event?.logoBottom || style?.logoLoadingBottom || style?.logoLandingBottom || null)
     : null;
 
+  // Arriba van dos logos lado a lado. Por defecto `logoTop` | `logoBottom`;
+  // en el layout de esquinas (`logoTopLeft` cargado) `logoTopLeft` | `logoTop`,
+  // y `logoBottom` pasa a ir centrado abajo del todo.
+  const corners = showLogos ? cornerLogoLayout(event) : null;
+  const rowLeft = corners
+    ? corners.topLeft
+    : topLogo
+      ? { src: topLogo, scalePct: event?.logoTopScalePct }
+      : null;
+  const rowRight = corners
+    ? corners.topRight
+    : bottomLogo
+      ? { src: bottomLogo, scalePct: bottomLogoScalePct(event?.logoBottomScalePct) }
+      : null;
+  const footerLogo = corners?.bottom ?? null;
+  // En el layout de esquinas los logos de arriba usan las medidas CORNER_*
+  // compartidas con el header del wizard y la cámara: antes acá salían más
+  // chicos que en el resto de pantallas (LOADER_LOGO_HEIGHT).
+  const loaderLogoStyle = (scalePct?: number) =>
+    wide
+      ? scaledWideLogoStyle({ scalePct })
+      : corners
+        ? cornerTopLogoStyle(scalePct)
+        : scaledLogoStyle({
+          baseHeight: LOADER_LOGO_HEIGHT,
+          baseMaxWidth: "42vw",
+          scalePct,
+          viewportMaxWidth: "46vw",
+        });
+
   const ringSize = 128;
   const strokeWidth = 10;
   const radius = (ringSize - strokeWidth) / 2;
@@ -209,59 +245,39 @@ export default function LoaderStep({
       />
 
       {/* Logos: juntos arriba, lado a lado */}
-      {(topLogo || bottomLogo) && (
+      {(rowLeft || rowRight) && (
         <div
           /* Con los dos logos van uno a cada lado; con uno solo va centrado.
              Antes era `justify-between` fijo con un <span/> vacío haciendo de
              relleno, así que si faltaba uno el otro quedaba pegado a un
              costado en vez de centrado. */
-          className={`relative z-20 flex-shrink-0 w-full flex items-center gap-4 px-6 ${
-            topLogo && bottomLogo ? "justify-between" : "justify-center"
-          }`}
-          style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}
+          className={`relative z-20 flex-shrink-0 w-full flex items-center gap-4 ${
+            corners ? "" : "px-6"
+          } ${rowLeft && rowRight ? "justify-between" : "justify-center"}`}
+          style={
+            corners
+              ? { paddingTop: CORNER_PAD_TOP, paddingLeft: CORNER_PAD_X, paddingRight: CORNER_PAD_X }
+              : { paddingTop: "max(1.25rem, env(safe-area-inset-top))" }
+          }
         >
-          {topLogo ? (
-            <img
-              src={topLogo}
-              alt=""
-              className={`select-none ${wide ? "object-fill" : "w-auto object-contain"}`}
-              /* Misma escala configurable que el header/footer del wizard, para
-                 que el tamaño elegido en el admin no "salte" al entrar y salir
-                 de la pantalla de carga. En `wide` (pantalla gigante), ancho
-                 fijo + object-fill igual que TopLogosBar (pantalla de filtro)
-                 en vez de un tope de ancho con object-contain — si no, quedaba
-                 angosta en comparación. */
-              style={
-                wide
-                  ? scaledWideLogoStyle({ scalePct: event?.logoTopScalePct })
-                  : scaledLogoStyle({
-                      baseHeight: LOADER_LOGO_HEIGHT,
-                      baseMaxWidth: "42vw",
-                      scalePct: event?.logoTopScalePct,
-                      viewportMaxWidth: "46vw",
-                    })
-              }
-              draggable={false}
-            />
-          ) : null}
-          {bottomLogo ? (
-            <img
-              src={bottomLogo}
-              alt=""
-              className={`select-none ${wide ? "object-fill" : "w-auto object-contain"}`}
-              style={
-                wide
-                  ? scaledWideLogoStyle({ scalePct: bottomLogoScalePct(event?.logoBottomScalePct) })
-                  : scaledLogoStyle({
-                      baseHeight: LOADER_LOGO_HEIGHT,
-                      baseMaxWidth: "42vw",
-                      scalePct: bottomLogoScalePct(event?.logoBottomScalePct),
-                      viewportMaxWidth: "46vw",
-                    })
-              }
-              draggable={false}
-            />
-          ) : null}
+          {/* Misma escala configurable que el header/footer del wizard, para
+              que el tamaño elegido en el admin no "salte" al entrar y salir
+              de la pantalla de carga. En `wide` (pantalla gigante), ancho
+              fijo + object-fill igual que TopLogosBar (pantalla de filtro) en
+              vez de un tope de ancho con object-contain — si no, quedaba
+              angosta en comparación. */}
+          {[rowLeft, rowRight].map((logo, i) =>
+            logo ? (
+              <img
+                key={i}
+                src={logo.src}
+                alt=""
+                className={`select-none ${wide ? "object-fill" : "w-auto object-contain"}`}
+                style={loaderLogoStyle(logo.scalePct)}
+                draggable={false}
+              />
+            ) : null,
+          )}
         </div>
       )}
 
@@ -421,14 +437,36 @@ export default function LoaderStep({
       </div>
 
       <div
-        className="relative z-20 flex-shrink-0 pb-6 text-white/90 font-bold tracking-[0.2em] uppercase drop-shadow-sm"
+        className={`relative z-20 flex-shrink-0 text-white/90 font-bold tracking-[0.2em] uppercase drop-shadow-sm ${
+          footerLogo ? "pb-3" : "pb-6"
+        }`}
         style={{
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
+          ...(footerLogo ? {} : { paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }),
           fontSize: wide ? "clamp(1.2rem, 2.6vmin, 1.7rem)" : "clamp(0.75rem, 1.8vmin, 1rem)",
         }}
       >
         Generando con IA
       </div>
+
+      {/* Layout de esquinas: `logoBottom` centrado abajo del todo. */}
+      {footerLogo && (
+        <div
+          className="relative z-20 flex-shrink-0 w-full flex justify-center px-6"
+          style={{ paddingBottom: CORNER_PAD_BOTTOM }}
+        >
+          <img
+            src={footerLogo.src}
+            alt=""
+            className={`select-none ${wide ? "object-fill" : "w-auto object-contain"}`}
+            style={
+              wide
+                ? scaledWideLogoStyle({ scalePct: footerLogo.scalePct })
+                : cornerBottomLogoStyle(footerLogo.scalePct)
+            }
+            draggable={false}
+          />
+        </div>
+      )}
     </div>
   );
 }

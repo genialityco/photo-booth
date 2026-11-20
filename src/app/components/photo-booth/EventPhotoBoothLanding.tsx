@@ -8,7 +8,7 @@ import {
   type PhotoBoothPrompt,
 } from "@/app/services/photo-booth/brandService";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
-import TopLogosBar from "@/app/components/photo-booth/TopLogosBar";
+import TopLogosBar, { BottomLogoBar } from "@/app/components/photo-booth/TopLogosBar";
 
 export default function EventPhotoBoothLanding({
   event,
@@ -329,6 +329,13 @@ export default function EventPhotoBoothLanding({
             }
           />
         </div>
+
+        {/* Layout de esquinas (`logoTopLeft`): `logoBottom` centrado abajo. */}
+        <BottomLogoBar
+          event={event}
+          wide={wide}
+          className="pt-3"
+        />
       </div>
     </div>
   );

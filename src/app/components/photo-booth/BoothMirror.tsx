@@ -14,13 +14,13 @@ import LoaderStep from "@/app/components/photo-booth/LoaderStep";
 import PreviewStep from "@/app/components/photo-booth/PreviewStep";
 import QrTag from "@/app/components/photo-booth/QrTag";
 import RevealStep from "@/app/components/photo-booth/RevealStep";
-import TopLogosBar from "@/app/components/photo-booth/TopLogosBar";
+import TopLogosBar, { BottomLogoBar } from "@/app/components/photo-booth/TopLogosBar";
 import KinectRollerRevealStep from "@/app/components/photo-booth/reveal/KinectRollerRevealStep";
 import LiveSessionStatusBadge from "@/app/components/photo-booth/LiveSessionStatusBadge";
 import ScreenSaver from "@/app/components/common/ScreenSaver";
 import ScreenSaverEditorialGrid from "@/app/components/common/ScreenSaverEditorialGrid";
 import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
-import { bottomLogoScalePct } from "@/app/components/photo-booth/logoBarSizing";
+import { bottomLogoScalePct, cornerLogoLayout } from "@/app/components/photo-booth/logoBarSizing";
 import SpaceFloatCutout, { useCutoutShown } from "@/app/components/photo-booth/SpaceFloatCutout";
 import FacetCarousel3D from "@/app/components/photo-booth/FacetCarousel3D";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
@@ -225,13 +225,25 @@ function BrandingOverlay({ event }: { event: EventProfile }) {
  * un panel de controles, no una foto, así que acá solo se le da el ancho
  * completo de la pantalla y que sus propios topes internos decidan cuánto
  * ocupar. */
-function MirrorStage({ event, children }: { event: EventProfile; children: React.ReactNode }) {
+function MirrorStage({
+  event,
+  children,
+  bottomLogo = false,
+}: {
+  event: EventProfile;
+  children: React.ReactNode;
+  /** Dibuja `BottomLogoBar` abajo (solo hace algo en el layout de esquinas). */
+  bottomLogo?: boolean;
+}) {
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden">
       <MirrorBackground event={event} />
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="w-full flex-1 min-h-0 flex items-center justify-center">
         {children}
       </div>
+      {bottomLogo && (
+        <BottomLogoBar event={event} className="px-6" />
+      )}
     </div>
   );
 }
@@ -518,6 +530,10 @@ function ResultView({
       <div className="absolute top-0 inset-x-0 z-30 px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-2 sm:pb-3 md:pb-4">
         <TopLogosBar event={event} />
       </div>
+      {/* Layout de esquinas (`logoTopLeft`): `logoBottom` centrado abajo. */}
+      <div className="absolute bottom-0 inset-x-0 z-30 px-6 pointer-events-none">
+        <BottomLogoBar event={event} />
+      </div>
 
       <BrandingOverlay event={event} />
 
@@ -608,6 +624,7 @@ function MultiPromptMirrorResult({
           large
         />
       </div>
+      <BottomLogoBar event={event} className="px-6 -mt-2" />
     </div>
   );
 }
@@ -750,6 +767,7 @@ export default function BoothMirror({
   // ResultView la foto tardaría en aparecer un instante después de que la
   // fase ya diga "result" en vez de mostrarse al toque.
   const { result: taskResult, error: taskError } = useTaskResult(state?.taskId ?? null);
+  const corners = cornerLogoLayout(event);
 
   const content = (() => {
     if (!state || isStale) {
@@ -800,16 +818,18 @@ export default function BoothMirror({
           return <FullBleedMessage event={event} title="Confirmando foto en otro dispositivo" />;
         }
         return (
-          <MirrorStage event={event}>
+          <MirrorStage event={event} bottomLogo>
             <ImageCustomizeStep
               previewSrc={state.previewUrl}
               customizationOverride={state.customization}
               onConfirm={NOOP_CUSTOMIZE}
               readOnly
-              logoLeftSrc={event.logoTop}
-              logoRightSrc={event.logoBottom}
-              logoLeftScalePct={event.logoTopScalePct}
-              logoRightScalePct={bottomLogoScalePct(event.logoBottomScalePct)}
+              logoLeftSrc={corners ? corners.topLeft.src : event.logoTop}
+              logoRightSrc={corners ? corners.topRight?.src : event.logoBottom}
+              logoLeftScalePct={corners ? corners.topLeft.scalePct : event.logoTopScalePct}
+              logoRightScalePct={
+                corners ? corners.topRight?.scalePct : bottomLogoScalePct(event.logoBottomScalePct)
+              }
               aspectRatio={event.photoAspectRatio}
             />
           </MirrorStage>
@@ -859,7 +879,7 @@ export default function BoothMirror({
         if (urls.length === 0) return <LoaderStep brandIdOverride={state.brand} eventOverride={event} />;
         return (
           <MirrorStage event={event}>
-            <div className="w-full h-full px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-6 flex flex-col">
+            <div className={`w-full h-full px-6 pt-[max(1.5rem,env(safe-area-inset-top))] flex flex-col ${corners ? "" : "pb-6"}`}>
               <div className="flex-shrink-0 pb-2">
                 <TopLogosBar event={event} />
               </div>
@@ -872,6 +892,7 @@ export default function BoothMirror({
                   aspectRatio={event.photoAspectRatio}
                 />
               </div>
+              <BottomLogoBar event={event} className="pt-2" />
             </div>
           </MirrorStage>
         );

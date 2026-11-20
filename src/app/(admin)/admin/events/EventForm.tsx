@@ -314,6 +314,8 @@ export default function EventForm({
     bgImage: event?.bgImage || "",
     bgDarkenPct: event?.bgDarkenPct,
     logoTop: event?.logoTop || "",
+    logoTopLeft: event?.logoTopLeft || "",
+    logoTopLeftScalePct: event?.logoTopLeftScalePct,
     logoBottom: event?.logoBottom || "",
     // Sin `|| 100`: dejarlos en undefined mantiene el campo fuera del doc de
     // Firestore mientras nadie lo toque, y el render ya trata "sin valor" como
@@ -369,6 +371,8 @@ export default function EventForm({
     splashVideoUrl: event?.splashVideoUrl || "",
     splashHeaderHeightPct: event?.splashHeaderHeightPct || 18,
     splashHeaderLogos: event?.splashHeaderLogos || ([] as SplashHeaderLogo[]),
+    splashFooterHeightPct: event?.splashFooterHeightPct || 14,
+    splashFooterLogos: event?.splashFooterLogos || ([] as SplashHeaderLogo[]),
     splashFreeLayoutEnabled: event?.splashFreeLayoutEnabled === true,
     splashLayout: event?.splashLayout || ({} as SplashLayout),
     splashTitle: event?.splashTitle || "",
@@ -485,6 +489,7 @@ export default function EventForm({
   const headerAvailableImages = (
     [
       { label: "Logo Superior", url: formData.logoTop },
+      { label: "Logo Superior Izquierdo", url: formData.logoTopLeft },
       { label: "Logo Inferior", url: formData.logoBottom },
       { label: "Imagen de Fondo", url: formData.bgImage },
       { label: "Imagen del Botón", url: formData.buttonImage },
@@ -753,6 +758,27 @@ export default function EventForm({
             100% es el tamaño por defecto. Se aplica en todas las pantallas del flujo: selección de marca, captura, preview, personalización, carga, revelado y resultado (también en la pantalla espejo). La splash tiene su propio editor de logos y no se ve afectada.
           </p>
 
+          {/* Layout de esquinas: ver `cornerLogoLayout` en logoBarSizing.ts. */}
+          <div className="rounded-lg border border-gray-200 p-3 sm:p-4 space-y-3">
+            <ImageUploadField
+              label="Logo Superior Izquierdo (opcional)"
+              value={formData.logoTopLeft || ""}
+              onChange={(value) => handleImageChange("logoTopLeft", value)}
+            />
+            {formData.logoTopLeft ? (
+              <LogoScaleField
+                label="Tamaño del Logo Superior Izquierdo"
+                value={formData.logoTopLeftScalePct}
+                onChange={(value) => setField("logoTopLeftScalePct", value)}
+              />
+            ) : null}
+            <p className="text-xs text-gray-500">
+              Si lo cargas, cambia la posición de los logos en todas las pantallas menos la splash:
+              este logo va <b>arriba a la izquierda</b>, el Logo Superior <b>arriba a la derecha</b> y
+              el Logo Inferior <b>centrado abajo</b>. Sin él, los logos quedan como siempre.
+            </p>
+          </div>
+
           <ImageUploadField
             label="Marco de Foto"
             value={formData.frameImage || ""}
@@ -974,6 +1000,22 @@ export default function EventForm({
                 heightPct={formData.splashHeaderHeightPct || 18}
                 onChangeLogos={(logos) => setField("splashHeaderLogos", logos)}
                 onChangeHeightPct={(pct) => setField("splashHeaderHeightPct", pct)}
+                availableImages={headerAvailableImages}
+              />
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-gray-800 mb-1">Footer (logos)</h4>
+              <p className="text-xs text-gray-500 mb-2">
+                Franja de logos pegada abajo de la splash, debajo del botón. Opcional: sin logos acá,
+                la splash queda como siempre.
+              </p>
+              <HeaderLogoEditor
+                zoneName="footer"
+                logos={formData.splashFooterLogos || []}
+                heightPct={formData.splashFooterHeightPct || 14}
+                onChangeLogos={(logos) => setField("splashFooterLogos", logos)}
+                onChangeHeightPct={(pct) => setField("splashFooterHeightPct", pct)}
                 availableImages={headerAvailableImages}
               />
             </div>
@@ -1315,6 +1357,7 @@ export default function EventForm({
                 onChangeLayout={(layout) => setField("splashLayout", layout)}
                 onReset={() => setField("splashLayout", {})}
                 headerLogos={formData.splashHeaderLogos || []}
+                footerLogos={formData.splashFooterLogos || []}
                 preview={{
                   logoTop: formData.logoTop || "",
                   titleIsImage: formData.splashTitleMode === "IMAGE",

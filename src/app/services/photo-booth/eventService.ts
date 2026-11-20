@@ -92,6 +92,17 @@ export type EventProfile = {
   logoTop?: string;
   logoBottom?: string;
   /**
+   * Logo opcional de la esquina superior izquierda. Con él cargado, todas las
+   * pantallas del booth salvo la splash pasan al layout "de esquinas": este
+   * arriba a la izquierda, `logoTop` arriba a la derecha y `logoBottom`
+   * centrado abajo. Sin él, cada pantalla queda como siempre. La decisión
+   * vive en un solo lugar: `cornerLogoLayout` en
+   * components/photo-booth/logoBarSizing.ts.
+   */
+  logoTopLeft?: string;
+  /** Tamaño de `logoTopLeft`, igual que `logoTopScalePct`. */
+  logoTopLeftScalePct?: number;
+  /**
    * Tamaño del logo superior, en % del tamaño base (100 = el de siempre).
    * Aplica al header del wizard (preview, resultado, revelado) y al logo
    * izquierdo de la pantalla de carga. Se acota entre 50 y 250 al renderizar
@@ -305,6 +316,15 @@ export type EventProfile = {
    */
   splashHeaderHeightPct?: number;
   splashHeaderLogos?: SplashHeaderLogo[];
+  /**
+   * Footer configurable de la splash: igual que el header, pero en una franja
+   * de alto `splashFooterHeightPct` (% del alto de pantalla) pegada abajo,
+   * debajo del botón. Coordenadas en % de esa franja. Sin logos, no hay
+   * franja (comportamiento original). En el layout libre cada logo usa su
+   * posición de `splashLayout.logos` (mismas claves que los del header).
+   */
+  splashFooterHeightPct?: number;
+  splashFooterLogos?: SplashHeaderLogo[];
   /**
    * Layout libre: cuando `splashFreeLayoutEnabled` es true, título, subtítulo,
    * palabra 1/2, tarjeta, barra de carga y botón se posicionan/escalan según
@@ -715,7 +735,7 @@ export async function createEventProfile(
     // Image fields to process
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl", "screenSaverFolderLogo", "multiPromptFrameImage"];
+    const imageFields = ["bgImage", "logoTop", "logoTopLeft", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl", "screenSaverFolderLogo", "multiPromptFrameImage"];
 
     for (const field of imageFields) {
       const fileData = data[field];
@@ -784,6 +804,10 @@ export async function createEventProfile(
     if (data.splashTitleMode !== undefined) docData.splashTitleMode = data.splashTitleMode;
     if (data.splashTitleSkewDeg !== undefined) docData.splashTitleSkewDeg = data.splashTitleSkewDeg;
     if (data.splashHeaderHeightPct !== undefined) docData.splashHeaderHeightPct = data.splashHeaderHeightPct;
+    if (data.splashFooterHeightPct !== undefined) docData.splashFooterHeightPct = data.splashFooterHeightPct;
+    if (data.splashFooterLogos !== undefined) {
+      docData.splashFooterLogos = await resolveHeaderLogos(data.splashFooterLogos, data.slug);
+    }
     if (data.splashHeaderLogos !== undefined) {
       docData.splashHeaderLogos = await resolveHeaderLogos(data.splashHeaderLogos, data.slug);
     }
@@ -871,6 +895,10 @@ export async function createEventProfile(
 
     if (data.logoTopScalePct !== undefined) {
       docData.logoTopScalePct = data.logoTopScalePct;
+    }
+
+    if (data.logoTopLeftScalePct !== undefined) {
+      docData.logoTopLeftScalePct = data.logoTopLeftScalePct;
     }
 
     if (data.bgDarkenPct !== undefined) {
@@ -1055,6 +1083,7 @@ export async function updateEventProfile(
     if (data.paintTimeSeconds !== undefined) docData.paintTimeSeconds = data.paintTimeSeconds;
     if (data.photoAspectRatio !== undefined) docData.photoAspectRatio = data.photoAspectRatio;
     if (data.logoTopScalePct !== undefined) docData.logoTopScalePct = data.logoTopScalePct;
+    if (data.logoTopLeftScalePct !== undefined) docData.logoTopLeftScalePct = data.logoTopLeftScalePct;
     if (data.bgDarkenPct !== undefined) docData.bgDarkenPct = data.bgDarkenPct;
     if (data.logoBottomScalePct !== undefined) docData.logoBottomScalePct = data.logoBottomScalePct;
     if (data.mirrorScreenEnabled !== undefined) docData.mirrorScreenEnabled = data.mirrorScreenEnabled;
@@ -1076,6 +1105,10 @@ export async function updateEventProfile(
     if (data.splashTitleMode !== undefined) docData.splashTitleMode = data.splashTitleMode;
     if (data.splashTitleSkewDeg !== undefined) docData.splashTitleSkewDeg = data.splashTitleSkewDeg;
     if (data.splashHeaderHeightPct !== undefined) docData.splashHeaderHeightPct = data.splashHeaderHeightPct;
+    if (data.splashFooterHeightPct !== undefined) docData.splashFooterHeightPct = data.splashFooterHeightPct;
+    if (data.splashFooterLogos !== undefined) {
+      docData.splashFooterLogos = await resolveHeaderLogos(data.splashFooterLogos, data.slug);
+    }
     if (data.splashHeaderLogos !== undefined) {
       docData.splashHeaderLogos = await resolveHeaderLogos(data.splashHeaderLogos, data.slug);
     }
@@ -1112,7 +1145,7 @@ export async function updateEventProfile(
     // Process image fields
     // "imageFields": el mismo mecanismo genérico (por content-type) también
     // sirve para subir el video del screensaver.
-    const imageFields = ["bgImage", "logoTop", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl", "screenSaverFolderLogo", "multiPromptFrameImage"];
+    const imageFields = ["bgImage", "logoTop", "logoTopLeft", "logoBottom", "frameImage", "buttonImage", "loadingPageImage", "loadingMediaUrl", "splashImage", "screenSaverVideoUrl", "splashCardImage", "splashTitleImage", "splashVideoUrl", "brandingLogoUrl", "screenSaverFolderLogo", "multiPromptFrameImage"];
     for (const field of imageFields) {
       const fileData = data[field];
       if (fileData === undefined) continue;

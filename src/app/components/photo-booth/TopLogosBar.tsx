@@ -7,14 +7,38 @@ import {
   TOP_BAR_LOGO_HEIGHT,
   bottomLogoScalePct,
   TOP_BAR_LOGO_MAX_WIDTH,
+  CORNER_PAD_BOTTOM,
+  cornerBottomLogoStyle,
+  cornerLogoLayout,
+  cornerTopLogoStyle,
   scaledLogoStyle,
   scaledWideLogoStyle,
 } from "@/app/components/photo-booth/logoBarSizing";
+
+function topBarLogoStyle(wide: boolean, scalePct?: number) {
+  return wide
+    ? scaledWideLogoStyle({ scalePct })
+    : scaledLogoStyle({
+        baseHeight: TOP_BAR_LOGO_HEIGHT,
+        baseMaxWidth: TOP_BAR_LOGO_MAX_WIDTH,
+        scalePct,
+        viewportMaxWidth: "46vw",
+      });
+}
+
+function topBarLogoClassName(wide: boolean) {
+  return wide ? "object-fill select-none" : "h-auto w-auto object-contain select-none";
+}
 
 /** Fila de logos superiores del evento (`logoTop`/`logoBottom`) — uno a cada
  * lado, o centrado si solo hay uno. Compartida entre EventPhotoBoothLanding
  * (pantalla de selección de filtro) y BoothMirror (pantalla de resultado en
  * la pantalla espejo), para que ambas usen exactamente el mismo layout.
+ *
+ * Con `logoTopLeft` cargado (layout de esquinas, ver `cornerLogoLayout`) la
+ * fila pasa a ser `logoTopLeft` a la izquierda y `logoTop` a la derecha; el
+ * `logoBottom` ya no va acá sino en `BottomLogoBar`, que cada pantalla pone
+ * abajo.
  *
  * El tamaño sale de `logoTopScalePct`/`logoBottomScalePct` del evento (igual
  * que el header/footer del wizard y la pantalla de carga): antes eran clases
@@ -28,46 +52,74 @@ export default function TopLogosBar({
   wide?: boolean;
   className?: string;
 }) {
-  if (!event.logoTop && !event.logoBottom) return null;
-
-  const logoClassName = wide
-    ? "object-fill select-none"
-    : "h-auto w-auto object-contain select-none";
-
-  const styleFor = (scalePct?: number) =>
-    wide
-      ? scaledWideLogoStyle({ scalePct })
-      : scaledLogoStyle({
-          baseHeight: TOP_BAR_LOGO_HEIGHT,
-          baseMaxWidth: TOP_BAR_LOGO_MAX_WIDTH,
-          scalePct,
-          viewportMaxWidth: "46vw",
-        });
+  const corners = cornerLogoLayout(event);
+  const left = corners
+    ? corners.topLeft
+    : event.logoTop
+      ? { src: event.logoTop, scalePct: event.logoTopScalePct }
+      : null;
+  const right = corners
+    ? corners.topRight
+    : event.logoBottom
+      ? { src: event.logoBottom, scalePct: bottomLogoScalePct(event.logoBottomScalePct) }
+      : null;
+  if (!left && !right) return null;
 
   return (
     <div
       className={`relative z-5 flex-shrink-0 w-full flex items-center gap-4 ${
-        event.logoTop && event.logoBottom ? "justify-between" : "justify-center"
+        left && right ? "justify-between" : "justify-center"
       } ${className}`}
     >
-      {event.logoTop && (
+      {left && (
         <img
-          src={event.logoTop}
+          src={left.src}
           alt={event.name}
-          className={logoClassName}
-          style={styleFor(event.logoTopScalePct)}
+          className={topBarLogoClassName(wide)}
+          style={corners && !wide ? cornerTopLogoStyle(left.scalePct) : topBarLogoStyle(wide, left.scalePct)}
           draggable={false}
         />
       )}
-      {event.logoBottom && (
+      {right && (
         <img
-          src={event.logoBottom}
+          src={right.src}
           alt=""
-          className={logoClassName}
-          style={styleFor(bottomLogoScalePct(event.logoBottomScalePct))}
+          className={topBarLogoClassName(wide)}
+          style={corners && !wide ? cornerTopLogoStyle(right.scalePct) : topBarLogoStyle(wide, right.scalePct)}
           draggable={false}
         />
       )}
+    </div>
+  );
+}
+
+/** Pareja de `TopLogosBar` para el layout de esquinas: `logoBottom` centrado
+ * abajo. Sin `logoTopLeft` no dibuja nada (en ese caso `logoBottom` ya está
+ * arriba a la derecha, dentro de TopLogosBar). */
+export function BottomLogoBar({
+  event,
+  wide = false,
+  className = "",
+}: {
+  event: EventProfile;
+  wide?: boolean;
+  className?: string;
+}) {
+  const bottom = cornerLogoLayout(event)?.bottom;
+  if (!bottom) return null;
+  return (
+    <div
+      className={`relative z-5 flex-shrink-0 w-full flex items-center justify-center ${className}`}
+      // Misma distancia al borde inferior que en el resto de pantallas.
+      style={{ paddingBottom: CORNER_PAD_BOTTOM }}
+    >
+      <img
+        src={bottom.src}
+        alt=""
+        className={topBarLogoClassName(wide)}
+        style={wide ? topBarLogoStyle(wide, bottom.scalePct) : cornerBottomLogoStyle(bottom.scalePct)}
+        draggable={false}
+      />
     </div>
   );
 }

@@ -35,6 +35,12 @@ import {
   PREVIEW_LOGO_BAR_HEIGHT,
   PREVIEW_LOGO_BAR_TOP_MAX_WIDTH,
   bottomLogoScalePct,
+  CORNER_PAD_BOTTOM,
+  CORNER_PAD_TOP,
+  CORNER_PAD_X,
+  cornerBottomLogoStyle,
+  cornerLogoLayout,
+  cornerTopLogoStyle,
   scaledLogoStyle,
 } from "@/app/components/photo-booth/logoBarSizing";
 import { useSearchParams } from "next/navigation";
@@ -913,6 +919,10 @@ export default function PhotoBoothWizard({
   const bigLogoBars = step === "preview" || step === "result";
   const logoTopScalePct =
     eventData?.logoTopScalePct ?? cachedEventConfig?.logoTopScalePct;
+  // Layout de esquinas (`logoTopLeft` cargado): nuevo logo arriba a la
+  // izquierda, `logoTop` arriba a la derecha, `logoBottom` centrado abajo.
+  // null = el layout de siempre.
+  const cornerLogos = cornerLogoLayout(eventData ?? cachedEventConfig);
   // Oscurecido de la imagen de fondo configurado en el admin (0 = tal cual).
   const bgDarkenPct = eventData?.bgDarkenPct ?? cachedEventConfig?.bgDarkenPct;
   const logoBottomScalePct = bottomLogoScalePct(
@@ -938,6 +948,8 @@ export default function PhotoBoothWizard({
             : style.logoLandingBottom
       )
     : "/genilaty_smart_led_logo.png";
+
+  const footerLogo = (cornerLogos ? cornerLogos.bottom?.src : bottomLogoSrc) || undefined;
 
   const bgUrl = style
     ? step === "capture"
@@ -998,10 +1010,21 @@ export default function PhotoBoothWizard({
               frameSrc={eventData?.frameImage ?? style?.frameImage ?? null}
               buttonClickEffect={eventData?.buttonClickEffect}
               viewStyle={eventData?.captureViewStyle}
-              logoLeftSrc={style ? style.logoCaptureTop || style.logoLandingTop : "/genilaty_smart_led_logo.png"}
-              logoRightSrc={style ? style.logoCaptureBottom || style.logoLandingBottom : "genilaty_smart_led_logo.png"}
-              logoLeftScalePct={logoTopScalePct}
-              logoRightScalePct={logoBottomScalePct}
+              logoLeftSrc={
+                cornerLogos
+                  ? cornerLogos.topLeft.src
+                  : style ? style.logoCaptureTop || style.logoLandingTop : "/genilaty_smart_led_logo.png"
+              }
+              logoRightSrc={
+                cornerLogos
+                  ? cornerLogos.topRight?.src
+                  : style ? style.logoCaptureBottom || style.logoLandingBottom : "genilaty_smart_led_logo.png"
+              }
+              logoLeftScalePct={cornerLogos ? cornerLogos.topLeft.scalePct : logoTopScalePct}
+              logoRightScalePct={cornerLogos ? cornerLogos.topRight?.scalePct : logoBottomScalePct}
+              logoBottomSrc={cornerLogos?.bottom?.src}
+              logoBottomScalePct={cornerLogos?.bottom?.scalePct}
+              cornerLayout={!!cornerLogos}
               backgroundSrc={bgUrl}
               backgroundDarkenPct={bgDarkenPct}
               backgroundAnimation={eventData?.backgroundAnimation}
@@ -1093,7 +1116,43 @@ export default function PhotoBoothWizard({
           (arriba y abajo) se muestran juntos arriba dentro de
           ImageCustomizeStep, para liberar espacio vertical y evitar scroll. */}
       <AnimatePresence initial={false}>
-        {step !== "capture" && step !== "customize" && topLogoSrc && (
+        {step !== "capture" && step !== "customize" && cornerLogos && (
+          /* Layout de esquinas: logo nuevo a la izquierda, `logoTop` a la
+             derecha. Mismo key que la barra centrada: es la misma barra, no
+             debe animarse como si entrara otra. */
+          <motion.div
+            key="top-logo-bar"
+            className={`relative z-5 flex-shrink-0 flex items-center gap-4 ${
+              cornerLogos.topRight ? "justify-between" : "justify-start"
+            }`}
+            /* Medidas únicas del layout de esquinas (logoBarSizing): las mismas
+               en cámara, carga y espejo, para que los logos no salten. */
+            style={{
+              paddingTop: CORNER_PAD_TOP,
+              paddingBottom: LOGO_BAR_PADDING,
+              paddingLeft: CORNER_PAD_X,
+              paddingRight: CORNER_PAD_X,
+            }}
+            variants={LOGO_BAR_VARIANTS}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            {[cornerLogos.topLeft, cornerLogos.topRight].map((logo, i) =>
+              logo ? (
+                <img
+                  key={i}
+                  src={logo.src}
+                  alt={i === 0 ? "Logo" : ""}
+                  className="block w-auto object-contain select-none"
+                  style={cornerTopLogoStyle(logo.scalePct)}
+                  draggable={false}
+                />
+              ) : null,
+            )}
+          </motion.div>
+        )}
+        {step !== "capture" && step !== "customize" && !cornerLogos && topLogoSrc && (
           <motion.div
             key="top-logo-bar"
             className="relative z-5 flex-shrink-0 flex justify-center items-center px-4"
@@ -1181,10 +1240,10 @@ export default function PhotoBoothWizard({
                   buttonColorFrom={eventData?.splashButtonColorFrom}
                   buttonColorTo={eventData?.splashButtonColorTo}
                   buttonClickEffect={eventData?.buttonClickEffect}
-                  logoLeftSrc={style?.logoLandingTop}
-                  logoRightSrc={style?.logoLandingBottom}
-                  logoLeftScalePct={logoTopScalePct}
-                  logoRightScalePct={logoBottomScalePct}
+                  logoLeftSrc={cornerLogos ? cornerLogos.topLeft.src : style?.logoLandingTop}
+                  logoRightSrc={cornerLogos ? cornerLogos.topRight?.src : style?.logoLandingBottom}
+                  logoLeftScalePct={cornerLogos ? cornerLogos.topLeft.scalePct : logoTopScalePct}
+                  logoRightScalePct={cornerLogos ? cornerLogos.topRight?.scalePct : logoBottomScalePct}
                   onConfirm={handleCustomizeConfirmed}
                   aspectRatio={eventData?.photoAspectRatio}
                 />
@@ -1346,13 +1405,19 @@ export default function PhotoBoothWizard({
           renderiza: el logo va dentro de CaptureStep, al costado del
           disparador. En "customize" tampoco: ver nota del HEADER arriba. */}
       <AnimatePresence initial={false}>
-        {step !== "capture" && step !== "customize" && bottomLogoSrc && (
+        {step !== "capture" &&
+          // En el layout de esquinas el logo inferior va centrado abajo en
+          // TODAS las pantallas, también en "customize" (ahí arriba solo
+          // quedan los dos logos superiores).
+          (cornerLogos ? !!footerLogo : step !== "customize" && !!footerLogo) && (
           <motion.div
             key="bottom-logo-bar"
             className="relative z-5 flex-shrink-0 flex justify-center items-center px-4 pointer-events-none"
             style={{
               paddingTop: LOGO_BAR_PADDING,
-              paddingBottom: `max(${LOGO_BAR_PADDING}, env(safe-area-inset-bottom))`,
+              paddingBottom: cornerLogos
+                ? CORNER_PAD_BOTTOM
+                : `max(${LOGO_BAR_PADDING}, env(safe-area-inset-bottom))`,
             }}
             variants={LOGO_BAR_VARIANTS}
             initial="initial"
@@ -1360,18 +1425,22 @@ export default function PhotoBoothWizard({
             exit="exit"
           >
             <img
-              src={bottomLogoSrc}
+              src={footerLogo}
               alt="Logos Footer"
               /* `pointer-events-auto` sobre la imagen (la barra sigue siendo
                  pointer-events-none): es el botón oculto que abre el
                  salvapantallas al mantenerlo presionado — ver ScreenSaver. */
               className="block w-auto object-contain select-none pointer-events-auto"
-              style={scaledLogoStyle({
-                baseHeight: bigLogoBars ? PREVIEW_LOGO_BAR_HEIGHT : LOGO_BAR_HEIGHT,
-                baseMaxWidth:
-                  bigLogoBars ? PREVIEW_LOGO_BAR_BOTTOM_MAX_WIDTH : LOGO_BAR_BOTTOM_MAX_WIDTH,
-                scalePct: logoBottomScalePct,
-              })}
+              style={
+                cornerLogos
+                  ? cornerBottomLogoStyle(cornerLogos.bottom?.scalePct)
+                  : scaledLogoStyle({
+                      baseHeight: bigLogoBars ? PREVIEW_LOGO_BAR_HEIGHT : LOGO_BAR_HEIGHT,
+                      baseMaxWidth:
+                        bigLogoBars ? PREVIEW_LOGO_BAR_BOTTOM_MAX_WIDTH : LOGO_BAR_BOTTOM_MAX_WIDTH,
+                      scalePct: logoBottomScalePct,
+                    })
+              }
               draggable={false}
             />
           </motion.div>

@@ -28,12 +28,16 @@ export default function HeaderLogoEditor({
   onChangeLogos,
   onChangeHeightPct,
   availableImages,
+  zoneName = "header",
 }: {
   logos: SplashHeaderLogo[];
   heightPct: number;
   onChangeLogos: (logos: SplashHeaderLogo[]) => void;
   onChangeHeightPct: (pct: number) => void;
   availableImages: { label: string; url: string }[];
+  /** "header" (franja de arriba) o "footer" (franja de abajo de la splash):
+   * el editor es el mismo, solo cambian los textos. */
+  zoneName?: "header" | "footer";
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -86,7 +90,7 @@ export default function HeaderLogoEditor({
     <div className="space-y-3">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Alto del header ({heightPct}% de la pantalla)
+          Alto del {zoneName} ({heightPct}% de la pantalla)
         </label>
         <input
           type="range"
@@ -104,7 +108,7 @@ export default function HeaderLogoEditor({
             key={img.url}
             type="button"
             onClick={() => addLogo(img.url)}
-            title={`Agregar ${img.label} al header`}
+            title={`Agregar ${img.label} al ${zoneName}`}
             className="flex items-center gap-1.5 px-2 py-1 border border-gray-300 rounded-lg hover:bg-gray-50 text-xs text-gray-700"
           >
             <img src={img.url} alt="" className="w-6 h-6 object-contain rounded-sm bg-gray-100" />

@@ -15,6 +15,12 @@ import { CAPTURE_NORMAL, type CaptureQuality } from "@/app/components/photo-boot
 import {
   CAPTURE_LOGO_HEIGHT,
   CAPTURE_LOGO_MAX_WIDTH,
+  CORNER_PAD_BOTTOM,
+  CORNER_PAD_TOP,
+  CORNER_PAD_X,
+  cornerBottomLogoStyle,
+  cornerBottomReserve,
+  cornerTopLogoStyle,
   scaledLogoStyle,
 } from "@/app/components/photo-booth/logoBarSizing";
 
@@ -72,6 +78,9 @@ export default function CaptureStep({
   logoRightSrc,
   logoLeftScalePct,
   logoRightScalePct,
+  logoBottomSrc,
+  logoBottomScalePct,
+  cornerLayout = false,
   backgroundSrc,
   backgroundDarkenPct,
   backgroundAnimation,
@@ -92,6 +101,13 @@ export default function CaptureStep({
    * del evento), en % del tamaño base. Sin valor = 100 = el de siempre. */
   logoLeftScalePct?: number;
   logoRightScalePct?: number;
+  /** Logo centrado debajo del disparador. Solo llega en el layout de esquinas
+   * (`logoTopLeft` cargado, ver `cornerLogoLayout`); si no, no hay nada abajo. */
+  logoBottomSrc?: string;
+  logoBottomScalePct?: number;
+  /** Layout de esquinas (`cornerLogoLayout` del evento): los logos de arriba
+   * usan las medidas CORNER_* compartidas con el resto de pantallas. */
+  cornerLayout?: boolean;
   /** Fondo detrás del cuadro de cámara (la imagen de fondo configurada del evento). */
   backgroundSrc?: string;
   /** Oscurecido de `backgroundSrc` en % (`bgDarkenPct` del evento), 0 = tal cual. */
@@ -326,11 +342,18 @@ export default function CaptureStep({
           a diferencia de la barra inferior no depende de cuánto sobre. */}
       <div
         /* Con los dos logos van uno a cada lado; con uno solo va centrado
-           (antes un <span/> vacío de relleno lo dejaba pegado a un costado). */
-        className={`absolute top-0 left-0 right-0 z-20 flex items-center px-6 sm:px-10 pt-[env(safe-area-inset-top)] pointer-events-none ${
-          logoLeftSrc && logoRightSrc ? "justify-between" : "justify-center"
-        }`}
-        style={{ height: CAPTURE_HEADER_RESERVE }}
+           (antes un <span/> vacío de relleno lo dejaba pegado a un costado).
+           En el layout de esquinas la barra usa las medidas CORNER_* (misma
+           posición que en preview/carga/resultado) en vez de centrarse en la
+           banda de 10rem. */
+        className={`absolute top-0 left-0 right-0 z-20 flex items-center pointer-events-none ${
+          cornerLayout ? "" : "px-6 sm:px-10 pt-[env(safe-area-inset-top)]"
+        } ${logoLeftSrc && logoRightSrc ? "justify-between" : "justify-center"}`}
+        style={
+          cornerLayout
+            ? { paddingTop: CORNER_PAD_TOP, paddingLeft: CORNER_PAD_X, paddingRight: CORNER_PAD_X }
+            : { height: CAPTURE_HEADER_RESERVE }
+        }
       >
         {logoLeftSrc ? (
           /* eslint-disable-next-line @next/next/no-img-element */
@@ -344,12 +367,16 @@ export default function CaptureStep({
             /* Mismo tamaño configurable que el resto del wizard: antes el alto
                era una clase fija, así que el % elegido en el admin no llegaba
                a esta pantalla. */
-            style={scaledLogoStyle({
-              baseHeight: CAPTURE_LOGO_HEIGHT,
-              baseMaxWidth: CAPTURE_LOGO_MAX_WIDTH,
-              scalePct: logoLeftScalePct,
-              viewportMaxWidth: "45vw",
-            })}
+            style={
+              cornerLayout
+                ? cornerTopLogoStyle(logoLeftScalePct)
+                : scaledLogoStyle({
+                    baseHeight: CAPTURE_LOGO_HEIGHT,
+                    baseMaxWidth: CAPTURE_LOGO_MAX_WIDTH,
+                    scalePct: logoLeftScalePct,
+                    viewportMaxWidth: "45vw",
+                  })
+            }
             draggable={false}
           />
         ) : null}
@@ -362,12 +389,16 @@ export default function CaptureStep({
                pointer-events-none): habilita el botón oculto del
                salvapantallas — ver ScreenSaver. */
             className="h-auto w-auto object-contain select-none pointer-events-auto"
-            style={scaledLogoStyle({
-              baseHeight: CAPTURE_LOGO_HEIGHT,
-              baseMaxWidth: CAPTURE_LOGO_MAX_WIDTH,
-              scalePct: logoRightScalePct,
-              viewportMaxWidth: "45vw",
-            })}
+            style={
+              cornerLayout
+                ? cornerTopLogoStyle(logoRightScalePct)
+                : scaledLogoStyle({
+                    baseHeight: CAPTURE_LOGO_HEIGHT,
+                    baseMaxWidth: CAPTURE_LOGO_MAX_WIDTH,
+                    scalePct: logoRightScalePct,
+                    viewportMaxWidth: "45vw",
+                  })
+            }
             draggable={false}
           />
         ) : null}
@@ -419,8 +450,15 @@ export default function CaptureStep({
           centrado. Los botones de los costados son solo decorativos (tipo
           flip/flash de una cámara real) — no tienen ninguna función. */}
       <div
-        className="absolute left-0 right-0 bottom-0 z-20 flex items-center justify-center pb-[env(safe-area-inset-bottom)] px-6 sm:px-10"
-        style={{ top: getCaptureBoxBottom(aspectRatio) }}
+        className={`absolute left-0 right-0 z-20 flex items-center justify-center px-6 sm:px-10 ${
+          logoBottomSrc ? "" : "pb-[env(safe-area-inset-bottom)]"
+        }`}
+        style={{
+          top: getCaptureBoxBottom(aspectRatio),
+          // Layout de esquinas: el disparador se centra entre el cuadro y la
+          // franja del logo inferior (que va fija abajo, ver más abajo).
+          bottom: logoBottomSrc ? cornerBottomReserve(logoBottomScalePct) : 0,
+        }}
       >
         <div className="grid grid-cols-3 items-center w-full h-full py-2">
           <div className="flex justify-start items-center h-full">
@@ -446,6 +484,25 @@ export default function CaptureStep({
           </div>
         </div>
       </div>
+
+      {logoBottomSrc ? (
+        /* Layout de esquinas: el logo inferior, centrado y fijo abajo con el
+           mismo tamaño y la misma distancia al borde que en carga, preview y
+           resultado (medidas CORNER_* de logoBarSizing). */
+        <div
+          className="absolute left-0 right-0 bottom-0 z-20 flex justify-center px-6 pointer-events-none"
+          style={{ paddingBottom: CORNER_PAD_BOTTOM }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoBottomSrc}
+            alt=""
+            className="w-auto object-contain select-none pointer-events-auto"
+            style={cornerBottomLogoStyle(logoBottomScalePct)}
+            draggable={false}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   SPLASH_FREE_LAYOUT_DEFAULTS,
   SPLASH_STAGE_ASPECT_RATIO,
   anton,
+  defaultFreeLogoPos,
   barlowCondensed,
   roboto,
 } from "@/app/components/photo-booth/SplashScreen";
@@ -83,6 +84,7 @@ export default function SplashLayoutEditor({
   onChangeLayout,
   onReset,
   headerLogos,
+  footerLogos = [],
   preview,
 }: {
   enabled: boolean;
@@ -91,6 +93,9 @@ export default function SplashLayoutEditor({
   onChangeLayout: (layout: SplashLayout) => void;
   onReset: () => void;
   headerLogos: SplashHeaderLogo[];
+  /** Logos del footer de la splash (`splashFooterLogos`): también se mueven
+   * libremente acá, con su posición en `layout.logos` como los del header. */
+  footerLogos?: SplashHeaderLogo[];
   preview: SplashLayoutPreviewData;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -116,8 +121,11 @@ export default function SplashLayoutEditor({
     onChangeLayout({ ...layout, [kind]: { ...getPos(kind), ...patch } });
   };
 
-  const getLogoPos = (logo: SplashHeaderLogo, i: number): SplashFreeElement =>
-    layout.logos?.[logo.id] || { xPct: 5 + i * 30, yPct: 3, scalePct: 100 };
+  const getLogoPos = (
+    logo: SplashHeaderLogo,
+    i: number,
+    zone: "header" | "footer" = "header",
+  ): SplashFreeElement => layout.logos?.[logo.id] || defaultFreeLogoPos(zone, i);
 
   const updateLogoPos = (logoId: string, base: SplashFreeElement, patch: Partial<SplashFreeElement>) => {
     onChangeLayout({
@@ -253,6 +261,29 @@ export default function SplashLayoutEditor({
                   </FreeDraggable>
                 );
               })}
+
+            {footerLogos.map((logo, i) => {
+              const pos = getLogoPos(logo, i, "footer");
+              return (
+                <FreeDraggable
+                  key={logo.id}
+                  label={`Logo inferior ${i + 1}`}
+                  pos={pos}
+                  selected={selected === `logo:${logo.id}`}
+                  containerRef={containerRef}
+                  onSelect={() => setSelected(`logo:${logo.id}`)}
+                  onChange={(patch) => updateLogoPos(logo.id, pos, patch)}
+                  onSnapChange={setSnapGuides}
+                >
+                  <img
+                    src={logo.url}
+                    alt=""
+                    draggable={false}
+                    style={{ width: 44, height: "auto", display: "block" }}
+                  />
+                </FreeDraggable>
+              );
+            })}
 
             {kinds.map((kind) => (
               <FreeDraggable

@@ -134,6 +134,20 @@ export const SPLASH_FREE_LAYOUT_DEFAULTS: Record<SplashFreeElementKind, SplashFr
   button: { xPct: 28, yPct: 87, scalePct: 100 },
 };
 
+/** Margen lateral de la splash (grid de contenido, y franja del footer de
+ * logos, que tiene que coincidir con el del header). */
+const SPLASH_SIDE_PADDING = "clamp(1.1rem, 5vmin, 2rem)";
+
+/** Posición inicial en el layout libre de cada logo del header / footer
+ * (`splashHeaderLogos` / `splashFooterLogos`) que todavía no tiene una propia
+ * en `splashLayout.logos`. Compartida con SplashLayoutEditor para que el
+ * preview del admin arranque donde se va a ver. */
+export function defaultFreeLogoPos(zone: "header" | "footer", index: number): SplashFreeElement {
+  return zone === "header"
+    ? { xPct: 5 + index * 30, yPct: 3, scalePct: 100 }
+    : { xPct: 5 + index * 30, yPct: 92, scalePct: 100 };
+}
+
 function getFreeElement(
   event: EventProfile,
   kind: SplashFreeElementKind
@@ -226,7 +240,10 @@ export default function SplashScreen({
     }
 
     let cancelled = false;
-    const headerLogoUrls = (event.splashHeaderLogos || []).map((l) => l.url);
+    const headerLogoUrls = [
+      ...(event.splashHeaderLogos || []),
+      ...(event.splashFooterLogos || []),
+    ].map((l) => l.url);
     const assets = [
       event.bgImage,
       event.splashHeaderLogos && event.splashHeaderLogos.length > 0 ? null : event.logoTop,
@@ -263,6 +280,7 @@ export default function SplashScreen({
     event.splashTitleMode,
     event.splashTitleImage,
     event.splashHeaderLogos,
+    event.splashFooterLogos,
   ]);
 
   const handleStart = () => {
@@ -273,6 +291,9 @@ export default function SplashScreen({
   };
 
   const hasHeaderLogos = !!(event.splashHeaderLogos && event.splashHeaderLogos.length > 0);
+  // Footer configurable (franja de logos abajo). Vacío = no hay franja.
+  const footerLogos = event.splashFooterLogos ?? [];
+  const footerHeightPct = event.splashFooterHeightPct ?? 14;
 
   const title = event.splashTitle?.trim() ? event.splashTitle : DEFAULT_TITLE;
   const titleLines = title.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -760,8 +781,7 @@ export default function SplashScreen({
         {hasHeaderLogos
           ? event.splashHeaderLogos!.map((logo, i) => {
               const pos =
-                event.splashLayout?.logos?.[logo.id] ||
-                { xPct: 5 + i * 30, yPct: 3, scalePct: 100 };
+                event.splashLayout?.logos?.[logo.id] || defaultFreeLogoPos("header", i);
               return (
                 <div
                   key={logo.id}
@@ -802,6 +822,36 @@ export default function SplashScreen({
                 />
               </FreePositioned>
             )}
+
+        {/* Logos del footer (`splashFooterLogos`), cada uno en su posición
+            libre — mismo tratamiento que los del header. */}
+        {footerLogos.map((logo, i) => {
+          const pos = event.splashLayout?.logos?.[logo.id] || defaultFreeLogoPos("footer", i);
+          return (
+            <div
+              key={logo.id}
+              style={{
+                position: "absolute",
+                left: `${pos.xPct}%`,
+                top: `${pos.yPct}%`,
+                transform: `scale(${pos.scalePct / 100})`,
+                transformOrigin: "top left",
+              }}
+            >
+              <img
+                src={logo.url}
+                alt=""
+                draggable={false}
+                className="splash-anim-logo"
+                style={{
+                  width: wide ? "24cqw" : "16.92cqw",
+                  height: "auto",
+                  filter: "drop-shadow(0 6px 10px rgba(150,90,0,.28))",
+                }}
+              />
+            </div>
+          );
+        })}
 
         <FreePositioned event={event} kind="title">
           {titleNode}
@@ -999,8 +1049,13 @@ export default function SplashScreen({
       <div
         className="splash-grid relative h-full w-full"
         style={{
-          padding:
-            "max(2rem, env(safe-area-inset-top)) clamp(1.1rem, 5vmin, 2rem) max(1.6rem, env(safe-area-inset-bottom))",
+          // Con footer de logos, el contenido (botón incluido) termina encima
+          // de esa franja en vez de quedar tapado por ella.
+          padding: `max(2rem, env(safe-area-inset-top)) ${SPLASH_SIDE_PADDING} ${
+            footerLogos.length > 0
+              ? `calc(${footerHeightPct}vh + env(safe-area-inset-bottom) + 0.5rem)`
+              : "max(1.6rem, env(safe-area-inset-bottom))"
+          }`,
           overflowY: "auto",
           overflowX: "hidden",
           WebkitOverflowScrolling: "touch",
@@ -1202,6 +1257,40 @@ export default function SplashScreen({
 
         {footer}
       </div>
+
+      {/* Footer configurable (`splashFooterLogos`): franja pegada abajo, con
+          los logos en % de la franja — mismo criterio que el header
+          (`splash-header-multi`), incluido el mismo margen lateral. */}
+      {footerLogos.length > 0 && (
+        <div
+          className="splash-anim-logo absolute inset-x-0 pointer-events-none"
+          style={{
+            bottom: "env(safe-area-inset-bottom)",
+            height: `${footerHeightPct}vh`,
+            paddingLeft: SPLASH_SIDE_PADDING,
+            paddingRight: SPLASH_SIDE_PADDING,
+          }}
+        >
+          <div className="relative w-full h-full">
+            {footerLogos.map((logo) => (
+              <img
+                key={logo.id}
+                src={logo.url}
+                alt=""
+                draggable={false}
+                style={{
+                  position: "absolute",
+                  left: `${logo.xPct}%`,
+                  top: `${logo.yPct}%`,
+                  width: `${logo.widthPct}%`,
+                  height: "auto",
+                  filter: "drop-shadow(0 6px 10px rgba(150,90,0,.28))",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
