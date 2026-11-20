@@ -591,13 +591,16 @@ function buildFacetsGridPrompt(opts: {
 }
 
 /** Corta la cuadrícula en `cols x rows` celdas iguales (menos el margen de
- * costura) y recorta cada una al centro a la relación de aspecto del evento. */
+ * costura) y recorta cada una al centro a la relación de aspecto del evento.
+ * `maxSide`: si se pasa, cada celda se achica (nunca se agranda) a ese lado
+ * mayor; FACETAS no lo usa y deja las celdas a su resolución original. */
 async function splitFacetsGrid(
   buf: Buffer,
   cols: number,
   rows: number,
   tileW: number,
-  tileH: number
+  tileH: number,
+  maxSide?: number
 ): Promise<Buffer[]> {
   const { width: w, height: h } = await sharp(buf).metadata();
   if (!w || !h) throw new Error("No se pudo leer el tamaño de la cuadrícula generada");
@@ -627,7 +630,9 @@ async function splitFacetsGrid(
       rect.height = Math.min(rect.height, h - rect.top);
       // JPEG y no PNG: a 4K cada faceta en PNG pesa varios MB, y la tablet
       // y la pantalla espejo bajan todas de una para el carrusel.
-      tiles.push(sharp(buf).extract(rect).jpeg({ quality: 92, mozjpeg: true }).toBuffer());
+      let tile = sharp(buf).extract(rect);
+      if (maxSide) tile = tile.resize(maxSide, maxSide, { fit: "inside", withoutEnlargement: true });
+      tiles.push(tile.jpeg({ quality: 92, mozjpeg: true }).toBuffer());
     }
   }
   return Promise.all(tiles);
@@ -748,6 +753,8 @@ async function composeMultiPromptCollage(opts: {
   gapPct: number;
   bgColor: string;
   overlay?: Buffer | null;
+  /** Ancho máximo de una foto en el lienzo (default 1024). */
+  maxTileW?: number;
 }): Promise<Buffer> {
   const { images, layout, gapPct, bgColor, overlay } = opts;
   const ratio = opts.tileW / opts.tileH;
@@ -756,7 +763,7 @@ async function composeMultiPromptCollage(opts: {
   // MULTI_PROMPT_CANVAS_MAX (sin pasar de 1024 de ancho por foto).
   const unitsW = 2 * g + layout.cols + (layout.cols - 1) * g;
   const unitsH = 2 * g + (layout.rows + (layout.rows - 1) * g) / ratio;
-  const tileW = Math.min(1024, Math.floor(MULTI_PROMPT_CANVAS_MAX / Math.max(unitsW, unitsH)));
+  const tileW = Math.min(opts.maxTileW ?? 1024, Math.floor(MULTI_PROMPT_CANVAS_MAX / Math.max(unitsW, unitsH)));
   const tileH = Math.round(tileW / ratio);
   const gap = Math.round(tileW * g);
   const width = 2 * gap + layout.cols * tileW + (layout.cols - 1) * gap;
@@ -782,6 +789,50 @@ async function composeMultiPromptCollage(opts: {
 }
 
 /**
+ * Copia de resolveSplitGrid (src/app/components/photo-booth/
+ * multiPromptLayout.ts) — mantener las dos iguales. Con UNA sola foto y el
+ * efecto "desde el centro", esa foto trae varios paneles (ej. 4 facetas en
+ * 2x2) y en pantalla se corta en `cols x rows` partes iguales. Devuelve esa
+ * cuadrícula, o null si la foto no se divide.
+ */
+function resolveSplitGrid(photoCount: number, ev: Record<string, any>): { id: string; cols: number; rows: number } | null {
+  if (photoCount !== 1 || ev.multiPromptResultEffect !== "CENTER_OUT") return null;
+  const id = typeof ev.multiPromptSplitGrid === "string" ? ev.multiPromptSplitGrid : "2x2";
+  if (id === "NONE") return null;
+  const m = /^(\d)x(\d)$/.exec(id);
+  if (!m) return null;
+  return { id, cols: Math.max(1, Number(m[1])), rows: Math.max(1, Number(m[2])) };
+}
+
+/**
+ * Corta la foto en `cols x rows` paneles, en el mismo orden que
+ * GridAssembleImage (por filas: arriba-izq, arriba-der, abajo-izq…), para que
+ * la persona pueda bajar un solo panel desde /survey. Mismo corte que FACETAS
+ * (splitFacetsGrid, con el margen de costura), conservando la forma de cada
+ * celda.
+ */
+async function splitIntoTiles(image: Buffer, cols: number, rows: number): Promise<Buffer[]> {
+  const { width: W, height: H } = await sharp(image).metadata();
+  if (!W || !H) throw new Error("No se pudieron leer las medidas de la foto");
+  return splitFacetsGrid(image, cols, rows, W / cols, H / rows, SPLIT_PIECE_MAX);
+}
+
+/** Foto con paneles (multi-prompt de una sola foto dividida): lado mayor de
+ * cada panel suelto que se baja desde /survey. */
+const SPLIT_PIECE_MAX = 768;
+
+/** Tamaños que se le piden a Gemini para la foto con paneles: 2K alcanza
+ * para paneles de SPLIT_PIECE_MAX en un 2x2 (4K tarda y cuesta más sin
+ * ganar nada a este tamaño). Si el modelo rechaza 2K, el default (~1K). */
+const SPLIT_IMAGE_SIZES: (string | undefined)[] = ["2K", undefined];
+
+/** Lado mayor de la versión que se guarda como `url`/`multiUrls[0]` y con la
+ * que se arma el collage (la "completa"): la tablet y la pantalla espejo la
+ * bajan entera para la animación, sobre el wifi del evento. 2 paneles de
+ * SPLIT_PIECE_MAX, para que la completa no quede más chica que un panel. */
+const SPLIT_SCREEN_MAX = SPLIT_PIECE_MAX * 2;
+
+/**
  * Una generación de Gemini con un prompt de marca, para el flujo
  * multi-prompt. Arma las mismas partes que processImageTask (logo, objeto y
  * fondo del prompt) pero sin sus ramas de FACETAS/BGVIDEO ni su manejo de
@@ -797,6 +848,9 @@ async function generateBrandedImage(opts: {
   intensity?: number;
   aspectRatio: "3:4" | "1:1";
   input: { base64: string; mime: string };
+  /** Tamaños a probar en orden (ver FACETS_IMAGE_SIZES); sin valor, el
+   * default del modelo (~1K). */
+  imageSizes?: (string | undefined)[];
 }): Promise<Buffer> {
   const promptData = await buildPromptWithBrand({
     brand: opts.brand,
@@ -835,15 +889,31 @@ async function generateBrandedImage(opts: {
     );
   }
 
-  const response = await opts.ai.models.generateContent({
-    model: "gemini-3.1-flash-image",
-    contents: [{ role: "user", parts }],
-    // Ver los comentarios de la misma llamada en processImageTask.
-    config: {
-      responseModalities: [Modality.TEXT, Modality.IMAGE],
-      imageConfig: { aspectRatio: opts.aspectRatio },
-    } as any,
-  });
+  const generate = (imageSize?: string) =>
+    opts.ai.models.generateContent({
+      model: "gemini-3.1-flash-image",
+      contents: [{ role: "user", parts }],
+      // Ver los comentarios de la misma llamada en processImageTask.
+      config: {
+        responseModalities: [Modality.TEXT, Modality.IMAGE],
+        imageConfig: { aspectRatio: opts.aspectRatio, ...(imageSize ? { imageSize } : {}) },
+      } as any,
+    });
+
+  // Igual que FACETAS en processImageTask: si el modelo rechaza un tamaño
+  // (INVALID_ARGUMENT) se prueba el siguiente.
+  const imageSizes = opts.imageSizes?.length ? opts.imageSizes : [undefined];
+  let response!: Awaited<ReturnType<typeof generate>>;
+  for (let i = 0; i < imageSizes.length; i++) {
+    try {
+      response = await generate(imageSizes[i]);
+      break;
+    } catch (e: any) {
+      const invalidArgument = e?.status === 400 || /INVALID_ARGUMENT/i.test(e?.message ?? "");
+      if (!invalidArgument || i === imageSizes.length - 1) throw e;
+      console.warn(`imageSize ${imageSizes[i]} rechazado, probando el siguiente:`, e?.message);
+    }
+  }
 
   if (response.promptFeedback?.blockReason) {
     throw new Error(`Blocked: ${response.promptFeedback.blockReason}`);
@@ -931,6 +1001,10 @@ async function processMultiPromptTask(opts: {
 
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
 
+    // Una sola foto con paneles (ej. 2x2): se pide a la mayor resolución,
+    // como FACETAS, para que cada panel suelto no quede de ~512 px.
+    const splitGrid = resolveSplitGrid(promptIds.length, ev);
+
     // Cada foto se guarda y se anota en el doc apenas está (multiResults.<i>),
     // así se ve el avance; el orden final lo da el índice, no quién termina
     // primero.
@@ -948,14 +1022,23 @@ async function processMultiPromptTask(opts: {
               intensity: data.intensity,
               aspectRatio,
               input,
+              imageSizes: splitGrid ? SPLIT_IMAGE_SIZES : undefined,
             });
-            const path = `tasks/${taskId}/prompt_${i + 1}.png`;
-            const url = await saveWithDownloadToken(bucket, path, buf, "image/png");
+            // Con paneles: a pantalla/collage va una versión reducida en JPEG
+            // (ver SPLIT_SCREEN_MAX); la original solo se usa para cortarla.
+            const screenBuf = splitGrid
+              ? await sharp(buf)
+                  .resize(SPLIT_SCREEN_MAX, SPLIT_SCREEN_MAX, { fit: "inside", withoutEnlargement: true })
+                  .jpeg({ quality: 90, mozjpeg: true })
+                  .toBuffer()
+              : buf;
+            const path = `tasks/${taskId}/prompt_${i + 1}.${splitGrid ? "jpg" : "png"}`;
+            const url = await saveWithDownloadToken(bucket, path, screenBuf, splitGrid ? "image/jpeg" : "image/png");
             await docRef.update({
               [`multiResults.${i}`]: { status: "done", promptId, brand: brands[i], url, path },
               updatedAt: Date.now(),
             });
-            return { ok: true as const, buf, url, path };
+            return { ok: true as const, buf: screenBuf, full: buf, url, path };
           } catch (e: any) {
             lastError = e;
             console.warn(`Multi-prompt ${i + 1}/${promptIds.length} (${brands[i]}) intento ${attempt} falló:`, e?.message);
@@ -974,12 +1057,35 @@ async function processMultiPromptTask(opts: {
       })
     );
 
-    const done = results.filter((r): r is { ok: true; buf: Buffer; url: string; path: string } => r.ok);
+    const done = results.filter(
+      (r): r is { ok: true; buf: Buffer; full: Buffer; url: string; path: string } => r.ok
+    );
     if (done.length === 0) throw new Error("No se pudo generar ninguna de las imágenes");
 
     // Si alguna falló, el collage se arma con las que sí salieron (con la
     // distribución elegida si existe para esa cantidad, si no la default).
     const layout = resolveMultiPromptLayout(done.length, ev.multiPromptLayout);
+
+    // Una foto con paneles (ej. 2x2): cada panel se guarda también suelto (de
+    // la versión de máxima resolución), para descargar solo ese desde
+    // /survey. En paralelo con el collage; si falla, el resultado sale igual
+    // y /survey solo ofrece la imagen completa.
+    const splitPromise: Promise<{ splitUrls: string[]; splitGrid: string } | null> = splitGrid
+      ? splitIntoTiles(done[0].full, splitGrid.cols, splitGrid.rows)
+          .then((tiles) =>
+            Promise.all(
+              tiles.map((tile, i) =>
+                saveWithDownloadToken(bucket, `tasks/${taskId}/part_${i + 1}.jpg`, tile, "image/jpeg")
+              )
+            )
+          )
+          .then((splitUrls) => ({ splitUrls, splitGrid: splitGrid.id }))
+          .catch((e) => {
+            console.error("Error separando los paneles de la foto:", e);
+            return null;
+          })
+      : Promise.resolve(null);
+
     let compositeUrl: string | null = null;
     let compositePath: string | null = null;
     try {
@@ -1005,6 +1111,8 @@ async function processMultiPromptTask(opts: {
         gapPct,
         bgColor,
         overlay: overlayData,
+        // Foto con paneles: la completa no queda más chica que cada panel.
+        maxTileW: splitGrid ? SPLIT_SCREEN_MAX : undefined,
       });
       compositePath = `tasks/${taskId}/collage.jpg`;
       compositeUrl = await saveWithDownloadToken(bucket, compositePath, collage, "image/jpeg");
@@ -1012,6 +1120,7 @@ async function processMultiPromptTask(opts: {
       // Sin collage el resultado igual se muestra; el QR cae a la primera foto.
       console.error("Error armando el collage multi-prompt:", e);
     }
+    const split = await splitPromise;
 
     await docRef.update({
       status: "done",
@@ -1021,6 +1130,7 @@ async function processMultiPromptTask(opts: {
       multiLayout: layout.id,
       compositeUrl,
       compositePath,
+      ...(split ? { splitUrls: split.splitUrls, splitGrid: split.splitGrid } : {}),
       updatedAt: Date.now(),
     });
   } catch (e: any) {

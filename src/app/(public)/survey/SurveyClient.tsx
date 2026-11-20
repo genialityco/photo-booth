@@ -12,6 +12,11 @@ import {
 } from "@/app/services/photo-booth/eventService";
 import { getActiveSurvey } from "@/app/services/photo-booth/eventSurvey";
 import EventSurveyCard from "./EventSurveyCard";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/firebaseConfig";
+
+const asUrlList = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((u): u is string => typeof u === "string" && /^https?:\/\//.test(u)) : [];
 // ⬇️ Ya no guardamos en base, así que puedes comentar/retirar estos imports si no se usan
 // import { createSurveyRecord, createSurveyRecordQuick } from "../services/surveyServices";
 
@@ -56,6 +61,34 @@ export default function SurveyClient() {
   /** Foto a la que pertenece este QR: solo para ligarle la respuesta de la
    * encuesta (los QR viejos no lo traen y la encuesta funciona igual). */
   const taskIdFromQS = sp.get("taskId") || undefined;
+  /**
+   * Fotos sueltas que se pueden bajar en vez de la imagen completa: los
+   * paneles de una foto con cuadrícula (`splitUrls`, ej. los 4 de un 2x2) o,
+   * en el multi-prompt de varias fotos, cada foto del collage (`multiUrls`).
+   * Se leen del doc de la tarea por `taskId`, no de la URL: 4 URLs de Storage
+   * con token harían el QR ilegible.
+   */
+  const [pieces, setPieces] = useState<string[]>([]);
+  /** QR de un solo panel (tocado en la tablet/pantalla): `piece` es 1-based
+   * y `src` ya es ese panel; la imagen completa sale del doc de la tarea. */
+  const pieceParam = Number(sp.get("piece"));
+  const pieceFromQS = Number.isInteger(pieceParam) && pieceParam >= 1 ? pieceParam - 1 : -1;
+  const [fullUrl, setFullUrl] = useState<string | null>(null);
+  /** -1 = la imagen completa. */
+  const [selectedPiece, setSelectedPiece] = useState(-1);
+  const fullSrc = fullUrl || src;
+  const effectiveSrc =
+    selectedPiece >= 0 && pieces[selectedPiece]
+      ? pieces[selectedPiece]
+      : pieceFromQS >= 0 && !pieces.length
+      ? src // todavía no llegó el doc: el panel del QR
+      : fullSrc;
+  const effectiveFilename =
+    selectedPiece >= 0 && pieces[selectedPiece]
+      ? `foto-${selectedPiece + 1}-${taskIdFromQS || "ia"}.${/\.png(\?|$)/i.test(pieces[selectedPiece]) ? "png" : "jpg"}`
+      : pieceFromQS >= 0 && pieces.length
+      ? `collage-ia-${taskIdFromQS || "ia"}.jpg`
+      : filenameFromQS;
   const [event, setEvent] = useState<EventProfile | null>(null);
   /** Encuesta opcional del evento — nunca condiciona la descarga. */
   const activeSurvey = useMemo(() => getActiveSurvey(event), [event]);
@@ -116,13 +149,41 @@ export default function SurveyClient() {
     };
   }, [eventIdFromQS]);
 
+  // Fotos sueltas de esta tarea (ver `pieces`). Si no hay, o la lectura
+  // falla, la página sigue igual: solo la imagen completa.
+  useEffect(() => {
+    if (!taskIdFromQS || !src || kind === "video") return;
+    let active = true;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, "imageTasks", taskIdFromQS));
+        const data = snap.data();
+        if (!active || !data) return;
+        const split = asUrlList(data.splitUrls);
+        const multi = asUrlList(data.multiUrls);
+        const list = split.length > 1 ? split : multi.length > 1 && data.compositeUrl ? multi : [];
+        const full = asUrlList([data.compositeUrl])[0] || null;
+        // Un QR de panel sin imagen completa a la cual volver: solo ese panel.
+        if (pieceFromQS >= 0 && !full) return;
+        setFullUrl(full);
+        if (pieceFromQS >= 0 && pieceFromQS < list.length) setSelectedPiece(pieceFromQS);
+        setPieces(list);
+      } catch (e) {
+        console.warn("[Survey] no se pudieron leer las fotos sueltas:", e);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [taskIdFromQS, src, kind, pieceFromQS]);
+
   const suggestedName = useMemo(() => {
-    if (filenameFromQS) return filenameFromQS;
+    if (effectiveFilename) return effectiveFilename;
     if (kind === "video") return `video-${new Date().toISOString().replace(/[:.]/g, "-")}.mp4`;
     const base = kind === "framed" ? "foto-con-marco" : "foto-sin-marco";
     const t = new Date().toISOString().replace(/[:.]/g, "-");
     return `${base}-${t}.png`;
-  }, [filenameFromQS, kind]);
+  }, [effectiveFilename, kind]);
 
   // ⬇️ Helpers NUEVOS para componer con marco en cliente (no remuevas ni cambies tus comentarios)
   const loadImage = (url: string) =>
@@ -181,11 +242,11 @@ export default function SurveyClient() {
     let abort = false;
     (async () => {
       try {
-        if (src) {
+        if (effectiveSrc) {
           const absolute =
-            src.startsWith("/") && typeof window !== "undefined"
-              ? `${window.location.origin}${src}`
-              : src;
+            effectiveSrc.startsWith("/") && typeof window !== "undefined"
+              ? `${window.location.origin}${effectiveSrc}`
+              : effectiveSrc;
           if (!abort) setPhoto(absolute);
           return;
         }
@@ -207,7 +268,7 @@ export default function SurveyClient() {
     return () => {
       abort = true;
     };
-  }, [src, qrId]);
+  }, [effectiveSrc, qrId]);
 
   // ⬇️ NUEVO: cuando la imagen esté lista, “simulamos” el estado posterior al envío
   // y preparamos el enlace de descarga.
@@ -216,6 +277,12 @@ useEffect(() => {
 
   (async () => {
     if (loadingPhoto || !photo) return;
+
+    // Al cambiar de foto (completa ↔ una suelta) el enlace anterior ya no
+    // corresponde: el botón queda deshabilitado hasta tener el nuevo.
+    setSaved(false);
+    setDownloadHref("");
+    fileRef.current = null;
 
     // Limpieza de blob anterior si existe
     if (revokeRef.current) {
@@ -257,10 +324,10 @@ useEffect(() => {
       // Si NO hay frame → usamos la foto original directamente
       let finalUrl: string;
       let isFramed = false;
-      const fName = filenameFromQS || (kind === "video" ? suggestedName : suggestedName);
+      const fName = effectiveFilename || suggestedName;
 
       const name = frameToUse
-        ? filenameFromQS || `foto-con-marco-${new Date().toISOString().replace(/[:.]/g, "-")}.png`
+        ? effectiveFilename || `foto-con-marco-${new Date().toISOString().replace(/[:.]/g, "-")}.png`
         : fName;
       // Blob URLs propios, para revocarlos al salir.
       const ownedBlobUrls: string[] = [];
@@ -324,7 +391,7 @@ useEffect(() => {
   photo,
   frameUrlFromQS,          // ← importante: agregar esta dependencia
   noFrame,
-  filenameFromQS,
+  effectiveFilename,
   suggestedName,
 ]);
 
@@ -521,6 +588,51 @@ useEffect(() => {
 
         {/* ⬇️ SOLO DESCARGA */}
         <div className="rounded-2xl border border-white/15 bg-black/70 backdrop-blur-md shadow-xl p-5 md:p-6">
+          {/* Elegir qué bajar: la imagen completa o una sola de sus fotos. */}
+          {pieces.length > 0 && fullSrc && (
+            <div className="mb-4">
+              <p className="text-base font-bold text-white">Elige qué foto descargar</p>
+              <p className="text-xs text-white/85 mb-3">Toca una foto para bajar solo esa, o la imagen completa.</p>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(68px,1fr))] gap-2">
+                {[fullSrc, ...pieces].map((url, n) => {
+                  const idx = n - 1;
+                  const on = idx === selectedPiece;
+                  return (
+                    <button
+                      key={`${idx}-${url}`}
+                      type="button"
+                      onClick={() => setSelectedPiece(idx)}
+                      aria-pressed={on}
+                      className="flex flex-col items-center gap-1 text-center"
+                    >
+                      <span
+                        className={`relative block w-full aspect-square overflow-hidden rounded-lg transition ${
+                          on ? "ring-[3px] ring-white scale-[1.03]" : "ring-1 ring-white/25 opacity-75"
+                        }`}
+                      >
+                        <img
+                          src={url}
+                          alt={idx < 0 ? "Imagen completa" : `Foto ${idx + 1}`}
+                          className="absolute inset-0 h-full w-full object-cover select-none"
+                          draggable={false}
+                          loading="lazy"
+                        />
+                        {on && (
+                          <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-bold text-black">
+                            ✓
+                          </span>
+                        )}
+                      </span>
+                      <span className={`text-xs ${on ? "font-bold text-white" : "text-white/85"}`}>
+                        {idx < 0 ? "Completa" : `Foto ${idx + 1}`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-3">
             <a
               href={canDownload ? downloadHref : undefined}
@@ -540,7 +652,11 @@ useEffect(() => {
                   : "Descargar imagen"
               }
             >
-              Descargar imagen
+              {selectedPiece >= 0
+                ? `Descargar foto ${selectedPiece + 1}`
+                : pieces.length > 0
+                ? "Descargar imagen completa"
+                : "Descargar imagen"}
             </a>
             {canDownload && (
               <span className="text-xs text-white/60">
@@ -554,7 +670,9 @@ useEffect(() => {
 
           {/* Vista previa opcional (déjala comentada si quieres SOLO el botón) */}
 
-          {canDownload && (
+          {/* Con `photo` y no `canDownload`: al cambiar de foto la vista previa
+              no desaparece mientras se prepara el nuevo archivo. */}
+          {!!photo && !loadingPhoto && (
             <div className="mt-4 w-full bg-white/5 rounded-xl p-3 border border-white/10 relative aspect-square overflow-hidden flex items-center justify-center">
               {/* Imagen o video base */}
               {kind === "video" || photo.includes(".mp4") ? (

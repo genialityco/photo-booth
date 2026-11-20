@@ -52,6 +52,8 @@ type TaskResult = {
    * (en orden) y el collage que baja el QR. */
   multiUrls?: string[];
   compositeUrl?: string | null;
+  /** Paneles sueltos de una foto dividida (ej. 2x2), para elegir uno. */
+  splitUrls?: string[];
 };
 
 /** Se suscribe directamente a imageTasks/{taskId} — el mismo doc que ya lee
@@ -599,6 +601,7 @@ function MultiPromptMirrorResult({
           taskId={taskId}
           urls={result.multiUrls ?? []}
           compositeUrl={result.compositeUrl}
+          pieceUrls={result.splitUrls}
           event={event}
           showQr={localShowQr}
           onShowQrChange={setLocalShowQr}

@@ -59,7 +59,10 @@ export const MULTI_PROMPT_RESULT_EFFECTS: { id: MultiPromptResultEffect; label: 
  * varios paneles, ej. 4 facetas en 2x2): en pantalla esa imagen se divide en
  * columnas x filas (por las mitades, tercios…) y cada pieza hace el viaje del
  * centro a su lugar por separado (GridAssembleImage). "NONE" = no dividir.
- * Solo visual: el collage/QR sigue siendo la imagen entera.
+ * El collage/QR sigue siendo la imagen entera; además processImageTask guarda
+ * cada parte suelta (`splitUrls` en la tarea) para bajar solo una desde
+ * /survey. Esa función tiene su propia copia de resolveSplitGrid
+ * (functions/src/index.ts) — mantener las dos iguales.
  */
 export type MultiPromptSplitGrid = "NONE" | "2x2" | "2x1" | "1x2" | "3x1" | "3x2";
 export const MULTI_PROMPT_SPLIT_DEFAULT: MultiPromptSplitGrid = "2x2";

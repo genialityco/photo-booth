@@ -20,29 +20,35 @@ import {
   resolveMultiPromptLayout,
   resolveSplitGrid,
 } from "@/app/components/photo-booth/multiPromptLayout";
-import GridAssembleImage from "@/app/components/photo-booth/GridAssembleImage";
+import GridAssembleImage, { parseGridLayout } from "@/app/components/photo-booth/GridAssembleImage";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 /** En pantalla las fotos van siempre separadas (aunque el collage descargable
  * las tenga pegadas): es la vista de "tus fotos", no el collage. */
 const SCREEN_MIN_GAP_PCT = 3;
 
-/** Nombre del archivo que baja el QR / el botón de descarga. */
-function downloadName(taskId: string, hasComposite: boolean) {
+/** Nombre del archivo que baja el QR / el botón de descarga. `piece` = índice
+ * de un panel suelto (splitUrls), o sin valor para la imagen completa. */
+function downloadName(taskId: string, hasComposite: boolean, piece?: number) {
+  if (piece !== undefined && piece >= 0) return `foto-${piece + 1}-${taskId}.jpg`;
   return hasComposite ? `collage-ia-${taskId}.jpg` : `foto-ia-${taskId}.png`;
 }
 
-/** URL de /survey (la que abre el QR en el celular) para el collage. */
+/** URL de /survey (la que abre el QR en el celular) para el collage, o para
+ * un solo panel (`piece`): ahí /survey lo deja ya elegido en su selector. */
 export function buildMultiPromptSurveyUrl(opts: {
   taskId: string;
   downloadUrl: string;
   hasComposite: boolean;
   eventId?: string;
+  piece?: number;
 }): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const url = new URL(`${origin}/survey`);
   url.searchParams.set("src", opts.downloadUrl);
   url.searchParams.set("kind", "raw");
-  url.searchParams.set("filename", downloadName(opts.taskId, opts.hasComposite));
+  url.searchParams.set("filename", downloadName(opts.taskId, opts.hasComposite, opts.piece));
+  if (opts.piece !== undefined && opts.piece >= 0) url.searchParams.set("piece", String(opts.piece + 1));
   // El collage ya trae su propio marco (multiPromptFrameImage); el marco de
   // foto suelta del evento no le corresponde — ver `noFrame` en SurveyClient.
   url.searchParams.set("noFrame", "1");
@@ -72,10 +78,15 @@ export default function MultiPromptResultStep({
   buttonImage,
   buttonClickEffect,
   large = false,
+  pieceUrls,
 }: {
   taskId: string;
   urls: string[];
   compositeUrl?: string | null;
+  /** Paneles sueltos de la foto dividida (`splitUrls` de la tarea, en orden
+   * de lectura). Con ellos, tocar un panel lo agranda y el QR pasa a bajar
+   * solo ese; tocarlo otra vez vuelve a la imagen completa. */
+  pieceUrls?: string[] | null;
   event?: EventProfile | null;
   showQr: boolean;
   onShowQrChange: (value: boolean) => void;
@@ -105,8 +116,21 @@ export default function MultiPromptResultStep({
   useEffect(() => {
     setSplitAssembled(false);
   }, [firstUrl, splitGrid]);
+  const reduceMotion = useReducedMotion();
 
-  const downloadUrl = compositeUrl || urls[0];
+  // Panel agrandado (-1 = la imagen completa). Solo con la foto ya armada y
+  // con un panel suelto guardado por cada celda: sin eso el QR no tendría
+  // qué bajar (tareas anteriores a que processImageTask guardara splitUrls).
+  const grid = splitGrid ? parseGridLayout(splitGrid) : null;
+  const pieces = grid && pieceUrls?.length === grid.cols * grid.rows ? pieceUrls : null;
+  const canPick = !!pieces && splitAssembled;
+  const [selected, setSelected] = useState(-1);
+  useEffect(() => {
+    setSelected(-1);
+  }, [taskId, firstUrl]);
+  const piece = canPick && selected >= 0 ? selected : -1;
+
+  const downloadUrl = piece >= 0 ? pieces![piece] : compositeUrl || urls[0];
   const surveyUrl = useMemo(
     () =>
       buildMultiPromptSurveyUrl({
@@ -114,8 +138,9 @@ export default function MultiPromptResultStep({
         downloadUrl,
         hasComposite: !!compositeUrl,
         eventId: event?.id,
+        piece: piece >= 0 ? piece : undefined,
       }),
-    [taskId, downloadUrl, compositeUrl, event?.id]
+    [taskId, downloadUrl, compositeUrl, event?.id, piece]
   );
 
   const [qrSize, setQrSize] = useState(320);
@@ -133,7 +158,7 @@ export default function MultiPromptResultStep({
   const handleDownload = () => {
     // Proxy propio (Content-Disposition: attachment), igual que el video en
     // ResultStep: enlazar directo a Storage abre la imagen en vez de bajarla.
-    const name = downloadName(taskId, !!compositeUrl);
+    const name = downloadName(taskId, !!compositeUrl, piece >= 0 ? piece : undefined);
     const a = document.createElement("a");
     a.href = `/api/storage/download?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(name)}`;
     a.download = name;
@@ -180,6 +205,96 @@ export default function MultiPromptResultStep({
           </div>
         )}
 
+        {/* Paneles tocables encima de la foto ya armada. Mismo rectángulo que
+            la imagen de GridAssembleImage (object-contain, con container
+            query), así cada zona cae justo sobre su panel. */}
+        {canPick && grid && (
+          <div className="absolute inset-0 z-10" style={{ containerType: "size" }}>
+            <div
+              className="absolute inset-0 m-auto"
+              style={{
+                width: `min(100cqw, calc(100cqh * ${tileRatio}))`,
+                height: `min(100cqh, calc(100cqw / ${tileRatio}))`,
+              }}
+            >
+              {Array.from({ length: grid.cols * grid.rows }, (_, i) => {
+                const c = i % grid.cols;
+                const r = Math.floor(i / grid.cols);
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setSelected(i)}
+                    aria-label={`Ver la foto ${i + 1} sola`}
+                    tabIndex={piece >= 0 ? -1 : 0}
+                    className="absolute active:bg-white/10 transition-colors"
+                    style={{
+                      left: `${(c / grid.cols) * 100}%`,
+                      top: `${(r / grid.rows) * 100}%`,
+                      width: `${100 / grid.cols}%`,
+                      height: `${100 / grid.rows}%`,
+                    }}
+                  />
+                );
+              })}
+
+              {/* Panel agrandado: crece desde su lugar en la cuadrícula hasta
+                  ocupar toda la imagen (el origen del scale es el punto que
+                  queda fijo al pasar de la celda al rectángulo completo). */}
+              <AnimatePresence>
+                {piece >= 0 && (
+                  <motion.button
+                    key={piece}
+                    type="button"
+                    onClick={() => setSelected(-1)}
+                    aria-label="Volver a la imagen completa"
+                    className="absolute inset-0 overflow-hidden rounded-xl shadow-2xl ring-2 ring-white/70 bg-black"
+                    style={{
+                      transformOrigin: `${grid.cols > 1 ? ((piece % grid.cols) / (grid.cols - 1)) * 100 : 50}% ${
+                        grid.rows > 1 ? (Math.floor(piece / grid.cols) / (grid.rows - 1)) * 100 : 50
+                      }%`,
+                    }}
+                    initial={reduceMotion ? { opacity: 0 } : { scaleX: 1 / grid.cols, scaleY: 1 / grid.rows, opacity: 0.6 }}
+                    animate={{ scaleX: 1, scaleY: 1, opacity: 1 }}
+                    exit={reduceMotion ? { opacity: 0 } : { scaleX: 1 / grid.cols, scaleY: 1 / grid.rows, opacity: 0 }}
+                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    {/* Al instante: el panel recortado de la foto que ya está
+                        en pantalla; encima, el panel suelto en alta (puede
+                        tardar en bajar con el wifi del evento). */}
+                    <span
+                      className="absolute inset-0"
+                      style={{
+                        backgroundImage: `url("${urls[0]}")`,
+                        backgroundSize: `${grid.cols * 100}% ${grid.rows * 100}%`,
+                        backgroundPosition: `${
+                          grid.cols > 1 ? ((piece % grid.cols) / (grid.cols - 1)) * 100 : 0
+                        }% ${grid.rows > 1 ? (Math.floor(piece / grid.cols) / (grid.rows - 1)) * 100 : 0}%`,
+                        backgroundRepeat: "no-repeat",
+                      }}
+                    />
+                    <img
+                      src={pieces![piece]}
+                      alt={`Foto ${piece + 1}`}
+                      className="absolute inset-0 w-full h-full object-cover select-none"
+                      draggable={false}
+                    />
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Pista: sin ella nadie sabe que la cuadrícula se puede tocar. */}
+            <span
+              className={`pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/65 px-3 py-1 font-semibold text-white shadow ${
+                large ? "text-xl" : "text-xs sm:text-sm"
+              }`}
+            >
+              {piece >= 0 ? "Toca de nuevo para ver todas" : "Toca una foto para elegirla"}
+            </span>
+          </div>
+        )}
+
         {/* QR ampliado encima de las fotos (tocar para volver). */}
         <button
           type="button"
@@ -198,7 +313,9 @@ export default function MultiPromptResultStep({
             className="max-w-[90%] text-center font-semibold leading-tight text-black/80"
             style={{ fontSize: large ? "clamp(1rem, 2.2vw, 1.6rem)" : undefined }}
           >
-            Escanea para descargar tus fotos en tu celular
+            {piece >= 0
+              ? `Escanea para descargar la foto ${piece + 1} en tu celular`
+              : "Escanea para descargar tus fotos en tu celular"}
           </span>
         </button>
       </div>
@@ -220,7 +337,7 @@ export default function MultiPromptResultStep({
           <span
             className={`text-left font-semibold leading-tight text-black/80 ${large ? "text-xl max-w-[14rem]" : "text-xs sm:text-sm max-w-[8rem]"}`}
           >
-            Escanea y llévate tus fotos
+            {piece >= 0 ? `Escanea y llévate la foto ${piece + 1}` : "Escanea y llévate tus fotos"}
           </span>
         </button>
 

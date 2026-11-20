@@ -120,6 +120,9 @@ export default function PhotoBoothWizard({
   // al frente del "showcase" (así llega igual a la pantalla espejo).
   const [multiUrls, setMultiUrls] = useState<string[] | null>(null);
   const [compositeUrl, setCompositeUrl] = useState<string | null>(null);
+  // Paneles sueltos de una foto dividida (`splitUrls`, ver processImageTask):
+  // en el resultado se tocan para agrandarlos y bajar solo ese por el QR.
+  const [splitUrls, setSplitUrls] = useState<string[] | null>(null);
   const [framedUrl, setFramedUrl] = useState<string | null>(null);
   const [mirrorPreviewUrl, setMirrorPreviewUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -631,6 +634,11 @@ export default function PhotoBoothWizard({
               setAiUrl(data.url as string);
               setMultiUrls(urls);
               setCompositeUrl((data.compositeUrl as string | null) ?? null);
+              setSplitUrls(
+                Array.isArray(data.splitUrls)
+                  ? data.splitUrls.filter((u: unknown): u is string => typeof u === "string")
+                  : null
+              );
               setFacetIndex(0);
               // Una sola foto que se divide en partes (resolveSplitGrid): el
               // carrusel previo solo mostraría la imagen entera antes del
@@ -819,6 +827,7 @@ export default function PhotoBoothWizard({
     setFacetIndex(0);
     setMultiUrls(null);
     setCompositeUrl(null);
+    setSplitUrls(null);
     setFramedUrl(null);
     setMirrorPreviewUrl(null);
     setTaskId(null);
@@ -1288,6 +1297,7 @@ export default function PhotoBoothWizard({
                   taskId={taskId}
                   urls={multiUrls}
                   compositeUrl={compositeUrl}
+                  pieceUrls={splitUrls}
                   event={eventData}
                   showQr={showQr}
                   onShowQrChange={setShowQr}
