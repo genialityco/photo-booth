@@ -39,6 +39,18 @@ function triggerAnchorDownload(href: string, filename: string) {
   a.remove();
 }
 
+/** Una descarga por archivo, espaciadas: varios clics seguidos en el mismo
+ * instante hacen que algunos navegadores descarten todos menos el primero. */
+function downloadEach(files: File[]) {
+  files.forEach((file, i) => {
+    window.setTimeout(() => {
+      const href = URL.createObjectURL(file);
+      triggerAnchorDownload(href, file.name);
+      window.setTimeout(() => URL.revokeObjectURL(href), 60_000);
+    }, i * 400);
+  });
+}
+
 type QRResponse =
   | { ok: true; dataUrl: string; kind: "raw" | "framed" }
   | { error: string };
@@ -74,8 +86,11 @@ export default function SurveyClient() {
   const pieceParam = Number(sp.get("piece"));
   const pieceFromQS = Number.isInteger(pieceParam) && pieceParam >= 1 ? pieceParam - 1 : -1;
   const [fullUrl, setFullUrl] = useState<string | null>(null);
-  /** -1 = la imagen completa. */
+  /** Foto en la vista previa (la última que se tocó). -1 = la imagen completa. */
   const [selectedPiece, setSelectedPiece] = useState(-1);
+  /** Con fotos sueltas: las marcadas para descargar (se pueden varias).
+   * -1 = la imagen completa. */
+  const [picked, setPicked] = useState<number[]>([]);
   const fullSrc = fullUrl || src;
   const effectiveSrc =
     selectedPiece >= 0 && pieces[selectedPiece]
@@ -166,7 +181,9 @@ export default function SurveyClient() {
         // Un QR de panel sin imagen completa a la cual volver: solo ese panel.
         if (pieceFromQS >= 0 && !full) return;
         setFullUrl(full);
-        if (pieceFromQS >= 0 && pieceFromQS < list.length) setSelectedPiece(pieceFromQS);
+        const initial = pieceFromQS >= 0 && pieceFromQS < list.length ? pieceFromQS : -1;
+        setSelectedPiece(initial);
+        setPicked([initial]);
         setPieces(list);
       } catch (e) {
         console.warn("[Survey] no se pudieron leer las fotos sueltas:", e);
@@ -176,6 +193,118 @@ export default function SurveyClient() {
       active = false;
     };
   }, [taskIdFromQS, src, kind, pieceFromQS]);
+
+  // ── Descarga de varias fotos (solo con fotos sueltas) ──────────────────
+  const multiMode = pieces.length > 0 && !!fullSrc;
+  const pieceUrlFor = (idx: number) => (idx < 0 ? fullSrc || "" : pieces[idx] || "");
+  const pieceNameFor = (idx: number) => {
+    const t = taskIdFromQS || "ia";
+    if (idx < 0) return pieceFromQS >= 0 ? `collage-ia-${t}.jpg` : filenameFromQS || `collage-ia-${t}.jpg`;
+    return `foto-${idx + 1}-${t}.${/\.png(\?|$)/i.test(pieces[idx] || "") ? "png" : "jpg"}`;
+  };
+  /** Archivos ya bajados, por URL: iOS solo abre la hoja de compartir dentro
+   * del toque, sin un `await fetch` en el medio (igual que `fileRef`). */
+  const filesCache = useRef(new Map<string, File>());
+  const filesLoading = useRef(new Set<string>());
+  const filesFailed = useRef(new Set<string>());
+  const [filesTick, setFilesTick] = useState(0);
+  const [multiErr, setMultiErr] = useState("");
+
+  useEffect(() => {
+    if (!multiMode) return;
+    for (const idx of picked) {
+      const url = pieceUrlFor(idx);
+      if (
+        !url ||
+        filesCache.current.has(url) ||
+        filesLoading.current.has(url) ||
+        filesFailed.current.has(url)
+      )
+        continue;
+      filesLoading.current.add(url);
+      const name = pieceNameFor(idx);
+      // Proxy propio: Storage no deja leer el blob desde otro dominio.
+      fetch(`/api/storage/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(name)}`)
+        .then(async (res) => {
+          if (!res.ok) throw new Error(`download ${res.status}`);
+          const blob = await res.blob();
+          filesCache.current.set(url, new File([blob], name, { type: blob.type || "image/jpeg" }));
+        })
+        .catch((e) => {
+          console.warn("[Survey] no se pudo preparar", name, e);
+          filesFailed.current.add(url);
+          setMultiErr("No se pudo preparar alguna de las fotos. Revisa tu conexión e inténtalo de nuevo.");
+        })
+        .finally(() => {
+          filesLoading.current.delete(url);
+          setFilesTick((n) => n + 1);
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [multiMode, picked, pieces, fullSrc, filesTick]);
+
+  const pickedFiles = picked
+    .map((idx) => filesCache.current.get(pieceUrlFor(idx)))
+    .filter((f): f is File => !!f);
+  const multiReady = picked.length > 0 && pickedFiles.length === picked.length;
+
+  /** Volver a intentar las que fallaron (sin esto el efecto reintentaría en
+   * bucle con la red caída). */
+  const retryFailed = () => {
+    filesFailed.current.clear();
+    setMultiErr("");
+    setFilesTick((n) => n + 1);
+  };
+  const togglePicked = (idx: number) => {
+    if (picked.includes(idx)) {
+      const next = picked.filter((p) => p !== idx);
+      setPicked(next);
+      if (idx === selectedPiece && next.length) setSelectedPiece(next[next.length - 1]);
+    } else {
+      setPicked([...picked, idx]);
+      setSelectedPiece(idx);
+    }
+    if (filesFailed.current.size) retryFailed();
+  };
+  const allIdx = [-1, ...pieces.map((_, i) => i)];
+  const allPicked = multiMode && allIdx.every((i) => picked.includes(i));
+
+  // Varias fotos según lo que permite cada plataforma (ver handleDownloadClick):
+  // iPhone/iPad, una hoja de compartir con todas ("Guardar N imágenes");
+  // escritorio con File System Access y una sola foto, "Guardar como"; el
+  // resto (Android), una descarga por foto — Chrome pide permiso una vez para
+  // "descargar varios archivos".
+  const handleMultiDownload = () => {
+    if (!multiReady) return;
+    const files = pickedFiles;
+    const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+    if (isAppleMobile() && nav.canShare?.({ files })) {
+      nav.share({ files }).catch((err: any) => {
+        if (err?.name !== "AbortError") downloadEach(files);
+      });
+      return;
+    }
+    const w = window as any;
+    if (files.length === 1 && typeof w.showSaveFilePicker === "function") {
+      const file = files[0];
+      (async () => {
+        try {
+          const ext = file.name.split(".").pop() || "jpg";
+          const handle = await w.showSaveFilePicker({
+            suggestedName: file.name,
+            types: [{ description: "Imagen", accept: { [file.type || "image/jpeg"]: [`.${ext}`] } }],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(file);
+          await writable.close();
+        } catch (err: any) {
+          if (err?.name !== "AbortError") downloadEach([file]);
+        }
+      })();
+      return;
+    }
+    downloadEach(files);
+  };
 
   const suggestedName = useMemo(() => {
     if (effectiveFilename) return effectiveFilename;
@@ -276,7 +405,9 @@ useEffect(() => {
   let active = true;
 
   (async () => {
-    if (loadingPhoto || !photo) return;
+    // Con fotos sueltas la descarga va por handleMultiDownload (filesCache):
+    // preparar acá también la de la vista previa sería bajarla dos veces.
+    if (loadingPhoto || !photo || multiMode) return;
 
     // Al cambiar de foto (completa ↔ una suelta) el enlace anterior ya no
     // corresponde: el botón queda deshabilitado hasta tener el nuevo.
@@ -393,6 +524,7 @@ useEffect(() => {
   noFrame,
   effectiveFilename,
   suggestedName,
+  multiMode,
 ]);
 
   const canDownload = !!downloadHref && !loadingPhoto && saved;
@@ -588,27 +720,46 @@ useEffect(() => {
 
         {/* ⬇️ SOLO DESCARGA */}
         <div className="rounded-2xl border border-white/15 bg-black/70 backdrop-blur-md shadow-xl p-5 md:p-6">
-          {/* Elegir qué bajar: la imagen completa o una sola de sus fotos. */}
-          {pieces.length > 0 && fullSrc && (
+          {/* Elegir qué bajar: la imagen completa y/o cualquiera de sus fotos. */}
+          {multiMode && (
             <div className="mb-4">
-              <p className="text-base font-bold text-white">Elige qué foto descargar</p>
-              <p className="text-xs text-white/85 mb-3">Toca una foto para bajar solo esa, o la imagen completa.</p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-base font-bold text-white">Elige qué fotos descargar</p>
+                  <p className="text-xs text-white/85 mb-3">Toca para marcar o desmarcar. Puedes elegir varias.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (allPicked) {
+                      setPicked([selectedPiece]);
+                    } else {
+                      setPicked(allIdx);
+                    }
+                    if (filesFailed.current.size) retryFailed();
+                  }}
+                  className="shrink-0 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/20"
+                >
+                  {allPicked ? "Solo la que estoy viendo" : "Seleccionar todas"}
+                </button>
+              </div>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(68px,1fr))] gap-2">
-                {[fullSrc, ...pieces].map((url, n) => {
+                {[fullSrc!, ...pieces].map((url, n) => {
                   const idx = n - 1;
-                  const on = idx === selectedPiece;
+                  const on = picked.includes(idx);
+                  const viewing = idx === selectedPiece;
                   return (
                     <button
                       key={`${idx}-${url}`}
                       type="button"
-                      onClick={() => setSelectedPiece(idx)}
+                      onClick={() => togglePicked(idx)}
                       aria-pressed={on}
                       className="flex flex-col items-center gap-1 text-center"
                     >
                       <span
                         className={`relative block w-full aspect-square overflow-hidden rounded-lg transition ${
-                          on ? "ring-[3px] ring-white scale-[1.03]" : "ring-1 ring-white/25 opacity-75"
-                        }`}
+                          on ? "ring-[3px] ring-white" : "ring-1 ring-white/25 opacity-60"
+                        } ${viewing ? "scale-[1.04]" : ""}`}
                       >
                         <img
                           src={url}
@@ -617,11 +768,15 @@ useEffect(() => {
                           draggable={false}
                           loading="lazy"
                         />
-                        {on && (
-                          <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-bold text-black">
-                            ✓
-                          </span>
-                        )}
+                        {/* Casilla siempre visible: deja claro que se marcan varias. */}
+                        <span
+                          className={`absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-md border-2 text-[11px] font-bold ${
+                            on ? "border-white bg-white text-black" : "border-white/80 bg-black/40 text-transparent"
+                          }`}
+                          aria-hidden
+                        >
+                          ✓
+                        </span>
                       </span>
                       <span className={`text-xs ${on ? "font-bold text-white" : "text-white/85"}`}>
                         {idx < 0 ? "Completa" : `Foto ${idx + 1}`}
@@ -633,6 +788,36 @@ useEffect(() => {
             </div>
           )}
 
+          {multiMode ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleMultiDownload}
+                disabled={!multiReady}
+                className="px-4 py-2 rounded-xl font-semibold shadow transition bg-white text-black hover:bg-white/90 disabled:bg-white/40 disabled:text-black/60 disabled:cursor-not-allowed"
+              >
+                {picked.length === 0
+                  ? "Elige al menos una foto"
+                  : picked.length > 1
+                  ? `Descargar ${picked.length} fotos`
+                  : picked[0] < 0
+                  ? "Descargar imagen completa"
+                  : `Descargar foto ${picked[0] + 1}`}
+              </button>
+              {picked.length > 0 && !multiReady && !multiErr && (
+                <span className="text-xs text-white/85">Preparando tus fotos…</span>
+              )}
+              {multiErr && (
+                <button
+                  type="button"
+                  onClick={retryFailed}
+                  className="text-xs font-semibold text-amber-200 underline underline-offset-2"
+                >
+                  {multiErr} Reintentar
+                </button>
+              )}
+            </div>
+          ) : (
           <div className="flex flex-wrap items-center gap-3">
             <a
               href={canDownload ? downloadHref : undefined}
@@ -667,6 +852,7 @@ useEffect(() => {
               </span>
             )}
           </div>
+          )}
 
           {/* Vista previa opcional (déjala comentada si quieres SOLO el botón) */}
 
