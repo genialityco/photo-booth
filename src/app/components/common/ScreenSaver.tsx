@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { EventProfile } from "@/app/services/photo-booth/eventService";
 import ScreenSaverSlideshow from "@/app/components/common/ScreenSaverSlideshow";
+import { FaMoon } from "react-icons/fa";
 
 /** Botón oculto: cuánto hay que mantener presionado el logo del evento para
  * forzar el salvapantallas sin esperar la inactividad. Es un "press and hold"
@@ -46,6 +47,7 @@ export default function ScreenSaver({
   activityKey,
   onActiveChange,
   mirrorActive,
+  hideTrigger = false,
 }: {
   event: EventProfile;
   /** Cambia con cada paso relevante del flujo (splash/landing/wizard y, ya
@@ -71,6 +73,10 @@ export default function ScreenSaver({
    * pantallas se desincronizarían.
    */
   mirrorActive?: boolean;
+  /** Oculta el botón visible de activación (abajo a la derecha). La página lo
+   * usa durante el revelado, cuyo botón de rescate invisible vive en esa
+   * misma esquina. */
+  hideTrigger?: boolean;
 }) {
   const isMirror = mirrorActive !== undefined;
   const timeoutMs = (event.screenSaverInactivityTimeoutSec ?? 150) * 1000;
@@ -289,7 +295,33 @@ export default function ScreenSaver({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activityKey]);
 
-  if (!hasAnySlideCandidate || !isActive) return null;
+  if (!hasAnySlideCandidate) return null;
+
+  if (!isActive) {
+    // Botón visible (pero discreto) para abrir el salvapantallas al instante,
+    // abajo a la derecha — complementa el "hold" oculto sobre el logo, que
+    // nadie encuentra si no lo conoce. Tap simple: es chico y casi
+    // transparente, así que un asistente difícilmente lo toca sin querer.
+    // No en el espejo (nadie lo toca) ni con `hideTrigger` (ver prop).
+    if (isMirror || hideTrigger) return null;
+    return (
+      <button
+        type="button"
+        onClick={activateManually}
+        aria-label="Activar salvapantallas"
+        title="Activar salvapantallas"
+        className="fixed z-[9998] flex items-center justify-center w-9 h-9 rounded-full opacity-25 hover:opacity-70 active:opacity-90 transition-opacity"
+        style={{
+          right: "max(0.5rem, env(safe-area-inset-right))",
+          bottom: "max(0.5rem, env(safe-area-inset-bottom))",
+        }}
+      >
+        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-black/60 ring-1 ring-white/40 text-white">
+          <FaMoon className="w-3 h-3" aria-hidden />
+        </span>
+      </button>
+    );
+  }
 
   return (
     <div

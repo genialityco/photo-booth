@@ -216,6 +216,9 @@ export default function EventBoothPage({
         /* Se transmite para que la pantalla espejo entre y salga junto con la
            tablet — ella no mide inactividad propia (nadie la toca). */
         onActiveChange={(active) => trackedBroadcast({ screenSaverActive: active })}
+        /* El revelado tiene su botón de rescate invisible en la misma esquina
+           que el botón del salvapantallas. */
+        hideTrigger={transmittedState.phase === "reveal"}
       />
 
       {/* Cursor por gestos de mano - activo en toda la app si el evento lo habilita */}
