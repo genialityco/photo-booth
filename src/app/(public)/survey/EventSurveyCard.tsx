@@ -7,6 +7,7 @@ import {
   isValidSurveyResponseId,
   newSurveyResponseId,
   normalizeColombianMobile,
+  normalizePersonName,
   type EventSurveyConfig,
   type SurveyAnswers,
 } from "@/app/services/photo-booth/eventSurvey";
@@ -102,6 +103,7 @@ export default function EventSurveyCard({
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<SurveyAnswers>({});
   const [phone, setPhone] = useState("");
+  const [name, setName] = useState("");
   const [consent, setConsent] = useState(false);
   const [showPolicy, setShowPolicy] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
@@ -266,7 +268,12 @@ export default function EventSurveyCard({
 
   const phoneTyped = phone.trim() !== "";
   const phoneValid = !phoneTyped || normalizeColombianMobile(phone) !== null;
-  const phoneBlocksSubmit = phoneTyped && (!phoneValid || !consent);
+  const askName = !!phoneStep?.askName;
+  const nameTyped = askName && name.trim() !== "";
+  const nameValid = !nameTyped || normalizePersonName(name) !== null;
+  /** Escribió algún dato personal: desde ahí hace falta la autorización. */
+  const contactTyped = phoneTyped || nameTyped;
+  const phoneBlocksSubmit = contactTyped && (!phoneValid || !nameValid || !consent);
 
   const goNext = () => setStep((s) => Math.min(s + 1, totalSteps - 1));
 
@@ -305,7 +312,13 @@ export default function EventSurveyCard({
         headers: { "Content-Type": "application/json" },
         body: payload({
           complete: true,
-          ...(phoneStep && phoneTyped ? { phone: phone.trim(), consent } : {}),
+          ...(phoneStep && contactTyped
+            ? {
+                ...(phoneTyped ? { phone: phone.trim() } : {}),
+                ...(nameTyped ? { name: name.trim() } : {}),
+                consent,
+              }
+            : {}),
         }),
       });
       if (!res.ok) {
@@ -388,10 +401,38 @@ export default function EventSurveyCard({
 
       {onPhoneStep && phoneStep ? (
         <div key="phone" className="animate-fadeIn">
-          <label htmlFor="survey-phone" className="block text-base md:text-lg font-bold text-white mb-1">
-            {phoneStep.label}
-          </label>
-          <p className="text-xs text-white/85 mb-2">Es opcional: puedes dejarlo vacío y enviar.</p>
+          <p className="block text-base md:text-lg font-bold text-white mb-1">{phoneStep.label}</p>
+          <p className="text-xs text-white/85 mb-3">
+            {askName ? "Es opcional: puedes dejarlos vacíos y enviar." : "Es opcional: puedes dejarlo vacío y enviar."}
+          </p>
+
+          {askName && (
+            <>
+              <label htmlFor="survey-name" className="block text-sm font-semibold text-white mb-1">
+                {phoneStep.nameLabel}
+              </label>
+              <input
+                id="survey-name"
+                type="text"
+                autoComplete="name"
+                autoCapitalize="words"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nombre y apellido"
+                maxLength={80}
+                disabled={status === "sending"}
+                aria-invalid={!nameValid}
+                className="w-full min-h-12 rounded-xl border border-white/25 bg-white/95 px-4 text-lg text-black placeholder-black/35 focus:outline-none focus:ring-2"
+                style={{ ["--tw-ring-color" as string]: accent }}
+              />
+              {!nameValid && (
+                <p className="mt-1.5 text-xs text-amber-200">Escribe tu nombre solo con letras (ej. Ana Gómez).</p>
+              )}
+              <label htmlFor="survey-phone" className="mt-3 block text-sm font-semibold text-white mb-1">
+                Celular
+              </label>
+            </>
+          )}
           <input
             id="survey-phone"
             type="tel"
@@ -403,6 +444,7 @@ export default function EventSurveyCard({
             maxLength={20}
             disabled={status === "sending"}
             aria-invalid={!phoneValid}
+            aria-label={askName ? undefined : phoneStep.label}
             className="w-full min-h-12 rounded-xl border border-white/25 bg-white/95 px-4 text-lg text-black placeholder-black/35 focus:outline-none focus:ring-2"
             style={{ ["--tw-ring-color" as string]: accent }}
           />
@@ -412,7 +454,7 @@ export default function EventSurveyCard({
             </p>
           )}
 
-          {phoneTyped && (
+          {contactTyped && (
             <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-white/20 bg-white/10 p-3">
               <input
                 type="checkbox"
@@ -533,9 +575,11 @@ export default function EventSurveyCard({
         )}
       </div>
 
-      {onPhoneStep && phoneTyped && phoneValid && !consent && (
+      {onPhoneStep && contactTyped && phoneValid && nameValid && !consent && (
         <p className="mt-2 text-right text-xs text-white/90">
-          Marca la autorización para enviar tu celular, o bórralo para enviar sin él.
+          {askName
+            ? "Marca la autorización para enviar tus datos, o bórralos para enviar sin ellos."
+            : "Marca la autorización para enviar tu celular, o bórralo para enviar sin él."}
         </p>
       )}
     </section>

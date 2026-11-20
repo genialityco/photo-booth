@@ -272,8 +272,9 @@ function PhoneStepEditor({
       return;
     }
     if (value.privacyPolicyText?.trim() && !window.confirm("¿Reemplazar el texto actual de la política?")) return;
-    set("privacyPolicyText", defaultPrivacyPolicyText(controller, value.controllerContact?.trim()));
+    set("privacyPolicyText", defaultPrivacyPolicyText(controller, value.controllerContact?.trim(), askName));
   };
+  const askName = value.askName !== false;
 
   return (
     <div className="rounded-lg border border-gray-200 p-3 sm:p-4 space-y-3">
@@ -286,7 +287,7 @@ function PhoneStepEditor({
         />
         <span>
           <span className="block text-sm font-semibold text-gray-800">
-            Paso final: pedir el celular (opcional para la persona)
+            Paso final: pedir datos de contacto — nombre y celular (opcionales para la persona)
           </span>
           <span className="block text-xs text-gray-500 mt-0.5">
             Después de la última pregunta. Solo se guarda si la persona marca la autorización de
@@ -300,7 +301,7 @@ function PhoneStepEditor({
         <>
           {missingController && (
             <p className="rounded-md bg-amber-50 border border-amber-200 p-2 text-xs text-amber-800">
-              Sin responsable del tratamiento el paso del celular NO se muestra: la ley exige
+              Sin responsable del tratamiento el paso de datos de contacto NO se muestra: la ley exige
               informar quién recibe los datos.
             </p>
           )}
@@ -338,9 +339,38 @@ function PhoneStepEditor({
               type="text" autoComplete="off"
               value={value.label || ""}
               onChange={(e) => set("label", e.target.value)}
-              placeholder={SURVEY_DEFAULTS.phoneLabel}
+              placeholder={askName ? SURVEY_DEFAULTS.contactLabel : SURVEY_DEFAULTS.phoneLabel}
               className={inputCls}
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={askName}
+                onChange={(e) => set("askName", e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300"
+              />
+              <span className="text-sm text-gray-700">
+                Pedir también el nombre
+                <span className="block text-xs text-gray-500">
+                  Opcional para la persona, con la misma autorización que el celular.
+                </span>
+              </span>
+            </label>
+            {askName && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Etiqueta del nombre</label>
+                <input
+                  type="text" autoComplete="off"
+                  value={value.nameLabel || ""}
+                  onChange={(e) => set("nameLabel", e.target.value)}
+                  placeholder={SURVEY_DEFAULTS.nameLabel}
+                  className={inputCls}
+                />
+              </div>
+            )}
           </div>
 
           <div>
@@ -351,7 +381,7 @@ function PhoneStepEditor({
               rows={3}
               value={value.consentText || ""}
               onChange={(e) => set("consentText", e.target.value)}
-              placeholder={defaultConsentText(controller || "[responsable]")}
+              placeholder={defaultConsentText(controller || "[responsable]", askName)}
               className={inputCls}
             />
             <p className="text-xs text-gray-500 mt-1">
@@ -546,14 +576,14 @@ export function SurveyResultsPanel({
       "Fecha",
       "Estado",
       "Foto (taskId)",
-      ...(withPhones ? ["Celular (autorizado)"] : []),
+      ...(withPhones ? ["Nombre (autorizado)", "Celular (autorizado)"] : []),
       ...summary.questions.map((q) => q.text),
     ];
     const body = rows.map((r) => [
       r.createdAt ? new Date(r.createdAt).toLocaleString("es-CO") : "",
       r.completed ? "Completa" : "Parcial",
       r.taskId || "",
-      ...(withPhones ? [r.phone || ""] : []),
+      ...(withPhones ? [r.name || "", r.phone || ""] : []),
       ...summary.questions.map(
         (q) => r.answers.find((a) => a.questionId === q.id)?.selected.join(" | ") || ""
       ),
@@ -600,11 +630,11 @@ export function SurveyResultsPanel({
       {rows && (
         <div className="rounded-md bg-gray-50 border border-gray-200 p-2.5 text-xs text-gray-700 space-y-2">
           <p>
-            <strong>{phoneInfo.count}</strong> persona{phoneInfo.count === 1 ? "" : "s"} dejaron su
-            celular con autorización.{" "}
+            <strong>{phoneInfo.count}</strong> persona{phoneInfo.count === 1 ? "" : "s"} dejaron sus
+            datos de contacto con autorización.{" "}
             {phoneInfo.withPhones
-              ? "Los números se ven en “Respuestas” y se incluyen en el CSV."
-              : "Por privacidad, los números solo se incluyen en el CSV con la clave de exportación."}
+              ? "Nombres y celulares se ven en “Respuestas” y se incluyen en el CSV."
+              : "Por privacidad, nombres y celulares solo se incluyen en el CSV con la clave de exportación."}
           </p>
           {!phoneInfo.withPhones &&
             (phoneInfo.keyConfigured ? (
@@ -630,7 +660,7 @@ export function SurveyResultsPanel({
                   onClick={() => load(exportKey.trim() || undefined)}
                   className="px-3 py-1.5 text-xs font-medium rounded-md bg-gray-800 text-white hover:bg-gray-900"
                 >
-                  Desbloquear celulares
+                  Desbloquear datos de contacto
                 </button>
               </div>
             ) : (
@@ -682,7 +712,10 @@ export function SurveyResultsPanel({
                   <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Fecha</th>
                   <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Estado</th>
                   {phoneInfo.withPhones && (
-                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Celular</th>
+                    <>
+                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Nombre</th>
+                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Celular</th>
+                    </>
                   )}
                   {summary.questions.map((q, i) => (
                     <th key={q.id} className="px-2.5 py-2 font-semibold min-w-44" title={q.text}>
@@ -707,9 +740,12 @@ export function SurveyResultsPanel({
                       </span>
                     </td>
                     {phoneInfo.withPhones && (
-                      <td className="px-2.5 py-2 whitespace-nowrap tabular-nums text-gray-800">
-                        {r.phone || "—"}
-                      </td>
+                      <>
+                        <td className="px-2.5 py-2 whitespace-nowrap text-gray-800">{r.name || "—"}</td>
+                        <td className="px-2.5 py-2 whitespace-nowrap tabular-nums text-gray-800">
+                          {r.phone || "—"}
+                        </td>
+                      </>
                     )}
                     {summary.questions.map((q) => (
                       <td key={q.id} className="px-2.5 py-2 text-gray-800">

@@ -27,8 +27,14 @@ export type EventSurveyQuestion = {
  */
 export type SurveyPhoneConfig = {
   enabled?: boolean;
-  /** Título del paso. Sin valor, SURVEY_DEFAULTS.phoneLabel. */
+  /** Título del paso. Sin valor, SURVEY_DEFAULTS.phoneLabel (o
+   * contactLabel si también se pide el nombre). */
   label?: string;
+  /** Pedir también el nombre (opcional, con la misma autorización que el
+   * celular). Sin valor = sí: solo `false` lo apaga. */
+  askName?: boolean;
+  /** Etiqueta del campo de nombre. Sin valor, SURVEY_DEFAULTS.nameLabel. */
+  nameLabel?: string;
   /** Responsable del tratamiento (empresa/entidad que recibe los datos). */
   controllerName?: string;
   /** Canal para ejercer derechos (correo o teléfono del responsable). */
@@ -88,6 +94,8 @@ export type SurveyResponseRow = {
   completed: boolean;
   /** Solo viene con la clave de exportación (ver api/survey-responses). */
   phone?: string | null;
+  /** Igual que `phone`: solo con la clave de exportación. */
+  name?: string | null;
 };
 
 export const SURVEY_RESPONSES_COLLECTION = "surveyResponses";
@@ -117,7 +125,20 @@ export const SURVEY_DEFAULTS = {
   thankYouTitle: "¡Gracias por responder!",
   accentColor: "#E5007E",
   phoneLabel: "¿Quieres recibir novedades? Déjanos tu celular",
+  contactLabel: "¿Quieres recibir novedades? Déjanos tus datos",
+  nameLabel: "Tu nombre",
 } as const;
+
+/** Nombre de la persona: 2 a 80 caracteres con al menos una letra. Sin
+ * números ni "@": así un celular o correo escrito en el campo equivocado no
+ * queda guardado como nombre. */
+export function normalizePersonName(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const name = raw.replace(/\s+/g, " ").trim();
+  if (name.length < 2 || name.length > 80) return null;
+  if (!/\p{L}/u.test(name) || /[\d@<>{}[\]\\/|_=+*#$%^~`"]/.test(name)) return null;
+  return name;
+}
 
 /** Celular colombiano: 10 dígitos empezando por 3 (acepta +57, espacios y guiones). */
 export function normalizeColombianMobile(raw: unknown): string | null {
@@ -128,8 +149,9 @@ export function normalizeColombianMobile(raw: unknown): string | null {
   return /^3\d{9}$/.test(digits) ? digits : null;
 }
 
-export function defaultConsentText(controllerName: string): string {
-  return `Autorizo a ${controllerName} a tratar mi número de celular para contactarme por WhatsApp, SMS o llamada con novedades, campañas y actividades, conforme a su política de privacidad y la Ley 1581 de 2012.`;
+export function defaultConsentText(controllerName: string, withName = false): string {
+  const datos = withName ? "mi nombre y mi número de celular" : "mi número de celular";
+  return `Autorizo a ${controllerName} a tratar ${datos} para contactarme por WhatsApp, SMS o llamada con novedades, campañas y actividades, conforme a su política de privacidad y la Ley 1581 de 2012.`;
 }
 
 /**
@@ -137,14 +159,15 @@ export function defaultConsentText(controllerName: string): string {
  * razonable, no asesoría legal: el responsable debería revisarla y, si
  * tiene la suya, cargarla (texto o URL) en el admin.
  */
-export function defaultPrivacyPolicyText(controllerName: string, contact?: string): string {
+export function defaultPrivacyPolicyText(controllerName: string, contact?: string, withName = false): string {
   const canal = contact ? ` escribiendo a ${contact}` : " a través de sus canales oficiales de atención";
+  const datos = withName ? "tu nombre y tu número de celular" : "tu número de celular";
   return [
     "POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES",
     "",
     `Responsable: ${controllerName}.`,
     "",
-    "Datos que se recogen: tu número de celular (solo si decides dejarlo y autorizas su uso) y tus respuestas a esta encuesta. Las respuestas se analizan de forma agregada.",
+    `Datos que se recogen: ${datos} (solo si decides dejarlos y autorizas su uso) y tus respuestas a esta encuesta. Las respuestas se analizan de forma agregada.`,
     "",
     `Finalidades: contactarte por WhatsApp, SMS o llamada para informarte sobre novedades, campañas, promociones y actividades de ${controllerName}, y conocer tu opinión para mejorar su oferta y comunicación.`,
     "",
@@ -152,13 +175,16 @@ export function defaultPrivacyPolicyText(controllerName: string, contact?: strin
     "",
     `Cómo ejercerlos: puedes hacer consultas, reclamos o pedir que dejemos de contactarte${canal}.`,
     "",
-    "Dejar tu celular es voluntario y no es requisito para descargar tu foto. Tus datos no se venden a terceros y se conservan mientras sean necesarios para estas finalidades o hasta que revoques la autorización.",
+    `Dejar ${withName ? "tus datos" : "tu celular"} es voluntario y no es requisito para descargar tu foto. Tus datos no se venden a terceros y se conservan mientras sean necesarios para estas finalidades o hasta que revoques la autorización.`,
   ].join("\n");
 }
 
-/** El paso del celular, ya resuelto con sus textos, o null si no aplica. */
+/** El paso de datos de contacto (nombre opcional + celular), ya resuelto con
+ * sus textos, o null si no aplica. */
 export function getActivePhoneStep(survey: EventSurveyConfig | null | undefined): {
   label: string;
+  askName: boolean;
+  nameLabel: string;
   controllerName: string;
   consentText: string;
   privacyPolicyUrl?: string;
@@ -167,13 +193,17 @@ export function getActivePhoneStep(survey: EventSurveyConfig | null | undefined)
   const p = survey?.phone;
   if (!p?.enabled || !p.controllerName?.trim()) return null;
   const controllerName = p.controllerName.trim();
+  const askName = p.askName !== false;
   return {
-    label: p.label?.trim() || SURVEY_DEFAULTS.phoneLabel,
+    label: p.label?.trim() || (askName ? SURVEY_DEFAULTS.contactLabel : SURVEY_DEFAULTS.phoneLabel),
+    askName,
+    nameLabel: p.nameLabel?.trim() || SURVEY_DEFAULTS.nameLabel,
     controllerName,
-    consentText: p.consentText?.trim() || defaultConsentText(controllerName),
+    consentText: p.consentText?.trim() || defaultConsentText(controllerName, askName),
     privacyPolicyUrl: p.privacyPolicyUrl?.trim() || undefined,
     privacyPolicyText:
-      p.privacyPolicyText?.trim() || defaultPrivacyPolicyText(controllerName, p.controllerContact?.trim()),
+      p.privacyPolicyText?.trim() ||
+      defaultPrivacyPolicyText(controllerName, p.controllerContact?.trim(), askName),
   };
 }
 
@@ -283,8 +313,8 @@ export function sanitizeSurveyConfig(raw: unknown): EventSurveyConfig {
 
   const p = r.phone && typeof r.phone === "object" ? (r.phone as Record<string, unknown>) : null;
   if (p) {
-    const phone: SurveyPhoneConfig = { enabled: p.enabled === true };
-    for (const key of ["label", "controllerName", "controllerContact"] as const) {
+    const phone: SurveyPhoneConfig = { enabled: p.enabled === true, askName: p.askName !== false };
+    for (const key of ["label", "nameLabel", "controllerName", "controllerContact"] as const) {
       const v = cleanText(p[key]);
       if (v) phone[key] = v;
     }
@@ -348,30 +378,38 @@ export function validateSurveyAnswers(
 }
 
 /**
- * Valida el celular opcional. Sin número, no hay nada que guardar (ni
- * constancia). Con número, exige el paso activo, formato válido y la casilla
- * de autorización marcada, y devuelve la constancia de lo que se aceptó.
+ * Valida los datos de contacto opcionales (nombre y celular, cada uno por
+ * separado). Sin ninguno, no hay nada que guardar (ni constancia). Con alguno,
+ * exige el paso activo, formato válido y la casilla de autorización marcada,
+ * y devuelve la constancia de lo que se aceptó.
  */
-export function validateSurveyPhone(
+export function validateSurveyContact(
   survey: EventSurveyConfig,
-  rawPhone: unknown,
-  consentAccepted: unknown
+  raw: { phone?: unknown; name?: unknown; consent?: unknown }
 ):
-  | { ok: true; phone: string | null; consent: StoredSurveyConsent | null }
+  | { ok: true; phone: string | null; name: string | null; consent: StoredSurveyConsent | null }
   | { ok: false; error: string } {
-  if (rawPhone === undefined || rawPhone === null || rawPhone === "") {
-    return { ok: true, phone: null, consent: null };
-  }
+  const empty = (v: unknown) => v === undefined || v === null || (typeof v === "string" && v.trim() === "");
+  const hasPhone = !empty(raw.phone);
+  const hasName = !empty(raw.name);
+  if (!hasPhone && !hasName) return { ok: true, phone: null, name: null, consent: null };
+
   const step = getActivePhoneStep(survey);
-  if (!step) return { ok: false, error: "Este evento no recoge celulares" };
-  const phone = normalizeColombianMobile(rawPhone);
-  if (!phone) return { ok: false, error: "Celular no válido" };
-  if (consentAccepted !== true) {
+  if (!step) return { ok: false, error: "Este evento no recoge datos de contacto" };
+  if (hasName && !step.askName) return { ok: false, error: "Este evento no recoge nombres" };
+
+  const phone = hasPhone ? normalizeColombianMobile(raw.phone) : null;
+  if (hasPhone && !phone) return { ok: false, error: "Celular no válido" };
+  const name = hasName ? normalizePersonName(raw.name) : null;
+  if (hasName && !name) return { ok: false, error: "Nombre no válido" };
+
+  if (raw.consent !== true) {
     return { ok: false, error: "Falta la autorización de tratamiento de datos" };
   }
   return {
     ok: true,
     phone,
+    name,
     consent: {
       accepted: true,
       text: step.consentText,

@@ -6,13 +6,13 @@ import {
   getActiveSurvey,
   isValidSurveyResponseId,
   validateSurveyAnswers,
-  validateSurveyPhone,
+  validateSurveyContact,
   type SurveyResponseRow,
 } from "@/app/services/photo-booth/eventSurvey";
 import { timingSafeEqual } from "crypto";
 
 /**
- * Los celulares solo salen con la clave `SURVEY_EXPORT_KEY` (variable de
+ * Los celulares y nombres solo salen con la clave `SURVEY_EXPORT_KEY` (variable de
  * entorno del servidor) en el header `x-export-key`. El admin no tiene login
  * y el `eventId` viaja en cada QR público: sin esta clave, cualquiera que
  * escaneara una foto podría bajarse los números de todo el evento. Sin la
@@ -90,10 +90,10 @@ export async function POST(req: NextRequest) {
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
-    // El celular solo entra con "Enviar"; los guardados parciales lo ignoran.
+    // Nombre y celular solo entran con "Enviar"; los guardados parciales los ignoran.
     const phoneResult = complete
-      ? validateSurveyPhone(survey, body?.phone, body?.consent)
-      : ({ ok: true, phone: null, consent: null } as const);
+      ? validateSurveyContact(survey, { phone: body?.phone, name: body?.name, consent: body?.consent })
+      : ({ ok: true, phone: null, name: null, consent: null } as const);
     if (!phoneResult.ok) {
       return NextResponse.json({ error: phoneResult.error }, { status: 400 });
     }
@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
       if (complete) {
         fields.completedAt = now;
         fields.phone = phoneResult.phone;
+        fields.name = phoneResult.name;
         // Prueba de la autorización (Ley 1581): qué texto aceptó y cuándo.
         fields.consent = phoneResult.consent ? { ...phoneResult.consent, acceptedAt: now } : null;
       }
@@ -129,6 +130,7 @@ export async function POST(req: NextRequest) {
         eventName: typeof event.name === "string" ? event.name : "",
         taskId: taskId ?? null,
         phone: null,
+        name: null,
         consent: null,
         userAgent: (req.headers.get("user-agent") || "").slice(0, 300),
         createdAt: now,
@@ -181,7 +183,9 @@ export async function GET(req: NextRequest) {
       const data = d.data();
       const created = data.createdAt?.toDate?.() as Date | undefined;
       const phone = typeof data.phone === "string" ? data.phone : null;
-      if (phone) phoneCount++;
+      const name = typeof data.name === "string" ? data.name : null;
+      // Personas que dejaron algún dato de contacto (siempre con autorización).
+      if (phone || name) phoneCount++;
       return {
         id: d.id,
         createdAt: created ? created.toISOString() : null,
@@ -190,7 +194,7 @@ export async function GET(req: NextRequest) {
         // Sin el campo = doc anterior al guardado por pregunta: esos solo se
         // creaban al tocar "Enviar".
         completed: data.completed !== false,
-        ...(withPhones ? { phone } : {}),
+        ...(withPhones ? { phone, name } : {}),
       };
     });
     rows.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
