@@ -7,6 +7,7 @@ import {
   EventProfile,
   type SplashFreeElement,
   type SplashFreeElementKind,
+  bgDarkenStyle,
 } from "@/app/services/photo-booth/eventService";
 import { runButtonClickEffect } from "@/app/components/common/click-effects";
 import MediaTapScreen from "@/app/components/common/MediaTapScreen";
@@ -659,7 +660,7 @@ export default function SplashScreen({
           <>
             <div
               className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url('${event.bgImage}')` }}
+              style={{ backgroundImage: `url('${event.bgImage}')`, ...bgDarkenStyle(event.bgDarkenPct) }}
               aria-hidden
             />
             <div
@@ -913,7 +914,7 @@ export default function SplashScreen({
         <>
           <div
             className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url('${event.bgImage}')` }}
+            style={{ backgroundImage: `url('${event.bgImage}')`, ...bgDarkenStyle(event.bgDarkenPct) }}
             aria-hidden
           />
           <div

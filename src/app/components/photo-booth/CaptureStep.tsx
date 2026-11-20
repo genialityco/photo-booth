@@ -73,6 +73,7 @@ export default function CaptureStep({
   logoLeftScalePct,
   logoRightScalePct,
   backgroundSrc,
+  backgroundDarkenPct,
   backgroundAnimation,
   backgroundOptions,
   aspectRatio,
@@ -93,6 +94,8 @@ export default function CaptureStep({
   logoRightScalePct?: number;
   /** Fondo detrás del cuadro de cámara (la imagen de fondo configurada del evento). */
   backgroundSrc?: string;
+  /** Oscurecido de `backgroundSrc` en % (`bgDarkenPct` del evento), 0 = tal cual. */
+  backgroundDarkenPct?: number;
   /** Animación de fondo del evento (se dibuja dentro de FrameCamera, que tapa la global de booth/[slug]). */
   backgroundAnimation?: BackgroundAnimationType;
   /** Opciones de la animación de fondo: logos de LOGO_RAIN y color de RUNWAY_LIGHTS (ver BackgroundAnimation). */
@@ -306,6 +309,7 @@ export default function CaptureStep({
         frameSrc={frameSrc ?? undefined} // 👈 si es null no renderiza <img>
         mirror={effectiveMirror}
         backgroundSrc={backgroundSrc}
+        backgroundDarkenPct={backgroundDarkenPct}
         backgroundAnimation={backgroundAnimation}
         backgroundOptions={backgroundOptions}
         aspectRatio={aspectRatio}

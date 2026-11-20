@@ -81,6 +81,14 @@ export type EventProfile = {
   name: string;
   description?: string;
   bgImage?: string;
+  /**
+   * Cuánto se oscurece `bgImage` en las pantallas del booth (tablet y espejo:
+   * splash, selección, cámara, carga, revelado, resultado), en % de 0 a 90.
+   * Se aplica como `filter: brightness()` vía `bgDarkenStyle`. Sin el campo:
+   * 0, la imagen tal cual. La página de descarga (`/survey`) no lo usa: tiene
+   * su propio velo fijo.
+   */
+  bgDarkenPct?: number;
   logoTop?: string;
   logoBottom?: string;
   /**
@@ -865,6 +873,10 @@ export async function createEventProfile(
       docData.logoTopScalePct = data.logoTopScalePct;
     }
 
+    if (data.bgDarkenPct !== undefined) {
+      docData.bgDarkenPct = data.bgDarkenPct;
+    }
+
     if (data.logoBottomScalePct !== undefined) {
       docData.logoBottomScalePct = data.logoBottomScalePct;
     }
@@ -1043,6 +1055,7 @@ export async function updateEventProfile(
     if (data.paintTimeSeconds !== undefined) docData.paintTimeSeconds = data.paintTimeSeconds;
     if (data.photoAspectRatio !== undefined) docData.photoAspectRatio = data.photoAspectRatio;
     if (data.logoTopScalePct !== undefined) docData.logoTopScalePct = data.logoTopScalePct;
+    if (data.bgDarkenPct !== undefined) docData.bgDarkenPct = data.bgDarkenPct;
     if (data.logoBottomScalePct !== undefined) docData.logoBottomScalePct = data.logoBottomScalePct;
     if (data.mirrorScreenEnabled !== undefined) docData.mirrorScreenEnabled = data.mirrorScreenEnabled;
     if (data.screenSaverInactivityTimeoutSec !== undefined) docData.screenSaverInactivityTimeoutSec = data.screenSaverInactivityTimeoutSec;
@@ -1220,4 +1233,29 @@ export async function searchEvents(searchTerm: string): Promise<EventProfile[]> 
     console.error("Error searching events:", error);
     throw error;
   }
+}
+
+/** Oscurecido del fondo del booth (`bgDarkenPct`): rango y valor por defecto. */
+export const BG_DARKEN_MIN = 0;
+export const BG_DARKEN_MAX = 90;
+export const BG_DARKEN_DEFAULT = 0;
+
+/** `bgDarkenPct` acotado a 0–90; sin valor (o inválido) = 0. */
+export function clampBgDarken(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (value === undefined || value === null || value === "" || !Number.isFinite(n)) {
+    return BG_DARKEN_DEFAULT;
+  }
+  return Math.min(BG_DARKEN_MAX, Math.max(BG_DARKEN_MIN, Math.round(n)));
+}
+
+/**
+ * Estilo para el elemento que pinta la imagen de fondo del evento: la
+ * oscurece con `filter: brightness()` sobre el propio elemento, en vez de un
+ * velo encima, para no meter capas nuevas entre los z-index de cada pantalla.
+ * Con 0 (o sin valor) no devuelve nada: la imagen queda como siempre.
+ */
+export function bgDarkenStyle(value: unknown): { filter?: string } {
+  const pct = clampBgDarken(value);
+  return pct > 0 ? { filter: `brightness(${(100 - pct) / 100})` } : {};
 }

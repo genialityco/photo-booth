@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { getEventProfileBySlug, EventProfile } from "@/app/services/photo-booth/eventService";
+import { bgDarkenStyle, getEventProfileBySlug, EventProfile } from "@/app/services/photo-booth/eventService";
 import SplashScreen from "@/app/components/photo-booth/SplashScreen";
 import EventPhotoBoothLanding from "@/app/components/photo-booth/EventPhotoBoothLanding";
 import PhotoBoothWizard from "@/app/components/photo-booth/PhotoBoothWizard";
@@ -226,7 +226,10 @@ export default function EventBoothPage({
           desmonta/monta con el AnimatePresence). */}
       <div
         className="fixed inset-0 -z-20 bg-cover bg-center"
-        style={{ backgroundImage: `url('${shownEvent.bgImage || "/images/placeholder.png"}')` }}
+        style={{
+          backgroundImage: `url('${shownEvent.bgImage || "/images/placeholder.png"}')`,
+          ...bgDarkenStyle(shownEvent.bgDarkenPct),
+        }}
         aria-hidden
       />
 

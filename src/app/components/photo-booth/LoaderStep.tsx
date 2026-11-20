@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useState } from "react";
 import type { StyleProfile } from "@/app/services/admin/styleService";
-import type { EventProfile } from "@/app/services/photo-booth/eventService";
+import { bgDarkenStyle, type EventProfile } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
 import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
 import RocketLoader from "@/app/components/photo-booth/RocketLoader";
@@ -165,7 +165,16 @@ export default function LoaderStep({
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center text-white">
       {/* Fondo */}
-      <div className="absolute inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: `url('${bgUrl}')` }} aria-hidden />
+      {/* El oscurecido del admin es para la imagen de fondo del evento; una
+          `loadingPageImage` propia se muestra tal cual. */}
+      <div
+        className="absolute inset-0 -z-10 bg-cover bg-center"
+        style={{
+          backgroundImage: `url('${bgUrl}')`,
+          ...(event?.loadingPageImage ? {} : bgDarkenStyle(event?.bgDarkenPct)),
+        }}
+        aria-hidden
+      />
       {loadingMediaUrl &&
         (loadingMediaIsVideo ? (
           <video

@@ -23,6 +23,7 @@ import type { StyleProfile } from "@/app/services/admin/styleService";
 import {
   getEventProfileBySlug,
   type EventProfile,
+  bgDarkenStyle,
 } from "@/app/services/photo-booth/eventService";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
 import {
@@ -912,6 +913,8 @@ export default function PhotoBoothWizard({
   const bigLogoBars = step === "preview" || step === "result";
   const logoTopScalePct =
     eventData?.logoTopScalePct ?? cachedEventConfig?.logoTopScalePct;
+  // Oscurecido de la imagen de fondo configurado en el admin (0 = tal cual).
+  const bgDarkenPct = eventData?.bgDarkenPct ?? cachedEventConfig?.bgDarkenPct;
   const logoBottomScalePct = bottomLogoScalePct(
     eventData?.logoBottomScalePct ?? cachedEventConfig?.logoBottomScalePct,
   );
@@ -1000,6 +1003,7 @@ export default function PhotoBoothWizard({
               logoLeftScalePct={logoTopScalePct}
               logoRightScalePct={logoBottomScalePct}
               backgroundSrc={bgUrl}
+              backgroundDarkenPct={bgDarkenPct}
               backgroundAnimation={eventData?.backgroundAnimation}
               backgroundOptions={{
                 images: eventData?.logoRainImages,
@@ -1073,7 +1077,7 @@ export default function PhotoBoothWizard({
         <motion.div
           key={bgUrl || "no-bg"}
           className="fixed inset-0 -z-10 bg-cover bg-center"
-          style={{ backgroundImage: `url('${bgUrl}')` }}
+          style={{ backgroundImage: `url('${bgUrl}')`, ...bgDarkenStyle(bgDarkenPct) }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

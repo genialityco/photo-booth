@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/firebaseConfig";
-import type { EventProfile } from "@/app/services/photo-booth/eventService";
+import { bgDarkenStyle, type EventProfile } from "@/app/services/photo-booth/eventService";
 import type { BoothLiveState } from "@/app/components/photo-booth/useBoothLiveSession";
 import type { ImageCustomization } from "@/app/components/photo-booth/ImageCustomizeStep";
 import SplashScreen from "@/app/components/photo-booth/SplashScreen";
@@ -112,7 +112,7 @@ function MirrorBackground({ event }: { event: EventProfile }) {
   return (
     <div
       className="fixed inset-0 -z-10 bg-cover bg-center"
-      style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')` }}
+      style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')`, ...bgDarkenStyle(event.bgDarkenPct) }}
       aria-hidden
     />
   );
@@ -255,7 +255,7 @@ function MirrorFacetsCarousel({
     <div className="absolute inset-0">
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')` }}
+        style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')`, ...bgDarkenStyle(event.bgDarkenPct) }}
         aria-hidden
       />
       <div className="absolute inset-0 bg-black/45" aria-hidden />
@@ -445,7 +445,7 @@ function ResultView({
         >
           <div
             className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')` }}
+            style={{ backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')`, ...bgDarkenStyle(event.bgDarkenPct) }}
           />
           <BackgroundAnimation
             type={event.backgroundAnimation}

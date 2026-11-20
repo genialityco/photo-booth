@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import BackgroundAnimation, { type BackgroundAnimationType } from "@/app/components/common/BackgroundAnimation";
 import { getAspectClassName, getAspectDims, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
+import { bgDarkenStyle } from "@/app/services/photo-booth/eventService";
 
 // Tipos para navegadores con APIs legacy
 type LegacyGetUserMedia = (
@@ -65,6 +66,7 @@ export default function FrameCamera({
   frameSrc = null,
   mirror = true,
   backgroundSrc,
+  backgroundDarkenPct,
   backgroundAnimation,
   backgroundOptions,
   aspectRatio,
@@ -77,6 +79,8 @@ export default function FrameCamera({
   mirror?: boolean;
   /** Fondo detrás del cuadro nítido (la imagen/fondo configurado del evento), en vez de un blur genérico. */
   backgroundSrc?: string;
+  /** Oscurecido de `backgroundSrc` en % (`bgDarkenPct` del evento), 0 = tal cual. */
+  backgroundDarkenPct?: number;
   /** Animación de fondo del evento, encima de `backgroundSrc` y detrás del cuadro de cámara. */
   backgroundAnimation?: BackgroundAnimationType;
   /** Opciones de la animación de fondo: logos de LOGO_RAIN y color de RUNWAY_LIGHTS (ver BackgroundAnimation). */
@@ -311,6 +315,7 @@ export default function FrameCamera({
           src={backgroundSrc}
           alt=""
           className="absolute inset-0 w-full h-full object-cover select-none"
+          style={bgDarkenStyle(backgroundDarkenPct)}
           draggable={false}
           aria-hidden
         />

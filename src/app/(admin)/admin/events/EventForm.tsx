@@ -18,6 +18,11 @@ import {
   EventProfile,
   createEventProfile,
   updateEventProfile,
+  BG_DARKEN_DEFAULT,
+  BG_DARKEN_MAX,
+  BG_DARKEN_MIN,
+  bgDarkenStyle,
+  clampBgDarken,
   type FacetsLayout,
   type SplashHeaderLogo,
   type SplashLayout,
@@ -138,6 +143,78 @@ function ToggleField({
  * cambian de aspecto solo por abrir y guardar el formulario. El rango coincide
  * con el que aplica `clampLogoScale` al renderizar.
  */
+/**
+ * Oscurecido de la imagen de fondo del booth (`bgDarkenPct`), con vista
+ * previa antes/después.
+ */
+function BgDarkenField({
+  label,
+  bgImage,
+  value,
+  onChange,
+}: {
+  label: string;
+  bgImage: string;
+  value?: number;
+  onChange: (value: number | undefined) => void;
+}) {
+  const current = clampBgDarken(value);
+  return (
+    <div>
+      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={BG_DARKEN_MIN}
+          max={BG_DARKEN_MAX}
+          step={5}
+          value={current}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="flex-1 min-w-0 accent-blue-600"
+          aria-label={label}
+        />
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="number"
+            min={BG_DARKEN_MIN}
+            max={BG_DARKEN_MAX}
+            value={value ?? ""}
+            placeholder={String(BG_DARKEN_DEFAULT)}
+            onChange={(e) =>
+              onChange(e.target.value === "" ? undefined : Number(e.target.value))
+            }
+            className="w-20 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <span className="text-sm text-gray-500">%</span>
+        </div>
+      </div>
+      {bgImage && (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <figure>
+            <div
+              className="h-24 rounded-lg bg-cover bg-center"
+              style={{ backgroundImage: `url('${bgImage}')` }}
+            />
+            <figcaption className="mt-1 text-center text-xs text-gray-500">Original</figcaption>
+          </figure>
+          <figure>
+            <div
+              className="h-24 rounded-lg bg-cover bg-center"
+              style={{ backgroundImage: `url('${bgImage}')`, ...bgDarkenStyle(current) }}
+            />
+            <figcaption className="mt-1 text-center text-xs text-gray-500">Con {current}%</figcaption>
+          </figure>
+        </div>
+      )}
+      <p className="text-xs text-gray-500 mt-1">
+        0% = imagen tal cual (por defecto), {BG_DARKEN_MAX}% = casi negra. Se aplica en todas las pantallas del booth, en la tablet y en la pantalla espejo: splash, selección, cámara, carga, revelado y resultado. La página de descarga del celular no cambia.
+      </p>
+    </div>
+  );
+}
+
 function LogoScaleField({
   label,
   value,
@@ -235,6 +312,7 @@ export default function EventForm({
     slug: event?.slug || "",
     description: event?.description || "",
     bgImage: event?.bgImage || "",
+    bgDarkenPct: event?.bgDarkenPct,
     logoTop: event?.logoTop || "",
     logoBottom: event?.logoBottom || "",
     // Sin `|| 100`: dejarlos en undefined mantiene el campo fuera del doc de
@@ -635,6 +713,13 @@ export default function EventForm({
             label="Imagen de Fondo"
             value={formData.bgImage || ""}
             onChange={(value) => handleImageChange("bgImage", value)}
+          />
+
+          <BgDarkenField
+            label="Oscurecer la imagen de fondo"
+            bgImage={formData.bgImage || ""}
+            value={formData.bgDarkenPct}
+            onChange={(value) => setField("bgDarkenPct", value)}
           />
 
           <ImageUploadField

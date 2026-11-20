@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { EventProfile } from "@/app/services/photo-booth/eventService";
+import { bgDarkenStyle, EventProfile } from "@/app/services/photo-booth/eventService";
 import {
   getPhotoBoothPromptsByIds,
   type PhotoBoothPrompt,
@@ -154,6 +154,7 @@ export default function EventPhotoBoothLanding({
           className="fixed inset-0 -z-10 bg-cover bg-center"
           style={{
             backgroundImage: `url('${event.bgImage || "/images/placeholder.png"}')`,
+            ...bgDarkenStyle(event.bgDarkenPct),
           }}
           aria-hidden
         />
