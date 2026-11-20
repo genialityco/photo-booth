@@ -467,7 +467,20 @@ export default function EventSurveyCard({
             </label>
           )}
 
-          <div className="mt-2">
+          {/* Texto en la página (desplegable) y/o enlace a la política
+              completa del responsable: si el evento tiene los dos, se ven los
+              dos. */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+            {phoneStep.privacyPolicyText ? (
+              <button
+                type="button"
+                onClick={() => setShowPolicy((v) => !v)}
+                aria-expanded={showPolicy}
+                className="text-xs font-semibold text-white underline underline-offset-2"
+              >
+                {showPolicy ? "Ocultar política de privacidad" : "Ver política de privacidad"}
+              </button>
+            ) : null}
             {phoneStep.privacyPolicyUrl ? (
               <a
                 href={phoneStep.privacyPolicyUrl}
@@ -475,26 +488,17 @@ export default function EventSurveyCard({
                 rel="noopener noreferrer"
                 className="text-xs font-semibold text-white underline underline-offset-2"
               >
-                Ver política de privacidad
+                {phoneStep.privacyPolicyText
+                  ? `Política completa de ${phoneStep.controllerName} ↗`
+                  : "Ver política de privacidad"}
               </a>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowPolicy((v) => !v)}
-                  aria-expanded={showPolicy}
-                  className="text-xs font-semibold text-white underline underline-offset-2"
-                >
-                  {showPolicy ? "Ocultar política de privacidad" : "Ver política de privacidad"}
-                </button>
-                {showPolicy && (
-                  <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-white/15 bg-black/60 p-3 text-xs leading-relaxed text-white/90 whitespace-pre-line">
-                    {phoneStep.privacyPolicyText}
-                  </div>
-                )}
-              </>
-            )}
+            ) : null}
           </div>
+          {phoneStep.privacyPolicyText && showPolicy && (
+            <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-white/15 bg-black/60 p-3 text-xs leading-relaxed text-white/90 whitespace-pre-line">
+              {phoneStep.privacyPolicyText}
+            </div>
+          )}
         </div>
       ) : (
         <fieldset key={q.id} className="animate-fadeIn">

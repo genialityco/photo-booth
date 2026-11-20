@@ -188,22 +188,30 @@ export function getActivePhoneStep(survey: EventSurveyConfig | null | undefined)
   controllerName: string;
   consentText: string;
   privacyPolicyUrl?: string;
+  /** Texto que se despliega en la página. Vacío ("") solo cuando hay URL y
+   * nadie escribió un texto propio: ahí la política es la del enlace. */
   privacyPolicyText: string;
 } | null {
   const p = survey?.phone;
   if (!p?.enabled || !p.controllerName?.trim()) return null;
   const controllerName = p.controllerName.trim();
   const askName = p.askName !== false;
+  const privacyPolicyUrl = p.privacyPolicyUrl?.trim() || undefined;
   return {
     label: p.label?.trim() || (askName ? SURVEY_DEFAULTS.contactLabel : SURVEY_DEFAULTS.phoneLabel),
     askName,
     nameLabel: p.nameLabel?.trim() || SURVEY_DEFAULTS.nameLabel,
     controllerName,
     consentText: p.consentText?.trim() || defaultConsentText(controllerName, askName),
-    privacyPolicyUrl: p.privacyPolicyUrl?.trim() || undefined,
+    privacyPolicyUrl,
+    // URL y texto conviven: el texto (resumen) se lee en la página y el
+    // enlace lleva a la política completa del responsable. La plantilla por
+    // defecto solo se usa si no hay ni texto propio ni URL.
     privacyPolicyText:
       p.privacyPolicyText?.trim() ||
-      defaultPrivacyPolicyText(controllerName, p.controllerContact?.trim(), askName),
+      (privacyPolicyUrl
+        ? ""
+        : defaultPrivacyPolicyText(controllerName, p.controllerContact?.trim(), askName)),
   };
 }
 
@@ -414,7 +422,12 @@ export function validateSurveyContact(
       accepted: true,
       text: step.consentText,
       controllerName: step.controllerName,
-      privacyPolicy: step.privacyPolicyUrl || "en-pagina",
+      // Con URL y texto a la vez, la persona vio ambos.
+      privacyPolicy: step.privacyPolicyUrl
+        ? step.privacyPolicyText
+          ? `en-pagina + ${step.privacyPolicyUrl}`
+          : step.privacyPolicyUrl
+        : "en-pagina",
     },
   };
 }

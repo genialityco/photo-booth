@@ -401,11 +401,14 @@ function PhoneStepEditor({
               className={inputCls}
             />
             <p className="text-xs text-gray-500 mt-1">
-              Si el responsable ya tiene su política publicada, pon el enlace aquí y se usa ese.
+              Si el responsable ya tiene su política publicada, pon el enlace aquí. Se muestra como
+              &quot;Política completa de …&quot; junto al texto de abajo (si lo escribes).
             </p>
           </div>
 
-          {!value.privacyPolicyUrl?.trim() && (
+          {/* Siempre visible: antes se ocultaba al poner una URL, y un texto ya
+              escrito quedaba guardado pero sin mostrarse en ningún lado. */}
+          {(
             <div>
               <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
                 <label className="block text-sm font-medium text-gray-700">
@@ -423,12 +426,17 @@ function PhoneStepEditor({
                 rows={8}
                 value={value.privacyPolicyText || ""}
                 onChange={(e) => set("privacyPolicyText", e.target.value)}
-                placeholder="Vacío = se muestra la plantilla con el responsable y el contacto de arriba."
+                placeholder={
+                  value.privacyPolicyUrl?.trim()
+                    ? "Vacío = solo se muestra el enlace de arriba."
+                    : "Vacío = se muestra la plantilla con el responsable y el contacto de arriba."
+                }
                 className={inputCls}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Se despliega en la misma página al tocar &quot;Ver política de privacidad&quot;. La
-                plantilla es una base: conviene que el responsable la revise con su área legal.
+                Se despliega en la misma página al tocar &quot;Ver política de privacidad&quot;. Con
+                URL y texto, la persona ve los dos: el texto aquí y el enlace a la política completa.
+                La plantilla es una base: conviene que el responsable la revise con su área legal.
               </p>
             </div>
           )}
