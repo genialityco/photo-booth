@@ -61,6 +61,9 @@ const FRAGMENT_SHADER = /* glsl */ `
 // fase para que no se coma toda la animación si `reassembleMs`/
 // `disintegrateMs` se configuran cortos.
 const REVEAL_MS = 400;
+/** Intensidad del bloom mientras se ven las partículas; baja a 0 con el
+ * crossfade a la foto real (sobre la foto quemaba las zonas claras). */
+const BLOOM_STRENGTH = 0.9;
 
 /**
  * Muestra `src` como una nube de partículas en 3D real (WebGL vía Three.js,
@@ -82,7 +85,8 @@ const REVEAL_MS = 400;
  * Bloom real de post-procesado (`EffectComposer` + `UnrealBloomPass`, no un
  * truco de shader ni un blur de CSS): las partículas más brillantes de la
  * explosión "sangran" luz de verdad hacia sus vecinos. La foto en reposo no
- * lleva ningún marco ni halo — se ve con sus colores reales, limpia.
+ * lleva ningún marco ni halo — se ve con sus colores reales, limpia: el bloom
+ * se apaga junto con el crossfade a la foto real (ver BLOOM_STRENGTH).
  *
  * Con `loop`, el ciclo completo (arma → se mantiene nítida → se disuelve en
  * partículas quieta → explota → se mantiene dispersa → vuelve a armarse) se
@@ -160,7 +164,7 @@ export default function PixelateImage({
     // (los núcleos de las partículas en explosión).
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.9, 0.55, 0.82);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), BLOOM_STRENGTH, 0.55, 0.82);
     composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
 
@@ -405,6 +409,13 @@ export default function PixelateImage({
       if (photoMesh) {
         (photoMesh.material as THREE.MeshBasicMaterial).opacity = photoReveal;
       }
+
+      // El bloom es para las partículas en movimiento. Sobre la foto real
+      // armada hacía "sangrar" luz de todo lo claro (una camisa blanca
+      // quedaba como un foco), así que se apaga a la par del crossfade y,
+      // con la foto ya entera, se desactiva el pase.
+      bloomPass.strength = BLOOM_STRENGTH * (1 - photoReveal);
+      bloomPass.enabled = photoReveal < 1;
 
       composer.render();
     };
