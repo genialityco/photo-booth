@@ -23,8 +23,14 @@ import type { StyleProfile } from "@/app/services/admin/styleService";
 import {
   getEventProfileBySlug,
   type EventProfile,
+  type FacetsLayout,
   bgDarkenStyle,
 } from "@/app/services/photo-booth/eventService";
+import {
+  resolveResultGridLayout,
+  resolveResultImageEffect,
+  type ResultImageEffect,
+} from "@/app/components/photo-booth/resultEffect";
 import { getPhotoBoothPromptById } from "@/app/services/photo-booth/brandService";
 import {
   LOGO_BAR_BOTTOM_MAX_WIDTH,
@@ -121,6 +127,10 @@ export default function PhotoBoothWizard({
   // del resultado y cuál está al frente. `aiUrl` sigue siendo la primera
   // (es la que se revela).
   const [aiFacetUrls, setAiFacetUrls] = useState<string[] | null>(null);
+  // Efecto/cuadrícula de la foto actual: pueden venir del filtro (la tarea)
+  // en vez del evento — ver resultEffect.ts.
+  const [resultEffect, setResultEffect] = useState<ResultImageEffect | null>(null);
+  const [resultGridLayout, setResultGridLayout] = useState<FacetsLayout | undefined>(undefined);
   const [facetIndex, setFacetIndex] = useState(0);
   // Flujo multi-prompt (event.boothFlow="MULTI_PROMPT"): una foto por prompt,
   // en orden, y el collage que baja el QR. `facetIndex` se reusa para la foto
@@ -678,7 +688,13 @@ export default function PhotoBoothWizard({
               ? data.facets.map((f: { url?: string }) => f?.url).filter((u: unknown): u is string => typeof u === "string")
               : [];
 
-            if (eventData?.resultImageEffect === "SPACE_FLOAT" && !data.videoUrl && facetUrls.length === 0) {
+            // Efecto de la foto: el del filtro (escrito en la tarea) o el del
+            // evento — ver resultEffect.ts.
+            const effect = resolveResultImageEffect(data, eventData);
+            setResultEffect(effect);
+            setResultGridLayout(resolveResultGridLayout(data, eventData));
+
+            if (effect === "SPACE_FLOAT" && !data.videoUrl && facetUrls.length === 0) {
               cutoutWaitRef.current = newTaskId;
               await Promise.race([
                 requestCutout(newTaskId).catch(() => undefined),
@@ -831,6 +847,8 @@ export default function PhotoBoothWizard({
     setAiUrl(null);
     setAiVideoUrl(null);
     setAiFacetUrls(null);
+    setResultEffect(null);
+    setResultGridLayout(undefined);
     setFacetIndex(0);
     setMultiUrls(null);
     setCompositeUrl(null);
@@ -1391,8 +1409,8 @@ export default function PhotoBoothWizard({
                   buttonClickEffect={eventData?.buttonClickEffect}
                   showQr={showQr}
                   onShowQrChange={setShowQr}
-                  resultImageEffect={eventData?.resultImageEffect}
-                  resultGridLayout={eventData?.resultGridLayout}
+                  resultImageEffect={resultEffect ?? eventData?.resultImageEffect}
+                  resultGridLayout={resultGridLayout ?? eventData?.resultGridLayout}
                   facetUrls={aiFacetUrls ?? undefined}
                   facetIndex={facetIndex}
                   onFacetIndexChange={setFacetIndex}

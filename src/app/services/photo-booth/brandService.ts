@@ -40,6 +40,16 @@ export type PhotoBoothPrompt = {
     facetsPrompt?: string;
     /** Solo si este filtro genera facetas. "" = usa `event.facetsLayout`. */
     facetsLayout?: "" | "2x1" | "3x1" | "2x2" | "3x2";
+    /**
+     * Efecto de la imagen resultante para las fotos de ESTE filtro. "" = el
+     * del evento. processImageTask lo copia a la tarea y el wizard/espejo lo
+     * leen de ahí (resultEffect.ts). Con facetas + "GRID_ASSEMBLE" la foto
+     * queda como una cuadrícula que se arma panel por panel, sin carrusel.
+     */
+    resultImageEffect?: "" | "NONE" | "SPACE_FLOAT" | "GRID_ASSEMBLE";
+    /** Solo GRID_ASSEMBLE en un filtro de imagen simple: cómo viene dividida
+     * la imagen. "" = la del evento. En facetas se usa la de las facetas. */
+    resultGridLayout?: "" | "2x1" | "3x1" | "2x2" | "3x2";
     active: boolean;
     createdAt: Timestamp | Date | null;
     updatedAt: Timestamp | Date | null;
@@ -83,6 +93,8 @@ function mapDocToPrompt(d: DocumentSnapshot): PhotoBoothPrompt {
         generationType: data.generationType ?? "",
         facetsPrompt: data.facetsPrompt ?? "",
         facetsLayout: data.facetsLayout ?? "",
+        resultImageEffect: data.resultImageEffect ?? "",
+        resultGridLayout: data.resultGridLayout ?? "",
         active: data.active ?? false,
         createdAt: tsToDate(data.createdAt),
         updatedAt: tsToDate(data.updatedAt),
@@ -240,6 +252,8 @@ export async function createPhotoBoothPrompt(
                 generationType: data.generationType || "",
                 facetsPrompt: data.facetsPrompt || "",
                 facetsLayout: data.facetsLayout || "",
+                resultImageEffect: data.resultImageEffect || "",
+                resultGridLayout: data.resultGridLayout || "",
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
@@ -481,6 +495,8 @@ export async function updatePhotoBoothPrompt(
         if (data.generationType !== undefined) updateData.generationType = data.generationType;
         if (data.facetsPrompt !== undefined) updateData.facetsPrompt = data.facetsPrompt;
         if (data.facetsLayout !== undefined) updateData.facetsLayout = data.facetsLayout;
+        if (data.resultImageEffect !== undefined) updateData.resultImageEffect = data.resultImageEffect;
+        if (data.resultGridLayout !== undefined) updateData.resultGridLayout = data.resultGridLayout;
         if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
         
         await updateDoc(docRef, updateData);

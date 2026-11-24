@@ -21,6 +21,7 @@ import ScreenSaver from "@/app/components/common/ScreenSaver";
 import ScreenSaverEditorialGrid from "@/app/components/common/ScreenSaverEditorialGrid";
 import BackgroundAnimation from "@/app/components/common/BackgroundAnimation";
 import { bottomLogoScalePct, cornerLogoLayout } from "@/app/components/photo-booth/logoBarSizing";
+import { resolveResultGridLayout, resolveResultImageEffect } from "@/app/components/photo-booth/resultEffect";
 import SpaceFloatCutout, { useCutoutShown } from "@/app/components/photo-booth/SpaceFloatCutout";
 import FacetCarousel3D from "@/app/components/photo-booth/FacetCarousel3D";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
@@ -54,6 +55,9 @@ type TaskResult = {
   compositeUrl?: string | null;
   /** Paneles sueltos de una foto dividida (ej. 2x2), para elegir uno. */
   splitUrls?: string[];
+  /** Efecto/cuadrícula del FILTRO, si define uno (ver resultEffect.ts). */
+  resultImageEffect?: string;
+  resultGridLayout?: string;
 };
 
 /** Se suscribe directamente a imageTasks/{taskId} — el mismo doc que ya lee
@@ -406,7 +410,9 @@ function ResultView({
   // fondo del evento (y su animación de fondo). `useTaskResult` sigue
   // suscripto al doc, así que `cutoutUrl` llega solo cuando la función lo
   // escribe.
-  const spaceFloat = event.resultImageEffect === "SPACE_FLOAT" && !result?.videoUrl && !facetsMode;
+  // Efecto de ESTA foto: el del filtro (en la tarea) o el del evento.
+  const resultEffect = resolveResultImageEffect(result, event);
+  const spaceFloat = resultEffect === "SPACE_FLOAT" && !result?.videoUrl && !facetsMode;
   const cutoutUrl = spaceFloat ? result?.cutoutUrl ?? null : null;
   // El líder no pasa a "result" hasta tener el recorte (lo espera en
   // "loading"), así que normalmente ya está al montar: se arranca directo
@@ -422,7 +428,7 @@ function ResultView({
   const floatOriginal = spaceFloat && result?.cutoutStatus === "error" && !localShowQr;
   // "Cuadrícula desde el centro" (ver GridAssembleImage): igual que en la
   // tablet, el sello del QR aparece cuando la imagen ya quedó armada.
-  const gridAssemble = event.resultImageEffect === "GRID_ASSEMBLE" && !result?.videoUrl && !facetsMode;
+  const gridAssemble = resultEffect === "GRID_ASSEMBLE" && !result?.videoUrl && !facetsMode;
   const [gridAssembled, setGridAssembled] = useState(false);
   useEffect(() => {
     setGridAssembled(false);
@@ -509,7 +515,7 @@ function ResultView({
           <GridAssembleImage
             key={result.url}
             src={result.url}
-            layout={event.resultGridLayout}
+            layout={resolveResultGridLayout(result, event)}
             className="absolute inset-0"
             onAssembled={() => setGridAssembled(true)}
           />

@@ -1205,6 +1205,12 @@ export const processImageTask = onDocumentCreated(
     let BRAND_VIDEO_URL = "";
     let FACETS_PROMPT = "";
     let FACETS_LAYOUT: FacetsLayout = "2x2";
+    // Efecto de la imagen resultante definido en el FILTRO (sin valor = el
+    // del evento, que el cliente ya lee). Se escribe en la tarea para que la
+    // tablet y la pantalla espejo lo usen solo para las fotos de este filtro.
+    let BRAND_RESULT_EFFECT: "NONE" | "SPACE_FLOAT" | "GRID_ASSEMBLE" | null = null;
+    let BRAND_RESULT_GRID: FacetsLayout | null = null;
+    let EVENT_RESULT_GRID: FacetsLayout | null = null;
 
     // Leer generationType, frameImage y photoAspectRatio del evento si se
     // provee eventId. "SQUARE" (o sin configurar) es el default histórico;
@@ -1228,6 +1234,8 @@ export const processImageTask = onDocumentCreated(
           PHOTO_ASPECT_RATIO = eventSnap.data()?.photoAspectRatio === "3:4" ? "3:4" : "SQUARE";
           FACETS_PROMPT = eventSnap.data()?.facetsPrompt || "";
           FACETS_LAYOUT = parseFacetsLayout(eventSnap.data()?.facetsLayout);
+          const evGrid = eventSnap.data()?.resultGridLayout;
+          EVENT_RESULT_GRID = typeof evGrid === "string" && evGrid in FACETS_GRIDS ? (evGrid as FacetsLayout) : null;
         }
       } catch (e) {
         console.warn("Error reading event data:", e);
@@ -1256,6 +1264,12 @@ export const processImageTask = onDocumentCreated(
           }
           if (typeof b.facetsLayout === "string" && b.facetsLayout in FACETS_GRIDS) {
             FACETS_LAYOUT = b.facetsLayout as FacetsLayout;
+          }
+          if (b.resultImageEffect === "NONE" || b.resultImageEffect === "SPACE_FLOAT" || b.resultImageEffect === "GRID_ASSEMBLE") {
+            BRAND_RESULT_EFFECT = b.resultImageEffect;
+          }
+          if (typeof b.resultGridLayout === "string" && b.resultGridLayout in FACETS_GRIDS) {
+            BRAND_RESULT_GRID = b.resultGridLayout as FacetsLayout;
           }
         }
       } catch (e) {
@@ -1319,7 +1333,20 @@ export const processImageTask = onDocumentCreated(
     }
 
     try {
-      await docRef.update({ status: "processing", updatedAt: Date.now() });
+      await docRef.update({
+        status: "processing",
+        updatedAt: Date.now(),
+        // Efecto del filtro (si define uno): el cliente lo prioriza sobre el
+        // del evento. En facetas con cuadrícula la grilla es la de facetas.
+        ...(BRAND_RESULT_EFFECT
+          ? {
+              resultImageEffect: BRAND_RESULT_EFFECT,
+              ...(BRAND_RESULT_EFFECT === "GRID_ASSEMBLE"
+                ? { resultGridLayout: IS_FACETS ? FACETS_LAYOUT : BRAND_RESULT_GRID ?? EVENT_RESULT_GRID ?? "2x2" }
+                : {}),
+            }
+          : {}),
+      });
 
       // 1) Descargar input desde Storage (esto sigue igual)
       const file = bucket.file(data.inputPath);
@@ -1585,6 +1612,34 @@ export const processImageTask = onDocumentCreated(
         ]);
         const facets = facetUrls.map((url, i) => ({ url, path: facetPaths[i] }));
 
+        // Filtro de facetas con efecto "cuadrícula desde el centro": en vez
+        // del carrusel, la tarea queda como UNA imagen con paneles (igual que
+        // un prompt que devuelve una cuadrícula): `url` = la grilla entera
+        // (achicada para pantalla, ver SPLIT_SCREEN_MAX) y `splitUrls` = las
+        // facetas sueltas, para elegirlas en /survey. Sin `facets`, así
+        // revelado, resultado, pantalla espejo e impresión la tratan como una
+        // foto normal y GridAssembleImage la arma panel por panel.
+        if (BRAND_RESULT_EFFECT === "GRID_ASSEMBLE") {
+          const screenPath = `tasks/${taskId}/grid_screen.jpg`;
+          const screenBuf = await sharp(gridBuf)
+            .resize(SPLIT_SCREEN_MAX, SPLIT_SCREEN_MAX, { fit: "inside", withoutEnlargement: true })
+            .jpeg({ quality: 90, mozjpeg: true })
+            .toBuffer();
+          const screenUrl = await saveWithDownloadToken(bucket, screenPath, screenBuf, "image/jpeg");
+          await docRef.update({
+            status: "done",
+            url: screenUrl,
+            outputPath: screenPath,
+            splitUrls: facetUrls,
+            facetsLayout: FACETS_LAYOUT,
+            gridUrl,
+            gridPath,
+            gridSize: { width: gridMeta.width ?? null, height: gridMeta.height ?? null },
+            updatedAt: Date.now(),
+          });
+          return;
+        }
+
         await docRef.update({
           status: "done",
           url: facets[0].url,
@@ -1765,10 +1820,24 @@ export const removeBackgroundHttp = onRequest(
       }
       // La función es pública (sin auth, como el resto de la app): se valida
       // contra el evento para que solo procese tareas que usan el efecto.
+      // El efecto puede venir del evento o del filtro (photo_booth_prompts,
+      // ver BRAND_RESULT_EFFECT en processImageTask): se lee del doc del
+      // filtro, no del de la tarea, que lo crea el cliente.
       const eventSnap = task.eventId
         ? await db.collection("events").doc(task.eventId).get()
         : null;
-      if (eventSnap?.data()?.resultImageEffect !== "SPACE_FLOAT") {
+      let brandEffect: unknown = undefined;
+      if (task.brand) {
+        const brandSnap = await db.collection("photo_booth_prompts")
+          .where("brand", "==", task.brand)
+          .limit(1)
+          .get();
+        brandEffect = brandSnap.empty ? undefined : brandSnap.docs[0].data().resultImageEffect;
+      }
+      const usesFloat = brandEffect
+        ? brandEffect === "SPACE_FLOAT"
+        : eventSnap?.data()?.resultImageEffect === "SPACE_FLOAT";
+      if (!usesFloat) {
         res.status(403).json({ error: "El evento no usa el efecto de flotar" });
         return;
       }

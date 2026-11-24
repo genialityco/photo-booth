@@ -255,6 +255,33 @@ export default function PhotoBoothPromptsPage() {
       placeholder: "En orden (izquierda a derecha, arriba a abajo). Ej.:\n1. ...\n2. ...",
       help: "Solo aplica si el filtro genera facetas. Vacío = la descripción de facetas del evento.",
     },
+    {
+      name: "resultImageEffect",
+      label: "Efecto de la imagen resultante",
+      type: "select",
+      required: false,
+      options: [
+        { value: "", label: "Igual que el evento" },
+        { value: "NONE", label: "Sin efecto" },
+        { value: "GRID_ASSEMBLE", label: "Cuadrícula desde el centro (una por una)" },
+        { value: "SPACE_FLOAT", label: "Flotando en el espacio" },
+      ],
+      help: "Solo para las fotos de este filtro; tiene prioridad sobre el efecto del evento. Con Facetas + \"Cuadrícula desde el centro\", en vez del carrusel 3D las facetas entran una por una desde el centro hasta armar la cuadrícula, y en el celular se puede bajar cada foto por separado.",
+    },
+    {
+      name: "resultGridLayout",
+      label: "Cuadrícula: cómo viene dividida la imagen",
+      type: "select",
+      required: false,
+      options: [
+        { value: "", label: "Igual que el evento" },
+        { value: "2x2", label: "2 × 2 (4 paneles)" },
+        { value: "2x1", label: "2 × 1 (2 paneles lado a lado)" },
+        { value: "3x1", label: "3 × 1 (3 paneles lado a lado)" },
+        { value: "3x2", label: "3 × 2 (6 paneles)" },
+      ],
+      help: "Solo con \"Cuadrícula desde el centro\" en un filtro de imagen simple cuyo prompt devuelve varios paneles. En filtros de Facetas se usa la cuadrícula de las facetas.",
+    },
     { name: "active", label: "Active", type: "checkbox", required: true },
     {
       name: 'logo',
