@@ -6,6 +6,7 @@ import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import type { ButtonClickEffectId } from "@/app/components/common/click-effects";
 import { getAspectClassName, type PhotoAspectRatio } from "@/app/components/photo-booth/photoAspectRatio";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
+import { buttonsLiftStyle } from "@/app/components/photo-booth/buttonsLift";
 
 export default function PreviewStep({
   framedShot,
@@ -19,8 +20,11 @@ export default function PreviewStep({
   buttonColorFrom,
   buttonColorTo,
   buttonClickEffect,
+  buttonsLiftPct,
   readOnly = false,
 }: {
+  /** `event.buttonsLiftPct` — ver buttonsLift.ts. */
+  buttonsLiftPct?: number;
   framedShot: string; // foto con marco (no se usa visualmente)
   rawShot?: string; // foto sin marco (para mostrar)
   boxSize?: string;
@@ -90,7 +94,10 @@ export default function PreviewStep({
              `auto`, así que la fila recorta todo lo que se salga de su caja —
              incluida la sombra de ButtonPrimary (~24px abajo, ~14px a los
              costados). El padding le deja ese aire dentro de la fila. */
-          <div className="flex flex-row gap-1 sm:gap-2 justify-center overflow-x-auto whitespace-nowrap flex-shrink-0 w-full px-4 pt-1 pb-6">
+          <div
+            className="flex flex-row gap-1 sm:gap-2 justify-center overflow-x-auto whitespace-nowrap flex-shrink-0 w-full px-4 pt-1 pb-6"
+            style={buttonsLiftStyle(buttonsLiftPct)}
+          >
             <ButtonPrimary
               onClick={onRetake}
               imageSrc={buttonImage}

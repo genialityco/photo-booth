@@ -113,6 +113,14 @@ export type EventProfile = {
   /** Igual que `logoTopScalePct`, para el logo inferior (footer del wizard y
    * logo derecho de la pantalla de carga). */
   logoBottomScalePct?: number;
+  /** Cuánto se suben las filas de botones del booth, en % del alto de la
+   * pantalla (0 a 30, sin valor = 0 = posición de siempre). Ver
+   * components/photo-booth/buttonsLift.ts. */
+  buttonsLiftPct?: number;
+  /** Desplazamiento vertical de la foto en la pantalla de resultado, en % del
+   * alto de la pantalla (-30 a 30; positivo sube, negativo baja; sin valor =
+   * 0). Ver `resultImageOffsetStyle` en components/photo-booth/buttonsLift.ts. */
+  resultImageOffsetPct?: number;
   frameImage?: string;
   buttonImage?: string;
   loadingPageImage?: string;
@@ -908,6 +916,14 @@ export async function createEventProfile(
     if (data.logoBottomScalePct !== undefined) {
       docData.logoBottomScalePct = data.logoBottomScalePct;
     }
+
+    if (data.buttonsLiftPct !== undefined) {
+      docData.buttonsLiftPct = data.buttonsLiftPct;
+    }
+
+    if (data.resultImageOffsetPct !== undefined) {
+      docData.resultImageOffsetPct = data.resultImageOffsetPct;
+    }
     const docRef = await addDoc(collection(db, COLLECTION), docData);
     return docRef.id;
   } catch (error) {
@@ -1086,6 +1102,8 @@ export async function updateEventProfile(
     if (data.logoTopLeftScalePct !== undefined) docData.logoTopLeftScalePct = data.logoTopLeftScalePct;
     if (data.bgDarkenPct !== undefined) docData.bgDarkenPct = data.bgDarkenPct;
     if (data.logoBottomScalePct !== undefined) docData.logoBottomScalePct = data.logoBottomScalePct;
+    if (data.buttonsLiftPct !== undefined) docData.buttonsLiftPct = data.buttonsLiftPct;
+    if (data.resultImageOffsetPct !== undefined) docData.resultImageOffsetPct = data.resultImageOffsetPct;
     if (data.mirrorScreenEnabled !== undefined) docData.mirrorScreenEnabled = data.mirrorScreenEnabled;
     if (data.screenSaverInactivityTimeoutSec !== undefined) docData.screenSaverInactivityTimeoutSec = data.screenSaverInactivityTimeoutSec;
     if (data.screenSaverSlideDurationSec !== undefined) docData.screenSaverSlideDurationSec = data.screenSaverSlideDurationSec;

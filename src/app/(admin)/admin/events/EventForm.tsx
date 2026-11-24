@@ -41,6 +41,7 @@ import LoadingMediaUploadField from "./LoadingMediaUploadField";
 import HeaderLogoEditor from "./HeaderLogoEditor";
 import SplashLayoutEditor from "./SplashLayoutEditor";
 import BoothFlowPanel from "./BoothFlowPanel";
+import { BUTTONS_LIFT_MAX_PCT, RESULT_IMAGE_OFFSET_MAX_PCT } from "@/app/components/photo-booth/buttonsLift";
 import MultiImageUploadField from "./MultiImageUploadField";
 import SurveyEditor, { SurveyResultsPanel } from "./SurveyEditor";
 import {
@@ -215,6 +216,109 @@ function BgDarkenField({
   );
 }
 
+/** "Subir botones" — ver components/photo-booth/buttonsLift.ts. */
+function ButtonsLiftField({
+  value,
+  onChange,
+}: {
+  value?: number;
+  onChange: (value: number | undefined) => void;
+}) {
+  const label = "Subir los botones";
+  return (
+    <div>
+      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={0}
+          max={BUTTONS_LIFT_MAX_PCT}
+          step={1}
+          value={value ?? 0}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="flex-1 min-w-0 accent-blue-600"
+          aria-label={label}
+        />
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="number"
+            min={0}
+            max={BUTTONS_LIFT_MAX_PCT}
+            value={value ?? ""}
+            placeholder="0"
+            onChange={(e) =>
+              onChange(e.target.value === "" ? undefined : Number(e.target.value))
+            }
+            className="w-20 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <span className="text-sm text-gray-500">%</span>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 mt-1">
+        % del alto de la pantalla que suben los botones (0 = posición de siempre, máximo {BUTTONS_LIFT_MAX_PCT}%).
+        Aplica al botón de inicio de la selección de marca, preview (Repetir/Confirmar), personalización y
+        resultado (Nueva foto/Descargar). La splash tiene su propio editor de posiciones.
+      </p>
+    </div>
+  );
+}
+
+/** "Mover la imagen del resultado" — ver resultImageOffsetStyle en
+ * components/photo-booth/buttonsLift.ts. Positivo sube, negativo baja. */
+function ResultImageOffsetField({
+  value,
+  onChange,
+}: {
+  value?: number;
+  onChange: (value: number | undefined) => void;
+}) {
+  const label = "Mover la imagen del resultado (subir / bajar)";
+  const max = RESULT_IMAGE_OFFSET_MAX_PCT;
+  return (
+    <div>
+      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-gray-500 shrink-0">Bajar</span>
+        <input
+          type="range"
+          min={-max}
+          max={max}
+          step={1}
+          value={value ?? 0}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="flex-1 min-w-0 accent-blue-600"
+          aria-label={label}
+        />
+        <span className="text-xs text-gray-500 shrink-0">Subir</span>
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="number"
+            min={-max}
+            max={max}
+            value={value ?? ""}
+            placeholder="0"
+            onChange={(e) =>
+              onChange(e.target.value === "" ? undefined : Number(e.target.value))
+            }
+            className="w-20 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <span className="text-sm text-gray-500">%</span>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 mt-1">
+        % del alto de la pantalla: positivo sube la foto, negativo la baja (0 = posición de siempre, entre
+        -{max}% y {max}%). Solo mueve la foto en la pantalla de resultado de la tablet, sin cambiar su tamaño;
+        los botones siempre quedan por encima para poder tocarlos. No cambia la foto descargada ni la
+        pantalla espejo.
+      </p>
+    </div>
+  );
+}
+
 function LogoScaleField({
   label,
   value,
@@ -322,6 +426,8 @@ export default function EventForm({
     // 100 (ver clampLogoScale).
     logoTopScalePct: event?.logoTopScalePct,
     logoBottomScalePct: event?.logoBottomScalePct,
+    buttonsLiftPct: event?.buttonsLiftPct,
+    resultImageOffsetPct: event?.resultImageOffsetPct,
     frameImage: event?.frameImage || "",
     buttonImage: event?.buttonImage || "",
     loadingPageImage: event?.loadingPageImage || "",
@@ -654,6 +760,10 @@ export default function EventForm({
             <option value="VIDEO">VIDEO</option>
             <option value="FACETS">FACETAS (varias imágenes, carrusel 3D)</option>
           </SelectField>
+          <p className="-mt-2 text-xs text-gray-500">
+            Es el tipo por defecto. Cada filtro (Prompts → &quot;Tipo de filtro&quot;) puede definir el suyo
+            — Imagen simple o Facetas — para mezclar ambos en el mismo evento.
+          </p>
 
           {/* Modo facetas: una sola llamada a la IA genera una cuadrícula con
               varias versiones de la persona, que se corta en imágenes sueltas
@@ -797,6 +907,16 @@ export default function EventForm({
             label="Imagen de Botones"
             value={formData.buttonImage || ""}
             onChange={(value) => handleImageChange("buttonImage", value)}
+          />
+
+          <ButtonsLiftField
+            value={formData.buttonsLiftPct}
+            onChange={(value) => setField("buttonsLiftPct", value)}
+          />
+
+          <ResultImageOffsetField
+            value={formData.resultImageOffsetPct}
+            onChange={(value) => setField("resultImageOffsetPct", value)}
           />
 
           <ImageUploadField

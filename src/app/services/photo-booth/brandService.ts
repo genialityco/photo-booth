@@ -9,6 +9,9 @@ import {
 } from "firebase/firestore";
 
 // Tipos
+/** "" = hereda el del evento. Ver PhotoBoothPrompt.generationType. */
+export type BrandGenerationType = "" | "IMAGE" | "FACETS";
+
 export type PhotoBoothPrompt = {
     id: string;
     brand?: string;
@@ -24,6 +27,19 @@ export type PhotoBoothPrompt = {
     promptBgImage?: string;
     objectImage?: string;
     objectImagePrompt?: string;
+    /**
+     * Tipo de generación de ESTE filtro. "" (o sin el campo) = hereda
+     * `event.generationType`. Permite mezclar en un mismo evento filtros de
+     * facetas con filtros de imagen simple: processImageTask lo prioriza
+     * sobre el del evento, y el wizard/espejo ya deciden el carrusel por el
+     * resultado (`facets` en el doc de imageTasks), no por el evento.
+     */
+    generationType?: BrandGenerationType;
+    /** Solo si este filtro genera facetas: qué muestra cada panel.
+     * Vacío = usa `event.facetsPrompt`. */
+    facetsPrompt?: string;
+    /** Solo si este filtro genera facetas. "" = usa `event.facetsLayout`. */
+    facetsLayout?: "" | "2x1" | "3x1" | "2x2" | "3x2";
     active: boolean;
     createdAt: Timestamp | Date | null;
     updatedAt: Timestamp | Date | null;
@@ -64,6 +80,9 @@ function mapDocToPrompt(d: DocumentSnapshot): PhotoBoothPrompt {
         promptBgImage: data.promptBgImage ?? "",
         objectImage: data.objectImage ?? "",
         objectImagePrompt: data.objectImagePrompt ?? "",
+        generationType: data.generationType ?? "",
+        facetsPrompt: data.facetsPrompt ?? "",
+        facetsLayout: data.facetsLayout ?? "",
         active: data.active ?? false,
         createdAt: tsToDate(data.createdAt),
         updatedAt: tsToDate(data.updatedAt),
@@ -218,6 +237,9 @@ export async function createPhotoBoothPrompt(
                 promptBgImage: promptBgImageUrl,
                 objectImage: objectImageUrl,
                 objectImagePrompt: (data as any).objectImagePrompt || "",
+                generationType: data.generationType || "",
+                facetsPrompt: data.facetsPrompt || "",
+                facetsLayout: data.facetsLayout || "",
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
@@ -456,6 +478,9 @@ export async function updatePhotoBoothPrompt(
         if (objectImageUrl !== undefined) updateData.objectImage = objectImageUrl;
         if ((data as any).objectImagePrompt !== undefined) updateData.objectImagePrompt = (data as any).objectImagePrompt;
         if (data.logoPrompt !== undefined) updateData.logoPrompt = data.logoPrompt;
+        if (data.generationType !== undefined) updateData.generationType = data.generationType;
+        if (data.facetsPrompt !== undefined) updateData.facetsPrompt = data.facetsPrompt;
+        if (data.facetsLayout !== undefined) updateData.facetsLayout = data.facetsLayout;
         if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
         
         await updateDoc(docRef, updateData);

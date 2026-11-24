@@ -9,6 +9,7 @@ import {
 } from "@/app/services/photo-booth/brandService";
 import ButtonPrimary from "@/app/components/common/ButtonPrimary";
 import TopLogosBar, { BottomLogoBar } from "@/app/components/photo-booth/TopLogosBar";
+import { buttonsLiftStyle } from "@/app/components/photo-booth/buttonsLift";
 
 export default function EventPhotoBoothLanding({
   event,
@@ -287,7 +288,10 @@ export default function EventPhotoBoothLanding({
         </div>
 
         {/* Start Button - último elemento, con espacio propio hasta el borde */}
-        <div className="mt-auto flex-shrink-0 w-full flex flex-col items-center gap-4 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-8 md:pb-10">
+        <div
+          className="mt-auto flex-shrink-0 w-full flex flex-col items-center gap-4 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-8 md:pb-10"
+          style={buttonsLiftStyle(event.buttonsLiftPct)}
+        >
           {/* Data Processing Checkbox */}
           {event.dataProcessingText && (
             <div className="bg-white/90 backdrop-blur-sm rounded-lg p-4 max-w-md w-full shadow-lg">

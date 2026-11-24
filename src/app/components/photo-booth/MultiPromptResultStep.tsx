@@ -22,6 +22,7 @@ import {
 } from "@/app/components/photo-booth/multiPromptLayout";
 import GridAssembleImage, { parseGridLayout } from "@/app/components/photo-booth/GridAssembleImage";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { buttonsLiftStyle, resultImageOffsetStyle } from "@/app/components/photo-booth/buttonsLift";
 
 /** En pantalla las fotos van siempre separadas (aunque el collage descargable
  * las tenga pegadas): es la vista de "tus fotos", no el collage. */
@@ -172,7 +173,12 @@ export default function MultiPromptResultStep({
   return (
     <div className="w-full h-full flex flex-col items-center px-3 sm:px-4 py-2 sm:py-4 gap-2 sm:gap-3 overflow-hidden">
       {/* Fotos: la caja más grande con la forma de la distribución que cabe. */}
-      <div ref={containerRef} className="relative flex-1 min-h-0 w-full flex items-center justify-center">
+      <div
+        ref={containerRef}
+        className="relative flex-1 min-h-0 w-full flex items-center justify-center"
+        // Solo en la tablet (con botones), igual que "Subir los botones".
+        style={onAgain ? resultImageOffsetStyle(event?.resultImageOffsetPct) : undefined}
+      >
         {splitGrid && urls[0] ? (
           <GridAssembleImage
             src={urls[0]}
@@ -322,10 +328,14 @@ export default function MultiPromptResultStep({
 
       {/* QR único + acciones */}
       <div
-        className={`flex-shrink-0 w-full flex items-center justify-center gap-3 sm:gap-4 ${
+        className={`relative z-20 flex-shrink-0 w-full flex items-center justify-center gap-3 sm:gap-4 ${
           splitGrid ? (splitAssembled ? "multi-prompt-pop" : "invisible") : centerOut ? "multi-prompt-pop" : ""
         }`}
-        style={centerOut && !splitGrid ? { animationDelay: `${Math.max(0, assembledMs - 300)}ms` } : undefined}
+        style={{
+          ...(centerOut && !splitGrid ? { animationDelay: `${Math.max(0, assembledMs - 300)}ms` } : {}),
+          // Solo en la tablet (con botones); la pantalla espejo no los tiene.
+          ...(onAgain ? buttonsLiftStyle(event?.buttonsLiftPct) : {}),
+        }}
       >
         <button
           type="button"

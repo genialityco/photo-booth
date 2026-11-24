@@ -11,6 +11,10 @@ interface FormField {
   placeholder?: string;
   accept?: string;
   maxSize?: number; // Max file size in MB
+  /** Solo type "select". */
+  options?: { value: string; label: string }[];
+  /** Texto de ayuda bajo el campo. */
+  help?: string;
 }
 
 interface FormProps<T> {
@@ -66,7 +70,7 @@ export default function Form<T extends Record<string, any>>({
   }, [initialData, imageFields]); // Actualizar cuando cambie initialData
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
     fieldName: string
   ) => {
     const value = e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value;
@@ -212,6 +216,20 @@ export default function Form<T extends Record<string, any>>({
               className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
               rows={4}
             />
+          ) : field.type === 'select' ? (
+            <select
+              id={field.name}
+              name={field.name}
+              value={formData[field.name] ?? ''}
+              onChange={(e) => handleChange(e, field.name)}
+              className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              {(field.options ?? []).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           ) : field.type === 'checkbox' ? (
             <input
               id={field.name}
@@ -310,6 +328,7 @@ export default function Form<T extends Record<string, any>>({
               className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           )}
+          {field.help && <p className="text-xs text-gray-500 mt-1">{field.help}</p>}
           {errors[field.name] && (
             <span className="text-red-500 text-sm mt-1">{errors[field.name]}</span>
           )}

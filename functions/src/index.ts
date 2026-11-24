@@ -1233,6 +1233,36 @@ export const processImageTask = onDocumentCreated(
         console.warn("Error reading event data:", e);
       }
     }
+
+    // El filtro (doc de photo_booth_prompts) puede definir su propio tipo de
+    // generación y sus facetas: así un mismo evento mezcla filtros de facetas
+    // con filtros de imagen simple. Sin valor en el filtro, manda el evento.
+    // Se lee ANTES de calcular IS_FACETS / REQUEST_ASPECT_RATIO (que también
+    // va al texto del prompt). De paso trae el videoUrl del filtro (BGVIDEO).
+    if (data?.brand) {
+      try {
+        const brandSnap = await db.collection("photo_booth_prompts")
+          .where("brand", "==", data.brand)
+          .limit(1)
+          .get();
+        if (!brandSnap.empty) {
+          const b = brandSnap.docs[0].data();
+          BRAND_VIDEO_URL = b.videoUrl || "";
+          if (b.generationType === "IMAGE" || b.generationType === "FACETS") {
+            GENERATION_TYPE = b.generationType;
+          }
+          if (typeof b.facetsPrompt === "string" && b.facetsPrompt.trim()) {
+            FACETS_PROMPT = b.facetsPrompt;
+          }
+          if (typeof b.facetsLayout === "string" && b.facetsLayout in FACETS_GRIDS) {
+            FACETS_LAYOUT = b.facetsLayout as FacetsLayout;
+          }
+        }
+      } catch (e) {
+        console.warn("Error reading brand config:", e);
+      }
+    }
+
     const GEMINI_ASPECT_RATIO: "3:4" | "1:1" =
       data?.aspectRatio === "3:4" || data?.aspectRatio === "1:1"
         ? data.aspectRatio
@@ -1267,19 +1297,6 @@ export const processImageTask = onDocumentCreated(
       PROMPT_BG_IMAGE_URL = promptData.promptBgImage || "";
       OBJECT_IMAGE_URL = (promptData as any).objectImage || "";
       OBJECT_IMAGE_PROMPT = (promptData as any).objectImagePrompt || "";
-
-      // Leer videoUrl del brand directamente desde Firestore
-      try {
-        const brandSnap = await db.collection("photo_booth_prompts")
-          .where("brand", "==", data.brand)
-          .limit(1)
-          .get();
-        if (!brandSnap.empty) {
-          BRAND_VIDEO_URL = brandSnap.docs[0].data().videoUrl || "";
-        }
-      } catch (e) {
-        console.warn("Error reading brand videoUrl:", e);
-      }
     }
 
     if (IS_FACETS) {

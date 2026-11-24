@@ -1220,6 +1220,7 @@ export default function PhotoBoothWizard({
                   buttonColorFrom={eventData?.splashButtonColorFrom}
                   buttonColorTo={eventData?.splashButtonColorTo}
                   buttonClickEffect={eventData?.buttonClickEffect}
+                  buttonsLiftPct={eventData?.buttonsLiftPct}
                   aspectRatio={eventData?.photoAspectRatio}
                 />
               </motion.div>
@@ -1240,6 +1241,7 @@ export default function PhotoBoothWizard({
                   buttonColorFrom={eventData?.splashButtonColorFrom}
                   buttonColorTo={eventData?.splashButtonColorTo}
                   buttonClickEffect={eventData?.buttonClickEffect}
+                  buttonsLiftPct={eventData?.buttonsLiftPct}
                   logoLeftSrc={cornerLogos ? cornerLogos.topLeft.src : style?.logoLandingTop}
                   logoRightSrc={cornerLogos ? cornerLogos.topRight?.src : style?.logoLandingBottom}
                   logoLeftScalePct={cornerLogos ? cornerLogos.topLeft.scalePct : logoTopScalePct}
@@ -1394,6 +1396,8 @@ export default function PhotoBoothWizard({
                   facetUrls={aiFacetUrls ?? undefined}
                   facetIndex={facetIndex}
                   onFacetIndexChange={setFacetIndex}
+                  buttonsLiftPct={eventData?.buttonsLiftPct}
+                  resultImageOffsetPct={eventData?.resultImageOffsetPct}
                 />
               </motion.div>
             )}

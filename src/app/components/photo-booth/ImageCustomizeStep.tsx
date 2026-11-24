@@ -11,6 +11,7 @@ import {
   scaledLogoStyle,
   scaledWideLogoStyle,
 } from "@/app/components/photo-booth/logoBarSizing";
+import { buttonsLiftStyle } from "@/app/components/photo-booth/buttonsLift";
 
 // Cada opción es una PALETA de varios colores (no un color plano). Debe
 // coincidir con TEXTURE_LABELS en functions/src/index.ts (mismos "value" de
@@ -51,6 +52,7 @@ export default function ImageCustomizeStep({
   buttonColorFrom,
   buttonColorTo,
   buttonClickEffect,
+  buttonsLiftPct,
   logoLeftSrc,
   logoRightSrc,
   logoLeftScalePct,
@@ -66,6 +68,8 @@ export default function ImageCustomizeStep({
   buttonColorFrom?: string;
   buttonColorTo?: string;
   buttonClickEffect?: ButtonClickEffectId;
+  /** `event.buttonsLiftPct` — ver buttonsLift.ts. */
+  buttonsLiftPct?: number;
   /** Logos del evento (arriba y abajo en el resto del wizard), mostrados
    * juntos bien arriba acá para dejarle el resto del alto a la foto y las
    * configuraciones. */
@@ -273,7 +277,10 @@ export default function ImageCustomizeStep({
       </div>
 
       {!readOnly && (
-        <div className="w-full flex-shrink-0 pt-2" style={{ maxWidth: panelMaxWidth }}>
+        <div
+          className="w-full flex-shrink-0 pt-2"
+          style={{ maxWidth: panelMaxWidth, ...buttonsLiftStyle(buttonsLiftPct) }}
+        >
           <ButtonPrimary
             onClick={handleConfirm}
             label="¡LISTO!"

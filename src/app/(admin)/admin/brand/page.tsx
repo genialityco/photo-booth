@@ -39,6 +39,13 @@ const columns = [
     sortable: false,
   },
   {
+    key: "generationType",
+    label: "Tipo",
+    sortable: false,
+    render: (item: PhotoBoothPrompt, value: string) =>
+      value === "FACETS" ? "Facetas" : value === "IMAGE" ? "Imagen" : "Del evento",
+  },
+  {
     key: "active",
     label: "Activo",
     sortable: false,
@@ -214,6 +221,40 @@ export default function PhotoBoothPromptsPage() {
     { name: "logoPrompt", label: "Logo Prompt", type: "textarea", required: false, placeholder: "Ingresa el prompt" },
     { name: "colorDirectiveTemplate", label: "Color Template", type: "textarea", required: true, placeholder: "Ingresa el prompt de color" },
     { name: "objectImagePrompt", label: "Object Image Prompt", type: "textarea", required: false, placeholder: "Prompt para la imagen del objeto" },
+    {
+      name: "generationType",
+      label: "Tipo de filtro",
+      type: "select",
+      required: false,
+      options: [
+        { value: "", label: "Igual que el evento (su Tipo de Generación)" },
+        { value: "IMAGE", label: "Imagen simple" },
+        { value: "FACETS", label: "Facetas (varias imágenes, carrusel 3D)" },
+      ],
+      help: "Permite mezclar en un mismo evento filtros de facetas y de imagen simple. Tiene prioridad sobre el tipo del evento.",
+    },
+    {
+      name: "facetsLayout",
+      label: "Facetas: cantidad (cuadrícula)",
+      type: "select",
+      required: false,
+      options: [
+        { value: "", label: "Igual que el evento" },
+        { value: "2x1", label: "2 facetas (2 columnas × 1 fila)" },
+        { value: "3x1", label: "3 facetas (3 columnas × 1 fila)" },
+        { value: "2x2", label: "4 facetas (2 × 2)" },
+        { value: "3x2", label: "6 facetas (3 columnas × 2 filas)" },
+      ],
+      help: "Solo aplica si el filtro genera facetas.",
+    },
+    {
+      name: "facetsPrompt",
+      label: "Facetas: qué muestra cada panel",
+      type: "textarea",
+      required: false,
+      placeholder: "En orden (izquierda a derecha, arriba a abajo). Ej.:\n1. ...\n2. ...",
+      help: "Solo aplica si el filtro genera facetas. Vacío = la descripción de facetas del evento.",
+    },
     { name: "active", label: "Active", type: "checkbox", required: true },
     {
       name: 'logo',

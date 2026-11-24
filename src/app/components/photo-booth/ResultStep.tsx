@@ -13,6 +13,7 @@ import { getPixelDims } from "@/app/components/photo-booth/photoAspectRatio";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
 import FacetCarousel3D from "@/app/components/photo-booth/FacetCarousel3D";
 import GridAssembleImage from "@/app/components/photo-booth/GridAssembleImage";
+import { buttonsLiftStyle, resultImageOffsetStyle } from "@/app/components/photo-booth/buttonsLift";
 
 /** Tamaño de la faceta activa del carrusel respecto de la caja disponible. */
 const FACET_CARD_SCALE = 0.78;
@@ -43,6 +44,11 @@ type Props = {
   /** Controlados por el wizard para transmitirlos a la pantalla espejo. */
   facetIndex?: number;
   onFacetIndexChange?: (index: number) => void;
+  /** `event.buttonsLiftPct` — ver buttonsLift.ts. Prop explícita por el
+   * mismo motivo que `resultImageEffect` (evento cacheado viejo). */
+  buttonsLiftPct?: number;
+  /** `event.resultImageOffsetPct` — ver buttonsLift.ts. */
+  resultImageOffsetPct?: number;
 };
 
 export default function ResultStep({
@@ -59,6 +65,8 @@ export default function ResultStep({
   facetUrls,
   facetIndex = 0,
   onFacetIndexChange,
+  buttonsLiftPct,
+  resultImageOffsetPct,
 }: Props) {
   const facetsMode = (facetUrls?.length ?? 0) > 1;
   // En facetas, todo lo que antes usaba `aiUrl` (QR, descarga) pasa a usar
@@ -332,6 +340,7 @@ export default function ResultStep({
         <div
           ref={containerRef}
           className="relative flex-1 min-h-0 w-full flex items-center justify-center"
+          style={resultImageOffsetStyle(resultImageOffsetPct ?? event?.resultImageOffsetPct)}
         >
           {/* Facetas: el carrusel ocupa todo el ancho (para que se vean las
               vecinas) y la caja de abajo queda encima de la tarjeta activa,
@@ -467,7 +476,10 @@ export default function ResultStep({
         {/* Botones: nueva foto / descargar. El padding es el aire para la
             sombra de ButtonPrimary: `overflow-x-auto` fuerza overflow-y a
             `auto` y sin él la fila la recortaba (ver PreviewStep). */}
-        <div className="flex-shrink-0 w-full flex flex-row items-center justify-center gap-2 sm:gap-3 overflow-x-auto whitespace-nowrap px-4 pt-1 pb-6">
+        <div
+          className="relative z-20 flex-shrink-0 w-full flex flex-row items-center justify-center gap-2 sm:gap-3 overflow-x-auto whitespace-nowrap px-4 pt-1 pb-6"
+          style={buttonsLiftStyle(buttonsLiftPct ?? event?.buttonsLiftPct)}
+        >
           <ButtonPrimary
             onClick={onAgain}
             label="NUEVA FOTO"
