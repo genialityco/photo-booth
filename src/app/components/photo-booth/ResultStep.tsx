@@ -12,7 +12,8 @@ import { composeFramedCanvas, composeFramedImageDataUrl } from "@/app/components
 import { getPixelDims } from "@/app/components/photo-booth/photoAspectRatio";
 import { useFitAspectBox } from "@/app/components/photo-booth/useFitAspectBox";
 import FacetCarousel3D from "@/app/components/photo-booth/FacetCarousel3D";
-import GridAssembleImage from "@/app/components/photo-booth/GridAssembleImage";
+import GridAssembleImage, { parseGridLayout } from "@/app/components/photo-booth/GridAssembleImage";
+import GridPiecePicker from "@/app/components/photo-booth/GridPiecePicker";
 import { buttonsLiftStyle, resultImageOffsetStyle } from "@/app/components/photo-booth/buttonsLift";
 
 /** Tamaño de la faceta activa del carrusel respecto de la caja disponible. */
@@ -49,6 +50,10 @@ type Props = {
   buttonsLiftPct?: number;
   /** `event.resultImageOffsetPct` — ver buttonsLift.ts. */
   resultImageOffsetPct?: number;
+  /** Paneles sueltos (`splitUrls` de la tarea) de una imagen con
+   * "cuadrícula desde el centro": ya armada, tocar un panel lo agranda y el
+   * QR/descarga pasan a ser solo ese (ver GridPiecePicker). */
+  pieceUrls?: string[] | null;
 };
 
 export default function ResultStep({
@@ -67,11 +72,13 @@ export default function ResultStep({
   onFacetIndexChange,
   buttonsLiftPct,
   resultImageOffsetPct,
+  pieceUrls,
 }: Props) {
   const facetsMode = (facetUrls?.length ?? 0) > 1;
   // En facetas, todo lo que antes usaba `aiUrl` (QR, descarga) pasa a usar
-  // la faceta que está al frente del carrusel.
-  const activeUrl = facetsMode ? facetUrls![Math.min(facetIndex, facetUrls!.length - 1)] : aiUrl;
+  // la faceta que está al frente del carrusel (y con cuadrícula, el panel
+  // agrandado — ver `activeUrl` más abajo).
+  const baseActiveUrl = facetsMode ? facetUrls![Math.min(facetIndex, facetUrls!.length - 1)] : aiUrl;
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const [style, setStyle] = useState<StyleProfile | null>(null);
   const [event, setEvent] = useState<EventProfile | null>(null);
@@ -97,6 +104,19 @@ export default function ResultStep({
     (resultImageEffect ?? event?.resultImageEffect) === "GRID_ASSEMBLE" && !videoUrl && !facetsMode;
   const [gridAssembled, setGridAssembled] = useState(false);
   const hideQrSeal = gridAssemble && !gridAssembled && !showQr;
+  // Panel agrandado de la cuadrícula (-1 = la imagen completa). Solo con la
+  // imagen ya armada y un panel suelto guardado por celda (`pieceUrls`).
+  const gridSpec = gridAssemble ? parseGridLayout(resultGridLayout ?? event?.resultGridLayout) : null;
+  const pieces = gridSpec && pieceUrls?.length === gridSpec.cols * gridSpec.rows ? pieceUrls : null;
+  const canPick = !!pieces && gridAssembled;
+  const [selectedPiece, setSelectedPiece] = useState(-1);
+  useEffect(() => {
+    setSelectedPiece(-1);
+  }, [taskId, aiUrl]);
+  const piece = canPick && selectedPiece >= 0 ? selectedPiece : -1;
+  // Lo que bajan el QR y el botón de descarga.
+  const activeUrl = piece >= 0 ? pieces![piece] : baseActiveUrl;
+  const singleIndex = piece >= 0 ? piece : facetsMode ? facetIndex : -1;
   // Lo normal: el wizard esperó el recorte en "loading", así que ya está
   // listo al montar — se arranca directo con la persona flotando y la
   // original (con su rearmado en partículas) ni se monta. Si llegó tarde
@@ -142,10 +162,12 @@ export default function ResultStep({
       // /survey recompone en canvas y baja PNG.
       url.searchParams.set(
         "filename",
-        facetsMode
-          ? `foto-ia-${taskId}-${facetIndex + 1}.${withFrame ? "png" : "jpg"}`
+        singleIndex >= 0
+          ? `foto-ia-${taskId}-${singleIndex + 1}.${withFrame ? "png" : "jpg"}`
           : `foto-ia-${taskId}.png`
       );
+      // Un panel de la cuadrícula: /survey muestra solo ese.
+      if (piece >= 0) url.searchParams.set("piece", String(piece + 1));
 
       // Agregar frameUrl solo si enableFrame está activado y hay frameImage
       if (withFrame) {
@@ -163,7 +185,7 @@ export default function ResultStep({
     if (taskId) url.searchParams.set("taskId", taskId);
 
     return url.toString();
-  }, [origin, activeUrl, videoUrl, taskId, enableFrame, frameSrc, event?.id, facetsMode, facetIndex]);
+  }, [origin, activeUrl, videoUrl, taskId, enableFrame, frameSrc, event?.id, singleIndex, piece]);
 
   // === Componer imagen con marco (para preview en pantalla) ===
   const [framedImageUrl, setFramedImageUrl] = useState<string>("");
@@ -315,7 +337,7 @@ export default function ResultStep({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = facetsMode ? `foto-ia-${taskId}-${facetIndex + 1}.png` : `foto-ia-${taskId}.png`;
+      a.download = singleIndex >= 0 ? `foto-ia-${taskId}-${singleIndex + 1}.png` : `foto-ia-${taskId}.png`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -451,11 +473,24 @@ export default function ResultStep({
                   </div>
                   )}
 
+                  {/* Cuadrícula ya armada: tocar un panel lo agranda y el QR
+                      / la descarga pasan a ser solo ese. */}
+                  {canPick && gridSpec && pieces && (
+                    <GridPiecePicker
+                      src={aiUrl}
+                      pieces={pieces}
+                      cols={gridSpec.cols}
+                      rows={gridSpec.rows}
+                      selected={piece}
+                      onSelect={setSelectedPiece}
+                    />
+                  )}
+
                   <button
                     type="button"
                     onClick={() => onShowQrChange(!showQr)}
                     aria-label={showQr ? "Volver a la foto" : "Mostrar código QR para descargar la foto"}
-                    className={`absolute pointer-events-auto rounded-xl transition-all duration-300 ease-out ${
+                    className={`absolute z-20 pointer-events-auto rounded-xl transition-all duration-300 ease-out ${
                       showQr
                         ? "inset-0 bg-white flex flex-col items-center justify-center gap-2 p-4"
                         : "bottom-2 right-2 sm:bottom-3 sm:right-3 bg-white p-1.5 sm:p-2 shadow-lg ring-1 ring-black/10 active:scale-95"
@@ -464,7 +499,13 @@ export default function ResultStep({
                     <QrTag
                       value={surveyAI}
                       size={showQr ? expandedQrSize : Math.max(64, Math.min(150, (cardDims?.width ?? 240) * 0.3))}
-                      label={showQr ? "Escanea para descargar tu foto en tu celular" : undefined}
+                      label={
+                        showQr
+                          ? piece >= 0
+                            ? `Escanea para descargar la foto ${piece + 1} en tu celular`
+                            : "Escanea para descargar tu foto en tu celular"
+                          : undefined
+                      }
                     />
                   </button>
                 </div>

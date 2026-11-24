@@ -21,7 +21,7 @@ import {
   resolveSplitGrid,
 } from "@/app/components/photo-booth/multiPromptLayout";
 import GridAssembleImage, { parseGridLayout } from "@/app/components/photo-booth/GridAssembleImage";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import GridPiecePicker from "@/app/components/photo-booth/GridPiecePicker";
 import { buttonsLiftStyle, resultImageOffsetStyle } from "@/app/components/photo-booth/buttonsLift";
 
 /** En pantalla las fotos van siempre separadas (aunque el collage descargable
@@ -117,7 +117,6 @@ export default function MultiPromptResultStep({
   useEffect(() => {
     setSplitAssembled(false);
   }, [firstUrl, splitGrid]);
-  const reduceMotion = useReducedMotion();
 
   // Panel agrandado (-1 = la imagen completa). Solo con la foto ya armada y
   // con un panel suelto guardado por cada celda: sin eso el QR no tendría
@@ -214,91 +213,17 @@ export default function MultiPromptResultStep({
         {/* Paneles tocables encima de la foto ya armada. Mismo rectángulo que
             la imagen de GridAssembleImage (object-contain, con container
             query), así cada zona cae justo sobre su panel. */}
-        {canPick && grid && (
-          <div className="absolute inset-0 z-10" style={{ containerType: "size" }}>
-            <div
-              className="absolute inset-0 m-auto"
-              style={{
-                width: `min(100cqw, calc(100cqh * ${tileRatio}))`,
-                height: `min(100cqh, calc(100cqw / ${tileRatio}))`,
-              }}
-            >
-              {Array.from({ length: grid.cols * grid.rows }, (_, i) => {
-                const c = i % grid.cols;
-                const r = Math.floor(i / grid.cols);
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setSelected(i)}
-                    aria-label={`Ver la foto ${i + 1} sola`}
-                    tabIndex={piece >= 0 ? -1 : 0}
-                    className="absolute active:bg-white/10 transition-colors"
-                    style={{
-                      left: `${(c / grid.cols) * 100}%`,
-                      top: `${(r / grid.rows) * 100}%`,
-                      width: `${100 / grid.cols}%`,
-                      height: `${100 / grid.rows}%`,
-                    }}
-                  />
-                );
-              })}
-
-              {/* Panel agrandado: crece desde su lugar en la cuadrícula hasta
-                  ocupar toda la imagen (el origen del scale es el punto que
-                  queda fijo al pasar de la celda al rectángulo completo). */}
-              <AnimatePresence>
-                {piece >= 0 && (
-                  <motion.button
-                    key={piece}
-                    type="button"
-                    onClick={() => setSelected(-1)}
-                    aria-label="Volver a la imagen completa"
-                    className="absolute inset-0 overflow-hidden rounded-xl shadow-2xl ring-2 ring-white/70 bg-black"
-                    style={{
-                      transformOrigin: `${grid.cols > 1 ? ((piece % grid.cols) / (grid.cols - 1)) * 100 : 50}% ${
-                        grid.rows > 1 ? (Math.floor(piece / grid.cols) / (grid.rows - 1)) * 100 : 50
-                      }%`,
-                    }}
-                    initial={reduceMotion ? { opacity: 0 } : { scaleX: 1 / grid.cols, scaleY: 1 / grid.rows, opacity: 0.6 }}
-                    animate={{ scaleX: 1, scaleY: 1, opacity: 1 }}
-                    exit={reduceMotion ? { opacity: 0 } : { scaleX: 1 / grid.cols, scaleY: 1 / grid.rows, opacity: 0 }}
-                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    {/* Al instante: el panel recortado de la foto que ya está
-                        en pantalla; encima, el panel suelto en alta (puede
-                        tardar en bajar con el wifi del evento). */}
-                    <span
-                      className="absolute inset-0"
-                      style={{
-                        backgroundImage: `url("${urls[0]}")`,
-                        backgroundSize: `${grid.cols * 100}% ${grid.rows * 100}%`,
-                        backgroundPosition: `${
-                          grid.cols > 1 ? ((piece % grid.cols) / (grid.cols - 1)) * 100 : 0
-                        }% ${grid.rows > 1 ? (Math.floor(piece / grid.cols) / (grid.rows - 1)) * 100 : 0}%`,
-                        backgroundRepeat: "no-repeat",
-                      }}
-                    />
-                    <img
-                      src={pieces![piece]}
-                      alt={`Foto ${piece + 1}`}
-                      className="absolute inset-0 w-full h-full object-cover select-none"
-                      draggable={false}
-                    />
-                  </motion.button>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Pista: sin ella nadie sabe que la cuadrícula se puede tocar. */}
-            <span
-              className={`pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/65 px-3 py-1 font-semibold text-white shadow ${
-                large ? "text-xl" : "text-xs sm:text-sm"
-              }`}
-            >
-              {piece >= 0 ? "Toca de nuevo para ver todas" : "Toca una foto para elegirla"}
-            </span>
-          </div>
+        {canPick && grid && pieces && (
+          <GridPiecePicker
+            src={urls[0]}
+            pieces={pieces}
+            cols={grid.cols}
+            rows={grid.rows}
+            selected={piece}
+            onSelect={setSelected}
+            imageRatio={tileRatio}
+            large={large}
+          />
         )}
 
         {/* QR ampliado encima de las fotos (tocar para volver). */}

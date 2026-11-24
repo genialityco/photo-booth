@@ -707,6 +707,14 @@ export default function PhotoBoothWizard({
             setAiUrl(data.url as string);
             if (data.videoUrl) setAiVideoUrl(data.videoUrl as string);
             setAiFacetUrls(facetUrls.length > 1 ? facetUrls : null);
+            // Paneles sueltos de una cuadrícula (ej. filtro de facetas con
+            // "cuadrícula desde el centro"): en el resultado se tocan para
+            // agrandarlos y bajar solo ese.
+            setSplitUrls(
+              Array.isArray(data.splitUrls)
+                ? data.splitUrls.filter((u: unknown): u is string => typeof u === "string")
+                : null
+            );
             setFacetIndex(0);
             // Por compatibilidad, eventos sin revealEffect configurado usan el
             // efecto original (borrar el velo con la mano).
@@ -1416,6 +1424,7 @@ export default function PhotoBoothWizard({
                   onFacetIndexChange={setFacetIndex}
                   buttonsLiftPct={eventData?.buttonsLiftPct}
                   resultImageOffsetPct={eventData?.resultImageOffsetPct}
+                  pieceUrls={splitUrls}
                 />
               </motion.div>
             )}
