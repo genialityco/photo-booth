@@ -48,6 +48,7 @@ import {
   LOGO_RAIN_DEFAULT_COUNT,
   LOGO_RAIN_DEFAULT_SIZE_PX,
   RUNWAY_LIGHTS_DEFAULT_COLOR,
+  NEURAL_NETWORK_DEFAULT_COLOR,
 } from "@/app/components/common/BackgroundAnimation";
 
 /** Los seis textos fijos de la animación editorial, en el orden en que se ven
@@ -1955,7 +1956,7 @@ export default function EventForm({
             label="Animación de Fondo"
             value={formData.backgroundAnimation || "NONE"}
             onChange={(v) => setField("backgroundAnimation", v as EventProfile["backgroundAnimation"])}
-            helperText='Se muestra detrás de toda la app (selección de marca, cámara, resultado). "Esferas de colores" agrega formas difuminadas de colores derivando lentamente de fondo. "Estrellas arriba" dibuja estrellas titilando (y alguna fugaz) en la parte superior — ocupan los 2/3 superiores; luce mejor sobre fondos oscuros. "Lluvia de logos" hace caer los logos que subas abajo, girando. "Urbano (neón y spray)" pone letreros de neón que parpadean en los bordes (gancho de ropa, estrella, rayo, corona…), chorreados de spray y manchas de aerosol — estilo calle/grafiti; luce mejor sobre fondos oscuros. "Urbano + luces de pasarela" lo combina con los reflectores.'
+            helperText='Se muestra detrás de toda la app (selección de marca, cámara, resultado). "Esferas de colores" agrega formas difuminadas de colores derivando lentamente de fondo. "Estrellas arriba" dibuja estrellas titilando (y alguna fugaz) en la parte superior — ocupan los 2/3 superiores; luce mejor sobre fondos oscuros. "Lluvia de logos" hace caer los logos que subas abajo, girando. "Urbano (neón y spray)" pone letreros de neón que parpadean en los bordes (gancho de ropa, estrella, rayo, corona…), chorreados de spray y manchas de aerosol — estilo calle/grafiti; luce mejor sobre fondos oscuros. "Urbano + luces de pasarela" lo combina con los reflectores. "Red de neuronas" dibuja neuronas conectadas con impulsos eléctricos que viajan entre ellas y se encienden en cadena; luce mejor sobre fondos oscuros.'
           >
             <option value="NONE">Sin animación (actual)</option>
             <option value="FLOATING_ORBS">Esferas de colores flotando</option>
@@ -1964,7 +1965,45 @@ export default function EventForm({
             <option value="RUNWAY_LIGHTS">Luces de pasarela a los costados</option>
             <option value="URBAN_NEON">Urbano (neón y spray)</option>
             <option value="URBAN_RUNWAY">Urbano + luces de pasarela</option>
+            <option value="NEURAL_NETWORK">Red de neuronas (impulsos eléctricos)</option>
           </SelectField>
+
+          {formData.backgroundAnimation === "NEURAL_NETWORK" && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <label
+                htmlFor="neuralColor"
+                className="block text-xs sm:text-sm font-medium text-gray-700 mb-1"
+              >
+                Color de la red y los impulsos
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  id="neuralColor"
+                  value={formData.runwayLightsColor || NEURAL_NETWORK_DEFAULT_COLOR}
+                  onChange={(e) => setField("runwayLightsColor", e.target.value)}
+                  className="h-10 w-16 cursor-pointer rounded border border-gray-300"
+                />
+                <span className="text-sm text-gray-600 font-mono">
+                  {(formData.runwayLightsColor || NEURAL_NETWORK_DEFAULT_COLOR).toUpperCase()}
+                </span>
+                {formData.runwayLightsColor && (
+                  <button
+                    type="button"
+                    onClick={() => setField("runwayLightsColor", "")}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Volver al cian eléctrico
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Neuronas con dendritas que se mueven lento, conectadas por sinapsis; los impulsos viajan por las
+                conexiones y, al llegar, encienden la neurona y disparan a las vecinas. El centro de cada impulso
+                siempre es blanco; este color tiñe la red y el brillo. Se ve mucho mejor sobre fondos oscuros.
+              </p>
+            </div>
+          )}
 
           {(formData.backgroundAnimation === "RUNWAY_LIGHTS" || formData.backgroundAnimation === "URBAN_RUNWAY") && (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">

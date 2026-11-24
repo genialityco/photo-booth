@@ -449,8 +449,10 @@ export type EventProfile = {
    * "LOGO_RAIN" = los logos de `logoRainImages` cayendo como lluvia.
    * "RUNWAY_LIGHTS" = reflectores de pasarela a los costados barriendo.
    */
-  backgroundAnimation?: "NONE" | "FLOATING_ORBS" | "TOP_STARS" | "LOGO_RAIN" | "RUNWAY_LIGHTS" | "URBAN_NEON" | "URBAN_RUNWAY";
-  /** Solo RUNWAY_LIGHTS: color (hex) de los haces de luz. Sin valor, blanco cálido. */
+  backgroundAnimation?: "NONE" | "FLOATING_ORBS" | "TOP_STARS" | "LOGO_RAIN" | "RUNWAY_LIGHTS" | "URBAN_NEON" | "URBAN_RUNWAY" | "NEURAL_NETWORK";
+  /** Color (hex) de la animación de fondo: los haces de RUNWAY_LIGHTS (sin
+   * valor, blanco cálido) o la red de NEURAL_NETWORK (sin valor, cian
+   * eléctrico). Se reusa el mismo campo porque ya llega a todas las pantallas. */
   runwayLightsColor?: string;
   /** Solo LOGO_RAIN: URLs de los logos que caen (PNG con transparencia
    * idealmente). Sin logos, la animación no dibuja nada. */

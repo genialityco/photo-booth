@@ -1,6 +1,9 @@
 "use client";
 
 import React from "react";
+import NeuralNetworkBackground, { NEURAL_NETWORK_DEFAULT_COLOR } from "./NeuralNetworkBackground";
+
+export { NEURAL_NETWORK_DEFAULT_COLOR };
 
 export type BackgroundAnimationType =
   | "NONE"
@@ -9,7 +12,8 @@ export type BackgroundAnimationType =
   | "LOGO_RAIN"
   | "RUNWAY_LIGHTS"
   | "URBAN_NEON"
-  | "URBAN_RUNWAY";
+  | "URBAN_RUNWAY"
+  | "NEURAL_NETWORK";
 
 // === Fondo urbano (URBAN_NEON / URBAN_RUNWAY) ===
 // Paleta de neón callejero (la de los letreros de los fondos generados).
@@ -175,7 +179,10 @@ const SHOOTING_STARS = [
  * "RUNWAY_LIGHTS" dibuja reflectores de pasarela a los costados que barren
  * hacia el centro, del color `runwayLightsColor`. "URBAN_NEON" es el fondo
  * urbano (letreros de neón, chorreados de spray; ver UrbanNeon) y
- * "URBAN_RUNWAY" lo combina con las luces de pasarela.
+ * "URBAN_RUNWAY" lo combina con las luces de pasarela. "NEURAL_NETWORK" es
+ * una red de neuronas con impulsos eléctricos viajando entre ellas (ver
+ * NeuralNetworkBackground); usa el mismo `lightsColor` (`runwayLightsColor`
+ * del evento) como color de la red.
  */
 export default function BackgroundAnimation({
   type,
@@ -185,7 +192,7 @@ export default function BackgroundAnimation({
   logoSizePx,
   lightsColor,
 }: {
-  /** Solo RUNWAY_LIGHTS: color de los haces (hex). */
+  /** RUNWAY_LIGHTS: color de los haces; NEURAL_NETWORK: color de la red (hex). */
   lightsColor?: string;
   type?: BackgroundAnimationType;
   /** Solo LOGO_RAIN: URLs de los logos que caen (se reparten en orden). */
@@ -298,6 +305,10 @@ export default function BackgroundAnimation({
         <RunwayLights layer={layer} color={lightsColor || RUNWAY_LIGHTS_DEFAULT_COLOR} />
       </>
     );
+  }
+
+  if (type === "NEURAL_NETWORK") {
+    return <NeuralNetworkBackground layer={layer} color={lightsColor || NEURAL_NETWORK_DEFAULT_COLOR} />;
   }
 
   return null;
