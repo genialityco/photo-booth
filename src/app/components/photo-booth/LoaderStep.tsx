@@ -21,14 +21,20 @@ import {
   scaledWideLogoStyle,
 } from "@/app/components/photo-booth/logoBarSizing";
 
+import type { BrandGenerationType } from "@/app/services/photo-booth/brandService";
+import {
+  PROGRESS_CAP,
+  estimatedDurationMs,
+  resolveGenerationKind,
+  simulatedProgress,
+} from "@/app/components/photo-booth/loaderTiming";
+
 // No hay progreso real del backend (el doc de imageTasks solo pasa de
-// "queued" a "done", sin pasos intermedios), así que el anillo sube
-// animado hasta PROGRESS_CAP a lo largo de ESTIMATED_DURATION_MS (duración
-// típica de una generación) y se queda esperando ahí — el wizard desmonta
-// este componente apenas Firestore marca "done", así nunca se ve "trabado"
-// en 99% ni llega a 100% antes de que la imagen esté lista de verdad.
-const ESTIMATED_DURATION_MS = 18000;
-const PROGRESS_CAP = 92;
+// "queued" a "done", sin pasos intermedios), así que el % es simulado contra
+// una duración estimada que depende del tipo de generación (imagen simple,
+// facetas, multi-prompt, video) — ver loaderTiming.ts. El wizard desmonta
+// este componente apenas Firestore marca "done", así que nunca llega a 100%
+// antes de que la imagen esté lista de verdad.
 
 export default function LoaderStep({
   brandIdOverride,
@@ -55,7 +61,12 @@ export default function LoaderStep({
   const [cachedEvent, setCachedEvent] = useState<EventProfile | null>(null);
   const event = eventOverride ?? cachedEvent;
   const [brandName, setBrandName] = useState<string | null>(null);
+  // Tipo de generación del filtro ("" = hereda el del evento), para estimar
+  // cuánto va a tardar. Llega async con el doc del filtro.
+  const [brandGenerationType, setBrandGenerationType] =
+    useState<BrandGenerationType | null>(null);
   const [progress, setProgress] = useState(0);
+  const generationKind = resolveGenerationKind(event, brandGenerationType);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -91,7 +102,10 @@ export default function LoaderStep({
       if (brandId) {
         getPhotoBoothPromptById(brandId)
           .then((prompt) => {
-            if (prompt) setBrandName(prompt.brandName || prompt.brand || null);
+            if (prompt) {
+              setBrandName(prompt.brandName || prompt.brand || null);
+              setBrandGenerationType(prompt.generationType ?? null);
+            }
           })
           .catch(() => {
             // Silently continue sin badge si falla
@@ -102,20 +116,20 @@ export default function LoaderStep({
     }
   }, [brandIdOverride]);
 
+  // El inicio se fija al montar; la duración puede cambiar después (el tipo
+  // del filtro llega async), así que se recalcula sin reiniciar el reloj y el
+  // % nunca baja (Math.max) aunque la estimación nueva sea más larga.
+  const [startedAt] = useState(() => Date.now());
   useEffect(() => {
-    const start = Date.now();
+    const durationMs = estimatedDurationMs(generationKind);
     const tick = () => {
-      const elapsed = Date.now() - start;
-      const pct = Math.min(
-        PROGRESS_CAP,
-        Math.round((elapsed / ESTIMATED_DURATION_MS) * PROGRESS_CAP)
-      );
-      setProgress(pct);
+      const pct = simulatedProgress(Date.now() - startedAt, durationMs);
+      setProgress((prev) => Math.max(prev, pct));
     };
     tick();
     const id = setInterval(tick, 200);
     return () => clearInterval(id);
-  }, []);
+  }, [generationKind, startedAt]);
 
   // Priorizar loadingPageImage del evento, si no usar bgLoading, bgLanding, etc
   const bgUrl = event?.loadingPageImage

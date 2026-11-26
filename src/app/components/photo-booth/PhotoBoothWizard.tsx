@@ -16,6 +16,7 @@ import MultiPromptShowcase from "@/app/components/photo-booth/MultiPromptShowcas
 import MultiPromptResultStep from "@/app/components/photo-booth/MultiPromptResultStep";
 import { MULTI_PROMPT_MAX, resolveSplitGrid } from "@/app/components/photo-booth/multiPromptLayout";
 import { requestCutout } from "@/app/components/photo-booth/SpaceFloatCutout";
+import { generationKindFromTask, recordGenerationDuration } from "@/app/components/photo-booth/loaderTiming";
 import ImageCustomizeStep, { type ImageCustomization } from "@/app/components/photo-booth/ImageCustomizeStep";
 import { LOGO_BAR_VARIANTS, stepVariantsFor } from "@/app/components/photo-booth/stepTransitions";
 import { getStyleProfileById } from "@/app/services/admin/styleService";
@@ -158,6 +159,10 @@ export default function PhotoBoothWizard({
   // "flotar en el espacio"). resetAll lo limpia: si el asistente reinicia
   // mientras tanto, la espera vieja termina sin tocar la sesión nueva.
   const cutoutWaitRef = useRef<string | null>(null);
+  /** Cuándo empezó la pantalla de carga de esta foto (los reintentos de
+   * conexión no lo reinician), para aprender cuánto tarda cada tipo de
+   * generación — ver loaderTiming.ts. */
+  const loadingStartedAtRef = useRef<number | null>(null);
   // Reintento automático de confirmAndProcess programado. Se guarda para
   // poder cancelarlo: sin esto, un reset (salvapantallas, botón de rescate,
   // "tomar otra foto") dejaba el timer vivo y unos segundos después la
@@ -512,6 +517,16 @@ export default function PhotoBoothWizard({
     }
   };
 
+  /** Guarda cuánto estuvo la pantalla de carga en pantalla para esta foto
+   * (subida + generación + esperas extra como el recorte), por tipo de
+   * generación, así el % del loader se ajusta a los tiempos reales. */
+  const recordLoadingDuration = (task: Record<string, unknown>) => {
+    const startedAt = loadingStartedAtRef.current;
+    loadingStartedAtRef.current = null;
+    if (startedAt === null) return;
+    recordGenerationDuration(generationKindFromTask(task), Date.now() - startedAt);
+  };
+
   // `attempt` solo lo pasa la propia función al reintentarse — no forma
   // parte de la llamada normal (customize/filter confirmados).
   const confirmAndProcess = async (
@@ -525,6 +540,9 @@ export default function PhotoBoothWizard({
     const finalCustomization = customizationOverride ?? customization;
     clearGenerationTimers();
     setStep("loading");
+    if (attempt === 0 || loadingStartedAtRef.current === null) {
+      loadingStartedAtRef.current = Date.now();
+    }
     setGenerationRetry(attempt > 0 ? { attempt, stalled: false } : null);
 
     /** Ruta común de fallo de conexión: reintenta la operación entera sin
@@ -677,6 +695,7 @@ export default function PhotoBoothWizard({
                   new Promise<void>((resolve) => window.setTimeout(resolve, 6000)),
                 ]);
               }
+              recordLoadingDuration(data);
               setStep(splitGrid ? "result" : "showcase");
               try {
                 await updateDoc(taskRef, { finishedAt: serverTimestamp() });
@@ -719,6 +738,7 @@ export default function PhotoBoothWizard({
             // Por compatibilidad, eventos sin revealEffect configurado usan el
             // efecto original (borrar el velo con la mano).
             const revealEffect = eventData?.revealEffect ?? "HAND_WIPE";
+            recordLoadingDuration(data);
             setStep(revealEffect === "NONE" ? "result" : "reveal");
             try {
               await updateDoc(taskRef, { finishedAt: serverTimestamp() });
@@ -1075,7 +1095,7 @@ export default function PhotoBoothWizard({
             animate="animate"
             exit="exit"
           >
-            <LoaderStep eventOverride={eventData ?? null} />
+            <LoaderStep brandIdOverride={brand} eventOverride={eventData ?? null} />
 
             {/* Reintento de conexión (subida/creación del task en Firestore),
                 sin resetear el flujo ni perder la foto ya tomada — ver
