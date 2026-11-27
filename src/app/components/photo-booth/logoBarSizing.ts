@@ -167,8 +167,12 @@ export type PlacedLogo = { src: string; scalePct: number };
  * Layout "de esquinas" de los logos del evento: `logoTopLeft` arriba a la
  * izquierda, `logoTop` arriba a la derecha y `logoBottom` centrado abajo.
  *
- * Se activa SOLO cuando el evento tiene `logoTopLeft`; si no, devuelve null y
- * cada pantalla sigue con su layout de siempre. Todas las pantallas del booth
+ * Se activa cuando el evento tiene `logoTopLeft` o `logoBottom`: el "Logo
+ * Inferior" va SIEMPRE abajo. Antes, sin `logoTopLeft`, varias pantallas
+ * (selección de filtro, cámara, personalización, carga, espejo) lo ponían
+ * arriba a la derecha junto a `logoTop`. Sin `logoTopLeft`, `topLeft` es null
+ * y `logoTop` queda solo (centrado) arriba. Sin ninguno de los dos devuelve
+ * null y cada pantalla sigue con su layout de siempre. Todas las pantallas del booth
  * (header/footer del wizard, cámara, carga, personalización, TopLogosBar y la
  * pantalla espejo) preguntan acá en vez de decidirlo cada una — la splash no,
  * que tiene su propio editor de posiciones (SplashLayoutEditor).
@@ -185,11 +189,12 @@ export function cornerLogoLayout(
       }
     | null
     | undefined,
-): { topLeft: PlacedLogo; topRight: PlacedLogo | null; bottom: PlacedLogo | null } | null {
+): { topLeft: PlacedLogo | null; topRight: PlacedLogo | null; bottom: PlacedLogo | null } | null {
   const left = event?.logoTopLeft?.trim();
-  if (!event || !left) return null;
+  const bottom = event?.logoBottom?.trim();
+  if (!event || (!left && !bottom)) return null;
   return {
-    topLeft: { src: left, scalePct: clampLogoScale(event.logoTopLeftScalePct) },
+    topLeft: left ? { src: left, scalePct: clampLogoScale(event.logoTopLeftScalePct) } : null,
     topRight: event.logoTop
       ? { src: event.logoTop, scalePct: clampLogoScale(event.logoTopScalePct) }
       : null,

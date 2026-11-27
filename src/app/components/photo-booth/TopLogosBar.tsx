@@ -94,8 +94,7 @@ export default function TopLogosBar({
 }
 
 /** Pareja de `TopLogosBar` para el layout de esquinas: `logoBottom` centrado
- * abajo. Sin `logoTopLeft` no dibuja nada (en ese caso `logoBottom` ya está
- * arriba a la derecha, dentro de TopLogosBar). */
+ * abajo. Sin `logoBottom` (o sin layout de esquinas) no dibuja nada. */
 export function BottomLogoBar({
   event,
   wide = false,

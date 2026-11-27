@@ -1058,7 +1058,7 @@ export default function PhotoBoothWizard({
               viewStyle={eventData?.captureViewStyle}
               logoLeftSrc={
                 cornerLogos
-                  ? cornerLogos.topLeft.src
+                  ? cornerLogos.topLeft?.src
                   : style ? style.logoCaptureTop || style.logoLandingTop : "/genilaty_smart_led_logo.png"
               }
               logoRightSrc={
@@ -1066,7 +1066,7 @@ export default function PhotoBoothWizard({
                   ? cornerLogos.topRight?.src
                   : style ? style.logoCaptureBottom || style.logoLandingBottom : "genilaty_smart_led_logo.png"
               }
-              logoLeftScalePct={cornerLogos ? cornerLogos.topLeft.scalePct : logoTopScalePct}
+              logoLeftScalePct={cornerLogos ? cornerLogos.topLeft?.scalePct : logoTopScalePct}
               logoRightScalePct={cornerLogos ? cornerLogos.topRight?.scalePct : logoBottomScalePct}
               logoBottomSrc={cornerLogos?.bottom?.src}
               logoBottomScalePct={cornerLogos?.bottom?.scalePct}
@@ -1162,14 +1162,19 @@ export default function PhotoBoothWizard({
           (arriba y abajo) se muestran juntos arriba dentro de
           ImageCustomizeStep, para liberar espacio vertical y evitar scroll. */}
       <AnimatePresence initial={false}>
-        {step !== "capture" && step !== "customize" && cornerLogos && (
+        {step !== "capture" && step !== "customize" && cornerLogos &&
+          (cornerLogos.topLeft || cornerLogos.topRight) && (
           /* Layout de esquinas: logo nuevo a la izquierda, `logoTop` a la
              derecha. Mismo key que la barra centrada: es la misma barra, no
              debe animarse como si entrara otra. */
           <motion.div
             key="top-logo-bar"
             className={`relative z-5 flex-shrink-0 flex items-center gap-4 ${
-              cornerLogos.topRight ? "justify-between" : "justify-start"
+              cornerLogos.topLeft && cornerLogos.topRight
+                ? "justify-between"
+                : cornerLogos.topLeft
+                  ? "justify-start"
+                  : "justify-center"
             }`}
             /* Medidas únicas del layout de esquinas (logoBarSizing): las mismas
                en cámara, carga y espejo, para que los logos no salten. */
@@ -1288,9 +1293,9 @@ export default function PhotoBoothWizard({
                   buttonColorTo={eventData?.splashButtonColorTo}
                   buttonClickEffect={eventData?.buttonClickEffect}
                   buttonsLiftPct={eventData?.buttonsLiftPct}
-                  logoLeftSrc={cornerLogos ? cornerLogos.topLeft.src : style?.logoLandingTop}
+                  logoLeftSrc={cornerLogos ? cornerLogos.topLeft?.src : style?.logoLandingTop}
                   logoRightSrc={cornerLogos ? cornerLogos.topRight?.src : style?.logoLandingBottom}
-                  logoLeftScalePct={cornerLogos ? cornerLogos.topLeft.scalePct : logoTopScalePct}
+                  logoLeftScalePct={cornerLogos ? cornerLogos.topLeft?.scalePct : logoTopScalePct}
                   logoRightScalePct={cornerLogos ? cornerLogos.topRight?.scalePct : logoBottomScalePct}
                   onConfirm={handleCustomizeConfirmed}
                   aspectRatio={eventData?.photoAspectRatio}

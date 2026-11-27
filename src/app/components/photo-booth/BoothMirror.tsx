@@ -830,9 +830,9 @@ export default function BoothMirror({
               customizationOverride={state.customization}
               onConfirm={NOOP_CUSTOMIZE}
               readOnly
-              logoLeftSrc={corners ? corners.topLeft.src : event.logoTop}
+              logoLeftSrc={corners ? corners.topLeft?.src : event.logoTop}
               logoRightSrc={corners ? corners.topRight?.src : event.logoBottom}
-              logoLeftScalePct={corners ? corners.topLeft.scalePct : event.logoTopScalePct}
+              logoLeftScalePct={corners ? corners.topLeft?.scalePct : event.logoTopScalePct}
               logoRightScalePct={
                 corners ? corners.topRight?.scalePct : bottomLogoScalePct(event.logoBottomScalePct)
               }
